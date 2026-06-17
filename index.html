@@ -66,6 +66,8 @@ zh:{
   inputText:"輸入文字",deviceId:"裝置 ID",
   adminCheck:"檢查",adminApply:"申請",adminEnter:"進入",
   adminApplyMsg:"請提供以下申請碼給管理者",adminApplyCode:"申請碼",
+  adminList:"管理者名單",adminAdd:"新增管理者",adminDel:"刪除",
+  adminAddHint:"貼上對方的申請碼（格式：編號:加密碼）",adminCfg:"永久（admin.cfg）",adminLocal:"本機新增",
 },
 vi:{
   settings:"Cài đặt",yearly:"Lương năm",monthly:"Chi tiết",home:"Trang chủ",
@@ -95,6 +97,8 @@ vi:{
   inputText:"Nhập văn bản",deviceId:"Mã thiết bị",
   adminCheck:"Kiểm tra",adminApply:"Đăng ký",adminEnter:"Vào",
   adminApplyMsg:"Gửi mã sau cho quản lý",adminApplyCode:"Mã đăng ký",
+  adminList:"Danh sách quản lý",adminAdd:"Thêm quản lý",adminDel:"Xóa",
+  adminAddHint:"Dán mã đăng ký (định dạng: mã:chuỗi mã hóa)",adminCfg:"Vĩnh viễn (admin.cfg)",adminLocal:"Thêm cục bộ",
 }};
 
 /* ══════════ Helpers ══════════ */
@@ -156,9 +160,10 @@ function Onboarding({onComplete}){
       clearTimeout(timer);
       if(res.ok){
         const text=(await res.text()).trim();
-        const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
+        const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
         for(const line of lines){
-          const dec=xDec(line);
+          const enc=line.includes(':')?line.split(':').slice(1).join(':'):line;
+          const dec=xDec(enc.trim());
           if(dec===code||dec===devId){
             const settings={code,unitPrice:250,lang,year:new Date().getFullYear(),deviceId:devId};
             LS.set('app-settings',settings);
@@ -567,10 +572,17 @@ function SettingsPage({settings,onUpdate,t}){
       clearTimeout(timer);
       if(!res.ok)throw new Error();
       const text=(await res.text()).trim();
-      const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
+      const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
       let ok=false;
       for(const line of lines){
-        const dec=xDec(line);
+        const enc=line.includes(':')?line.split(':').slice(1).join(':'):line;
+        const dec=xDec(enc.trim());
+        if(dec===settings.code||dec===devId)ok=true;
+      }
+      // Also check localStorage admin list
+      const extraAdmins=LS.get('admin-list')||[];
+      for(const item of extraAdmins){
+        const dec=xDec(item.enc);
         if(dec===settings.code||dec===devId)ok=true;
       }
       setCheckState(ok?'ok':'denied');
@@ -578,9 +590,9 @@ function SettingsPage({settings,onUpdate,t}){
   };
 
   const toggleApply=()=>setShowApply(!showApply);
-  const encUUID=xEnc(devId);
+  const applyCode=`${settings.code}:${xEnc(devId)}`;
 
-  const copyApply=async()=>{try{await navigator.clipboard.writeText(encUUID)}catch{};};
+  const copyApply=async()=>{try{await navigator.clipboard.writeText(applyCode)}catch{};};
 
   if(showAdmin)return<AdminPage t={t} onBack={()=>setShowAdmin(false)}/>;
 
@@ -632,7 +644,7 @@ function SettingsPage({settings,onUpdate,t}){
           <div className="fi space-y-2">
             <p className="text-xs text-amber-400">{t.adminApplyMsg}</p>
             <div className="relative">
-              <div className="bg-white/[0.04] border border-white/[0.06] rounded-xl p-3 text-[10px] text-gray-400 font-mono break-all select-all pr-12">{encUUID}</div>
+              <div className="bg-white/[0.04] border border-white/[0.06] rounded-xl p-3 text-[10px] text-gray-400 font-mono break-all select-all pr-12">{applyCode}</div>
               <button onClick={copyApply} className="absolute top-2 right-2 px-2 py-1 bg-white/10 rounded text-xs text-gray-300">📋</button>
             </div>
           </div>
@@ -665,14 +677,102 @@ function BackupSection({settings,t}){
 function AdminPage({t,onBack}){
   const[encInput,setEncInput]=useState('');const[actResult,setActResult]=useState('');const[decodedInfo,setDecodedInfo]=useState('');
   const[toolInput,setToolInput]=useState('');const[toolResult,setToolResult]=useState('');const[toolMode,setToolMode]=useState('enc');
+  const[cfgAdmins,setCfgAdmins]=useState([]);
+  const[localAdmins,setLocalAdmins]=useState(LS.get('admin-list')||[]);
+  const[newAdmin,setNewAdmin]=useState('');
+
+  // Load admin.cfg entries on mount
+  useEffect(()=>{
+    (async()=>{
+      try{
+        const res=await fetch('./admin.cfg',{cache:'no-store'});
+        if(!res.ok)return;
+        const text=(await res.text()).trim();
+        const entries=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#')).map(line=>{
+          const idx=line.indexOf(':');
+          if(idx<1)return{label:'?',enc:line,dec:xDec(line)};
+          const label=line.substring(0,idx);
+          const enc=line.substring(idx+1);
+          return{label,enc,dec:xDec(enc)};
+        });
+        setCfgAdmins(entries);
+      }catch{}
+    })();
+  },[]);
+
   const genCode=()=>{try{const dec=xDec(encInput.trim());const idx=dec.indexOf(':');if(idx<1){setActResult('Error');setDecodedInfo('');return}const code=dec.substring(0,idx);const devId=dec.substring(idx+1);setDecodedInfo(code);setActResult(genAct(code,devId))}catch{setActResult('Error');setDecodedInfo('')}};
   const runTool=()=>{if(toolMode==='enc')setToolResult(xEnc(toolInput));else setToolResult(xDec(toolInput.trim()))};
+
+  const addAdmin=()=>{
+    const v=newAdmin.trim();if(!v)return;
+    const idx=v.indexOf(':');
+    let label,enc;
+    if(idx>0){label=v.substring(0,idx);enc=v.substring(idx+1)}else{label='?';enc=v}
+    try{xDec(enc)}catch{return}// validate
+    const updated=[...localAdmins,{label,enc}];
+    setLocalAdmins(updated);
+    LS.set('admin-list',updated);
+    setNewAdmin('');
+  };
+
+  const delAdmin=(i)=>{
+    const updated=localAdmins.filter((_,j)=>j!==i);
+    setLocalAdmins(updated);
+    LS.set('admin-list',updated);
+  };
+
   return(
     <div className="p-5 max-w-md mx-auto fi space-y-6">
       <div className="flex items-center gap-3">
         <button onClick={onBack} className="text-gray-500"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg></button>
         <h2 className="text-xl font-bold text-gray-100">{t.adminTitle}</h2>
       </div>
+
+      {/* Admin list management */}
+      <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-amber-400">{t.adminList}</h3>
+        {/* admin.cfg entries */}
+        {cfgAdmins.length>0&&(
+          <div>
+            <p className="text-[10px] text-gray-600 mb-1">{t.adminCfg}</p>
+            {cfgAdmins.map((a,i)=>(
+              <div key={`cfg-${i}`} className="flex items-center justify-between py-2 border-b border-white/[0.04]">
+                <div>
+                  <span className="text-sm text-gray-300 font-semibold">{a.label}</span>
+                  <span className="text-[10px] text-gray-600 ml-2 font-mono">{a.dec.length>20?a.dec.substring(0,12)+'...':a.dec}</span>
+                </div>
+                <span className="text-[10px] text-gray-700">🔒</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {/* localStorage entries */}
+        {localAdmins.length>0&&(
+          <div>
+            <p className="text-[10px] text-gray-600 mb-1">{t.adminLocal}</p>
+            {localAdmins.map((a,i)=>(
+              <div key={`local-${i}`} className="flex items-center justify-between py-2 border-b border-white/[0.04]">
+                <div>
+                  <span className="text-sm text-gray-300 font-semibold">{a.label}</span>
+                  <span className="text-[10px] text-gray-600 ml-2 font-mono">{xDec(a.enc).substring(0,12)}...</span>
+                </div>
+                <button onClick={()=>delAdmin(i)} className="text-xs text-red-400 px-2 py-1 rounded bg-red-500/10 active:bg-red-500/20">{t.adminDel}</button>
+              </div>
+            ))}
+          </div>
+        )}
+        {/* Add new */}
+        <div className="pt-2 space-y-2">
+          <p className="text-[10px] text-gray-500">{t.adminAddHint}</p>
+          <div className="flex gap-2">
+            <input value={newAdmin} onChange={e=>setNewAdmin(e.target.value)} placeholder="205:abc123..."
+              className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-xs text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
+            <button onClick={addAdmin} className="px-4 py-2.5 bg-emerald-600 rounded-xl text-white text-sm font-bold">{t.adminAdd}</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Activation code generator */}
       <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
         <h3 className="text-sm font-semibold text-amber-400">{t.genActivation}</h3>
         <textarea value={encInput} onChange={e=>setEncInput(e.target.value)} rows={2} placeholder={t.pasteEncrypted} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none"/>
@@ -681,6 +781,8 @@ function AdminPage({t,onBack}){
           {decodedInfo&&<p className="text-sm text-amber-400 font-bold mb-2">{t.teacherCode}: {decodedInfo}</p>}
           <p className="text-xs text-gray-500 mb-1">{t.resultCode}</p><p className="text-2xl font-bold text-emerald-400 font-mono tracking-widest select-all">{actResult}</p></div>)}
       </div>
+
+      {/* Encrypt/Decrypt tool */}
       <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
         <h3 className="text-sm font-semibold text-amber-400">{t.encryptTool}</h3>
         <div className="flex bg-white/[0.04] rounded-xl p-1">
