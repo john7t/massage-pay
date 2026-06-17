@@ -31,14 +31,15 @@ const{useState,useEffect,useCallback,useMemo}=React;
 /* ══════════ CRYPTO ══════════ */
 const CK="STK2026X";
 function xEnc(t){return Array.from(t).map((c,i)=>(c.charCodeAt(0)^CK.charCodeAt(i%CK.length)).toString(16).padStart(2,'0')).join('')}
-function xDec(h){return h.match(/.{2}/g).map((x,i)=>String.fromCharCode(parseInt(x,16)^CK.charCodeAt(i%CK.length))).join('')}
+function xDec(h){try{return h.match(/.{2}/g).map((x,i)=>String.fromCharCode(parseInt(x,16)^CK.charCodeAt(i%CK.length))).join('')}catch{return''}}
 function fnv(s){let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193);h=h&0x7fffffff}return h}
-function genAct(code,mac){const b=`${code}:${mac.toUpperCase()}`;return['#ALPHA','#BRAVO','#CHARLIE'].map(s=>String(fnv(b+s)%10000).padStart(4,'0')).join('-')}
+function genAct(code,devId){const b=`${code}:${devId}`;return['#ALPHA','#BRAVO','#CHARLIE'].map(s=>String(fnv(b+s)%10000).padStart(4,'0')).join('-')}
+function genUUID(){return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&0x3|0x8)).toString(16)})}
 
 /* ══════════ i18n ══════════ */
 const T={
 zh:{
-  settings:"設定",yearly:"年度薪資",monthly:"月份明細",backup:"備份",home:"首頁",
+  settings:"設定",yearly:"年度薪資",monthly:"月份明細",home:"首頁",
   unitPrice:"每支單價",teacherCode:"老師代碼",language:"語系",
   year:"年份",save:"儲存",saved:"已儲存 ✓",
   units:"支數",salary:"薪水",laodian:"老點",subtotal:"小計",
@@ -50,23 +51,22 @@ zh:{
   status:"狀態",done:"完成",cancel:"取消",
   exportUrl:"匯出備份碼",importUrl:"匯入備份碼",importOk:"匯入成功！",
   importFail:"格式錯誤",copyDone:"已複製",enterUrl:"貼上備份碼...",
-  noData:"無資料",totalUnits:"總支數",groupLabel:"組",
-  codeHint:"用於區分不同人的資料",priceHint:"每支的計薪金額",
+  noData:"無資料",totalUnits:"總支數",groupLabel:"組",backup:"備份",
   p1:"上半月 (1-15日)",p2:"下半月 (16日-月底)",
-  yesterday:"昨日",lastRecord:"上一筆",today:"今日",
+  yesterday:"昨日",lastRecord:"上一筆",
   todayDone:"今日已完成",startAdd:"開始新增本日的支數？",continueAdd:"繼續新增本日的支數？",
   addLaodian:"新增老點？",other:"其他",
   welcome:"歡迎使用薪資追蹤系統",enterCode:"請輸入老師編號",confirm:"確定",
-  enterMAC:"請輸入手機 MAC 位址",macHint:"設定 → 關於手機 → Wi-Fi MAC 位址",
   showQR:"請將 QR Code 提供給管理員索取啟動碼",enterActivation:"輸入啟動碼",
   activationHint:"格式：XXXX-XXXX-XXXX",activationFail:"啟動碼錯誤，請重新確認",
+  adminWelcome:"管理員身分確認，自動啟動中...",
   admin:"管理",adminTitle:"管理頁面",genActivation:"產生啟動碼",
   pasteEncrypted:"貼上加密字串",resultCode:"啟動碼",adminFail:"無管理權限",
-  encryptTool:"加密/解密工具",encryptMAC:"加密",decryptText:"解密",
-  inputText:"輸入文字",encResult:"結果",
+  encryptTool:"加密/解密工具",encryptLabel:"加密",decryptLabel:"解密",
+  inputText:"輸入文字",deviceId:"裝置 ID",
 },
 vi:{
-  settings:"Cài đặt",yearly:"Lương năm",monthly:"Chi tiết",backup:"Sao lưu",home:"Trang chủ",
+  settings:"Cài đặt",yearly:"Lương năm",monthly:"Chi tiết",home:"Trang chủ",
   unitPrice:"Đơn giá",teacherCode:"Mã NV",language:"Ngôn ngữ",
   year:"Năm",save:"Lưu",saved:"Đã lưu ✓",
   units:"SL",salary:"Lương",laodian:"KH quen",subtotal:"Tổng",
@@ -78,20 +78,19 @@ vi:{
   status:"Trạng thái",done:"Xong",cancel:"Hủy",
   exportUrl:"Xuất mã",importUrl:"Nhập mã",importOk:"Thành công!",
   importFail:"Sai định dạng",copyDone:"Đã chép",enterUrl:"Dán mã...",
-  noData:"Không có",totalUnits:"Tổng SL",groupLabel:"Nhóm",
-  codeHint:"Phân biệt dữ liệu",priceHint:"Giá mỗi đơn vị",
+  noData:"Không có",totalUnits:"Tổng SL",groupLabel:"Nhóm",backup:"Sao lưu",
   p1:"Nửa đầu (1-15)",p2:"Nửa sau (16-cuối)",
-  yesterday:"Hôm qua",lastRecord:"Lần trước",today:"Hôm nay",
-  todayDone:"Hôm nay đã xong",startAdd:"Thêm số lượng hôm nay?",continueAdd:"Tiếp tục thêm?",
+  yesterday:"Hôm qua",lastRecord:"Lần trước",
+  todayDone:"Hôm nay đã xong",startAdd:"Thêm SL hôm nay?",continueAdd:"Tiếp tục thêm?",
   addLaodian:"Thêm KH quen?",other:"Khác",
   welcome:"Chào mừng",enterCode:"Nhập mã nhân viên",confirm:"Xác nhận",
-  enterMAC:"Nhập MAC điện thoại",macHint:"Cài đặt → Giới thiệu → Địa chỉ MAC Wi-Fi",
   showQR:"Đưa mã QR cho quản lý để nhận mã kích hoạt",enterActivation:"Nhập mã kích hoạt",
   activationHint:"Định dạng: XXXX-XXXX-XXXX",activationFail:"Sai mã kích hoạt",
+  adminWelcome:"Xác nhận quản lý, tự động kích hoạt...",
   admin:"Quản lý",adminTitle:"Trang quản lý",genActivation:"Tạo mã kích hoạt",
   pasteEncrypted:"Dán chuỗi mã hóa",resultCode:"Mã kích hoạt",adminFail:"Không có quyền",
-  encryptTool:"Mã hóa/Giải mã",encryptMAC:"Mã hóa",decryptText:"Giải mã",
-  inputText:"Nhập văn bản",encResult:"Kết quả",
+  encryptTool:"Mã hóa/Giải mã",encryptLabel:"Mã hóa",decryptLabel:"Giải mã",
+  inputText:"Nhập văn bản",deviceId:"Mã thiết bị",
 }};
 
 /* ══════════ Helpers ══════════ */
@@ -120,27 +119,60 @@ function decBackup(str){
   try{const c=str.replace(/^#/,'').trim();const[hd,units,laodian,status]=c.split(':');const p=hd.split('-');const m=parseInt(p.pop());const y=parseInt(p.pop());const code=p.join('-');if(!y||!m||m<1||m>12||!code)return null;const data=eMon();const dm=dim(y,m);for(let d=1;d<=dm;d++)data.days[d]={groups:[],total:fromB36(units?.[d-1]||'0'),laodian:fromB36(laodian?.[d-1]||'0'),status:parseInt(status?.[d-1]||'0')||0};return{code,year:y,month:m,data}}catch{return null}
 }
 
+// Get or create device UUID
+function getDeviceId(){
+  let id=localStorage.getItem('device-uuid');
+  if(!id){id=genUUID();localStorage.setItem('device-uuid',id)}
+  return id;
+}
+
+// Check if code is admin
+async function isAdminCode(code){
+  try{
+    const res=await fetch('./admin.cfg',{cache:'no-store'});
+    if(!res.ok)return false;
+    const enc=(await res.text()).trim();
+    return xDec(enc)===code;
+  }catch{return false}
+}
+
 /* ══════════ Onboarding ══════════ */
 function Onboarding({onComplete}){
-  const[step,setStep]=useState(1);
+  const[step,setStep]=useState(1);// 1=code+lang, 2=qr+activation
   const[lang,setLang]=useState('zh');
   const[code,setCode]=useState('');
-  const[mac,setMac]=useState('');
   const[actInput,setActInput]=useState('');
   const[err,setErr]=useState('');
+  const[checking,setChecking]=useState(false);
+  const[devId]=useState(()=>getDeviceId());
   const t=T[lang];
 
-  const encReg=code&&mac?xEnc(`${code}:${mac.toUpperCase()}`):'';
+  const encReg=code?xEnc(`${code}:${devId}`):'';
   const qrUrl=encReg?`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(encReg)}&bgcolor=030712&color=f3f4f6`:'';
 
-  const goStep2=()=>{if(code.trim()){setStep(2);setErr('')}};
-  const goStep3=()=>{if(mac.replace(/[^0-9a-fA-F]/g,'').length>=12){setStep(3);setErr('')}};
-  const verify=()=>{
-    const correct=genAct(code,mac.toUpperCase());
-    if(actInput.replace(/\s/g,'')===correct){
-      const settings={code,unitPrice:250,lang,year:new Date().getFullYear(),mac:mac.toUpperCase()};
+  const goStep2=async()=>{
+    if(!code.trim())return;
+    setChecking(true);
+    // Check if admin → auto activate
+    const admin=await isAdminCode(code);
+    if(admin){
+      const settings={code,unitPrice:250,lang,year:new Date().getFullYear(),deviceId:devId};
       LS.set('app-settings',settings);
-      LS.set(`activated-${code}`,{mac:mac.toUpperCase(),ts:Date.now()});
+      LS.set(`activated-${code}`,{deviceId:devId,ts:Date.now()});
+      onComplete(settings);
+      return;
+    }
+    setChecking(false);
+    setStep(2);
+    setErr('');
+  };
+
+  const verify=()=>{
+    const correct=genAct(code,devId);
+    if(actInput.replace(/[\s-]/g,'')===correct.replace(/-/g,'')){
+      const settings={code,unitPrice:250,lang,year:new Date().getFullYear(),deviceId:devId};
+      LS.set('app-settings',settings);
+      LS.set(`activated-${code}`,{deviceId:devId,ts:Date.now()});
       onComplete(settings);
     }else{setErr(t.activationFail)}
   };
@@ -169,26 +201,14 @@ function Onboarding({onComplete}){
               <input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))}
                 className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3.5 text-xl text-center text-gray-100 tracking-widest focus:outline-none focus:border-amber-500" placeholder="122"/>
             </div>
-            <button onClick={goStep2} disabled={!code.trim()}
-              className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${code.trim()?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{t.confirm}</button>
+            <button onClick={goStep2} disabled={!code.trim()||checking}
+              className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${code.trim()&&!checking?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>
+              {checking?t.adminWelcome:t.confirm}
+            </button>
           </div>
         )}
+
         {step===2&&(
-          <div className="space-y-6">
-            <div className="text-center">
-              <h2 className="text-lg font-bold text-gray-100">{t.enterMAC}</h2>
-              <p className="text-xs text-gray-600 mt-1">{t.macHint}</p>
-            </div>
-            <input value={mac} onChange={e=>setMac(e.target.value.toUpperCase())} placeholder="AA:BB:CC:DD:EE:FF"
-              className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3.5 text-lg text-center text-gray-100 font-mono tracking-wider focus:outline-none focus:border-amber-500"/>
-            <div className="flex gap-2">
-              <button onClick={()=>setStep(1)} className="flex-1 py-4 rounded-xl bg-white/[0.05] text-gray-400 font-semibold">{t.cancel}</button>
-              <button onClick={goStep3} disabled={mac.replace(/[^0-9a-fA-F]/g,'').length<12}
-                className={`flex-1 py-4 rounded-xl font-bold text-lg transition-all ${mac.replace(/[^0-9a-fA-F]/g,'').length>=12?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{t.confirm}</button>
-            </div>
-          </div>
-        )}
-        {step===3&&(
           <div className="space-y-5">
             <div className="flex justify-center">
               <div className="bg-white p-2.5 rounded-xl"><img src={qrUrl} alt="QR" className="w-44 h-44"/></div>
@@ -205,7 +225,7 @@ function Onboarding({onComplete}){
             </div>
             {err&&<p className="text-red-400 text-sm text-center fi">{err}</p>}
             <div className="flex gap-2">
-              <button onClick={()=>setStep(2)} className="flex-1 py-4 rounded-xl bg-white/[0.05] text-gray-400 font-semibold">{t.cancel}</button>
+              <button onClick={()=>{setStep(1);setErr('')}} className="flex-1 py-4 rounded-xl bg-white/[0.05] text-gray-400 font-semibold">{t.cancel}</button>
               <button onClick={verify} className="flex-1 py-4 rounded-xl bg-amber-600 text-white font-bold text-lg">{t.confirm}</button>
             </div>
           </div>
@@ -227,21 +247,11 @@ function HomePage({settings,t,refreshKey}){
   const load=()=>{
     const md=LS.get(dk(settings.code,ty,tm));
     setData(md);
-    // find previous record
     let found=false;
-    if(md?.days){
-      for(let d=td-1;d>=1;d--){const day=md.days[d];if(day&&(day.total>0||day.status>0)){setPrev({day:d,month:tm,...day});found=true;break}}
-    }
-    if(!found){
-      for(let pm=tm-1;pm>=1;pm--){
-        const pmd=LS.get(dk(settings.code,ty,pm));if(!pmd)continue;
-        for(let d=dim(ty,pm);d>=1;d--){const day=pmd.days?.[d];if(day&&(day.total>0||day.status>0)){setPrev({day:d,month:pm,...day});found=true;break}}
-        if(found)break;
-      }
-    }
+    if(md?.days){for(let d=td-1;d>=1;d--){const day=md.days[d];if(day&&(day.total>0||day.status>0)){setPrev({day:d,month:tm,...day});found=true;break}}}
+    if(!found){for(let pm=tm-1;pm>=1;pm--){const pmd=LS.get(dk(settings.code,ty,pm));if(!pmd)continue;for(let d=dim(ty,pm);d>=1;d--){const day=pmd.days?.[d];if(day&&(day.total>0||day.status>0)){setPrev({day:d,month:pm,...day});found=true;break}}if(found)break}}
     if(!found)setPrev(null);
   };
-
   useEffect(load,[settings.code,refreshKey]);
 
   const todayData=data?.days?.[td]||eDay();
@@ -251,17 +261,15 @@ function HomePage({settings,t,refreshKey}){
   const addUnits=(n)=>{
     const md=data?JSON.parse(JSON.stringify(data)):eMon();
     const dd=md.days[td]||eDay();
-    dd.total+=n; dd.groups=[...dd.groups,n];
-    if(dd.status===0)dd.status=0;
-    md.days[td]=dd; setData({...md});
+    dd.total+=n;dd.groups=[...dd.groups,n];
+    md.days[td]=dd;setData({...md});
     LS.set(dk(settings.code,ty,tm),md);
     setOtherMode(false);setOtherVal('');
   };
-
   const addLaodian=(n)=>{
     const md=data?JSON.parse(JSON.stringify(data)):eMon();
     const dd=md.days[td]||eDay();
-    dd.laodian+=n; md.days[td]=dd; setData({...md});
+    dd.laodian+=n;md.days[td]=dd;setData({...md});
     LS.set(dk(settings.code,ty,tm),md);
   };
 
@@ -269,7 +277,6 @@ function HomePage({settings,t,refreshKey}){
 
   return(
     <div className="p-5 max-w-md mx-auto fi">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-100">{tm}/{td} <span className="text-gray-500 font-normal text-lg">({t.dn[now.getDay()]})</span></h1>
@@ -281,7 +288,6 @@ function HomePage({settings,t,refreshKey}){
         </div>
       </div>
 
-      {/* Previous record (only when no today data) */}
       {prev&&!hasToday&&(
         <div className="bg-white/[0.03] border border-white/[0.05] rounded-2xl p-4 mb-5">
           <div className="flex items-center justify-between">
@@ -294,7 +300,6 @@ function HomePage({settings,t,refreshKey}){
         </div>
       )}
 
-      {/* Today status card */}
       {hasToday&&(
         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 mb-5">
           <div className="flex items-center justify-between">
@@ -309,7 +314,6 @@ function HomePage({settings,t,refreshKey}){
         </div>
       )}
 
-      {/* Quick add units */}
       <div className="mb-6">
         <p className="text-sm text-gray-400 mb-3">{hasToday?t.continueAdd:t.startAdd}</p>
         <div className="grid grid-cols-4 gap-2">
@@ -331,7 +335,6 @@ function HomePage({settings,t,refreshKey}){
         </div>
       </div>
 
-      {/* Quick add laodian */}
       <div>
         <p className="text-sm text-gray-400 mb-3">{t.addLaodian}</p>
         <div className="grid grid-cols-6 gap-2">
@@ -345,7 +348,7 @@ function HomePage({settings,t,refreshKey}){
   );
 }
 
-/* ══════════ Shared Components ══════════ */
+/* ══════════ Shared ══════════ */
 function SummaryCard({label,units,salary,laodian,t,hl}){
   return(<div className={`border rounded-xl p-3 flex items-center justify-between ${hl?'bg-amber-600/15 border-amber-500/40':'bg-white/[0.03] border-white/[0.06]'}`}>
     <span className={`text-sm font-semibold ${hl?'text-amber-300':'text-gray-400'}`}>{label}</span>
@@ -391,66 +394,39 @@ function DayEditor({day,d,y,m,t,up,onSave,onCancel}){
   const gt=groups.reduce((a,b)=>a+(parseInt(b)||0),0);
   const ct=(st===1||st===3)?0:(mode==='group'?gt:(parseInt(dt)||0));
   const sw=st===0||st===2;
-
-  const save=()=>{
-    const nr=st===1||st===3;
-    onSave(d,{groups:nr?[]:(mode==='group'?groups.map(g=>parseInt(g)||0).filter(g=>g>0):[]),total:nr?0:ct,laodian:nr?0:(parseInt(lo)||0),status:st});
-  };
+  const save=()=>{const nr=st===1||st===3;onSave(d,{groups:nr?[]:(mode==='group'?groups.map(g=>parseInt(g)||0).filter(g=>g>0):[]),total:nr?0:ct,laodian:nr?0:(parseInt(lo)||0),status:st})};
 
   return(
     <div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onCancel}>
       <div className="su bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
         <div className="p-4 border-b border-white/[0.06] flex items-center justify-between">
           <h3 className="text-lg font-bold text-gray-100">{m}/{d} <span className="text-gray-500 font-normal">({t.dn[dw]})</span></h3>
-          <div className="text-right">
-            <div className="text-emerald-400 text-xl font-bold tabular-nums">${(ct*up).toLocaleString()}</div>
-            {ct>0&&<div className="text-[11px] text-gray-600">{ct} × ${up}</div>}
-          </div>
+          <div className="text-right"><div className="text-emerald-400 text-xl font-bold tabular-nums">${(ct*up).toLocaleString()}</div>{ct>0&&<div className="text-[11px] text-gray-600">{ct} × ${up}</div>}</div>
         </div>
         <div className="p-4 space-y-5">
-          {/* Status */}
           <div>
             <label className="text-xs text-gray-500 mb-2 block font-medium">{t.status}</label>
             <div className="grid grid-cols-4 gap-2">
-              {[0,1,2,3].map(s=>(
-                <button key={s} onClick={()=>setSt(s)} className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${st===s?(s===0?'bg-gray-600 text-white ring-2 ring-gray-500':`${SBG[s].replace('/20','/30')} ${STC[s]} ring-2 ring-current`):'bg-white/[0.04] text-gray-600'}`}>{t[SK[s]]}</button>
-              ))}
+              {[0,1,2,3].map(s=>(<button key={s} onClick={()=>setSt(s)} className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${st===s?(s===0?'bg-gray-600 text-white ring-2 ring-gray-500':`${SBG[s].replace('/20','/30')} ${STC[s]} ring-2 ring-current`):'bg-white/[0.04] text-gray-600'}`}>{t[SK[s]]}</button>))}
             </div>
           </div>
           {sw&&(<>
-            {/* Mode toggle */}
             <div className="flex bg-white/[0.04] rounded-xl p-1">
-              <button onClick={()=>setMode('direct')} className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${mode==='direct'?'bg-amber-600 text-white':'text-gray-500'}`}>{t.directMode}</button>
-              <button onClick={()=>{setMode('group');if(!groups.length)setGroups([0])}} className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${mode==='group'?'bg-amber-600 text-white':'text-gray-500'}`}>{t.groupMode}</button>
+              <button onClick={()=>setMode('direct')} className={`flex-1 py-2.5 rounded-lg text-sm font-medium ${mode==='direct'?'bg-amber-600 text-white':'text-gray-500'}`}>{t.directMode}</button>
+              <button onClick={()=>{setMode('group');if(!groups.length)setGroups([0])}} className={`flex-1 py-2.5 rounded-lg text-sm font-medium ${mode==='group'?'bg-amber-600 text-white':'text-gray-500'}`}>{t.groupMode}</button>
             </div>
             {mode==='direct'?(
-              <div>
-                <label className="text-xs text-gray-500 mb-2 block">{t.totalUnits}</label>
-                <input type="number" inputMode="numeric" value={dt||''} onChange={e=>setDt(e.target.value)}
-                  className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-4 text-3xl text-center text-gray-100 font-bold focus:outline-none focus:border-amber-500"/>
-              </div>
+              <div><label className="text-xs text-gray-500 mb-2 block">{t.totalUnits}</label>
+              <input type="number" inputMode="numeric" value={dt||''} onChange={e=>setDt(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-4 text-3xl text-center text-gray-100 font-bold focus:outline-none focus:border-amber-500"/></div>
             ):(
               <div>
                 <div className="flex justify-between mb-2"><label className="text-xs text-gray-500">{t.groupMode}</label><span className="text-sm text-amber-400 font-bold">{t.totalUnits}: {gt}</span></div>
-                <div className="space-y-2">
-                  {groups.map((g,i)=>(
-                    <div key={i} className="flex items-center gap-2 fi">
-                      <span className="text-xs text-gray-600 w-10 text-right">{t.groupLabel}{i+1}</span>
-                      <input type="number" inputMode="numeric" value={g||''} onChange={e=>{const ng=[...groups];ng[i]=e.target.value;setGroups(ng)}}
-                        className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3 text-xl text-center text-gray-100 font-semibold focus:outline-none focus:border-amber-500"/>
-                      {groups.length>1&&<button onClick={()=>setGroups(groups.filter((_,j)=>j!==i))} className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-500/10 text-red-400 text-lg font-bold">×</button>}
-                    </div>
-                  ))}
-                </div>
+                <div className="space-y-2">{groups.map((g,i)=>(<div key={i} className="flex items-center gap-2 fi"><span className="text-xs text-gray-600 w-10 text-right">{t.groupLabel}{i+1}</span><input type="number" inputMode="numeric" value={g||''} onChange={e=>{const ng=[...groups];ng[i]=e.target.value;setGroups(ng)}} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3 text-xl text-center text-gray-100 font-semibold focus:outline-none focus:border-amber-500"/>{groups.length>1&&<button onClick={()=>setGroups(groups.filter((_,j)=>j!==i))} className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-500/10 text-red-400 text-lg font-bold">×</button>}</div>))}</div>
                 <button onClick={()=>setGroups([...groups,0])} className="mt-3 w-full py-2.5 border-2 border-dashed border-white/10 rounded-xl text-sm text-gray-500 active:bg-white/[0.03]">+ {t.addGroup}</button>
               </div>
             )}
-            {/* Laodian */}
-            <div>
-              <label className="text-xs text-gray-500 mb-2 block">{t.laodian}</label>
-              <input type="number" inputMode="numeric" value={lo||''} onChange={e=>setLo(e.target.value)}
-                className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-xl text-center text-gray-100 font-semibold focus:outline-none focus:border-amber-500"/>
-            </div>
+            <div><label className="text-xs text-gray-500 mb-2 block">{t.laodian}</label>
+            <input type="number" inputMode="numeric" value={lo||''} onChange={e=>setLo(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-xl text-center text-gray-100 font-semibold focus:outline-none focus:border-amber-500"/></div>
           </>)}
         </div>
         <div className="p-4 border-t border-white/[0.06] flex gap-3">
@@ -467,14 +443,8 @@ function MonthlyPage({settings,curM,setCurM,t}){
   const[data,setData]=useState(null);
   const[editDay,setEditDay]=useState(null);
   const y=settings.year||new Date().getFullYear();
-
-  useEffect(()=>{const s=LS.get(dk(settings.code,y,curM));setData(s||eMon())},[settings.code,y,curM]);
-
-  const saveDay=(d,dd)=>{
-    const nd={...data,days:{...data.days,[d]:dd}};setData(nd);setEditDay(null);
-    LS.set(dk(settings.code,y,curM),nd);
-  };
-
+  useEffect(()=>{setData(LS.get(dk(settings.code,y,curM))||eMon())},[settings.code,y,curM]);
+  const saveDay=(d,dd)=>{const nd={...data,days:{...data.days,[d]:dd}};setData(nd);setEditDay(null);LS.set(dk(settings.code,y,curM),nd)};
   const dm=dim(y,curM);
   const calc=useMemo(()=>{
     if(!data)return{prev:{units:0,salary:0,laodian:0},next:{units:0,salary:0,laodian:0},month:{units:0,salary:0,laodian:0}};
@@ -486,9 +456,7 @@ function MonthlyPage({settings,curM,setCurM,t}){
   return(
     <div className="max-w-lg mx-auto fi">
       <div className="px-2 py-2 flex gap-1 overflow-x-auto no-sb">
-        {Array.from({length:12},(_,i)=>i+1).map(m=>(
-          <button key={m} onClick={()=>setCurM(m)} className={`px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 ${m===curM?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-600'}`}>{t.months[m-1]}</button>
-        ))}
+        {Array.from({length:12},(_,i)=>i+1).map(m=>(<button key={m} onClick={()=>setCurM(m)} className={`px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 ${m===curM?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-600'}`}>{t.months[m-1]}</button>))}
       </div>
       <div className="px-3 py-2 space-y-1.5">
         <SummaryCard label={t.prevPeriod+" (1-15)"} {...calc.prev} t={t}/>
@@ -496,14 +464,10 @@ function MonthlyPage({settings,curM,setCurM,t}){
         <SummaryCard label={t.monthTotal} {...calc.month} t={t} hl/>
       </div>
       <div className="px-3 py-1.5 bg-amber-600/[0.06] border-b border-amber-500/10"><span className="text-[11px] text-amber-500/80 font-semibold">{t.p1}</span></div>
-      {Array.from({length:Math.min(15,dm)},(_,i)=>i+1).map(d=>(
-        <DayRow key={d} d={d} day={data?.days[d]||eDay()} y={y} m={curM} t={t} up={settings.unitPrice} onEdit={setEditDay}/>
-      ))}
+      {Array.from({length:Math.min(15,dm)},(_,i)=>i+1).map(d=>(<DayRow key={d} d={d} day={data?.days[d]||eDay()} y={y} m={curM} t={t} up={settings.unitPrice} onEdit={setEditDay}/>))}
       {dm>15&&(<>
         <div className="px-3 py-1.5 bg-amber-600/[0.06] border-b border-amber-500/10 mt-0.5"><span className="text-[11px] text-amber-500/80 font-semibold">{t.p2}</span></div>
-        {Array.from({length:dm-15},(_,i)=>i+16).map(d=>(
-          <DayRow key={d} d={d} day={data?.days[d]||eDay()} y={y} m={curM} t={t} up={settings.unitPrice} onEdit={setEditDay}/>
-        ))}
+        {Array.from({length:dm-15},(_,i)=>i+16).map(d=>(<DayRow key={d} d={d} day={data?.days[d]||eDay()} y={y} m={curM} t={t} up={settings.unitPrice} onEdit={setEditDay}/>))}
       </>)}
       {editDay&&data&&<DayEditor day={data.days[editDay]||eDay()} d={editDay} y={y} m={curM} t={t} up={settings.unitPrice} onSave={saveDay} onCancel={()=>setEditDay(null)}/>}
     </div>
@@ -520,22 +484,17 @@ function YearlyPage({settings,t}){
 
   return(
     <div className="max-w-lg mx-auto fi">
-      <div className="px-4 py-3 flex items-baseline justify-between">
-        <h2 className="text-xl font-bold text-gray-100">{y} {t.yearly}</h2>
-        <span className="text-xs text-gray-600 font-mono">#{settings.code}</span>
-      </div>
+      <div className="px-4 py-3 flex items-baseline justify-between"><h2 className="text-xl font-bold text-gray-100">{y} {t.yearly}</h2><span className="text-xs text-gray-600 font-mono">#{settings.code}</span></div>
       <div className="flex px-3 py-2 border-b border-white/[0.06] text-[11px] text-gray-600 font-medium">
         <div className="w-12"></div><div className="flex-1 text-right">{t.units}</div><div className="flex-1 text-right">{t.salary}</div><div className="w-12 text-right">{t.laodian}</div><div className="flex-1 text-right">{t.subtotal}</div>
       </div>
-      {rows.map(r=>(
-        <div key={r.month} className={`flex items-center px-3 py-3 border-b border-white/[0.03] ${r.units>0?'':'opacity-30'}`}>
-          <div className="w-12 text-sm font-medium text-gray-300">{t.months[r.month-1]}</div>
-          <div className="flex-1 text-right text-sm text-gray-400 tabular-nums">{r.units}</div>
-          <div className="flex-1 text-right text-sm text-emerald-400/80 tabular-nums">{r.salary.toLocaleString()}</div>
-          <div className="w-12 text-right text-sm text-orange-400/80 tabular-nums">{r.laodian}</div>
-          <div className="flex-1 text-right text-sm text-emerald-400 font-semibold tabular-nums">{r.salary.toLocaleString()}</div>
-        </div>
-      ))}
+      {rows.map(r=>(<div key={r.month} className={`flex items-center px-3 py-3 border-b border-white/[0.03] ${r.units>0?'':'opacity-30'}`}>
+        <div className="w-12 text-sm font-medium text-gray-300">{t.months[r.month-1]}</div>
+        <div className="flex-1 text-right text-sm text-gray-400 tabular-nums">{r.units}</div>
+        <div className="flex-1 text-right text-sm text-emerald-400/80 tabular-nums">{r.salary.toLocaleString()}</div>
+        <div className="w-12 text-right text-sm text-orange-400/80 tabular-nums">{r.laodian}</div>
+        <div className="flex-1 text-right text-sm text-emerald-400 font-semibold tabular-nums">{r.salary.toLocaleString()}</div>
+      </div>))}
       <div className="flex items-center px-3 py-3.5 bg-amber-600/10 border-t-2 border-amber-500/40">
         <div className="w-12 text-sm font-bold text-amber-400">{t.total}</div>
         <div className="flex-1 text-right text-sm text-amber-300 font-bold tabular-nums">{tot.u}</div>
@@ -547,7 +506,7 @@ function YearlyPage({settings,t}){
   );
 }
 
-/* ══════════ Settings + Admin ══════════ */
+/* ══════════ Settings ══════════ */
 function SettingsPage({settings,onUpdate,t}){
   const[form,setForm]=useState({...settings});
   const[saved,setSaved]=useState(false);
@@ -555,140 +514,88 @@ function SettingsPage({settings,onUpdate,t}){
   const[checking,setChecking]=useState(false);
 
   const handleSave=()=>{onUpdate(form);setSaved(true);setTimeout(()=>setSaved(false),2000)};
-
   const tryAdmin=async()=>{
     setChecking(true);
-    try{
-      const res=await fetch('./admin.cfg',{cache:'no-store'});
-      if(!res.ok)throw new Error();
-      const encAdminMAC=(await res.text()).trim();
-      const adminMAC=xDec(encAdminMAC);
-      if(settings.mac&&settings.mac.toUpperCase()===adminMAC.toUpperCase()){
-        setShowAdmin(true);
-      }else{alert(t.adminFail)}
-    }catch{alert(t.adminFail)}
+    const ok=await isAdminCode(settings.code);
+    if(ok)setShowAdmin(true);else alert(t.adminFail);
     setChecking(false);
   };
 
   if(showAdmin)return<AdminPage t={t} onBack={()=>setShowAdmin(false)}/>;
 
   return(
-    <div className="p-5 max-w-md mx-auto fi">
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-gray-100">{t.settings}</h2>
-        <div>
-          <label className="text-sm text-gray-400 mb-1.5 block">{t.teacherCode}</label>
-          <div className="bg-white/[0.04] rounded-xl px-4 py-3.5 text-lg text-gray-300 font-mono">{settings.code}</div>
-        </div>
-        <div>
-          <label className="text-sm text-gray-400 mb-1.5 block">{t.unitPrice}</label>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">$</span>
-            <input type="number" inputMode="numeric" value={form.unitPrice} onChange={e=>setForm({...form,unitPrice:parseInt(e.target.value)||0})}
-              className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl pl-9 pr-4 py-3.5 text-lg text-gray-100 focus:outline-none focus:border-amber-500"/>
-          </div>
-        </div>
-        <div>
-          <label className="text-sm text-gray-400 mb-1.5 block">{t.language}</label>
-          <div className="grid grid-cols-2 gap-2">
-            {[['zh','中文'],['vi','Tiếng Việt']].map(([c,l])=>(
-              <button key={c} onClick={()=>setForm({...form,lang:c})} className={`py-3.5 rounded-xl text-sm font-semibold ${form.lang===c?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>
-            ))}
-          </div>
-        </div>
-        <div>
-          <label className="text-sm text-gray-400 mb-1.5 block">{t.year}</label>
-          <div className="flex items-center gap-3">
-            <button onClick={()=>setForm({...form,year:form.year-1})} className="w-14 h-14 rounded-xl bg-white/[0.04] text-gray-300 text-2xl active:bg-white/[0.08]">−</button>
-            <span className="text-3xl font-bold text-gray-100 flex-1 text-center tabular-nums">{form.year}</span>
-            <button onClick={()=>setForm({...form,year:form.year+1})} className="w-14 h-14 rounded-xl bg-white/[0.04] text-gray-300 text-2xl active:bg-white/[0.08]">+</button>
-          </div>
-        </div>
-
-        {/* Backup inline */}
-        <BackupSection settings={settings} t={t}/>
-
-        <button onClick={handleSave} className={`w-full py-4 rounded-xl font-bold text-white text-lg ${saved?'bg-emerald-600':'bg-amber-600 active:bg-amber-700'}`}>{saved?t.saved:t.save}</button>
-
-        <button onClick={tryAdmin} disabled={checking}
-          className="w-full py-3 rounded-xl bg-white/[0.03] border border-white/[0.06] text-gray-600 text-sm font-medium active:bg-white/[0.06]">
-          {checking?'...':t.admin}
-        </button>
+    <div className="p-5 max-w-md mx-auto fi space-y-6">
+      <h2 className="text-2xl font-bold text-gray-100">{t.settings}</h2>
+      <div><label className="text-sm text-gray-400 mb-1.5 block">{t.teacherCode}</label><div className="bg-white/[0.04] rounded-xl px-4 py-3.5 text-lg text-gray-300 font-mono">{settings.code}</div></div>
+      <div><label className="text-sm text-gray-400 mb-1.5 block">{t.unitPrice}</label>
+        <div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+        <input type="number" inputMode="numeric" value={form.unitPrice} onChange={e=>setForm({...form,unitPrice:parseInt(e.target.value)||0})}
+          className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl pl-9 pr-4 py-3.5 text-lg text-gray-100 focus:outline-none focus:border-amber-500"/></div>
       </div>
+      <div><label className="text-sm text-gray-400 mb-1.5 block">{t.language}</label>
+        <div className="grid grid-cols-2 gap-2">{[['zh','中文'],['vi','Tiếng Việt']].map(([c,l])=>(<button key={c} onClick={()=>setForm({...form,lang:c})} className={`py-3.5 rounded-xl text-sm font-semibold ${form.lang===c?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div>
+      </div>
+      <div><label className="text-sm text-gray-400 mb-1.5 block">{t.year}</label>
+        <div className="flex items-center gap-3">
+          <button onClick={()=>setForm({...form,year:form.year-1})} className="w-14 h-14 rounded-xl bg-white/[0.04] text-gray-300 text-2xl active:bg-white/[0.08]">−</button>
+          <span className="text-3xl font-bold text-gray-100 flex-1 text-center tabular-nums">{form.year}</span>
+          <button onClick={()=>setForm({...form,year:form.year+1})} className="w-14 h-14 rounded-xl bg-white/[0.04] text-gray-300 text-2xl active:bg-white/[0.08]">+</button>
+        </div>
+      </div>
+      <div className="text-[10px] text-gray-700 font-mono break-all">{t.deviceId}: {getDeviceId()}</div>
+      <BackupSection settings={settings} t={t}/>
+      <button onClick={handleSave} className={`w-full py-4 rounded-xl font-bold text-white text-lg ${saved?'bg-emerald-600':'bg-amber-600 active:bg-amber-700'}`}>{saved?t.saved:t.save}</button>
+      <button onClick={tryAdmin} disabled={checking} className="w-full py-3 rounded-xl bg-white/[0.03] border border-white/[0.06] text-gray-600 text-sm font-medium active:bg-white/[0.06]">{checking?'...':t.admin}</button>
     </div>
   );
 }
 
 function BackupSection({settings,t}){
-  const[input,setInput]=useState('');
-  const[result,setResult]=useState(null);
-  const[expCode,setExpCode]=useState('');
-  const[expM,setExpM]=useState(new Date().getMonth()+1);
-
+  const[input,setInput]=useState('');const[result,setResult]=useState(null);const[expCode,setExpCode]=useState('');const[expM,setExpM]=useState(new Date().getMonth()+1);
   const doExport=()=>{const d=LS.get(dk(settings.code,settings.year,expM));if(d){setExpCode(encMonth(settings.code,settings.year,expM,d))}else{setExpCode('');setResult(t.noData);setTimeout(()=>setResult(null),2000)}};
   const doCopy=async()=>{try{await navigator.clipboard.writeText(expCode)}catch{};setResult(t.copyDone);setTimeout(()=>setResult(null),2000)};
   const doImport=()=>{const p=decBackup(input);if(p){LS.set(dk(p.code,p.year,p.month),p.data);setResult(`${t.importOk} → ${p.code} ${p.year}-${String(p.month).padStart(2,'0')}`);setInput('')}else{setResult(t.importFail)};setTimeout(()=>setResult(null),3000)};
-
   return(
     <div className="space-y-3 pt-4 border-t border-white/[0.06]">
       <h3 className="text-sm font-semibold text-amber-400">{t.backup}</h3>
       <div className="flex gap-2">
-        <select value={expM} onChange={e=>setExpM(parseInt(e.target.value))}
-          className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-gray-100 text-sm focus:outline-none appearance-none">
-          {t.months.map((m,i)=><option key={i} value={i+1}>{settings.year} {m}</option>)}
-        </select>
+        <select value={expM} onChange={e=>setExpM(parseInt(e.target.value))} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-gray-100 text-sm focus:outline-none appearance-none">{t.months.map((m,i)=><option key={i} value={i+1}>{settings.year} {m}</option>)}</select>
         <button onClick={doExport} className="px-4 py-2.5 bg-amber-600 rounded-xl text-white text-sm font-semibold">{t.exportUrl}</button>
       </div>
       {expCode&&(<div className="relative"><div className="bg-white/[0.04] rounded-xl p-3 text-[10px] text-gray-500 break-all font-mono select-all">{expCode}</div><button onClick={doCopy} className="absolute top-2 right-2 px-2 py-1 bg-white/10 rounded text-xs text-gray-300">📋</button></div>)}
-      <textarea value={input} onChange={e=>setInput(e.target.value)} rows={2} placeholder={t.enterUrl}
-        className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none"/>
-      <button onClick={doImport} disabled={!input.trim()}
-        className={`w-full py-3 rounded-xl font-bold text-white ${input.trim()?'bg-amber-600':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{t.importUrl}</button>
+      <textarea value={input} onChange={e=>setInput(e.target.value)} rows={2} placeholder={t.enterUrl} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none"/>
+      <button onClick={doImport} disabled={!input.trim()} className={`w-full py-3 rounded-xl font-bold text-white ${input.trim()?'bg-amber-600':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{t.importUrl}</button>
       {result&&<div className={`p-2.5 rounded-xl text-sm text-center fi ${result.includes(t.importFail)||result===t.noData?'bg-red-500/15 text-red-300':'bg-emerald-500/15 text-emerald-300'}`}>{result}</div>}
     </div>
   );
 }
 
 function AdminPage({t,onBack}){
-  const[encInput,setEncInput]=useState('');
-  const[actResult,setActResult]=useState('');
-  const[toolInput,setToolInput]=useState('');
-  const[toolResult,setToolResult]=useState('');
-  const[toolMode,setToolMode]=useState('enc');
-
-  const genCode=()=>{try{const dec=xDec(encInput.trim());const idx=dec.indexOf(':');if(idx<1){setActResult('Error');return}const code=dec.substring(0,idx);const mac=dec.substring(idx+1);setActResult(genAct(code,mac))}catch{setActResult('Error')}};
-  const runTool=()=>{if(toolMode==='enc')setToolResult(xEnc(toolInput));else try{setToolResult(xDec(toolInput.trim()))}catch{setToolResult('Error')}};
-
+  const[encInput,setEncInput]=useState('');const[actResult,setActResult]=useState('');const[decodedInfo,setDecodedInfo]=useState('');
+  const[toolInput,setToolInput]=useState('');const[toolResult,setToolResult]=useState('');const[toolMode,setToolMode]=useState('enc');
+  const genCode=()=>{try{const dec=xDec(encInput.trim());const idx=dec.indexOf(':');if(idx<1){setActResult('Error');setDecodedInfo('');return}const code=dec.substring(0,idx);const devId=dec.substring(idx+1);setDecodedInfo(code);setActResult(genAct(code,devId))}catch{setActResult('Error');setDecodedInfo('')}};
+  const runTool=()=>{if(toolMode==='enc')setToolResult(xEnc(toolInput));else setToolResult(xDec(toolInput.trim()))};
   return(
     <div className="p-5 max-w-md mx-auto fi space-y-6">
       <div className="flex items-center gap-3">
         <button onClick={onBack} className="text-gray-500"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg></button>
         <h2 className="text-xl font-bold text-gray-100">{t.adminTitle}</h2>
       </div>
-
-      {/* Activation generator */}
       <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
         <h3 className="text-sm font-semibold text-amber-400">{t.genActivation}</h3>
-        <textarea value={encInput} onChange={e=>setEncInput(e.target.value)} rows={2} placeholder={t.pasteEncrypted}
-          className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none"/>
+        <textarea value={encInput} onChange={e=>setEncInput(e.target.value)} rows={2} placeholder={t.pasteEncrypted} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none"/>
         <button onClick={genCode} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold">{t.genActivation}</button>
-        {actResult&&(
-          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-center fi">
-            <p className="text-xs text-gray-500 mb-1">{t.resultCode}</p>
-            <p className="text-2xl font-bold text-emerald-400 font-mono tracking-widest select-all">{actResult}</p>
-          </div>
-        )}
+        {actResult&&(<div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-center fi">
+          {decodedInfo&&<p className="text-sm text-amber-400 font-bold mb-2">{t.teacherCode}: {decodedInfo}</p>}
+          <p className="text-xs text-gray-500 mb-1">{t.resultCode}</p><p className="text-2xl font-bold text-emerald-400 font-mono tracking-widest select-all">{actResult}</p></div>)}
       </div>
-
-      {/* Encrypt/Decrypt tool */}
       <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
         <h3 className="text-sm font-semibold text-amber-400">{t.encryptTool}</h3>
         <div className="flex bg-white/[0.04] rounded-xl p-1">
-          <button onClick={()=>setToolMode('enc')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${toolMode==='enc'?'bg-amber-600 text-white':'text-gray-500'}`}>{t.encryptMAC}</button>
-          <button onClick={()=>setToolMode('dec')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${toolMode==='dec'?'bg-amber-600 text-white':'text-gray-500'}`}>{t.decryptText}</button>
+          <button onClick={()=>setToolMode('enc')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${toolMode==='enc'?'bg-amber-600 text-white':'text-gray-500'}`}>{t.encryptLabel}</button>
+          <button onClick={()=>setToolMode('dec')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${toolMode==='dec'?'bg-amber-600 text-white':'text-gray-500'}`}>{t.decryptLabel}</button>
         </div>
-        <input value={toolInput} onChange={e=>setToolInput(e.target.value)} placeholder={t.inputText}
-          className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
+        <input value={toolInput} onChange={e=>setToolInput(e.target.value)} placeholder={t.inputText} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
         <button onClick={runTool} className="w-full py-2.5 rounded-xl bg-white/[0.06] text-gray-300 font-medium text-sm active:bg-white/[0.1]">{t.confirm}</button>
         {toolResult&&<div className="bg-white/[0.04] rounded-xl p-3 text-sm text-gray-300 font-mono break-all select-all fi">{toolResult}</div>}
       </div>
@@ -715,53 +622,33 @@ function App(){
 
   useEffect(()=>{
     const s=LS.get('app-settings');
-    if(s&&s.code){
-      const act=LS.get(`activated-${s.code}`);
-      if(act){setSettings(s);setReady(true);return}
-    }
-    // Hash import
+    if(s&&s.code){const act=LS.get(`activated-${s.code}`);if(act){setSettings(s);setReady(true);return}}
     const hash=window.location.hash;
-    if(hash&&hash.length>5){
-      const p=decBackup(hash.slice(1));
-      if(p){
-        LS.set(dk(p.code,p.year,p.month),p.data);
-        const ns={code:p.code,unitPrice:250,lang:'zh',year:p.year,mac:''};
-        LS.set('app-settings',ns);LS.set(`activated-${p.code}`,{mac:'import',ts:Date.now()});
-        setSettings(ns);setCurM(p.month);setTab('monthly');setReady(true);
-        history.replaceState(null,'',location.pathname);return;
-      }
-    }
+    if(hash&&hash.length>5){const p=decBackup(hash.slice(1));if(p){LS.set(dk(p.code,p.year,p.month),p.data);const ns={code:p.code,unitPrice:250,lang:'zh',year:p.year,deviceId:getDeviceId()};LS.set('app-settings',ns);LS.set(`activated-${p.code}`,{deviceId:getDeviceId(),ts:Date.now()});setSettings(ns);setCurM(p.month);setTab('monthly');setReady(true);history.replaceState(null,'',location.pathname);return}}
     setNeedOnboard(true);setReady(true);
   },[]);
 
   const onOnboardComplete=(s)=>{setSettings(s);setNeedOnboard(false)};
   const updateSettings=(s)=>{setSettings(s);LS.set('app-settings',s)};
-
-  // Refresh home when switching back to it
   const handleTab=(id)=>{setTab(id);if(id==='home')setRefreshKey(k=>k+1)};
 
   if(!ready)return<div className="min-h-screen bg-gray-950 flex items-center justify-center"><div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/></div>;
   if(needOnboard)return<Onboarding onComplete={onOnboardComplete}/>;
   if(!settings)return null;
 
-  const lang=settings.lang||'zh';
-  const t=T[lang];
+  const lang=settings.lang||'zh';const t=T[lang];
   const tabs=[{id:'home',label:t.home},{id:'monthly',label:t.monthly},{id:'yearly',label:t.yearly},{id:'settings',label:t.settings}];
 
   return(
     <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col">
       <div className="flex-1 pb-[72px] overflow-y-auto">
-        {tab==='home'&&<HomePage settings={settings} t={t} lang={lang} refreshKey={refreshKey}/>}
+        {tab==='home'&&<HomePage settings={settings} t={t} refreshKey={refreshKey}/>}
         {tab==='monthly'&&<MonthlyPage settings={settings} curM={curM} setCurM={setCurM} t={t}/>}
         {tab==='yearly'&&<YearlyPage settings={settings} t={t}/>}
         {tab==='settings'&&<SettingsPage settings={settings} onUpdate={updateSettings} t={t}/>}
       </div>
       <nav className="fixed bottom-0 left-0 right-0 bg-gray-950/95 backdrop-blur-xl border-t border-white/[0.06] flex z-40" style={{paddingBottom:'env(safe-area-inset-bottom)'}}>
-        {tabs.map(({id,label})=>(
-          <button key={id} onClick={()=>handleTab(id)} className={`flex-1 flex flex-col items-center pt-2 pb-1.5 gap-0.5 transition-all ${tab===id?'text-amber-400':'text-gray-700 active:text-gray-500'}`}>
-            {IC[id]}<span className="text-[10px] font-medium">{label}</span>
-          </button>
-        ))}
+        {tabs.map(({id,label})=>(<button key={id} onClick={()=>handleTab(id)} className={`flex-1 flex flex-col items-center pt-2 pb-1.5 gap-0.5 transition-all ${tab===id?'text-amber-400':'text-gray-700 active:text-gray-500'}`}>{IC[id]}<span className="text-[10px] font-medium">{label}</span></button>))}
       </nav>
     </div>
   );
