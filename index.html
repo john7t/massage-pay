@@ -69,6 +69,7 @@ zh:{
   adminApplyMsg:"請提供以下申請碼給管理者",adminApplyCode:"申請碼",
   adminList:"管理者名單",adminAdd:"新增管理者",adminDel:"刪除",
   adminAddHint:"貼上對方的申請碼（格式：編號:加密碼）",adminCfg:"永久（admin.cfg）",adminLocal:"本機新增",
+  skills:"老師技能",guasha:"刮痧",baguang:"拔罐",xiujiao:"修腳皮",gs:"刮",bg:"拔",xj:"修",
 },
 vi:{
   settings:"Cài đặt",yearly:"Lương năm",monthly:"Chi tiết",home:"Trang chủ",
@@ -101,9 +102,14 @@ vi:{
   adminApplyMsg:"Gửi mã sau cho quản lý",adminApplyCode:"Mã đăng ký",
   adminList:"Danh sách quản lý",adminAdd:"Thêm quản lý",adminDel:"Xóa",
   adminAddHint:"Dán mã đăng ký (định dạng: mã:chuỗi mã hóa)",adminCfg:"Vĩnh viễn (admin.cfg)",adminLocal:"Thêm cục bộ",
+  skills:"Kỹ năng",guasha:"Cạo gió",baguang:"Giác hơi",xiujiao:"Sửa da chân",gs:"C",bg:"G",xj:"S",
 }};
 
 /* ══════════ Helpers ══════════ */
+const SKILL_KEYS=['guasha','baguang','xiujiao'];
+const SKILL_SHORT=['gs','bg','xj'];
+const SKILL_PRICES=[250,250,300];
+const SKILL_COLORS=['text-cyan-400','text-violet-400','text-pink-400'];
 const SK=["normal","sick","late","rest","personal","early"];
 const SBG=["","bg-red-500/20","bg-yellow-500/20","bg-blue-500/20","bg-purple-500/20","bg-orange-500/20"];
 const STC=["","text-red-300","text-yellow-300","text-blue-300","text-purple-300","text-orange-300"];
@@ -118,7 +124,13 @@ const LS={
   set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){console.error(e)}},
 };
 const dk=(c,y,m)=>`data-${c}-${y}-${String(m).padStart(2,'0')}`;
-const eDay=()=>({groups:[],total:0,laodian:0,status:0});
+const eDay=()=>({groups:[],total:0,laodian:0,status:0,skills:{guasha:0,baguang:0,xiujiao:0}});
+const calcSal=(day,unitPrice,enabledSkills)=>{
+  let sal=day.total*unitPrice;
+  const sk=day.skills||{};
+  SKILL_KEYS.forEach((k,i)=>{if(enabledSkills?.[k])sal+=(sk[k]||0)*SKILL_PRICES[i]});
+  return sal;
+};
 const eMon=()=>{const d={};for(let i=1;i<=31;i++)d[i]=eDay();return{days:d}};
 
 function encMonth(code,y,m,data){
@@ -275,8 +287,8 @@ function HomePage({settings,t,refreshKey}){
   useEffect(load,[settings.code,refreshKey]);
 
   const todayData=data?.days?.[td]||eDay();
-  const hasToday=todayData.total>0||todayData.status>0;
-  const sal=todayData.total*settings.unitPrice;
+  const hasToday=todayData.total>0||todayData.status>0||(todayData.skills&&Object.values(todayData.skills).some(v=>v>0));
+  const sal=calcSal(todayData,settings.unitPrice,settings.skills);
 
   const addUnits=(n)=>{
     const md=data?JSON.parse(JSON.stringify(data)):eMon();
@@ -297,7 +309,16 @@ function HomePage({settings,t,refreshKey}){
     const md=data?JSON.parse(JSON.stringify(data)):eMon();
     const dd=md.days[td]||eDay();
     dd.status=s;
-    if(!canWork[s]){dd.total=0;dd.laodian=0;dd.groups=[];}
+    if(!canWork[s]){dd.total=0;dd.laodian=0;dd.groups=[];dd.skills={guasha:0,baguang:0,xiujiao:0};}
+    md.days[td]=dd;setData({...md});
+    LS.set(dk(settings.code,ty,tm),md);
+  };
+
+  const addSkill=(key)=>{
+    const md=data?JSON.parse(JSON.stringify(data)):eMon();
+    const dd=md.days[td]||eDay();
+    if(!dd.skills)dd.skills={guasha:0,baguang:0,xiujiao:0};
+    dd.skills[key]=(dd.skills[key]||0)+1;
     md.days[td]=dd;setData({...md});
     LS.set(dk(settings.code,ty,tm),md);
   };
@@ -326,13 +347,19 @@ function HomePage({settings,t,refreshKey}){
               <span className="text-sm text-gray-600 ml-1">({t.dn[prevDow]})</span>
             </div>
             <div className="text-right">
-              <span className="text-xl font-bold text-gray-400 tabular-nums">${(prev.total*settings.unitPrice).toLocaleString()}</span>
+              {canWork[prev.status||0]?(
+                <span className="text-xl font-bold text-gray-400 tabular-nums">${calcSal(prev,settings.unitPrice,settings.skills).toLocaleString()}</span>
+              ):(
+                <span className={`text-sm px-2 py-0.5 rounded-full ${SBG[prev.status]} ${STC[prev.status]}`}>{t[SK[prev.status]]}</span>
+              )}
             </div>
           </div>
-          <div className="flex items-center justify-between mt-0.5">
-            <span className="text-xs text-gray-600">{prev.total}{t.units}{prev.laodian>0?` · ${prev.laodian}${t.laodian}`:''}</span>
-            <svg className="w-3.5 h-3.5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
-          </div>
+          {canWork[prev.status||0]&&(
+            <div className="flex items-center justify-between mt-0.5">
+              <span className="text-xs text-gray-600">{prev.total}{t.units}{prev.laodian>0?` · ${prev.laodian}${t.laodian}`:''}</span>
+              <svg className="w-3.5 h-3.5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
+            </div>
+          )}
         </div>
       )}
 
@@ -360,6 +387,9 @@ function HomePage({settings,t,refreshKey}){
           </div>
           {todayData.laodian>0&&<div className="mt-1 text-sm text-orange-400">{t.laodian}: {todayData.laodian}</div>}
           {todayData.groups.length>1&&<div className="mt-1 text-xs text-gray-600">{todayData.groups.join(' + ')} = {todayData.total}</div>}
+          {todayData.skills&&SKILL_KEYS.map((k,i)=>(settings.skills?.[k]&&todayData.skills[k]>0)?
+            <span key={k} className={`inline-block mt-1 mr-2 text-xs ${SKILL_COLORS[i]}`}>{t[SKILL_SHORT[i]]}×{todayData.skills[k]}</span>:null
+          )}
         </div>
       )}
 
@@ -386,7 +416,7 @@ function HomePage({settings,t,refreshKey}){
       </div>
 
       {/* Quick add laodian */}
-      <div>
+      <div className="mb-6">
         <p className="text-sm text-gray-400 mb-3">{t.addLaodian}</p>
         <div className="grid grid-cols-6 gap-2">
           {[1,2,3,4,5,6].map(n=>(
@@ -395,6 +425,22 @@ function HomePage({settings,t,refreshKey}){
           ))}
         </div>
       </div>
+
+      {/* Skill buttons */}
+      {SKILL_KEYS.some(k=>settings.skills?.[k])&&(
+        <div className="mb-6">
+          <p className="text-sm text-gray-400 mb-3">{t.skills}</p>
+          <div className="grid grid-cols-3 gap-2">
+            {SKILL_KEYS.map((k,i)=>settings.skills?.[k]?(
+              <button key={k} onClick={()=>addSkill(k)}
+                className={`py-3 rounded-xl bg-white/[0.04] border border-white/[0.06] active:bg-white/[0.08] transition-all text-center`}>
+                <div className={`text-sm font-bold ${SKILL_COLORS[i]}`}>{t[SKILL_SHORT[i]]}{(todayData.skills?.[k]||0)>0?` ×${todayData.skills[k]}`:''}</div>
+                <div className="text-[10px] text-gray-600">{t[k]} ${SKILL_PRICES[i]}</div>
+              </button>
+            ):null)}
+          </div>
+        </div>
+      )}
 
       {/* Status buttons */}
       <div>
@@ -422,17 +468,23 @@ function HomePage({settings,t,refreshKey}){
 }
 
 /* ══════════ Shared ══════════ */
-function SummaryTable({prev,next,month,t,hl}){
+function SummaryTable({prev,next,month,t}){
   const Row=({label,data,bold})=>(
     <div className={`flex items-center py-2.5 ${bold?'':'border-b border-white/[0.04]'}`}>
-      <div className={`w-20 text-sm font-semibold ${bold?'text-amber-300':'text-gray-400'}`}>{label}</div>
+      <div className={`w-16 text-sm font-semibold ${bold?'text-amber-300':'text-gray-400'}`}>{label}</div>
       <div className={`flex-1 text-right text-lg font-bold tabular-nums ${bold?'text-emerald-400':'text-emerald-400/80'}`}>${data.salary.toLocaleString()}</div>
-      <div className="w-16 text-right text-sm text-gray-400 tabular-nums">{data.units}<span className="text-[10px] text-gray-600">{t.units}</span></div>
-      <div className="w-14 text-right text-sm text-orange-400 tabular-nums">{data.laodian}<span className="text-[10px] text-gray-600">{t.laodian}</span></div>
+      <div className="w-14 text-right text-sm text-gray-400 tabular-nums">{data.units}</div>
+      <div className="w-10 text-right text-sm text-orange-400 tabular-nums">{data.laodian}</div>
     </div>
   );
   return(
     <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl px-3 py-1">
+      <div className="flex items-center pt-1.5 pb-1 text-[10px] text-gray-600">
+        <div className="w-16"></div>
+        <div className="flex-1 text-right">{t.salary}</div>
+        <div className="w-14 text-right">{t.units}</div>
+        <div className="w-10 text-right">{t.laodian}</div>
+      </div>
       <Row label={t.prevPeriod} data={prev}/>
       <Row label={t.nextPeriod} data={next}/>
       <div className="border-t border-amber-500/30 mt-0.5 pt-0.5">
@@ -442,8 +494,9 @@ function SummaryTable({prev,next,month,t,hl}){
   );
 }
 
-function DayRow({day,d,y,m,t,up,onEdit}){
+function DayRow({day,d,y,m,t,up,sk,onEdit}){
   const dw=dow(y,m,d),we=dw===0||dw===6,nw=!canWork[day.status];
+  const sal=calcSal(day,up,sk);
   return(
     <div onClick={()=>onEdit(d)} className={`flex items-center px-3 py-2.5 border-b border-white/[0.04] active:bg-white/[0.06] cursor-pointer ${nw?'opacity-50':''}`}>
       <div className="w-14 flex-shrink-0">
@@ -454,9 +507,10 @@ function DayRow({day,d,y,m,t,up,onEdit}){
         {nw?(<span className={`text-xs px-2 py-0.5 rounded-full ${SBG[day.status]} ${STC[day.status]}`}>{t[SK[day.status]]}</span>):(
           <>
             <span className="text-sm text-gray-200 w-8 text-right tabular-nums font-medium">{day.total||''}</span>
-            <span className="text-sm text-emerald-400/80 w-16 text-right tabular-nums">{day.total>0?'$'+(day.total*up).toLocaleString():''}</span>
+            <span className="text-sm text-emerald-400/80 w-16 text-right tabular-nums">{sal>0?'$'+sal.toLocaleString():''}</span>
             <span className="text-sm text-orange-400/80 w-5 text-center tabular-nums">{day.laodian||''}</span>
             {(day.status===2||day.status===5)&&<span className={`text-[10px] px-1.5 py-0.5 rounded-full ${SBG[day.status]} ${STC[day.status]}`}>{t[SK[day.status]]}</span>}
+            {day.skills&&SKILL_KEYS.map((k,i)=>(sk?.[k]&&day.skills[k]>0)?<span key={k} className={`text-[10px] ${SKILL_COLORS[i]}`}>{t[SKILL_SHORT[i]]}{day.skills[k]}</span>:null)}
             {day.groups.length>1&&<span className="text-[10px] text-gray-600 truncate">{day.groups.join('+')}</span>}
           </>
         )}
@@ -531,9 +585,9 @@ function MonthlyPage({settings,curM,setCurM,t}){
   const calc=useMemo(()=>{
     if(!data)return{prev:{units:0,salary:0,laodian:0},next:{units:0,salary:0,laodian:0},month:{units:0,salary:0,laodian:0}};
     let pu=0,ps=0,pl=0,nu=0,ns=0,nl=0;
-    for(let d=1;d<=dm;d++){const day=data.days[d]||eDay();const u=day.total||0,lo=day.laodian||0,s=u*settings.unitPrice;if(d<=15){pu+=u;ps+=s;pl+=lo}else{nu+=u;ns+=s;nl+=lo}}
+    for(let d=1;d<=dm;d++){const day=data.days[d]||eDay();const u=day.total||0,lo=day.laodian||0,s=calcSal(day,settings.unitPrice,settings.skills);if(d<=15){pu+=u;ps+=s;pl+=lo}else{nu+=u;ns+=s;nl+=lo}}
     return{prev:{units:pu,salary:ps,laodian:pl},next:{units:nu,salary:ns,laodian:nl},month:{units:pu+nu,salary:ps+ns,laodian:pl+nl}};
-  },[data,dm,settings.unitPrice]);
+  },[data,dm,settings.unitPrice,settings.skills]);
 
   return(
     <div className="max-w-lg mx-auto fi">
@@ -546,10 +600,10 @@ function MonthlyPage({settings,curM,setCurM,t}){
         </div>
       </div>
       <div className="px-3 py-1.5 bg-amber-600/[0.06] border-b border-amber-500/10"><span className="text-[11px] text-amber-500/80 font-semibold">{t.p1}</span></div>
-      {Array.from({length:Math.min(15,dm)},(_,i)=>i+1).map(d=>(<DayRow key={d} d={d} day={data?.days[d]||eDay()} y={y} m={curM} t={t} up={settings.unitPrice} onEdit={setEditDay}/>))}
+      {Array.from({length:Math.min(15,dm)},(_,i)=>i+1).map(d=>(<DayRow key={d} d={d} day={data?.days[d]||eDay()} y={y} m={curM} t={t} up={settings.unitPrice} sk={settings.skills} onEdit={setEditDay}/>))}
       {dm>15&&(<>
         <div className="px-3 py-1.5 bg-amber-600/[0.06] border-b border-amber-500/10 mt-0.5"><span className="text-[11px] text-amber-500/80 font-semibold">{t.p2}</span></div>
-        {Array.from({length:dm-15},(_,i)=>i+16).map(d=>(<DayRow key={d} d={d} day={data?.days[d]||eDay()} y={y} m={curM} t={t} up={settings.unitPrice} onEdit={setEditDay}/>))}
+        {Array.from({length:dm-15},(_,i)=>i+16).map(d=>(<DayRow key={d} d={d} day={data?.days[d]||eDay()} y={y} m={curM} t={t} up={settings.unitPrice} sk={settings.skills} onEdit={setEditDay}/>))}
       </>)}
       {editDay&&data&&<DayEditor day={data.days[editDay]||eDay()} d={editDay} y={y} m={curM} t={t} up={settings.unitPrice} onSave={saveDay} onCancel={()=>setEditDay(null)}/>}
     </div>
@@ -560,7 +614,7 @@ function MonthlyPage({settings,curM,setCurM,t}){
 function YearlyPage({settings,t}){
   const y=settings.year||new Date().getFullYear();
   const rows=useMemo(()=>{
-    const r=[];for(let m=1;m<=12;m++){const d=LS.get(dk(settings.code,y,m));let u=0,lo=0;if(d?.days){for(let i=1;i<=dim(y,m);i++){const day=d.days[i];if(day){u+=day.total||0;lo+=day.laodian||0}}}r.push({month:m,units:u,salary:u*settings.unitPrice,laodian:lo})}return r;
+    const r=[];for(let m=1;m<=12;m++){const d=LS.get(dk(settings.code,y,m));let u=0,lo=0,sal=0;if(d?.days){for(let i=1;i<=dim(y,m);i++){const day=d.days[i];if(day){u+=day.total||0;lo+=day.laodian||0;sal+=calcSal(day,settings.unitPrice,settings.skills)}}}r.push({month:m,units:u,salary:sal,laodian:lo})}return r;
   },[settings.code,y,settings.unitPrice]);
   const tot=rows.reduce((a,r)=>({u:a.u+r.units,s:a.s+r.salary,l:a.l+r.laodian}),{u:0,s:0,l:0});
 
@@ -663,6 +717,23 @@ function SettingsPage({settings,onUpdate,t}){
         </div>
       </div>
       <div className="text-[10px] text-gray-700 font-mono break-all">{t.deviceId}: {devId}</div>
+      {/* Skills */}
+      <div>
+        <label className="text-sm text-gray-400 mb-2 block">{t.skills}</label>
+        <div className="space-y-2">
+          {SKILL_KEYS.map((k,i)=>{
+            const checked=form.skills?.[k]||false;
+            return(
+              <button key={k} onClick={()=>{const ns={...form,skills:{...(form.skills||{}), [k]:!checked}};setForm(ns);onUpdate(ns)}}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${checked?'bg-white/[0.06] border border-amber-500/30':'bg-white/[0.02] border border-white/[0.06]'}`}>
+                <div className={`w-5 h-5 rounded flex items-center justify-center text-xs ${checked?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-700'}`}>{checked?'✓':''}</div>
+                <span className={`text-sm ${checked?'text-gray-200':'text-gray-500'}`}>{t[k]}</span>
+                <span className="text-xs text-gray-600 ml-auto">${SKILL_PRICES[i]}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
       <BackupSection settings={settings} t={t}/>
       <button onClick={handleSave} className={`w-full py-4 rounded-xl font-bold text-white text-lg ${saved?'bg-emerald-600':'bg-amber-600 active:bg-amber-700'}`}>{saved?t.saved:t.save}</button>
 
