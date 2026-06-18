@@ -70,6 +70,9 @@ zh:{
   adminList:"管理者名單",adminAdd:"新增管理者",adminDel:"刪除",
   adminAddHint:"貼上對方的申請碼（格式：編號:加密碼）",adminCfg:"永久（admin.cfg）",adminLocal:"本機新增",
   skills:"老師技能",guasha:"刮痧",baguang:"拔罐",xiujiao:"修腳皮",gs:"刮",bg:"拔",xj:"修",clearAll:"一鍵清除",
+  notice1:"⚠️ 資料只存在本機，不會上傳雲端。",
+  notice2:"LINE 與手機內建瀏覽器的暫存是分開的，啟動碼會不同，請固定使用同一個瀏覽器。",
+  notice3:"資料跟著手機走，換手機前請先到設定頁匯出備份。",
 },
 vi:{
   settings:"Cài đặt",yearly:"Lương năm",monthly:"Chi tiết",home:"Trang chủ",
@@ -103,6 +106,9 @@ vi:{
   adminList:"Danh sách quản lý",adminAdd:"Thêm quản lý",adminDel:"Xóa",
   adminAddHint:"Dán mã đăng ký (định dạng: mã:chuỗi mã hóa)",adminCfg:"Vĩnh viễn (admin.cfg)",adminLocal:"Thêm cục bộ",
   skills:"Kỹ năng",guasha:"Cạo gió",baguang:"Giác hơi",xiujiao:"Sửa da chân",gs:"C",bg:"G",xj:"S",clearAll:"Xóa tất cả",
+  notice1:"⚠️ Dữ liệu chỉ lưu trên máy, không tải lên đám mây.",
+  notice2:"Trình duyệt LINE và trình duyệt mặc định lưu riêng, mã kích hoạt sẽ khác nhau. Hãy dùng cùng một trình duyệt.",
+  notice3:"Dữ liệu gắn với điện thoại. Trước khi đổi máy, hãy xuất sao lưu trong Cài đặt.",
 }};
 
 /* ══════════ Helpers ══════════ */
@@ -160,6 +166,16 @@ function getDeviceId(){
   return id;
 }
 
+
+function NoticeBox({t}){
+  return(
+    <div className="mt-6 space-y-2 text-[11px] text-gray-600 leading-relaxed">
+      <p>{t.notice1}</p>
+      <p>{t.notice2}</p>
+      <p>{t.notice3}</p>
+    </div>
+  );
+}
 
 /* ══════════ Onboarding ══════════ */
 function Onboarding({onComplete}){
@@ -243,6 +259,7 @@ function Onboarding({onComplete}){
               className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${code.trim()&&!checking?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>
               {checking?t.adminWelcome:t.confirm}
             </button>
+            <NoticeBox t={t}/>
           </div>
         )}
 
@@ -270,6 +287,7 @@ function Onboarding({onComplete}){
               <button onClick={()=>{setStep(1);setErr('')}} className="flex-1 py-4 rounded-xl bg-white/[0.05] text-gray-400 font-semibold">{t.cancel}</button>
               <button onClick={verify} className="flex-1 py-4 rounded-xl bg-amber-600 text-white font-bold text-lg">{t.confirm}</button>
             </div>
+            <NoticeBox t={t}/>
           </div>
         )}
       </div>
@@ -774,6 +792,7 @@ function SettingsPage({settings,onUpdate,t}){
           })}
         </div>
       </div>
+      <NoticeBox t={t}/>
       <BackupSection settings={settings} t={t}/>
       <button onClick={handleSave} className={`w-full py-4 rounded-xl font-bold text-white text-lg ${saved?'bg-emerald-600':'bg-amber-600 active:bg-amber-700'}`}>{saved?t.saved:t.save}</button>
 
