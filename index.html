@@ -44,7 +44,7 @@ zh:{
   year:"年份",save:"儲存",saved:"已儲存 ✓",
   units:"支數",salary:"薪水",laodian:"老點",subtotal:"小計",
   prevPeriod:"上期",nextPeriod:"下期",monthTotal:"月合計",total:"合計",
-  sick:"病",late:"遲",rest:"休",normal:"正常",
+  sick:"病假",late:"遲到",rest:"休假",normal:"正常",personal:"事假",early:"早退",
   dn:["日","一","二","三","四","五","六"],
   months:["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"],
   addGroup:"新增客組",directMode:"直接輸入",groupMode:"分組輸入",
@@ -76,7 +76,7 @@ vi:{
   year:"Năm",save:"Lưu",saved:"Đã lưu ✓",
   units:"SL",salary:"Lương",laodian:"KH quen",subtotal:"Tổng",
   prevPeriod:"Kỳ trước",nextPeriod:"Kỳ sau",monthTotal:"Tổng tháng",total:"Tổng cộng",
-  sick:"Bệnh",late:"Trễ",rest:"Nghỉ",normal:"BT",
+  sick:"Nghỉ bệnh",late:"Đi trễ",rest:"Nghỉ phép",normal:"BT",personal:"Nghỉ việc riêng",early:"Về sớm",
   dn:["CN","T2","T3","T4","T5","T6","T7"],
   months:["Th1","Th2","Th3","Th4","Th5","Th6","Th7","Th8","Th9","Th10","Th11","Th12"],
   addGroup:"Thêm khách",directMode:"Nhập trực tiếp",groupMode:"Nhập theo nhóm",
@@ -104,9 +104,10 @@ vi:{
 }};
 
 /* ══════════ Helpers ══════════ */
-const SK=["normal","sick","late","rest"];
-const SBG=["","bg-red-500/20","bg-yellow-500/20","bg-blue-500/20"];
-const STC=["","text-red-300","text-yellow-300","text-blue-300"];
+const SK=["normal","sick","late","rest","personal","early"];
+const SBG=["","bg-red-500/20","bg-yellow-500/20","bg-blue-500/20","bg-purple-500/20","bg-orange-500/20"];
+const STC=["","text-red-300","text-yellow-300","text-blue-300","text-purple-300","text-orange-300"];
+const canWork=[true,false,true,false,false,true]; // which statuses allow recording
 const toB36=n=>Math.min(Math.max(Math.round(n),0),35).toString(36);
 const fromB36=c=>parseInt(c,36)||0;
 const dim=(y,m)=>new Date(y,m,0).getDate();
@@ -292,6 +293,15 @@ function HomePage({settings,t,refreshKey}){
     LS.set(dk(settings.code,ty,tm),md);
   };
 
+  const setTodayStatus=(s)=>{
+    const md=data?JSON.parse(JSON.stringify(data)):eMon();
+    const dd=md.days[td]||eDay();
+    dd.status=s;
+    if(!canWork[s]){dd.total=0;dd.laodian=0;dd.groups=[];}
+    md.days[td]=dd;setData({...md});
+    LS.set(dk(settings.code,ty,tm),md);
+  };
+
   const savePrevDay=(d,dd)=>{
     if(!prev)return;
     const key=dk(settings.code,prev.year,prev.month);
@@ -386,6 +396,21 @@ function HomePage({settings,t,refreshKey}){
         </div>
       </div>
 
+      {/* Status buttons */}
+      <div>
+        <p className="text-sm text-gray-400 mb-3">{t.status}</p>
+        <div className="grid grid-cols-3 gap-2">
+          {[0,3,4,1,2,5].map(s=>(
+            <button key={s} onClick={()=>setTodayStatus(s)}
+              className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                todayData.status===s
+                  ? (s===0?'bg-gray-600 text-white ring-2 ring-gray-500':`${SBG[s].replace('/20','/30')} ${STC[s]} ring-2 ring-current`)
+                  : 'bg-white/[0.04] text-gray-600'
+              }`}>{t[SK[s]]}</button>
+          ))}
+        </div>
+      </div>
+
       {/* Edit previous day modal */}
       {editPrev&&prev&&(
         <DayEditor day={{groups:prev.groups||[],total:prev.total,laodian:prev.laodian,status:prev.status}}
@@ -418,7 +443,7 @@ function SummaryTable({prev,next,month,t,hl}){
 }
 
 function DayRow({day,d,y,m,t,up,onEdit}){
-  const dw=dow(y,m,d),we=dw===0||dw===6,nw=day.status===1||day.status===3;
+  const dw=dow(y,m,d),we=dw===0||dw===6,nw=!canWork[day.status];
   return(
     <div onClick={()=>onEdit(d)} className={`flex items-center px-3 py-2.5 border-b border-white/[0.04] active:bg-white/[0.06] cursor-pointer ${nw?'opacity-50':''}`}>
       <div className="w-14 flex-shrink-0">
@@ -431,7 +456,7 @@ function DayRow({day,d,y,m,t,up,onEdit}){
             <span className="text-sm text-gray-200 w-8 text-right tabular-nums font-medium">{day.total||''}</span>
             <span className="text-sm text-emerald-400/80 w-16 text-right tabular-nums">{day.total>0?'$'+(day.total*up).toLocaleString():''}</span>
             <span className="text-sm text-orange-400/80 w-5 text-center tabular-nums">{day.laodian||''}</span>
-            {day.status===2&&<span className={`text-[10px] px-1.5 py-0.5 rounded-full ${SBG[2]} ${STC[2]}`}>{t.late}</span>}
+            {(day.status===2||day.status===5)&&<span className={`text-[10px] px-1.5 py-0.5 rounded-full ${SBG[day.status]} ${STC[day.status]}`}>{t[SK[day.status]]}</span>}
             {day.groups.length>1&&<span className="text-[10px] text-gray-600 truncate">{day.groups.join('+')}</span>}
           </>
         )}
@@ -449,9 +474,9 @@ function DayEditor({day,d,y,m,t,up,onSave,onCancel}){
   const[st,setSt]=useState(day.status);
   const dw=dow(y,m,d);
   const gt=groups.reduce((a,b)=>a+(parseInt(b)||0),0);
-  const ct=(st===1||st===3)?0:(mode==='group'?gt:(parseInt(dt)||0));
-  const sw=st===0||st===2;
-  const save=()=>{const nr=st===1||st===3;onSave(d,{groups:nr?[]:(mode==='group'?groups.map(g=>parseInt(g)||0).filter(g=>g>0):[]),total:nr?0:ct,laodian:nr?0:(parseInt(lo)||0),status:st})};
+  const ct=(!canWork[st])?0:(mode==='group'?gt:(parseInt(dt)||0));
+  const sw=canWork[st];
+  const save=()=>{const nr=!canWork[st];onSave(d,{groups:nr?[]:(mode==='group'?groups.map(g=>parseInt(g)||0).filter(g=>g>0):[]),total:nr?0:ct,laodian:nr?0:(parseInt(lo)||0),status:st})};
 
   return(
     <div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onCancel}>
@@ -463,8 +488,8 @@ function DayEditor({day,d,y,m,t,up,onSave,onCancel}){
         <div className="p-4 space-y-5">
           <div>
             <label className="text-xs text-gray-500 mb-2 block font-medium">{t.status}</label>
-            <div className="grid grid-cols-4 gap-2">
-              {[0,1,2,3].map(s=>(<button key={s} onClick={()=>setSt(s)} className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${st===s?(s===0?'bg-gray-600 text-white ring-2 ring-gray-500':`${SBG[s].replace('/20','/30')} ${STC[s]} ring-2 ring-current`):'bg-white/[0.04] text-gray-600'}`}>{t[SK[s]]}</button>))}
+            <div className="grid grid-cols-3 gap-2">
+              {[0,3,4,1,2,5].map(s=>(<button key={s} onClick={()=>setSt(s)} className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${st===s?(s===0?'bg-gray-600 text-white ring-2 ring-gray-500':`${SBG[s].replace('/20','/30')} ${STC[s]} ring-2 ring-current`):'bg-white/[0.04] text-gray-600'}`}>{t[SK[s]]}</button>))}
             </div>
           </div>
           {sw&&(<>
@@ -628,7 +653,7 @@ function SettingsPage({settings,onUpdate,t}){
           className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl pl-9 pr-4 py-3.5 text-lg text-gray-100 focus:outline-none focus:border-amber-500"/></div>
       </div>
       <div><label className="text-sm text-gray-400 mb-1.5 block">{t.language}</label>
-        <div className="grid grid-cols-2 gap-2">{[['zh','中文'],['vi','Tiếng Việt']].map(([c,l])=>(<button key={c} onClick={()=>setForm({...form,lang:c})} className={`py-3.5 rounded-xl text-sm font-semibold ${form.lang===c?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div>
+        <div className="grid grid-cols-2 gap-2">{[['zh','中文'],['vi','Tiếng Việt']].map(([c,l])=>(<button key={c} onClick={()=>{setForm({...form,lang:c});onUpdate({...form,lang:c})}} className={`py-3.5 rounded-xl text-sm font-semibold ${form.lang===c?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div>
       </div>
       <div><label className="text-sm text-gray-400 mb-1.5 block">{t.year}</label>
         <div className="flex items-center gap-3">
