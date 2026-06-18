@@ -69,7 +69,7 @@ zh:{
   adminApplyMsg:"請提供以下申請碼給管理者",adminApplyCode:"申請碼",
   adminList:"管理者名單",adminAdd:"新增管理者",adminDel:"刪除",
   adminAddHint:"貼上對方的申請碼（格式：編號:加密碼）",adminCfg:"永久（admin.cfg）",adminLocal:"本機新增",
-  skills:"老師技能",guasha:"刮痧",baguang:"拔罐",xiujiao:"修腳皮",gs:"刮",bg:"拔",xj:"修",
+  skills:"老師技能",guasha:"刮痧",baguang:"拔罐",xiujiao:"修腳皮",gs:"刮",bg:"拔",xj:"修",clearAll:"一鍵清除",
 },
 vi:{
   settings:"Cài đặt",yearly:"Lương năm",monthly:"Chi tiết",home:"Trang chủ",
@@ -102,7 +102,7 @@ vi:{
   adminApplyMsg:"Gửi mã sau cho quản lý",adminApplyCode:"Mã đăng ký",
   adminList:"Danh sách quản lý",adminAdd:"Thêm quản lý",adminDel:"Xóa",
   adminAddHint:"Dán mã đăng ký (định dạng: mã:chuỗi mã hóa)",adminCfg:"Vĩnh viễn (admin.cfg)",adminLocal:"Thêm cục bộ",
-  skills:"Kỹ năng",guasha:"Cạo gió",baguang:"Giác hơi",xiujiao:"Sửa da chân",gs:"C",bg:"G",xj:"S",
+  skills:"Kỹ năng",guasha:"Cạo gió",baguang:"Giác hơi",xiujiao:"Sửa da chân",gs:"C",bg:"G",xj:"S",clearAll:"Xóa tất cả",
 }};
 
 /* ══════════ Helpers ══════════ */
@@ -134,12 +134,23 @@ const calcSal=(day,unitPrice,enabledSkills)=>{
 const eMon=()=>{const d={};for(let i=1;i<=31;i++)d[i]=eDay();return{days:d}};
 
 function encMonth(code,y,m,data){
-  let u="",l="",s="";
-  for(let d=1;d<=31;d++){const day=d<=dim(y,m)&&data.days[d]?data.days[d]:eDay();u+=toB36(day.total);l+=toB36(day.laodian);s+=day.status.toString()}
-  return`${code}-${y}-${String(m).padStart(2,'0')}:${u}:${l}:${s}`;
+  let u="",l="",s="",sg="",sb="",sx="";
+  for(let d=1;d<=31;d++){const day=d<=dim(y,m)&&data.days[d]?data.days[d]:eDay();const sk=day.skills||{};
+    u+=toB36(day.total);l+=toB36(day.laodian);s+=day.status.toString();
+    sg+=toB36(sk.guasha||0);sb+=toB36(sk.baguang||0);sx+=toB36(sk.xiujiao||0);
+  }
+  // Only append skill fields if any non-zero
+  const hasSkills=sg.replace(/0/g,'')||sb.replace(/0/g,'')||sx.replace(/0/g,'');
+  return`${code}-${y}-${String(m).padStart(2,'0')}:${u}:${l}:${s}${hasSkills?`:${sg}:${sb}:${sx}`:''}`;
 }
 function decBackup(str){
-  try{const c=str.replace(/^#/,'').trim();const[hd,units,laodian,status]=c.split(':');const p=hd.split('-');const m=parseInt(p.pop());const y=parseInt(p.pop());const code=p.join('-');if(!y||!m||m<1||m>12||!code)return null;const data=eMon();const dm=dim(y,m);for(let d=1;d<=dm;d++)data.days[d]={groups:[],total:fromB36(units?.[d-1]||'0'),laodian:fromB36(laodian?.[d-1]||'0'),status:parseInt(status?.[d-1]||'0')||0};return{code,year:y,month:m,data}}catch{return null}
+  try{const c=str.replace(/^#/,'').trim();const parts=c.split(':');const hd=parts[0],units=parts[1],laodian=parts[2],status=parts[3];
+  const sg=parts[4]||'',sb=parts[5]||'',sx=parts[6]||'';
+  const p=hd.split('-');const m=parseInt(p.pop());const y=parseInt(p.pop());const code=p.join('-');
+  if(!y||!m||m<1||m>12||!code)return null;const data=eMon();const dm=dim(y,m);
+  for(let d=1;d<=dm;d++)data.days[d]={groups:[],total:fromB36(units?.[d-1]||'0'),laodian:fromB36(laodian?.[d-1]||'0'),status:parseInt(status?.[d-1]||'0')||0,
+    skills:{guasha:fromB36(sg?.[d-1]||'0'),baguang:fromB36(sb?.[d-1]||'0'),xiujiao:fromB36(sx?.[d-1]||'0')}};
+  return{code,year:y,month:m,data}}catch{return null}
 }
 
 // Get or create device UUID
@@ -459,8 +470,8 @@ function HomePage({settings,t,refreshKey}){
 
       {/* Edit previous day modal */}
       {editPrev&&prev&&(
-        <DayEditor day={{groups:prev.groups||[],total:prev.total,laodian:prev.laodian,status:prev.status}}
-          d={prev.day} y={prev.year} m={prev.month} t={t} up={settings.unitPrice}
+        <DayEditor day={{groups:prev.groups||[],total:prev.total,laodian:prev.laodian,status:prev.status,skills:prev.skills||{}}}
+          d={prev.day} y={prev.year} m={prev.month} t={t} up={settings.unitPrice} sk={settings.skills}
           onSave={savePrevDay} onCancel={()=>setEditPrev(false)}/>
       )}
     </div>
@@ -520,24 +531,34 @@ function DayRow({day,d,y,m,t,up,sk,onEdit}){
   );
 }
 
-function DayEditor({day,d,y,m,t,up,onSave,onCancel}){
+function DayEditor({day,d,y,m,t,up,sk,onSave,onCancel}){
   const[mode,setMode]=useState(day.groups.length>1?'group':'direct');
   const[groups,setGroups]=useState(day.groups.length>0?[...day.groups]:[]);
   const[dt,setDt]=useState(day.total);
   const[lo,setLo]=useState(day.laodian);
   const[st,setSt]=useState(day.status);
+  const[skCounts,setSkCounts]=useState(()=>{const s=day.skills||{};return{guasha:s.guasha||0,baguang:s.baguang||0,xiujiao:s.xiujiao||0}});
   const dw=dow(y,m,d);
   const gt=groups.reduce((a,b)=>a+(parseInt(b)||0),0);
   const ct=(!canWork[st])?0:(mode==='group'?gt:(parseInt(dt)||0));
   const sw=canWork[st];
-  const save=()=>{const nr=!canWork[st];onSave(d,{groups:nr?[]:(mode==='group'?groups.map(g=>parseInt(g)||0).filter(g=>g>0):[]),total:nr?0:ct,laodian:nr?0:(parseInt(lo)||0),status:st})};
+  const previewSal=ct*up+SKILL_KEYS.reduce((a,k,i)=>a+(sk?.[k]?(skCounts[k]||0)*SKILL_PRICES[i]:0),0);
+
+  const save=()=>{const nr=!canWork[st];onSave(d,{
+    groups:nr?[]:(mode==='group'?groups.map(g=>parseInt(g)||0).filter(g=>g>0):[]),
+    total:nr?0:ct,laodian:nr?0:(parseInt(lo)||0),status:st,
+    skills:nr?{guasha:0,baguang:0,xiujiao:0}:skCounts
+  })};
+
+  const clearAll=()=>{setDt(0);setLo(0);setSt(0);setGroups([]);setSkCounts({guasha:0,baguang:0,xiujiao:0})};
+  const skAdj=(k,delta)=>setSkCounts(p=>({...p,[k]:Math.max(0,(p[k]||0)+delta)}));
 
   return(
     <div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onCancel}>
       <div className="su bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
         <div className="p-4 border-b border-white/[0.06] flex items-center justify-between">
           <h3 className="text-lg font-bold text-gray-100">{m}/{d} <span className="text-gray-500 font-normal">({t.dn[dw]})</span></h3>
-          <div className="text-right"><div className="text-emerald-400 text-xl font-bold tabular-nums">${(ct*up).toLocaleString()}</div>{ct>0&&<div className="text-[11px] text-gray-600">{ct} × ${up}</div>}</div>
+          <div className="text-right"><div className="text-emerald-400 text-xl font-bold tabular-nums">${previewSal.toLocaleString()}</div></div>
         </div>
         <div className="p-4 space-y-5">
           <div>
@@ -563,11 +584,30 @@ function DayEditor({day,d,y,m,t,up,onSave,onCancel}){
             )}
             <div><label className="text-xs text-gray-500 mb-2 block">{t.laodian}</label>
             <input type="number" inputMode="numeric" value={lo||''} onChange={e=>setLo(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-xl text-center text-gray-100 font-semibold focus:outline-none focus:border-amber-500"/></div>
+            {/* Skills */}
+            {SKILL_KEYS.some(k=>sk?.[k])&&(
+              <div>
+                <label className="text-xs text-gray-500 mb-2 block">{t.skills}</label>
+                <div className="space-y-2">
+                  {SKILL_KEYS.map((k,i)=>sk?.[k]?(
+                    <div key={k} className="flex items-center gap-2">
+                      <span className={`text-sm flex-1 ${SKILL_COLORS[i]}`}>{t[k]} <span className="text-xs text-gray-600">${SKILL_PRICES[i]}</span></span>
+                      <button onClick={()=>skAdj(k,-1)} className="w-10 h-10 rounded-xl bg-white/[0.06] text-gray-400 text-lg font-bold active:bg-white/[0.1]">−</button>
+                      <span className={`w-8 text-center text-lg font-bold ${SKILL_COLORS[i]}`}>{skCounts[k]||0}</span>
+                      <button onClick={()=>skAdj(k,1)} className="w-10 h-10 rounded-xl bg-white/[0.06] text-gray-400 text-lg font-bold active:bg-white/[0.1]">+</button>
+                    </div>
+                  ):null)}
+                </div>
+              </div>
+            )}
           </>)}
         </div>
-        <div className="p-4 border-t border-white/[0.06] flex gap-3">
-          <button onClick={onCancel} className="flex-1 py-3.5 rounded-xl bg-white/[0.05] text-gray-400 font-semibold">{t.cancel}</button>
-          <button onClick={save} className="flex-1 py-3.5 rounded-xl bg-amber-600 text-white font-bold">{t.done}</button>
+        <div className="p-4 border-t border-white/[0.06] space-y-2">
+          <div className="flex gap-3">
+            <button onClick={onCancel} className="flex-1 py-3.5 rounded-xl bg-white/[0.05] text-gray-400 font-semibold">{t.cancel}</button>
+            <button onClick={save} className="flex-1 py-3.5 rounded-xl bg-amber-600 text-white font-bold">{t.done}</button>
+          </div>
+          <button onClick={clearAll} className="w-full py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium active:bg-red-500/20">🗑 {t.clearAll}</button>
         </div>
       </div>
     </div>
@@ -605,7 +645,7 @@ function MonthlyPage({settings,curM,setCurM,t}){
         <div className="px-3 py-1.5 bg-amber-600/[0.06] border-b border-amber-500/10 mt-0.5"><span className="text-[11px] text-amber-500/80 font-semibold">{t.p2}</span></div>
         {Array.from({length:dm-15},(_,i)=>i+16).map(d=>(<DayRow key={d} d={d} day={data?.days[d]||eDay()} y={y} m={curM} t={t} up={settings.unitPrice} sk={settings.skills} onEdit={setEditDay}/>))}
       </>)}
-      {editDay&&data&&<DayEditor day={data.days[editDay]||eDay()} d={editDay} y={y} m={curM} t={t} up={settings.unitPrice} onSave={saveDay} onCancel={()=>setEditDay(null)}/>}
+      {editDay&&data&&<DayEditor day={data.days[editDay]||eDay()} d={editDay} y={y} m={curM} t={t} up={settings.unitPrice} sk={settings.skills} onSave={saveDay} onCancel={()=>setEditDay(null)}/>}
     </div>
   );
 }
