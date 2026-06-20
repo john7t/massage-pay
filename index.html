@@ -29,7 +29,33 @@ input[type=number]{-moz-appearance:textfield}
 const{useState,useEffect,useCallback,useMemo}=React;
 
 /* ══════════ CRYPTO ══════════ */
-const CK="STK2026X";
+const CK_DEFAULT="STK2026X";
+let CK=CK_DEFAULT;
+
+// Dynamic key builder: extract chars from cfg files
+const KC_KEY='key-config';
+function getKeyConfig(){return LS.get(KC_KEY)||null}
+function saveKeyConfig(cfg){LS.set(KC_KEY,cfg)}
+
+async function buildDynamicKey(){
+  const cfg=getKeyConfig();
+  if(!cfg||!cfg.rules||!cfg.rules.length){CK=CK_DEFAULT;return}
+  try{
+    const parts=[];
+    for(const r of cfg.rules){
+      if(!r.file||r.start==null||!r.len)continue;
+      const res=await fetch('./'+r.file,{cache:'no-store'});
+      if(!res.ok){CK=CK_DEFAULT;return}
+      const text=await res.text();
+      const firstLine=text.split('\n')[0]||'';
+      if(firstLine.length<r.start+r.len){CK=CK_DEFAULT;return}
+      parts.push(firstLine.substring(r.start,r.start+r.len));
+    }
+    const built=parts.join('');
+    if(built.length>=4)CK=built; else CK=CK_DEFAULT;
+  }catch{CK=CK_DEFAULT}
+}
+
 function xEnc(t){return Array.from(t).map((c,i)=>(c.charCodeAt(0)^CK.charCodeAt(i%CK.length)).toString(16).padStart(2,'0')).join('')}
 function xDec(h){try{return h.match(/.{2}/g).map((x,i)=>String.fromCharCode(parseInt(x,16)^CK.charCodeAt(i%CK.length))).join('')}catch{return''}}
 function fnv(s){let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193);h=h&0x7fffffff}return h}
@@ -250,6 +276,9 @@ zh:{
   ghSave:"儲存",ghSaved:"已儲存 ✓",ghTest:"測試連線",ghOk:"連線成功 ✓",ghFail:"連線失敗",
   ghWriting:"寫入中...",ghWriteOk:"已寫入 GitHub ✓",ghWriteFail:"寫入失敗",ghAuto:"自動寫入 GitHub",
   ghEdit:"編輯",ghLocked:"設定已鎖定，按編輯可修改",
+  keyConfig:"密鑰設定",keyFile:"檔案",keyStart:"起始位置",keyLen:"取幾字",keyTest:"測試密鑰",
+  keyResult:"組合結果",keyMatch:"與現行密鑰一致 ✓",keyMismatch:"⚠️ 與現行密鑰不同，儲存後將更換密鑰",
+  keySave:"儲存密鑰設定",keySaved:"密鑰設定已儲存 ✓",keyAddRule:"新增規則",keyDelRule:"刪除",
   adminList:"管理者名單",adminAdd:"新增管理者",adminDel:"刪除",adminDelConfirm:"確定刪除此管理者？",
   adminDelLast:"至少需保留一位管理者",adminDelOk:"已從 GitHub 刪除 ✓",adminDelFail:"刪除失敗",
   adminAddHint:"請將此雜湊碼新增到 GitHub admin.cfg",adminCfg:"目前 admin.cfg",adminLocal:"本機新增",
@@ -305,6 +334,9 @@ vi:{
   ghSave:"Lưu",ghSaved:"Đã lưu ✓",ghTest:"Thử kết nối",ghOk:"Kết nối OK ✓",ghFail:"Kết nối thất bại",
   ghWriting:"Đang ghi...",ghWriteOk:"Đã ghi GitHub ✓",ghWriteFail:"Ghi thất bại",ghAuto:"Tự động ghi GitHub",
   ghEdit:"Sửa",ghLocked:"Đã khóa, nhấn Sửa để chỉnh",
+  keyConfig:"Cài đặt khóa",keyFile:"Tệp",keyStart:"Vị trí",keyLen:"Số ký tự",keyTest:"Thử khóa",
+  keyResult:"Kết quả",keyMatch:"Khớp khóa hiện tại ✓",keyMismatch:"⚠️ Khác khóa hiện tại",
+  keySave:"Lưu cài đặt khóa",keySaved:"Đã lưu ✓",keyAddRule:"Thêm quy tắc",keyDelRule:"Xóa",
   adminList:"Danh sách quản lý",adminAdd:"Thêm quản lý",adminDel:"Xóa",adminDelConfirm:"Xác nhận xóa quản lý?",
   adminDelLast:"Cần giữ ít nhất một quản lý",adminDelOk:"Đã xóa khỏi GitHub ✓",adminDelFail:"Xóa thất bại",
   adminAddHint:"Thêm mã hash này vào GitHub admin.cfg",adminCfg:"admin.cfg hiện tại",adminLocal:"Thêm cục bộ",
@@ -1222,6 +1254,9 @@ function AdminPage({t,onBack}){
   const[ghStatus,setGhStatus]=useState('');
   const[ghEditing,setGhEditing]=useState(()=>{const c=getGHConfig();return!c.token});
   const[delStatus,setDelStatus]=useState('');
+  const[keyRules,setKeyRules]=useState(()=>{const kc=getKeyConfig();return kc?.rules||[{file:'key.cfg',start:18,len:3},{file:'admin.cfg',start:25,len:2},{file:'revoked.cfg',start:10,len:3}]});
+  const[keyTestResult,setKeyTestResult]=useState('');
+  const[keySaveStatus,setKeySaveStatus]=useState('');
 
   // Parse admin.cfg entries: support "encCode:hash" and legacy "hash"
   const parseEntries=(text)=>{
@@ -1285,6 +1320,28 @@ function AdminPage({t,onBack}){
 
   const saveGH=()=>{saveGHConfig(gh);setGhStatus(t.ghSaved);setGhEditing(false);setTimeout(()=>setGhStatus(''),2000)};
   const testGH=async()=>{setGhStatus('...');try{const f=await ghReadFile(gh,'admin.cfg');setGhStatus(f?t.ghOk:t.ghFail)}catch{setGhStatus(t.ghFail)}};
+
+  // Key config helpers
+  const updateRule=(idx,field,val)=>{const r=[...keyRules];r[idx]={...r[idx],[field]:field==='file'?val:parseInt(val)||0};setKeyRules(r)};
+  const addRule=()=>setKeyRules([...keyRules,{file:'key.cfg',start:0,len:1}]);
+  const delRule=(i)=>setKeyRules(keyRules.filter((_,j)=>j!==i));
+  const testKey=async()=>{
+    try{
+      const parts=[];
+      for(const r of keyRules){
+        if(!r.file||r.start==null||!r.len){setKeyTestResult('Error');return}
+        const res=await fetch('./'+r.file,{cache:'no-store'});
+        if(!res.ok){setKeyTestResult('Error: '+r.file);return}
+        const text=await res.text();
+        const fl=text.split('\n')[0]||'';
+        if(fl.length<r.start+r.len){setKeyTestResult('Error: '+r.file+' too short');return}
+        parts.push(fl.substring(r.start,r.start+r.len));
+      }
+      const built=parts.join('');
+      setKeyTestResult(built===CK?t.keyMatch:`${t.keyResult}: ${built.length}字 (${built===CK_DEFAULT?t.keyMatch:t.keyMismatch})`);
+    }catch(e){setKeyTestResult('Error')}
+  };
+  const saveKeyRules=()=>{saveKeyConfig({rules:keyRules});buildDynamicKey();setKeySaveStatus(t.keySaved);setTimeout(()=>setKeySaveStatus(''),2000)};
 
 
   return(
@@ -1420,6 +1477,31 @@ function AdminPage({t,onBack}){
         {ghStatus&&<p className={`text-xs text-center ${ghStatus.includes('✓')?'text-emerald-400':'text-amber-400'}`}>{ghStatus}</p>}
       </div>
 
+      {/* Key Config */}
+      <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-amber-400">{t.keyConfig}</h3>
+        {keyRules.map((r,i)=>(
+          <div key={i} className="flex gap-1.5 items-center">
+            <select value={r.file} onChange={e=>updateRule(i,'file',e.target.value)}
+              className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200 focus:outline-none">
+              {['key.cfg','admin.cfg','revoked.cfg','index.html'].map(f=><option key={f} value={f}>{f}</option>)}
+            </select>
+            <input type="number" value={r.start} onChange={e=>updateRule(i,'start',e.target.value)} placeholder={t.keyStart}
+              className="w-14 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-center text-gray-200 font-mono focus:outline-none"/>
+            <input type="number" value={r.len} onChange={e=>updateRule(i,'len',e.target.value)} placeholder={t.keyLen}
+              className="w-12 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-center text-gray-200 font-mono focus:outline-none"/>
+            {keyRules.length>1&&<button onClick={()=>delRule(i)} className="text-red-400/50 text-xs px-1">✕</button>}
+          </div>
+        ))}
+        <button onClick={addRule} className="text-xs text-amber-400/60 active:text-amber-400">+ {t.keyAddRule}</button>
+        <div className="flex gap-2">
+          <button onClick={testKey} className="flex-1 py-2 bg-white/[0.06] rounded-xl text-gray-300 text-sm font-medium">{t.keyTest}</button>
+          <button onClick={saveKeyRules} className="flex-1 py-2 bg-amber-600 rounded-xl text-white text-sm font-bold">{t.keySave}</button>
+        </div>
+        {keyTestResult&&<p className={`text-xs text-center ${keyTestResult.includes('✓')?'text-emerald-400':'text-amber-400'}`}>{keyTestResult}</p>}
+        {keySaveStatus&&<p className="text-xs text-center text-emerald-400">{keySaveStatus}</p>}
+      </div>
+
       <LogSection t={t} filterLevel="admin"/>
     </div>
   );
@@ -1441,6 +1523,8 @@ function App(){
   const[ready,setReady]=useState(false);
   const[needOnboard,setNeedOnboard]=useState(false);
   const[refreshKey,setRefreshKey]=useState(0);
+
+  useEffect(()=>{buildDynamicKey()},[]);
 
   useEffect(()=>{
     const s=LS.get('app-settings');
