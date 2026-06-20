@@ -38,20 +38,29 @@ function adminHash(code){const S="MassagePay2026!Adm";let h=fnv(S+code+S);for(le
 function genAdminAct(code,uuid){const b=`ADM:${code}:${uuid}`;return['#DELTA','#ECHO','#FOXTROT'].map(s=>String(fnv(b+s)%10000).padStart(4,'0')).join('-')}
 function revokeHash(code){const S="MassagePay2026!Rvk";let h=fnv(S+code+S);for(let i=0;i<200;i++)h=fnv(String(h)+S+code);return h.toString(36).padStart(6,'0')}
 
-// Action log
-function addLog(msg){
+// Action log with levels: 'teacher' | 'supervisor' | 'admin'
+function addLog(msg,level='admin'){
   const logs=LS.get('admin-log')||[];
-  logs.push({ts:Date.now(),msg});
+  const s=LS.get('app-settings');
+  const operator=s?.code||'';
+  logs.push({ts:Date.now(),msg,level:level||'admin',op:operator});
   if(logs.length>200)logs.splice(0,logs.length-200);
   LS.set('admin-log',logs);
 }
-function getLogs(){return(LS.get('admin-log')||[]).reverse()}
+function getLogs(filterLevel){
+  const logs=(LS.get('admin-log')||[]).reverse();
+  if(!filterLevel)return logs;
+  // teacher sees only teacher, supervisor sees teacher+supervisor, admin sees all
+  if(filterLevel==='teacher')return logs.filter(l=>l.level==='teacher');
+  if(filterLevel==='supervisor')return logs.filter(l=>l.level==='teacher'||l.level==='supervisor');
+  return logs;
+}
 function fmtLog(s,args){return args.reduce((r,a,i)=>r.replace(`{${i}}`,a),s)}
 function fmtDate(ts){const d=new Date(ts);return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
 
 
-function LogSection({t}){
-  const[logs]=useState(getLogs);
+function LogSection({t,filterLevel}){
+  const[logs]=useState(()=>getLogs(filterLevel));
   if(!logs.length)return null;
   return(
     <div className="space-y-2 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
@@ -61,6 +70,7 @@ function LogSection({t}){
           <div key={i} className="text-[11px] py-1 border-b border-white/[0.03]">
             <span className="text-gray-600 font-mono">{fmtDate(l.ts)}</span>
             <span className="text-gray-400 ml-2">{l.msg}</span>
+            {l.op&&filterLevel==='admin'&&<span className="text-gray-700 ml-1">[{l.op}]</span>}
           </div>
         ))}
       </div>
@@ -98,6 +108,13 @@ async function ghAppendLine(cfg,path,line,msg){
   return ghWriteFile(cfg,path,newContent,file.sha,msg);
 }
 
+async function ghRemoveLine(cfg,path,line,msg){
+  const file=await ghReadFile(cfg,path);
+  if(!file)return false;
+  const lines=file.content.split('\n').filter(l=>l.trim()!==line.trim());
+  return ghWriteFile(cfg,path,lines.join('\n'),file.sha,msg);
+}
+
 // Approved supervisors list management
 function getApproved(){return LS.get('approved-supervisors')||[]}
 function saveApproved(list){LS.set('approved-supervisors',list)}
@@ -119,7 +136,7 @@ function ApprovedList({t,isAdmin}){
     const updated=[...list];updated[i]={...item,revoked:true,revokedAt:Date.now()};
     setList(updated);saveApproved(updated);
     setRevokedHash({idx:i,hash:h});
-    addLog(fmtLog(t.logRevoke,[item.code,item.devName||'']));
+    addLog(fmtLog(t.logRevoke,[item.code,item.devName||'']),'supervisor');
     // Auto-write to GitHub if config exists
     const gh=getGHConfig();
     if(gh.token&&gh.owner&&gh.repo){
@@ -226,12 +243,15 @@ zh:{
   revokeInput:"輸入撤銷碼",revokeSuccess:"主管權限已取消",revokeFail:"撤銷碼錯誤",
   actionLog:"操作記錄",logGenUser:"生成{0}號啟動碼",logGenSup:"生成{0}號主管啟動碼({1})",
   logRevoke:"取消{0}號主管權限({1})",supervisorList:"主管名單",
+  logTeacherActivate:"{0}號老師啟用主管權限({1})",
   revokeToAdmin:"請將此碼傳給管理者新增到 revoked.cfg",
-  revokedList:"已撤銷",expired:"權限已過期",
+  revokedList:"已撤銷",expired:"權限已過期",ok:"確認",
   ghConfig:"GitHub 設定",ghOwner:"帳號",ghRepo:"Repo 名稱",ghToken:"Personal Access Token",
   ghSave:"儲存",ghSaved:"已儲存 ✓",ghTest:"測試連線",ghOk:"連線成功 ✓",ghFail:"連線失敗",
   ghWriting:"寫入中...",ghWriteOk:"已寫入 GitHub ✓",ghWriteFail:"寫入失敗",ghAuto:"自動寫入 GitHub",
-  adminList:"管理者名單",adminAdd:"新增管理者",adminDel:"刪除",
+  ghEdit:"編輯",ghLocked:"設定已鎖定，按編輯可修改",
+  adminList:"管理者名單",adminAdd:"新增管理者",adminDel:"刪除",adminDelConfirm:"確定刪除此管理者？",
+  adminDelLast:"至少需保留一位管理者",adminDelOk:"已從 GitHub 刪除 ✓",adminDelFail:"刪除失敗",
   adminAddHint:"請將此雜湊碼新增到 GitHub admin.cfg",adminCfg:"目前 admin.cfg",adminLocal:"本機新增",
   skills:"老師技能",guasha:"刮痧",baguang:"拔罐",xiujiao:"修腳皮",gs:"刮",bg:"拔",xj:"修",clearAll:"一鍵清除",
   notice1:"⚠️ 資料只存在本機，不會上傳雲端。",
@@ -278,12 +298,15 @@ vi:{
   revokeInput:"Nhập mã hủy",revokeSuccess:"Đã hủy quyền quản lý",revokeFail:"Sai mã hủy",
   actionLog:"Nhật ký",logGenUser:"Tạo mã kích hoạt #{0}",logGenSup:"Tạo mã quản lý #{0}({1})",
   logRevoke:"Hủy quyền #{0}({1})",supervisorList:"Danh sách quản lý",
+  logTeacherActivate:"NV #{0} kích hoạt quyền quản lý({1})",
   revokeToAdmin:"Gửi mã này cho quản trị viên để thêm vào revoked.cfg",
-  revokedList:"Đã hủy",expired:"Quyền đã hết hạn",
+  revokedList:"Đã hủy",expired:"Quyền đã hết hạn",ok:"OK",
   ghConfig:"Cài đặt GitHub",ghOwner:"Tài khoản",ghRepo:"Tên Repo",ghToken:"Personal Access Token",
   ghSave:"Lưu",ghSaved:"Đã lưu ✓",ghTest:"Thử kết nối",ghOk:"Kết nối OK ✓",ghFail:"Kết nối thất bại",
   ghWriting:"Đang ghi...",ghWriteOk:"Đã ghi GitHub ✓",ghWriteFail:"Ghi thất bại",ghAuto:"Tự động ghi GitHub",
-  adminList:"Danh sách quản lý",adminAdd:"Thêm quản lý",adminDel:"Xóa",
+  ghEdit:"Sửa",ghLocked:"Đã khóa, nhấn Sửa để chỉnh",
+  adminList:"Danh sách quản lý",adminAdd:"Thêm quản lý",adminDel:"Xóa",adminDelConfirm:"Xác nhận xóa quản lý?",
+  adminDelLast:"Cần giữ ít nhất một quản lý",adminDelOk:"Đã xóa khỏi GitHub ✓",adminDelFail:"Xóa thất bại",
   adminAddHint:"Thêm mã hash này vào GitHub admin.cfg",adminCfg:"admin.cfg hiện tại",adminLocal:"Thêm cục bộ",
   skills:"Kỹ năng",guasha:"Cạo gió",baguang:"Giác hơi",xiujiao:"Sửa da chân",gs:"C",bg:"G",xj:"S",clearAll:"Xóa tất cả",
   notice1:"⚠️ Dữ liệu chỉ lưu trên máy, không tải lên đám mây.",
@@ -911,7 +934,9 @@ function SettingsPage({settings,onUpdate,t}){
       const text=(await res.text()).trim();
       const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
       const myHash=adminHash(settings.code);
-      setCheckState(lines.some(l=>l===myHash)?'ok':'denied');
+      // Support both formats: "encCode:hash" and legacy "hash"
+      const match=lines.some(l=>{const parts=l.split(':');const h=parts.length>=2?parts[parts.length-1]:parts[0];return h===myHash});
+      setCheckState(match?'ok':'denied');
     }catch{setCheckState('denied')}
   };
 
@@ -933,6 +958,7 @@ function SettingsPage({settings,onUpdate,t}){
       LS.set(supKey,data);
       setSupStatus(data);
       setSupErr('');
+      addLog(fmtLog(t.logTeacherActivate,[settings.code,supStatus?.deviceName||'']),'teacher');
     }else{setSupErr(t.adminActFail)}
   };
 
@@ -942,7 +968,7 @@ function SettingsPage({settings,onUpdate,t}){
   };
 
   if(showAdmin)return<AdminPage t={t} onBack={()=>setShowAdmin(false)}/>;
-  if(showSupervisor)return<SupervisorPage t={t} onBack={()=>setShowSupervisor(false)}/>;
+  if(showSupervisor)return<SupervisorPage t={t} onBack={()=>{setShowSupervisor(false);setSupStatus(LS.get(supKey)||null)}}/>;
 
   const checkBtnClass={
     idle:'bg-white/[0.03] border border-white/[0.06] text-gray-400 active:bg-white/[0.06]',
@@ -1113,13 +1139,13 @@ function SupervisorPage({t,onBack}){
           <span className="text-3xl">⚠️</span>
         </div>
         <p className="text-red-400 text-lg font-bold mb-4">{t.expired}</p>
-        <button onClick={onBack} className="px-6 py-3 bg-white/[0.06] rounded-xl text-gray-300">{t.cancel}</button>
+        <button onClick={onBack} className="px-6 py-3 bg-white/[0.06] rounded-xl text-gray-300">{t.ok}</button>
       </div>
     </div>
   );
 
   // Generate user activation code
-  const genCode=()=>{try{const dec=xDec(encInput.trim());const idx=dec.indexOf(':');if(idx<1){setActResult('Error');setDecodedInfo('');return}const code=dec.substring(0,idx);const devId=dec.substring(idx+1);setDecodedInfo(code);setActResult(genAct(code,devId));addLog(fmtLog(t.logGenUser,[code]))}catch{setActResult('Error');setDecodedInfo('')}};
+  const genCode=()=>{try{const dec=xDec(encInput.trim());const idx=dec.indexOf(':');if(idx<1){setActResult('Error');setDecodedInfo('');return}const code=dec.substring(0,idx);const devId=dec.substring(idx+1);setDecodedInfo(code);setActResult(genAct(code,devId));addLog(fmtLog(t.logGenUser,[code]),'supervisor')}catch{setActResult('Error');setDecodedInfo('')}};
 
   // Parse supervisor application + generate admin activation code + save to approved list
   const parseSup=()=>{
@@ -1131,7 +1157,7 @@ function SupervisorPage({t,onBack}){
       setSupInfo({code,uuid:uuid.substring(0,8)+'...',devName});
       setSupResult(genAdminAct(code,uuid));
       addApproved(code,devName);
-      addLog(fmtLog(t.logGenSup,[code,devName]));
+      addLog(fmtLog(t.logGenSup,[code,devName]),'supervisor');
     }catch{setSupInfo(null);setSupResult('Error')}
   };
 
@@ -1181,7 +1207,7 @@ function SupervisorPage({t,onBack}){
         )}
       </div>
       <ApprovedList t={t} isAdmin={false}/>
-      <LogSection t={t}/>
+      <LogSection t={t} filterLevel="supervisor"/>
     </div>
   );
 }
@@ -1189,37 +1215,75 @@ function SupervisorPage({t,onBack}){
 function AdminPage({t,onBack}){
   const[encInput,setEncInput]=useState('');const[actResult,setActResult]=useState('');const[decodedInfo,setDecodedInfo]=useState('');
   const[toolInput,setToolInput]=useState('');const[toolResult,setToolResult]=useState('');const[toolMode,setToolMode]=useState('enc');
-  const[cfgHashes,setCfgHashes]=useState([]);
+  const[cfgEntries,setCfgEntries]=useState([]); // [{line,hash,code}]
   const[newCode,setNewCode]=useState('');const[newHash,setNewHash]=useState('');const[newHashStatus,setNewHashStatus]=useState('');
   const[supInput,setSupInput]=useState('');const[supResult,setSupResult]=useState('');const[supInfo,setSupInfo]=useState(null);
   const[gh,setGh]=useState(()=>getGHConfig());
   const[ghStatus,setGhStatus]=useState('');
+  const[ghEditing,setGhEditing]=useState(()=>{const c=getGHConfig();return!c.token});
+  const[delStatus,setDelStatus]=useState('');
+
+  // Parse admin.cfg entries: support "encCode:hash" and legacy "hash"
+  const parseEntries=(text)=>{
+    const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
+    return lines.map(line=>{
+      const parts=line.split(':');
+      if(parts.length>=2){
+        const encCode=parts.slice(0,-1).join(':');
+        const hash=parts[parts.length-1];
+        const code=xDec(encCode)||'?';
+        return{line,hash,code};
+      }
+      return{line,hash:line,code:'?'};
+    });
+  };
 
   useEffect(()=>{
     (async()=>{
       try{const res=await fetch('./admin.cfg',{cache:'no-store'});if(!res.ok)return;
         const text=(await res.text()).trim();
-        setCfgHashes(text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#')));
+        setCfgEntries(parseEntries(text));
       }catch{}
     })();
   },[]);
 
-  const genCode=()=>{try{const dec=xDec(encInput.trim());const idx=dec.indexOf(':');if(idx<1){setActResult('Error');setDecodedInfo('');return}const code=dec.substring(0,idx);const devId=dec.substring(idx+1);setDecodedInfo(code);setActResult(genAct(code,devId));addLog(fmtLog(t.logGenUser,[code]))}catch{setActResult('Error');setDecodedInfo('')}};
+  const genCode=()=>{try{const dec=xDec(encInput.trim());const idx=dec.indexOf(':');if(idx<1){setActResult('Error');setDecodedInfo('');return}const code=dec.substring(0,idx);const devId=dec.substring(idx+1);setDecodedInfo(code);setActResult(genAct(code,devId));addLog(fmtLog(t.logGenUser,[code]),'admin')}catch{setActResult('Error');setDecodedInfo('')}};
   const runTool=()=>{if(toolMode==='enc')setToolResult(xEnc(toolInput));else setToolResult(xDec(toolInput.trim()))};
-  const parseSup=()=>{try{const dec=xDec(supInput.trim());const parts=dec.split(':');if(parts.length<2){setSupInfo(null);setSupResult('Error');return}const code=parts[0],uuid=parts[1],devName=parts.slice(2).join(':')||'unknown';setSupInfo({code,uuid:uuid.substring(0,8)+'...',devName});setSupResult(genAdminAct(code,uuid));addApproved(code,devName);addLog(fmtLog(t.logGenSup,[code,devName]))}catch{setSupInfo(null);setSupResult('Error')}};
+  const parseSup=()=>{try{const dec=xDec(supInput.trim());const parts=dec.split(':');if(parts.length<2){setSupInfo(null);setSupResult('Error');return}const code=parts[0],uuid=parts[1],devName=parts.slice(2).join(':')||'unknown';setSupInfo({code,uuid:uuid.substring(0,8)+'...',devName});setSupResult(genAdminAct(code,uuid));addApproved(code,devName);addLog(fmtLog(t.logGenSup,[code,devName]),'admin')}catch{setSupInfo(null);setSupResult('Error')}};
 
+  // Write new format: encCode:hash
   const genAdminHashAndWrite=async()=>{
     if(!newCode.trim())return;
-    const h=adminHash(newCode.trim());setNewHash(h);
+    const code=newCode.trim();
+    const h=adminHash(code);
+    const encCode=xEnc(code);
+    const newLine=`${encCode}:${h}`;
+    setNewHash(h);
     if(gh.token&&gh.owner&&gh.repo){
       setNewHashStatus(t.ghWriting);
-      const ok=await ghAppendLine(gh,'admin.cfg',h,'add admin '+newCode.trim());
+      const ok=await ghAppendLine(gh,'admin.cfg',newLine,'add admin '+code);
       setNewHashStatus(ok?t.ghWriteOk:t.ghWriteFail);
-      if(ok)setCfgHashes(prev=>[...prev,h]);
+      if(ok)setCfgEntries(prev=>[...prev,{line:newLine,hash:h,code}]);
     }else{setNewHashStatus('')}
   };
 
-  const saveGH=()=>{saveGHConfig(gh);setGhStatus(t.ghSaved);setTimeout(()=>setGhStatus(''),2000)};
+  // Delete admin from admin.cfg via GitHub
+  const doDeleteAdmin=async(entry,idx)=>{
+    if(cfgEntries.length<=1){setDelStatus(t.adminDelLast);setTimeout(()=>setDelStatus(''),2000);return}
+    if(!confirm(t.adminDelConfirm))return;
+    if(gh.token&&gh.owner&&gh.repo){
+      setDelStatus(t.ghWriting);
+      const ok=await ghRemoveLine(gh,'admin.cfg',entry.line,'remove admin '+(entry.code||entry.hash));
+      if(ok){
+        setCfgEntries(prev=>prev.filter((_,i)=>i!==idx));
+        setDelStatus(t.adminDelOk);
+        addLog(fmtLog('刪除管理者 {0}',[entry.code||'?']),'admin');
+      }else{setDelStatus(t.adminDelFail)}
+      setTimeout(()=>setDelStatus(''),2000);
+    }
+  };
+
+  const saveGH=()=>{saveGHConfig(gh);setGhStatus(t.ghSaved);setGhEditing(false);setTimeout(()=>setGhStatus(''),2000)};
   const testGH=async()=>{setGhStatus('...');try{const f=await ghReadFile(gh,'admin.cfg');setGhStatus(f?t.ghOk:t.ghFail)}catch{setGhStatus(t.ghFail)}};
 
 
@@ -1250,16 +1314,24 @@ function AdminPage({t,onBack}){
             {newHashStatus&&<p className={`text-xs text-center ${newHashStatus.includes('✓')?'text-emerald-400':'text-red-400'}`}>{newHashStatus}</p>}
           </div>
         )}
-        {/* Current admins in admin.cfg */}
-        {cfgHashes.length>0&&(
+        {/* Current admins in admin.cfg - show decoded teacher codes */}
+        {cfgEntries.length>0&&(
           <div className="pt-2 border-t border-white/[0.04]">
             <p className="text-[10px] text-gray-600 mb-1">{t.adminCfg}</p>
-            {cfgHashes.map((h,i)=>(
+            {cfgEntries.map((entry,i)=>(
               <div key={i} className="flex items-center justify-between py-1.5">
-                <span className="text-xs text-gray-500 font-mono">{h}</span>
-                <span className="text-[10px] text-gray-700">🔒</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-amber-400 font-bold font-mono">{entry.code!=='?'?entry.code:'—'}</span>
+                  <span className="text-[10px] text-gray-600 font-mono">({entry.hash})</span>
+                </div>
+                {gh.token&&gh.owner&&gh.repo?(
+                  cfgEntries.length>1?(
+                    <button onClick={()=>doDeleteAdmin(entry,i)} className="px-2 py-1 rounded-lg bg-red-500/10 text-red-400 text-[10px] font-medium active:bg-red-500/20">{t.adminDel}</button>
+                  ):<span className="text-[10px] text-gray-700">🔒</span>
+                ):<span className="text-[10px] text-gray-700">🔒</span>}
               </div>
             ))}
+            {delStatus&&<p className={`text-xs text-center mt-1 ${delStatus.includes('✓')?'text-emerald-400':delStatus.includes('失敗')||delStatus.includes('thất')?'text-red-400':'text-amber-400'}`}>{delStatus}</p>}
           </div>
         )}
       </div>
@@ -1316,23 +1388,39 @@ function AdminPage({t,onBack}){
       </div>
       <ApprovedList t={t} isAdmin={true}/>
 
-      {/* GitHub Config */}
+      {/* GitHub Config - locked by default */}
       <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
-        <h3 className="text-sm font-semibold text-amber-400">{t.ghConfig}</h3>
-        <input value={gh.owner||''} onChange={e=>setGh({...gh,owner:e.target.value.trim()})} placeholder={t.ghOwner+" (ex: john7t)"}
-          className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
-        <input value={gh.repo||''} onChange={e=>setGh({...gh,repo:e.target.value.trim()})} placeholder={t.ghRepo+" (ex: massage-pay)"}
-          className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
-        <input value={gh.token||''} onChange={e=>setGh({...gh,token:e.target.value.trim()})} placeholder={t.ghToken} type="password"
-          className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
-        <div className="flex gap-2">
-          <button onClick={saveGH} className="flex-1 py-2.5 bg-amber-600 rounded-xl text-white text-sm font-bold">{t.ghSave}</button>
-          <button onClick={testGH} className="flex-1 py-2.5 bg-white/[0.06] rounded-xl text-gray-300 text-sm font-medium">{t.ghTest}</button>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-amber-400">{t.ghConfig}</h3>
+          {!ghEditing&&gh.token&&<button onClick={()=>setGhEditing(true)} className="px-3 py-1 rounded-lg bg-white/[0.06] text-amber-400 text-xs font-medium active:bg-white/[0.1]">{t.ghEdit}</button>}
         </div>
+        {ghEditing?(
+          <>
+            <input value={gh.owner||''} onChange={e=>setGh({...gh,owner:e.target.value.trim()})} placeholder={t.ghOwner+" (ex: john7t)"}
+              className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
+            <input value={gh.repo||''} onChange={e=>setGh({...gh,repo:e.target.value.trim()})} placeholder={t.ghRepo+" (ex: massage-pay)"}
+              className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
+            <input value={gh.token||''} onChange={e=>setGh({...gh,token:e.target.value.trim()})} placeholder={t.ghToken} type="password"
+              className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
+            <div className="flex gap-2">
+              <button onClick={saveGH} className="flex-1 py-2.5 bg-amber-600 rounded-xl text-white text-sm font-bold">{t.ghSave}</button>
+              <button onClick={testGH} className="flex-1 py-2.5 bg-white/[0.06] rounded-xl text-gray-300 text-sm font-medium">{t.ghTest}</button>
+            </div>
+          </>
+        ):(
+          <>
+            <input value={gh.owner||''} disabled className="w-full bg-white/[0.03] border border-white/[0.04] rounded-xl px-3 py-2.5 text-sm text-gray-500 font-mono cursor-not-allowed"/>
+            <input value={gh.repo||''} disabled className="w-full bg-white/[0.03] border border-white/[0.04] rounded-xl px-3 py-2.5 text-sm text-gray-500 font-mono cursor-not-allowed"/>
+            <input value={'●'.repeat(12)} disabled type="text" className="w-full bg-white/[0.03] border border-white/[0.04] rounded-xl px-3 py-2.5 text-sm text-gray-500 font-mono cursor-not-allowed"/>
+            <div className="flex gap-2">
+              <button onClick={testGH} className="flex-1 py-2.5 bg-white/[0.06] rounded-xl text-gray-300 text-sm font-medium">{t.ghTest}</button>
+            </div>
+          </>
+        )}
         {ghStatus&&<p className={`text-xs text-center ${ghStatus.includes('✓')?'text-emerald-400':'text-amber-400'}`}>{ghStatus}</p>}
       </div>
 
-      <LogSection t={t}/>
+      <LogSection t={t} filterLevel="admin"/>
     </div>
   );
 }
