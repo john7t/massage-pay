@@ -279,6 +279,11 @@ zh:{
   keyConfig:"密鑰設定",keyFile:"檔案",keyStart:"起始位置",keyLen:"取幾字",keyTest:"測試密鑰",
   keyResult:"組合結果",keyMatch:"與現行密鑰一致 ✓",keyMismatch:"⚠️ 與現行密鑰不同，儲存後將更換密鑰",
   keySave:"儲存密鑰設定",keySaved:"密鑰設定已儲存 ✓",keyAddRule:"新增規則",keyDelRule:"刪除",
+  keyFileOk:"{0} 存在",keyFileFail:"{0} 不存在",keyLenOk:"{0} 第1行 {1} 字 ≥ 需要 {2} 字",
+  keyLenFail:"{0} 第1行僅 {1} 字，需至少 {2} 字",keyBuilt:"組合密鑰：{0} 字元",
+  keyAdminOk:"admin.cfg 共 {0} 筆，全部符合",keyAdminPartial:"admin.cfg {0}/{1} 筆符合",
+  keyAdminNone:"admin.cfg {0} 筆皆不符合",keyMigrate:"轉換為新密鑰",keyMigrating:"轉換中...",
+  keyMigrateOk:"已轉換並寫入 GitHub ✓",keyMigrateFail:"轉換失敗",
   adminList:"管理者名單",adminAdd:"新增管理者",adminDel:"刪除",adminDelConfirm:"確定刪除此管理者？",
   adminDelLast:"至少需保留一位管理者",adminDelOk:"已從 GitHub 刪除 ✓",adminDelFail:"刪除失敗",
   adminAddHint:"請將此雜湊碼新增到 GitHub admin.cfg",adminCfg:"目前 admin.cfg",adminLocal:"本機新增",
@@ -337,6 +342,11 @@ vi:{
   keyConfig:"Cài đặt khóa",keyFile:"Tệp",keyStart:"Vị trí",keyLen:"Số ký tự",keyTest:"Thử khóa",
   keyResult:"Kết quả",keyMatch:"Khớp khóa hiện tại ✓",keyMismatch:"⚠️ Khác khóa hiện tại",
   keySave:"Lưu cài đặt khóa",keySaved:"Đã lưu ✓",keyAddRule:"Thêm quy tắc",keyDelRule:"Xóa",
+  keyFileOk:"{0} tồn tại",keyFileFail:"{0} không tồn tại",keyLenOk:"{0} dòng 1: {1} ký tự ≥ cần {2}",
+  keyLenFail:"{0} dòng 1: chỉ {1} ký tự, cần ≥ {2}",keyBuilt:"Khóa: {0} ký tự",
+  keyAdminOk:"admin.cfg {0} mục, tất cả khớp",keyAdminPartial:"admin.cfg {0}/{1} khớp",
+  keyAdminNone:"admin.cfg {0} mục không khớp",keyMigrate:"Chuyển sang khóa mới",keyMigrating:"Đang chuyển...",
+  keyMigrateOk:"Đã chuyển và ghi GitHub ✓",keyMigrateFail:"Chuyển thất bại",
   adminList:"Danh sách quản lý",adminAdd:"Thêm quản lý",adminDel:"Xóa",adminDelConfirm:"Xác nhận xóa quản lý?",
   adminDelLast:"Cần giữ ít nhất một quản lý",adminDelOk:"Đã xóa khỏi GitHub ✓",adminDelFail:"Xóa thất bại",
   adminAddHint:"Thêm mã hash này vào GitHub admin.cfg",adminCfg:"admin.cfg hiện tại",adminLocal:"Thêm cục bộ",
@@ -1255,7 +1265,6 @@ function AdminPage({t,onBack}){
   const[ghEditing,setGhEditing]=useState(()=>{const c=getGHConfig();return!c.token});
   const[delStatus,setDelStatus]=useState('');
   const[keyRules,setKeyRules]=useState(()=>{const kc=getKeyConfig();return kc?.rules||[{file:'key.cfg',start:18,len:3},{file:'admin.cfg',start:25,len:2},{file:'revoked.cfg',start:10,len:3}]});
-  const[keyTestResult,setKeyTestResult]=useState('');
   const[keySaveStatus,setKeySaveStatus]=useState('');
 
   // Parse admin.cfg entries: support "encCode:hash" and legacy "hash"
@@ -1325,22 +1334,108 @@ function AdminPage({t,onBack}){
   const updateRule=(idx,field,val)=>{const r=[...keyRules];r[idx]={...r[idx],[field]:field==='file'?val:parseInt(val)||0};setKeyRules(r)};
   const addRule=()=>setKeyRules([...keyRules,{file:'key.cfg',start:0,len:1}]);
   const delRule=(i)=>setKeyRules(keyRules.filter((_,j)=>j!==i));
+
+  // Comprehensive key test
+  const[keyChecks,setKeyChecks]=useState([]);
+  const[builtKey,setBuiltKey]=useState('');
+  const[needMigrate,setNeedMigrate]=useState(false);
+  const[migrateStatus,setMigrateStatus]=useState('');
+
   const testKey=async()=>{
-    try{
-      const parts=[];
-      for(const r of keyRules){
-        if(!r.file||r.start==null||!r.len){setKeyTestResult('Error');return}
+    const checks=[];let parts=[];let allOk=true;
+    // Step 1 & 2: Check each file exists and first line length
+    for(const r of keyRules){
+      if(!r.file||r.start==null||!r.len){checks.push({ok:false,msg:'Error: missing rule fields'});allOk=false;continue}
+      try{
         const res=await fetch('./'+r.file,{cache:'no-store'});
-        if(!res.ok){setKeyTestResult('Error: '+r.file);return}
+        if(!res.ok){checks.push({ok:false,msg:fmtLog(t.keyFileFail,[r.file])});allOk=false;continue}
+        checks.push({ok:true,msg:fmtLog(t.keyFileOk,[r.file])});
         const text=await res.text();
         const fl=text.split('\n')[0]||'';
-        if(fl.length<r.start+r.len){setKeyTestResult('Error: '+r.file+' too short');return}
+        const need=r.start+r.len;
+        if(fl.length<need){
+          checks.push({ok:false,msg:fmtLog(t.keyLenFail,[r.file,String(fl.length),String(need)])});
+          allOk=false;continue;
+        }
+        checks.push({ok:true,msg:fmtLog(t.keyLenOk,[r.file,String(fl.length),String(need)])});
         parts.push(fl.substring(r.start,r.start+r.len));
+      }catch{checks.push({ok:false,msg:fmtLog(t.keyFileFail,[r.file])});allOk=false}
+    }
+    if(!allOk||!parts.length){setKeyChecks(checks);setBuiltKey('');setNeedMigrate(false);return}
+    // Step 3: Show built key
+    const built=parts.join('');
+    setBuiltKey(built);
+    checks.push({ok:true,msg:fmtLog(t.keyBuilt,[String(built.length)])});
+
+    // Step 4 & 5: Check admin.cfg entries against this key
+    try{
+      const res=await fetch('./admin.cfg',{cache:'no-store'});
+      if(res.ok){
+        const text=(await res.text()).trim();
+        const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
+        let matched=0;
+        for(const line of lines){
+          const ps=line.split(':');
+          if(ps.length>=2){
+            const encCode=ps.slice(0,-1).join(':');
+            const hash=ps[ps.length-1];
+            // Try decrypt with the new key
+            const dec=Array.from({length:encCode.length/2},(_,i)=>
+              String.fromCharCode(parseInt(encCode.substr(i*2,2),16)^built.charCodeAt((i)%built.length))
+            ).join('');
+            if(adminHash(dec)===hash)matched++;
+          }
+        }
+        if(lines.length===0){checks.push({ok:true,msg:'admin.cfg: 0 entries'})}
+        else if(matched===lines.length){checks.push({ok:true,msg:fmtLog(t.keyAdminOk,[String(lines.length)])});setNeedMigrate(false)}
+        else if(matched>0){checks.push({ok:false,msg:fmtLog(t.keyAdminPartial,[String(matched),String(lines.length)])});setNeedMigrate(true)}
+        else{checks.push({ok:false,msg:fmtLog(t.keyAdminNone,[String(lines.length)])});setNeedMigrate(true)}
       }
-      const built=parts.join('');
-      setKeyTestResult(built===CK?t.keyMatch:`${t.keyResult}: ${built.length}字 (${built===CK_DEFAULT?t.keyMatch:t.keyMismatch})`);
-    }catch(e){setKeyTestResult('Error')}
+    }catch{}
+    setKeyChecks(checks);
   };
+
+  // Migrate admin.cfg entries: decrypt with OLD key, re-encrypt with NEW key
+  const migrateAdminCfg=async()=>{
+    if(!builtKey||!gh.token||!gh.owner||!gh.repo)return;
+    setMigrateStatus(t.keyMigrating);
+    try{
+      const file=await ghReadFile(gh,'admin.cfg');
+      if(!file){setMigrateStatus(t.keyMigrateFail);return}
+      const allLines=file.content.split('\n');
+      const newLines=[];
+      for(const line of allLines){
+        const trimmed=line.trim();
+        if(!trimmed||trimmed.startsWith('#')){newLines.push(line);continue}
+        const ps=trimmed.split(':');
+        if(ps.length>=2){
+          const encCode=ps.slice(0,-1).join(':');
+          const hash=ps[ps.length-1];
+          // Decrypt with current (old) key
+          const oldDec=xDec(encCode);
+          if(oldDec&&adminHash(oldDec)===hash){
+            // Re-encrypt with new key
+            const newEnc=Array.from(oldDec).map((c,i)=>(c.charCodeAt(0)^builtKey.charCodeAt(i%builtKey.length)).toString(16).padStart(2,'0')).join('');
+            newLines.push(newEnc+':'+hash);
+            continue;
+          }
+          // Try: maybe it's legacy format (hash only) - can't migrate, keep as is
+          newLines.push(line);
+        }else{newLines.push(line)}
+      }
+      const ok=await ghWriteFile(gh,'admin.cfg',newLines.join('\n'),file.sha,'migrate admin.cfg key');
+      if(ok){
+        setMigrateStatus(t.keyMigrateOk);
+        // Now save new key config and rebuild
+        saveKeyConfig({rules:keyRules});
+        await buildDynamicKey();
+        // Refresh entries display
+        setCfgEntries(parseEntries(newLines.filter(l=>l.trim()&&!l.trim().startsWith('#')).join('\n')));
+      }else{setMigrateStatus(t.keyMigrateFail)}
+    }catch{setMigrateStatus(t.keyMigrateFail)}
+    setTimeout(()=>setMigrateStatus(''),3000);
+  };
+
   const saveKeyRules=()=>{saveKeyConfig({rules:keyRules});buildDynamicKey();setKeySaveStatus(t.keySaved);setTimeout(()=>setKeySaveStatus(''),2000)};
 
 
@@ -1498,8 +1593,29 @@ function AdminPage({t,onBack}){
           <button onClick={testKey} className="flex-1 py-2 bg-white/[0.06] rounded-xl text-gray-300 text-sm font-medium">{t.keyTest}</button>
           <button onClick={saveKeyRules} className="flex-1 py-2 bg-amber-600 rounded-xl text-white text-sm font-bold">{t.keySave}</button>
         </div>
-        {keyTestResult&&<p className={`text-xs text-center ${keyTestResult.includes('✓')?'text-emerald-400':'text-amber-400'}`}>{keyTestResult}</p>}
         {keySaveStatus&&<p className="text-xs text-center text-emerald-400">{keySaveStatus}</p>}
+
+        {/* Test results checklist */}
+        {keyChecks.length>0&&(
+          <div className="space-y-1 pt-2 border-t border-white/[0.04]">
+            {keyChecks.map((c,i)=>(
+              <div key={i} className="flex items-start gap-2 text-[11px]">
+                <span className={c.ok?'text-emerald-400':'text-red-400'}>{c.ok?'✓':'✗'}</span>
+                <span className={c.ok?'text-gray-400':'text-red-300'}>{c.msg}</span>
+              </div>
+            ))}
+            {builtKey&&(
+              <div className="mt-2 bg-white/[0.04] rounded-lg p-2">
+                <p className="text-[10px] text-gray-600 mb-1">{t.keyResult}</p>
+                <p className="text-sm font-mono text-amber-400 select-all text-center">{builtKey}</p>
+              </div>
+            )}
+            {needMigrate&&gh.token&&(
+              <button onClick={migrateAdminCfg} className="w-full mt-2 py-2.5 bg-red-500/20 border border-red-500/30 rounded-xl text-red-300 text-sm font-medium active:bg-red-500/30">{t.keyMigrate}</button>
+            )}
+            {migrateStatus&&<p className={`text-xs text-center ${migrateStatus.includes('✓')?'text-emerald-400':'text-amber-400'}`}>{migrateStatus}</p>}
+          </div>
+        )}
       </div>
 
       <LogSection t={t} filterLevel="admin"/>
