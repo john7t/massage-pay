@@ -77,21 +77,21 @@ const SUP_LEVELS=[
 ];
 function supLevelName(id,lang){const lv=SUP_LEVELS.find(l=>l.id===id);return lv?(lv[lang]||lv.zh):''}
 
-// ── Staff management (encrypted staff.json) ──
+// ── Staff management (encrypted staff.json, UTF-8 safe) ──
 async function readStaff(gh){
   try{
     const res=await fetch('./staff.json',{cache:'no-store'});
     if(!res.ok)return[];
     const enc=(await res.text()).trim();
     if(!enc)return[];
-    const json=xDec(enc);
+    const json=decodeURIComponent(xDec(enc));
     return JSON.parse(json);
   }catch{return[]}
 }
 async function writeStaff(gh,staffList){
   if(!gh.token||!gh.owner||!gh.repo)return false;
   const json=JSON.stringify(staffList);
-  const enc=xEnc(json);
+  const enc=xEnc(encodeURIComponent(json));
   const file=await ghReadFile(gh,'staff.json');
   if(file)return ghWriteFile(gh,'staff.json',enc,file.sha,'update staff');
   // Create new file
@@ -168,7 +168,8 @@ async function saveStores(gh,stores){
 }
 
 // ── Shared StaffList component ──
-function StaffListSection({t,staffList,sortMode,setSortMode,onRemove,myCode,myLevel,myStore}){
+function StaffListSection({t,staffList,sortMode,setSortMode,onRemove,onEdit,myCode,myLevel,myStore}){
+  const[pendingRm,setPendingRm]=useState(null);
   if(!staffList.length)return(
     <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
       <h3 className="text-sm font-semibold text-amber-400">{t.staffList}</h3>
@@ -182,6 +183,7 @@ function StaffListSection({t,staffList,sortMode,setSortMode,onRemove,myCode,myLe
     ?[...staffList].sort((a,b)=>roleOrder(b)-roleOrder(a)||(a.code||'').localeCompare(b.code||''))
     :[...staffList].sort((a,b)=>(a.code||'').localeCompare(b.code||''));
   let lastStore='';
+  const lvIcon=s=>{if(s.role==='admin')return'⚙️';if(s.role==='supervisor')return{4:'⭐',3:'💎',2:'🔷',1:'🔹'}[s.level]||'👔';return'👤'};
   return(
     <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
       <div className="flex items-center justify-between">
@@ -195,25 +197,33 @@ function StaffListSection({t,staffList,sortMode,setSortMode,onRemove,myCode,myLe
       <div className="space-y-1">
         {sorted.map((s,i)=>{
           const lvName=s.level?supLevelName(s.level,t===T.zh?'zh':'vi'):'';
-          const showStoreHeader=sortMode==='store'&&(s.store||'')!==lastStore;
-          if(showStoreHeader)lastStore=s.store||'';
-          // Can remove: same store + level <= my level + not admin + not self
-          const canRemove=onRemove&&s.code!==myCode&&s.role!=='admin'
-            &&(myLevel>=4||(s.store===myStore&&(s.level||0)<=(myLevel||0)));
+          const showH=sortMode==='store'&&(s.store||'')!==lastStore;
+          if(showH)lastStore=s.store||'';
+          const canRm=onRemove&&s.code!==myCode&&s.role!=='admin'&&(myLevel>=4||(s.store===myStore&&(s.level||0)<=(myLevel||0)));
           return(
             <React.Fragment key={i}>
-              {showStoreHeader&&<p className="text-[11px] text-gray-500 font-semibold pt-2 pb-1">{s.store||'—'}</p>}
-              <div className="flex items-center justify-between py-2 px-3 bg-white/[0.02] rounded-xl">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-amber-400 font-bold font-mono">{s.code}</span>
-                  {sortMode!=='store'&&s.store&&<span className="text-[10px] text-gray-600">{s.store}</span>}
+              {showH&&<p className="text-[11px] text-gray-500 font-semibold pt-2 pb-1">{s.store||'—'}</p>}
+              <div className="py-2 px-3 bg-white/[0.02] rounded-xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[12px]">{lvIcon(s)}</span>
+                    <button onClick={()=>onEdit&&onEdit(s)} className="text-sm text-amber-400 font-bold font-mono active:text-amber-300">{s.code}</button>
+                    {sortMode!=='store'&&s.store&&<span className="text-[10px] text-gray-600">{s.store}</span>}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {s.supRequest&&<span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 animate-pulse">{t.adminApply}</span>}
+                    {lvName&&<span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">{lvName}</span>}
+                    <span className="text-[11px]">{s.hasToken!==false?'☁️':'📥'}</span>
+                    {canRm&&pendingRm!==s.code&&<button onClick={()=>setPendingRm(s.code)} className="text-red-400/40 text-sm px-0.5 active:text-red-400">✕</button>}
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  {s.supRequest&&<span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 animate-pulse">{t.adminApply}</span>}
-                  {lvName&&<span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">{lvName}</span>}
-                  <span className="text-[10px] text-gray-700">{s.role==='supervisor'?'👔':s.role==='admin'?'⚙️':'👤'}</span>
-                  {canRemove&&<button onClick={()=>onRemove(s)} className="text-red-400/60 text-sm px-0.5 active:text-red-400">✕</button>}
-                </div>
+                {pendingRm===s.code&&(
+                  <div className="flex items-center gap-2 mt-2 pt-2 border-t border-white/[0.04]">
+                    <p className="flex-1 text-[11px] text-red-300">{s.role==='supervisor'?t.removeSup:t.removeToken} {s.code}？</p>
+                    <button onClick={()=>{setPendingRm(null);onRemove(s)}} className="px-3 py-1 bg-red-500/20 rounded-lg text-red-400 text-xs font-medium">{t.confirm}</button>
+                    <button onClick={()=>setPendingRm(null)} className="px-3 py-1 bg-white/[0.04] rounded-lg text-gray-500 text-xs">{t.cancel}</button>
+                  </div>
+                )}
               </div>
             </React.Fragment>
           );
@@ -671,7 +681,7 @@ function Onboarding({onComplete}){
         const myHash=adminHash(code);
         const match=lines.some(l=>{const parts=l.split(':');const h=parts.length>=2?parts[parts.length-1]:parts[0];return h===myHash});
         if(match){
-          doActivate({code,unitPrice:250,lang,year:new Date().getFullYear(),deviceId:devId});return;
+          doActivate({code,unitPrice:250,lang,store,year:new Date().getFullYear(),deviceId:devId});return;
         }
       }
     }catch{}
@@ -679,7 +689,7 @@ function Onboarding({onComplete}){
     try{
       const result=await checkApproved('t',approveHash(code,devId));
       if(result){
-        doActivate({code,unitPrice:250,lang,year:new Date().getFullYear(),deviceId:devId});return;
+        doActivate({code,unitPrice:250,lang,store,year:new Date().getFullYear(),deviceId:devId});return;
       }
     }catch{}
     setChecking(false);
@@ -701,7 +711,7 @@ function Onboarding({onComplete}){
         const me=staff.find(s=>s.code===code&&s.status==='active');
         if(me){
           setWaitStatus(t.approved);
-          setTimeout(()=>doActivate({code,unitPrice:250,lang,year:new Date().getFullYear(),deviceId:devId}),800);
+          setTimeout(()=>doActivate({code,unitPrice:250,lang,store,year:new Date().getFullYear(),deviceId:devId}),800);
           return;
         }
       }catch{}
@@ -711,7 +721,7 @@ function Onboarding({onComplete}){
       const result=await checkApproved('t',approveHash(code,devId));
       if(result){
         setWaitStatus(t.approved);
-        setTimeout(()=>doActivate({code,unitPrice:250,lang,year:new Date().getFullYear(),deviceId:devId}),800);
+        setTimeout(()=>doActivate({code,unitPrice:250,lang,store,year:new Date().getFullYear(),deviceId:devId}),800);
         return;
       }
     }catch{}
@@ -725,13 +735,13 @@ function Onboarding({onComplete}){
     const ghCfg=verifyActToken(input,code,devId);
     if(ghCfg){
       saveGHConfigLocal(ghCfg);
-      doActivate({code,unitPrice:250,lang,year:new Date().getFullYear(),deviceId:devId});
+      doActivate({code,unitPrice:250,lang,store,year:new Date().getFullYear(),deviceId:devId});
       return;
     }
     // Fallback: old short activation code
     const correct=genAct(code,devId);
     if(input===correct.replace(/-/g,'')){
-      doActivate({code,unitPrice:250,lang,year:new Date().getFullYear(),deviceId:devId});
+      doActivate({code,unitPrice:250,lang,store,year:new Date().getFullYear(),deviceId:devId});
     }else{setErr(t.activationFail)}
   };
 
@@ -1343,6 +1353,7 @@ function SettingsPage({settings,onUpdate,t}){
   return(
     <div className="p-5 max-w-md mx-auto fi space-y-6">
       <h2 className="text-2xl font-bold text-gray-100">{t.settings}</h2>
+      <div><label className="text-sm text-gray-400 mb-1.5 block">{t.store}</label><div className="bg-white/[0.04] rounded-xl px-4 py-2.5 text-sm text-gray-400">{settings.store||'—'}</div></div>
       <div><label className="text-sm text-gray-400 mb-1.5 block">{t.teacherCode}</label><div className="bg-white/[0.04] rounded-xl px-4 py-3.5 text-lg text-gray-300 font-mono">{settings.code}</div></div>
       <div><label className="text-sm text-gray-400 mb-1.5 block">{t.unitPrice}</label>
         <div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">$</span>
@@ -1640,6 +1651,7 @@ function AdminPage({t,onBack}){
   const[newStore,setNewStore]=useState('');
   const[storeStatus,setStoreStatus]=useState('');
   const[resetStatus,setResetStatus]=useState('');
+  const[resetPending,setResetPending]=useState(null); // 'all'|'sup'|null
 
   // My info
   const myLevel=4;
@@ -1649,48 +1661,40 @@ function AdminPage({t,onBack}){
 
   // Reset all staff data except admin 122
   const resetAllData=async()=>{
-    if(!confirm(t.resetAllConfirm))return;
+    setResetPending(null);
     const cleaned=staffList.filter(s=>s.code==='122'&&s.role==='admin');
     const ok=await writeStaff(gh,cleaned);
-    // Clear approved.cfg
-    if(gh.token){try{
-      const file=await ghReadFile(gh,'approved.cfg');
-      if(file)await ghWriteFile(gh,'approved.cfg','# Online approvals\n',file.sha,'reset approvals');
-    }catch{}}
-    // Clear revoked.cfg (keep first line)
-    try{
-      const file=await ghReadFile(gh,'revoked.cfg');
-      if(file){const firstLine=file.content.split('\n')[0]||'';await ghWriteFile(gh,'revoked.cfg',firstLine+'\n',file.sha,'reset revoked')}
-    }catch{}
+    if(gh.token){try{const file=await ghReadFile(gh,'approved.cfg');if(file)await ghWriteFile(gh,'approved.cfg','# Online approvals\n',file.sha,'reset')}catch{}}
+    try{const file=await ghReadFile(gh,'revoked.cfg');if(file){const fl=file.content.split('\n')[0]||'';await ghWriteFile(gh,'revoked.cfg',fl+'\n',file.sha,'reset')}}catch{}
     if(ok){setStaffList(cleaned);setResetStatus(t.resetAllOk);addLog('還原初始設定 (管理員122)','admin')}
     setTimeout(()=>setResetStatus(''),3000);
   };
 
   // Remove all supervisor rights
   const resetAllSup=async()=>{
-    if(!confirm(t.resetSupConfirm))return;
+    setResetPending(null);
     const updated=staffList.map(s=>s.role==='supervisor'?{...s,role:'teacher',level:0,supRequest:false}:s);
     const ok=await writeStaff(gh,updated);
     if(ok){setStaffList(updated);setResetStatus(t.resetSupOk);addLog('移除所有主管權限','admin')}
     setTimeout(()=>setResetStatus(''),3000);
   };
 
-  // Remove single employee or revoke supervisor
+  // Remove single employee or revoke supervisor (no confirm needed - handled by StaffListSection inline)
   const onRemoveStaff=async(s)=>{
-    if(!confirm(fmtLog(t.removeConfirm,[s.code])))return;
     let updated;
     if(s.role==='supervisor'){
-      // Demote to teacher
       updated=staffList.map(x=>x.code===s.code?{...x,role:'teacher',level:0,supRequest:false}:x);
       addLog(fmtLog(t.logRevoke,[s.code,s.store||'']),'admin');
     }else{
-      // Remove from staff
       updated=staffList.filter(x=>x.code!==s.code);
       addLog('移除員工 '+s.code,'admin');
     }
     await writeStaff(gh,updated);
     setStaffList(updated);
   };
+
+  // Edit employee (placeholder - will expand)
+  const[editStaff,setEditStaff]=useState(null);
 
   // Parse admin.cfg entries: support "encCode:hash" and legacy "hash"
   const parseEntries=(text)=>{
@@ -1956,15 +1960,35 @@ function AdminPage({t,onBack}){
 
       {/* Staff List - at top */}
       <StaffListSection t={t} staffList={staffList} sortMode={sortMode} setSortMode={setSortMode}
-        onRemove={onRemoveStaff} myCode={myCode} myLevel={myLevel} myStore={myStore}/>
+        onRemove={onRemoveStaff} onEdit={s=>setEditStaff(s)} myCode={myCode} myLevel={myLevel} myStore={myStore}/>
 
       {/* Test/Reset tools */}
       <div className="space-y-2 bg-white/[0.02] border border-red-500/10 rounded-2xl p-4">
         <h3 className="text-[10px] text-gray-600 uppercase tracking-wider">測試工具</h3>
-        <div className="flex gap-2">
-          <button onClick={resetAllData} className="flex-1 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-medium active:bg-red-500/20">{t.resetAll}</button>
-          <button onClick={resetAllSup} className="flex-1 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 text-xs font-medium active:bg-amber-500/20">{t.resetSup}</button>
-        </div>
+        {!resetPending&&(
+          <div className="flex gap-2">
+            <button onClick={()=>setResetPending('all')} className="flex-1 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-medium active:bg-red-500/20">{t.resetAll}</button>
+            <button onClick={()=>setResetPending('sup')} className="flex-1 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 text-xs font-medium active:bg-amber-500/20">{t.resetSup}</button>
+          </div>
+        )}
+        {resetPending==='all'&&(
+          <div className="space-y-2">
+            <p className="text-xs text-red-300">{t.resetAllConfirm}</p>
+            <div className="flex gap-2">
+              <button onClick={resetAllData} className="flex-1 py-2 bg-red-500/20 rounded-xl text-red-400 text-xs font-bold">{t.confirm}</button>
+              <button onClick={()=>setResetPending(null)} className="flex-1 py-2 bg-white/[0.04] rounded-xl text-gray-500 text-xs">{t.cancel}</button>
+            </div>
+          </div>
+        )}
+        {resetPending==='sup'&&(
+          <div className="space-y-2">
+            <p className="text-xs text-amber-300">{t.resetSupConfirm}</p>
+            <div className="flex gap-2">
+              <button onClick={resetAllSup} className="flex-1 py-2 bg-amber-500/20 rounded-xl text-amber-400 text-xs font-bold">{t.confirm}</button>
+              <button onClick={()=>setResetPending(null)} className="flex-1 py-2 bg-white/[0.04] rounded-xl text-gray-500 text-xs">{t.cancel}</button>
+            </div>
+          </div>
+        )}
         {resetStatus&&<p className={`text-xs text-center ${resetStatus.includes('✓')?'text-emerald-400':'text-red-400'}`}>{resetStatus}</p>}
       </div>
 
