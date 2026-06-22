@@ -143,6 +143,81 @@ function getLogs(filterLevel){
 function fmtLog(s,args){return args.reduce((r,a,i)=>r.replace(`{${i}}`,a),s)}
 function fmtDate(ts){const d=new Date(ts);return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
 
+// ── Store management ──
+async function loadStores(){
+  try{
+    const res=await fetch('./stores.cfg',{cache:'no-store'});
+    if(!res.ok)return['龍山寺店'];
+    const text=(await res.text()).trim();
+    const stores=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
+    return stores.length?stores:['龍山寺店'];
+  }catch{return['龍山寺店']}
+}
+async function saveStores(gh,stores){
+  if(!gh.token)return false;
+  const content=stores.join('\n')+'\n';
+  const file=await ghReadFile(gh,'stores.cfg');
+  if(file)return ghWriteFile(gh,'stores.cfg',content,file.sha,'update stores');
+  try{
+    const res=await fetch(`https://api.github.com/repos/${gh.owner}/${gh.repo}/contents/stores.cfg`,{
+      method:'PUT',headers:{'Authorization':'token '+gh.token,'Content-Type':'application/json'},
+      body:JSON.stringify({message:'create stores.cfg',content:btoa(unescape(encodeURIComponent(content)))})
+    });
+    return res.ok;
+  }catch{return false}
+}
+
+// ── Shared StaffList component ──
+function StaffListSection({t,staffList,sortMode,setSortMode}){
+  if(!staffList.length)return(
+    <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+      <h3 className="text-sm font-semibold text-amber-400">{t.staffList}</h3>
+      <p className="text-xs text-gray-600 text-center">{t.staffEmpty}</p>
+    </div>
+  );
+  const sorted=sortMode==='store'
+    ?[...staffList].sort((a,b)=>(a.store||'').localeCompare(b.store||'')||(a.code||'').localeCompare(b.code||''))
+    :[...staffList].sort((a,b)=>(a.code||'').localeCompare(b.code||''));
+  let lastStore='';
+  return(
+    <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-amber-400">{t.staffList}</h3>
+        <div className="flex gap-1">
+          <button onClick={()=>setSortMode('store')} className={`px-2 py-1 rounded text-[10px] ${sortMode==='store'?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t.sortByStore}</button>
+          <button onClick={()=>setSortMode('code')} className={`px-2 py-1 rounded text-[10px] ${sortMode==='code'?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t.sortByCode}</button>
+        </div>
+      </div>
+      <div className="space-y-1">
+        {sorted.map((s,i)=>{
+          const lvName=s.level?supLevelName(s.level,t===T.zh?'zh':'vi'):'';
+          const showStoreHeader=sortMode==='store'&&(s.store||'')!==lastStore;
+          if(showStoreHeader)lastStore=s.store||'';
+          return(
+            <React.Fragment key={i}>
+              {showStoreHeader&&<p className="text-[11px] text-gray-500 font-semibold pt-2 pb-1">{s.store||'—'}</p>}
+              <div className="flex items-center justify-between py-2 px-3 bg-white/[0.02] rounded-xl">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-amber-400 font-bold font-mono">{s.code}</span>
+                  {sortMode!=='store'&&s.store&&<span className="text-[10px] text-gray-600">{s.store}</span>}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {s.supRequest&&<span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 animate-pulse">{t.adminApply}</span>}
+                  {lvName&&<span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">{lvName}</span>}
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${s.status==='active'?'bg-emerald-500/10 text-emerald-400':'bg-red-500/10 text-red-400'}`}>
+                    {s.status==='active'?t.staffActive:t.staffRevoked}
+                  </span>
+                  <span className="text-[10px] text-gray-700">{s.role==='supervisor'?'👔':s.role==='admin'?'⚙️':'👤'}</span>
+                </div>
+              </div>
+            </React.Fragment>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 
 function LogSection({t,filterLevel}){
   const[logs]=useState(()=>getLogs(filterLevel));
@@ -392,6 +467,9 @@ zh:{
   staffList:"員工名單",staffEmpty:"尚無員工資料",staffRole:"角色",staffStatus:"狀態",
   staffActive:"在職",staffRevoked:"已停用",logApproveTeacher:"核准老師 {0}({1})",
   logApproveSupervisor:"核准主管 {0}({1}) {2}",
+  store:"所在店面",storeManage:"店面管理",storeAdd:"新增店面",storeDel:"刪除",storeEmpty:"尚無店面",
+  storeSaved:"已儲存 ✓",teacherActivation:"老師啟動碼",supActivation:"主管啟動碼",
+  sortByStore:"按店面",sortByCode:"按編號",
   skills:"老師技能",guasha:"刮痧",baguang:"拔罐",xiujiao:"修腳皮",gs:"刮",bg:"拔",xj:"修",clearAll:"一鍵清除",
   notice1:"⚠️ 資料只存在本機，不會上傳雲端。",
   notice2:"LINE 與手機內建瀏覽器的暫存是分開的，啟動碼會不同，請固定使用同一個瀏覽器。",
@@ -464,6 +542,9 @@ vi:{
   staffList:"Danh sách NV",staffEmpty:"Chưa có dữ liệu",staffRole:"Vai trò",staffStatus:"Trạng thái",
   staffActive:"Đang làm",staffRevoked:"Đã nghỉ",logApproveTeacher:"Duyệt NV {0}({1})",
   logApproveSupervisor:"Duyệt QL {0}({1}) {2}",
+  store:"Chi nhánh",storeManage:"Quản lý CN",storeAdd:"Thêm CN",storeDel:"Xóa",storeEmpty:"Chưa có CN",
+  storeSaved:"Đã lưu ✓",teacherActivation:"Mã kích hoạt NV",supActivation:"Mã kích hoạt QL",
+  sortByStore:"Theo CN",sortByCode:"Theo mã",
   skills:"Kỹ năng",guasha:"Cạo gió",baguang:"Giác hơi",xiujiao:"Sửa da chân",gs:"C",bg:"G",xj:"S",clearAll:"Xóa tất cả",
   notice1:"⚠️ Dữ liệu chỉ lưu trên máy, không tải lên đám mây.",
   notice2:"Trình duyệt LINE và trình duyệt mặc định lưu riêng, mã kích hoạt sẽ khác nhau. Hãy dùng cùng một trình duyệt.",
@@ -539,18 +620,21 @@ function NoticeBox({t}){
 
 /* ══════════ Onboarding ══════════ */
 function Onboarding({onComplete}){
-  const[step,setStep]=useState(1);// 1=code+lang, 2=qr+wait, 3=manual activation fallback
+  const[step,setStep]=useState(1);
   const[lang,setLang]=useState('zh');
   const[code,setCode]=useState('');
   const[actInput,setActInput]=useState('');
   const[err,setErr]=useState('');
   const[checking,setChecking]=useState(false);
   const[copied,setCopied]=useState(false);
-  const[waitStatus,setWaitStatus]=useState('');
   const[devId]=useState(()=>getDeviceId());
+  const[stores,setStores]=useState(['龍山寺店']);
+  const[store,setStore]=useState('龍山寺店');
   const t=T[lang];
 
-  const encReg=code?xEnc(`${code}:${devId}:${lang}`):'';
+  useEffect(()=>{loadStores().then(s=>{setStores(s);setStore(s[0]||'龍山寺店')})},[]);
+
+  const encReg=code?xEnc(`${code}:${devId}:${lang}:${store}`):'';
   const qrUrl=encReg?`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(encReg)}&bgcolor=030712&color=f3f4f6`:'';
 
   const doActivate=(settings)=>{
@@ -652,6 +736,13 @@ function Onboarding({onComplete}){
                   <button key={c} onClick={()=>setLang(c)} className={`py-3 rounded-xl text-sm font-semibold transition-all ${lang===c?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>
                 ))}
               </div>
+            </div>
+            <div>
+              <label className="text-sm text-gray-400 mb-1.5 block">{t.store}</label>
+              <select value={store} onChange={e=>setStore(e.target.value)}
+                className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3.5 text-lg text-gray-100 focus:outline-none focus:border-amber-500 appearance-none">
+                {stores.map(s=><option key={s} value={s}>{s}</option>)}
+              </select>
             </div>
             <div>
               <label className="text-sm text-gray-400 mb-1.5 block">{t.enterCode}</label>
@@ -1375,8 +1466,12 @@ function SupervisorPage({t,onBack}){
   const[supInput,setSupInput]=useState('');const[supResult,setSupResult]=useState('');const[supInfo,setSupInfo]=useState(null);
   const[revoked,setRevoked]=useState(false);
   const[staffList,setStaffList]=useState([]);
+  const[sortMode,setSortMode]=useState('store');
+  const[storeList,setStoreList]=useState([]);
+  const[newStore,setNewStore]=useState('');
+  const[storeStatus,setStoreStatus]=useState('');
 
-  // Check revoked.cfg on mount + load staff
+  // Check revoked.cfg on mount + load staff + stores
   useEffect(()=>{
     (async()=>{
       try{
@@ -1394,6 +1489,8 @@ function SupervisorPage({t,onBack}){
       // Load staff
       const gh=getGHConfig();
       if(gh.token){try{const s=await readStaff(gh);setStaffList(s)}catch{}}
+      // Load stores
+      try{const st=await loadStores();setStoreList(st)}catch{}
     })();
   },[]);
 
@@ -1434,70 +1531,66 @@ function SupervisorPage({t,onBack}){
         <h2 className="text-xl font-bold text-gray-100">{t.supervisorTitle}</h2>
       </div>
 
-      {/* User activation */}
+      {/* Staff List - at top */}
+      <StaffListSection t={t} staffList={staffList} sortMode={sortMode} setSortMode={setSortMode}/>
+
+      {/* Store management */}
       <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
-        <h3 className="text-sm font-semibold text-amber-400">{t.genActivation}</h3>
+        <h3 className="text-sm font-semibold text-amber-400">{t.storeManage}</h3>
+        <div className="space-y-1.5">
+          {storeList.map((s,i)=>(
+            <div key={i} className="flex items-center justify-between py-1.5 px-3 bg-white/[0.02] rounded-lg">
+              <span className="text-sm text-gray-300">{s}</span>
+              {storeList.length>1&&<button onClick={async()=>{const gh=getGHConfig();const ns=storeList.filter((_,j)=>j!==i);setStoreList(ns);await saveStores(gh,ns)}} className="text-red-400/50 text-xs px-1">✕</button>}
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input value={newStore} onChange={e=>setNewStore(e.target.value)} placeholder={t.storeAdd}
+            className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>
+          <button onClick={async()=>{if(!newStore.trim())return;const gh=getGHConfig();const ns=[...storeList,newStore.trim()];setStoreList(ns);setNewStore('');const ok=await saveStores(gh,ns);setStoreStatus(ok?t.storeSaved:'');setTimeout(()=>setStoreStatus(''),2000)}}
+            className="px-4 py-2 bg-amber-600 rounded-xl text-white text-sm font-bold">+</button>
+        </div>
+        {storeStatus&&<p className="text-xs text-center text-emerald-400">{storeStatus}</p>}
+      </div>
+
+      {/* Teacher activation */}
+      <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-amber-400">{t.teacherActivation}</h3>
         <div className="relative">
           <textarea value={encInput} onChange={e=>setEncInput(e.target.value)} rows={2} placeholder={t.pasteEncrypted} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 pr-10 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none"/>
           {encInput&&<button onClick={()=>{setEncInput('');setActResult('');setDecodedInfo('')}} className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full bg-white/10 text-gray-400 text-xs">✕</button>}
         </div>
-        <button onClick={genCode} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold">{t.genActivation}</button>
+        <button onClick={genCode} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold">{t.teacherActivation}</button>
         {actResult&&actResult!=='Error'&&(<div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-center fi">
           {decodedInfo&&<p className="text-sm text-amber-400 font-bold mb-2">{t.teacherCode}: {decodedInfo}</p>}
           <p className="text-xs text-gray-500 mb-1">{t.resultCode}</p>
-          <p className="text-2xl font-bold text-emerald-400 font-mono tracking-widest select-all mb-3">{actResult}</p>
-          <button onClick={async()=>{try{await navigator.clipboard.writeText(actResult)}catch{}}} className="px-6 py-2 bg-emerald-600 rounded-xl text-white text-sm font-semibold active:bg-emerald-700">📋 Copy</button>
+          <p className="text-xs font-bold text-emerald-400 font-mono select-all text-center break-all leading-relaxed">{actResult}</p>
+          <button onClick={async()=>{try{await navigator.clipboard.writeText(actResult)}catch{}}} className="mt-2 px-6 py-2 bg-emerald-600 rounded-xl text-white text-sm font-semibold active:bg-emerald-700">📋 Copy</button>
         </div>)}
       </div>
 
       {/* Supervisor application approval */}
       <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
-        <h3 className="text-sm font-semibold text-amber-400">{t.supervisorApprove}</h3>
+        <h3 className="text-sm font-semibold text-amber-400">{t.supActivation}</h3>
         <div className="relative">
           <textarea value={supInput} onChange={e=>setSupInput(e.target.value)} rows={2} placeholder={t.supervisorApproveHint} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 pr-10 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none"/>
           {supInput&&<button onClick={()=>{setSupInput('');setSupResult('');setSupInfo(null)}} className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full bg-white/10 text-gray-400 text-xs">✕</button>}
         </div>
-        <button onClick={parseSup} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold">{t.supervisorApprove}</button>
+        <button onClick={parseSup} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold">{t.supActivation}</button>
         {supInfo&&supResult&&supResult!=='Error'&&(
           <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 fi">
             <p className="text-xs text-gray-500 mb-2">{t.supervisorInfo}</p>
             <div className="space-y-1 mb-3">
               <p className="text-sm text-gray-300">{t.teacherCode}: <span className="text-amber-400 font-bold">{supInfo.code}</span></p>
-              <p className="text-sm text-gray-300">{t.deviceId}: <span className="text-gray-500 font-mono text-xs">{supInfo.uuid}</span></p>
               <p className="text-sm text-gray-300">{t.deviceName}: <span className="text-gray-400">{supInfo.devName}</span></p>
             </div>
             <p className="text-xs text-gray-500 mb-1">{t.resultCode}</p>
-            <p className="text-2xl font-bold text-emerald-400 font-mono tracking-widest select-all text-center mb-3">{supResult}</p>
+            <p className="text-xl font-bold text-emerald-400 font-mono tracking-widest select-all text-center mb-3">{supResult}</p>
             <button onClick={async()=>{try{await navigator.clipboard.writeText(supResult)}catch{}}} className="w-full py-2 bg-emerald-600 rounded-xl text-white text-sm font-semibold active:bg-emerald-700">📋 Copy</button>
           </div>
         )}
       </div>
-
-      {/* Staff List */}
-      {staffList.length>0&&(
-        <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
-          <h3 className="text-sm font-semibold text-amber-400">{t.staffList}</h3>
-          <div className="space-y-1.5">
-            {staffList.map((s,i)=>{
-              const name=s.name?xDec(s.name):'';
-              const lvName=s.level?supLevelName(s.level,t===T.zh?'zh':'vi'):'';
-              return(
-                <div key={i} className="flex items-center justify-between py-2 px-3 bg-white/[0.02] rounded-xl">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-amber-400 font-bold font-mono">{s.code}</span>
-                    {name&&<span className="text-sm text-gray-300">{name}</span>}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    {s.supRequest&&<span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">{t.adminApply}</span>}
-                    {lvName&&<span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">{lvName}</span>}
-                    <span className="text-[10px] text-gray-700">{s.role==='supervisor'?'👔':'👤'}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       <ApprovedList t={t} isAdmin={false}/>
       <LogSection t={t} filterLevel="supervisor"/>
@@ -1519,15 +1612,17 @@ function AdminPage({t,onBack}){
   const[keySaveStatus,setKeySaveStatus]=useState('');
 
   // Online approval states
-  const[teacherName,setTeacherName]=useState('');
   const[teacherApproveStatus,setTeacherApproveStatus]=useState('');
-  const[teacherDecoded,setTeacherDecoded]=useState(null); // {code,devId,lang}
-  const[supName,setSupName]=useState('');
+  const[teacherDecoded,setTeacherDecoded]=useState(null);
   const[supLevel,setSupLevel]=useState(2);
   const[supApproveStatus,setSupApproveStatus]=useState('');
   const[staffList,setStaffList]=useState([]);
   const[staffLoading,setStaffLoading]=useState(false);
   const[msgCopied,setMsgCopied]=useState('');
+  const[sortMode,setSortMode]=useState('store');
+  const[storeList,setStoreList]=useState([]);
+  const[newStore,setNewStore]=useState('');
+  const[storeStatus,setStoreStatus]=useState('');
 
   // My supervisor level (admin = max level 4)
   const myLevel=4;
@@ -1555,16 +1650,18 @@ function AdminPage({t,onBack}){
       }catch{}
       // Load staff
       try{setStaffLoading(true);const s=await readStaff(gh);setStaffList(s);setStaffLoading(false)}catch{setStaffLoading(false)}
+      // Load stores
+      try{const st=await loadStores();setStoreList(st)}catch{}
     })();
   },[]);
 
-  // Decode teacher encrypted string: code:deviceId:lang
+  // Decode teacher encrypted string: code:deviceId:lang:store
   const decodeTeacher=(enc)=>{
     try{
       const dec=xDec(enc.trim());
       const parts=dec.split(':');
       if(parts.length<2)return null;
-      return{code:parts[0],devId:parts[1],lang:parts[2]||'zh'};
+      return{code:parts[0],devId:parts[1],lang:parts[2]||'zh',store:parts[3]||''};
     }catch{return null}
   };
 
@@ -1591,13 +1688,13 @@ function AdminPage({t,onBack}){
     const r1=await writeApproval(gh,'t',hash);
     if(!r1||!r1.ok){setTeacherApproveStatus(t.approveFail+': approved.cfg '+(r1?.reason||'unknown'));return}
     // Add to staff.json
-    const newStaff={code:teacherDecoded.code,name:xEnc(teacherName||''),lang:teacherDecoded.lang,
+    const newStaff={code:teacherDecoded.code,store:teacherDecoded.store||'',lang:teacherDecoded.lang,
       skills:[],role:'teacher',level:0,status:'active',approvedAt:Date.now()};
     const updated=[...staffList.filter(s=>s.code!==teacherDecoded.code),newStaff];
     const r2=await writeStaff(gh,updated);
     if(!r2){setTeacherApproveStatus(t.approveFail+': staff.json error');return}
     setStaffList(updated);
-    addLog(fmtLog(t.logApproveTeacher,[teacherDecoded.code,teacherName||'']),'admin');
+    addLog(fmtLog(t.logApproveTeacher,[teacherDecoded.code,teacherDecoded.store||'']),'admin');
     setTeacherApproveStatus(t.approveOk);
     // Copy activation code to clipboard (admin sends this to teacher)
     if(actResult)try{await navigator.clipboard.writeText(actResult+'\n\n'+t.approveMsg)}catch{}
@@ -1629,9 +1726,8 @@ function AdminPage({t,onBack}){
     if(!r1||!r1.ok){setSupApproveStatus(t.approveFail+': approved.cfg '+(r1?.reason||'unknown'));return}
     // Update staff.json
     const existing=staffList.find(s=>s.code===supInfo.code);
-    const entry={...(existing||{code:supInfo.code,name:xEnc(supName||''),lang:'zh',skills:[]}),
+    const entry={...(existing||{code:supInfo.code,store:'',lang:'zh',skills:[]}),
       role:'supervisor',level:supLevel,status:'active',approvedAt:Date.now()};
-    if(supName)entry.name=xEnc(supName);
     const updated=[...staffList.filter(s=>s.code!==supInfo.code),entry];
     await writeStaff(gh,updated);
     setStaffList(updated);
@@ -1793,6 +1889,29 @@ function AdminPage({t,onBack}){
         <h2 className="text-xl font-bold text-gray-100">{t.adminTitle}</h2>
       </div>
 
+      {/* Staff List - at top */}
+      <StaffListSection t={t} staffList={staffList} sortMode={sortMode} setSortMode={setSortMode}/>
+
+      {/* Store management */}
+      <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-amber-400">{t.storeManage}</h3>
+        <div className="space-y-1.5">
+          {storeList.map((s,i)=>(
+            <div key={i} className="flex items-center justify-between py-1.5 px-3 bg-white/[0.02] rounded-lg">
+              <span className="text-sm text-gray-300">{s}</span>
+              {storeList.length>1&&<button onClick={async()=>{const ns=storeList.filter((_,j)=>j!==i);setStoreList(ns);await saveStores(gh,ns)}} className="text-red-400/50 text-xs px-1">✕</button>}
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input value={newStore} onChange={e=>setNewStore(e.target.value)} placeholder={t.storeAdd}
+            className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>
+          <button onClick={async()=>{if(!newStore.trim())return;const ns=[...storeList,newStore.trim()];setStoreList(ns);setNewStore('');const ok=await saveStores(gh,ns);setStoreStatus(ok?t.storeSaved:'');setTimeout(()=>setStoreStatus(''),2000)}}
+            className="px-4 py-2 bg-amber-600 rounded-xl text-white text-sm font-bold">+</button>
+        </div>
+        {storeStatus&&<p className="text-xs text-center text-emerald-400">{storeStatus}</p>}
+      </div>
+
       {/* Add admin - generate hash */}
       <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
         <h3 className="text-sm font-semibold text-amber-400">{t.adminAdd}</h3>
@@ -1854,8 +1973,6 @@ function AdminPage({t,onBack}){
             {gh.token&&(
               <div className="pt-3 border-t border-white/[0.06] space-y-2">
                 <p className="text-xs text-emerald-400 font-semibold">{t.onlineApprove}</p>
-                <input value={supName} onChange={e=>setSupName(e.target.value)} placeholder={t.approveName}
-                  className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-emerald-500"/>
                 <div>
                   <label className="text-[10px] text-gray-500 block mb-1">{t.approveLevel}</label>
                   <div className="grid grid-cols-2 gap-1.5">
@@ -1885,21 +2002,19 @@ function AdminPage({t,onBack}){
 
       {/* Teacher activation + online approve */}
       <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
-        <h3 className="text-sm font-semibold text-amber-400">{t.genActivation}</h3>
+        <h3 className="text-sm font-semibold text-amber-400">{t.teacherActivation}</h3>
         <div className="relative">
           <textarea value={encInput} onChange={e=>setEncInput(e.target.value)} rows={2} placeholder={t.pasteEncrypted} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 pr-10 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none"/>
           {encInput&&<button onClick={()=>{setEncInput('');setActResult('');setDecodedInfo('');setTeacherDecoded(null);setTeacherApproveStatus('')}} className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full bg-white/10 text-gray-400 text-xs">✕</button>}
         </div>
-        <button onClick={genCode} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold">{t.genActivation}</button>
+        <button onClick={genCode} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold">{t.teacherActivation}</button>
         {actResult&&actResult!=='Error'&&(
           <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 fi space-y-3">
-            {decodedInfo&&<p className="text-sm text-amber-400 font-bold text-center">{t.teacherCode}: {decodedInfo}</p>}
-            {/* Online approve section */}
+            {decodedInfo&&<p className="text-sm text-amber-400 font-bold text-center">{t.teacherCode}: {decodedInfo}{teacherDecoded?.store?' · '+teacherDecoded.store:''}</p>}
+            {/* Online approve */}
             {gh.token&&teacherDecoded&&(
               <div className="pt-3 border-t border-white/[0.06] space-y-2">
                 <p className="text-xs text-emerald-400 font-semibold">{t.onlineApprove}</p>
-                <input value={teacherName} onChange={e=>setTeacherName(e.target.value)} placeholder={t.approveName}
-                  className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-emerald-500"/>
                 <button onClick={approveTeacherOnline} className="w-full py-3 rounded-xl bg-emerald-600 text-white font-bold active:bg-emerald-700">
                   {teacherApproveStatus||t.approveBtn}
                 </button>
@@ -1914,35 +2029,6 @@ function AdminPage({t,onBack}){
             </div>
           </div>
         )}
-      </div>
-
-      {/* Staff List */}
-      <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
-        <h3 className="text-sm font-semibold text-amber-400">{t.staffList}</h3>
-        {staffLoading?<p className="text-xs text-gray-600 text-center">...</p>:
-         staffList.length===0?<p className="text-xs text-gray-600 text-center">{t.staffEmpty}</p>:
-         <div className="space-y-1.5">
-           {staffList.map((s,i)=>{
-             const name=s.name?xDec(s.name):'';
-             const lvName=s.level?supLevelName(s.level,t===T.zh?'zh':'vi'):'';
-             return(
-               <div key={i} className="flex items-center justify-between py-2 px-3 bg-white/[0.02] rounded-xl">
-                 <div className="flex items-center gap-2">
-                   <span className="text-sm text-amber-400 font-bold font-mono">{s.code}</span>
-                   {name&&<span className="text-sm text-gray-300">{name}</span>}
-                 </div>
-                 <div className="flex items-center gap-1.5">
-                   {s.supRequest&&<span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 animate-pulse">{t.adminApply}</span>}
-                   {lvName&&<span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">{lvName}</span>}
-                   <span className={`text-[10px] px-1.5 py-0.5 rounded ${s.status==='active'?'bg-emerald-500/10 text-emerald-400':'bg-red-500/10 text-red-400'}`}>
-                     {s.status==='active'?t.staffActive:t.staffRevoked}
-                   </span>
-                   <span className="text-[10px] text-gray-700">{s.role==='supervisor'?'👔':s.role==='admin'?'⚙️':'👤'}</span>
-                 </div>
-               </div>
-             );
-           })}
-         </div>}
       </div>
 
       {/* Encrypt/Decrypt tool */}
