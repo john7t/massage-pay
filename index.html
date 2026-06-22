@@ -1252,6 +1252,9 @@ function SettingsPage({settings,onUpdate,t}){
   const[supErr,setSupErr]=useState('');
   const[appCopied,setAppCopied]=useState(false);
   const[supCheckStatus,setSupCheckStatus]=useState('');
+  const[connMode,setConnMode]=useState(null);
+  const[connInput,setConnInput]=useState('');
+  const[connStatus,setConnStatus]=useState('');
 
   const handleSave=()=>{onUpdate(form);setSaved(true);setTimeout(()=>setSaved(false),2000)};
 
@@ -1407,9 +1410,6 @@ function SettingsPage({settings,onUpdate,t}){
       {(()=>{
         const ghLocal=getGHConfig();
         const hasConn=!!(ghLocal&&ghLocal.token);
-        const[connMode,setConnMode]=useState(null); // null | 'apply' | 'input'
-        const[connInput,setConnInput]=useState('');
-        const[connStatus,setConnStatus]=useState('');
         return(
           <div className="pt-4 border-t border-white/[0.06] space-y-3">
             <div className="flex items-center justify-between">
@@ -1417,9 +1417,7 @@ function SettingsPage({settings,onUpdate,t}){
               <span className="text-xs">{hasConn?t.connOnline:t.connOffline}</span>
             </div>
             {!hasConn&&!connMode&&(
-              <div className="flex gap-2">
-                <button onClick={()=>setConnMode('apply')} className="flex-1 py-3 rounded-xl bg-amber-600/20 border border-amber-500/30 text-amber-400 text-sm font-semibold active:bg-amber-600/30">{t.connApply}</button>
-              </div>
+              <button onClick={()=>setConnMode('apply')} className="w-full py-3 rounded-xl bg-amber-600/20 border border-amber-500/30 text-amber-400 text-sm font-semibold active:bg-amber-600/30">{t.connApply}</button>
             )}
             {connMode==='apply'&&(
               <div className="space-y-3 fi">
@@ -1614,7 +1612,7 @@ function SupervisorPage({t,onBack}){
       {/* Staff List - at top */}
       {(()=>{const ms=LS.get('app-settings')||{};const ml=staffList.find(s=>s.code===ms.code);
         return<StaffListSection t={t} staffList={staffList} sortMode={sortMode} setSortMode={setSortMode}
-          onRemove={async(s)=>{if(!confirm(fmtLog(t.removeConfirm,[s.code])))return;const gh=getGHConfig();let u;
+          onRemove={async(s)=>{const gh=getGHConfig();let u;
             if(s.role==='supervisor'){u=staffList.map(x=>x.code===s.code?{...x,role:'teacher',level:0}:x);addLog(fmtLog(t.logRevoke,[s.code,s.store||'']),'supervisor')}
             else{u=staffList.filter(x=>x.code!==s.code);addLog('移除員工 '+s.code,'supervisor')}
             await writeStaff(gh,u);setStaffList(u)}}
@@ -1750,8 +1748,12 @@ function AdminPage({t,onBack}){
     setStaffList(updated);
   };
 
-  // Edit employee (placeholder - will expand)
+  // Edit employee
   const[editStaff,setEditStaff]=useState(null);
+  const[connDevInput,setConnDevInput]=useState('');
+  const[connResult,setConnResult]=useState('');
+  const[editStoreVal,setEditStoreVal]=useState('');
+  const[editStatus,setEditStatus]=useState('');
 
   // Parse admin.cfg entries: support "encCode:hash" and legacy "hash"
   const parseEntries=(text)=>{
@@ -2015,83 +2017,72 @@ function AdminPage({t,onBack}){
         onRemove={onRemoveStaff} onEdit={s=>setEditStaff(s)} myCode={myCode} myLevel={myLevel} myStore={myStore}/>
 
       {/* Employee edit panel */}
-      {editStaff&&(()=>{
-        const s=editStaff;
-        const[connDevInput,setConnDevInput]=useState('');
-        const[connResult,setConnResult]=useState('');
-        const[editStoreVal,setEditStoreVal]=useState(s.store||'');
-        const[editStatus,setEditStatus]=useState('');
-        const actCode=genSimpleAct(s.code);
-        const genConn=()=>{
-          // Parse code:uuid from input
-          const parts=connDevInput.trim().split(':');
-          if(parts.length<2){setConnResult('Error');return}
-          const code=parts[0],uuid=parts.slice(1).join(':');
-          if(code!==s.code){setConnResult('Error: code mismatch');return}
-          setConnResult(genActWithToken(code,uuid,gh));
-        };
-        const saveEdit=async(updates)=>{
-          const updated=staffList.map(x=>x.code===s.code?{...x,...updates}:x);
-          const ok=await writeStaff(gh,updated);
-          if(ok){setStaffList(updated);setEditStaff({...s,...updates});setEditStatus('✓')}
-          setTimeout(()=>setEditStatus(''),2000);
-        };
-        const delTeacher=async()=>{
-          const updated=staffList.filter(x=>x.code!==s.code);
-          await writeStaff(gh,updated);
-          setStaffList(updated);
-          setEditStaff(null);
-          addLog('刪除員工 '+s.code,'admin');
-        };
-        return(
-          <div className="space-y-3 bg-white/[0.02] border border-amber-500/20 rounded-2xl p-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-amber-400">{t.editStaff}: {s.code}</h3>
-              <button onClick={()=>setEditStaff(null)} className="text-gray-500 text-sm">✕</button>
-            </div>
-
-            {/* Activation code */}
-            <div className="flex items-center justify-between bg-white/[0.03] rounded-xl p-3">
-              <div><p className="text-[10px] text-gray-600">{t.teacherActivation}</p><p className="text-lg font-bold text-emerald-400 font-mono">{actCode}</p></div>
-              <button onClick={async()=>{try{await navigator.clipboard.writeText(actCode)}catch{}}} className="px-3 py-1.5 bg-emerald-600/20 rounded-lg text-emerald-400 text-xs">📋</button>
-            </div>
-
-            {/* Generate connection code */}
-            <div className="space-y-2">
-              <p className="text-[10px] text-gray-500">{t.connCode}</p>
-              <div className="flex gap-2">
-                <input value={connDevInput} onChange={e=>setConnDevInput(e.target.value)} placeholder="code:uuid"
-                  className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
-                <button onClick={genConn} className="px-4 py-2 bg-amber-600 rounded-xl text-white text-xs font-bold">{t.confirm}</button>
-              </div>
-              {connResult&&connResult!=='Error'&&!connResult.startsWith('Error')&&(
-                <div className="space-y-2">
-                  <p className="text-[10px] text-emerald-400 font-mono break-all select-all bg-white/[0.03] rounded-lg p-2">{connResult}</p>
-                  <div className="flex justify-center"><div className="bg-white p-2 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(connResult)}`} alt="QR" className="w-36 h-36"/></div></div>
-                  <button onClick={async()=>{try{await navigator.clipboard.writeText(connResult)}catch{}}} className="w-full py-2 bg-emerald-600 rounded-xl text-white text-xs font-semibold">📋 Copy</button>
-                </div>
-              )}
-              {connResult&&(connResult==='Error'||connResult.startsWith('Error'))&&<p className="text-xs text-red-400">{connResult}</p>}
-            </div>
-
-            {/* Change store */}
-            <div className="flex gap-2 items-center">
-              <select value={editStoreVal} onChange={e=>setEditStoreVal(e.target.value)}
-                className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-gray-200 focus:outline-none">
-                {storeList.map(st=><option key={st} value={st}>{st}</option>)}
-              </select>
-              <button onClick={()=>saveEdit({store:editStoreVal})} className="px-4 py-2 bg-amber-600 rounded-xl text-white text-xs font-bold">{t.editStore}</button>
-            </div>
-
-            {/* Revoke supervisor / delete */}
-            <div className="flex gap-2 pt-2 border-t border-white/[0.04]">
-              {s.role==='supervisor'&&<button onClick={()=>saveEdit({role:'teacher',level:0})} className="flex-1 py-2 bg-amber-500/10 rounded-xl text-amber-400 text-xs font-medium">{t.removeSup}</button>}
-              {s.role!=='admin'&&<button onClick={delTeacher} className="flex-1 py-2 bg-red-500/10 rounded-xl text-red-400 text-xs font-medium">{t.editDel}</button>}
-            </div>
-            {editStatus&&<p className="text-xs text-center text-emerald-400">{editStatus}</p>}
+      {editStaff&&(
+        <div className="space-y-3 bg-white/[0.02] border border-amber-500/20 rounded-2xl p-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-amber-400">{t.editStaff}: {editStaff.code}</h3>
+            <button onClick={()=>{setEditStaff(null);setConnDevInput('');setConnResult('')}} className="text-gray-500 text-sm">✕</button>
           </div>
-        );
-      })()}
+
+          {/* Activation code */}
+          <div className="flex items-center justify-between bg-white/[0.03] rounded-xl p-3">
+            <div><p className="text-[10px] text-gray-600">{t.teacherActivation}</p><p className="text-lg font-bold text-emerald-400 font-mono">{genSimpleAct(editStaff.code)}</p></div>
+            <button onClick={async()=>{try{await navigator.clipboard.writeText(genSimpleAct(editStaff.code))}catch{}}} className="px-3 py-1.5 bg-emerald-600/20 rounded-lg text-emerald-400 text-xs">📋</button>
+          </div>
+
+          {/* Generate connection code */}
+          <div className="space-y-2">
+            <p className="text-[10px] text-gray-500">{t.connCode}</p>
+            <div className="flex gap-2">
+              <input value={connDevInput} onChange={e=>setConnDevInput(e.target.value)} placeholder="code:uuid"
+                className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
+              <button onClick={()=>{
+                const parts=connDevInput.trim().split(':');
+                if(parts.length<2||parts[0]!==editStaff.code){setConnResult('Error');return}
+                setConnResult(genActWithToken(parts[0],parts.slice(1).join(':'),gh));
+              }} className="px-4 py-2 bg-amber-600 rounded-xl text-white text-xs font-bold">{t.confirm}</button>
+            </div>
+            {connResult&&connResult!=='Error'&&(
+              <div className="space-y-2">
+                <p className="text-[10px] text-emerald-400 font-mono break-all select-all bg-white/[0.03] rounded-lg p-2">{connResult}</p>
+                <div className="flex justify-center"><div className="bg-white p-2 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(connResult)}`} alt="QR" className="w-36 h-36"/></div></div>
+                <button onClick={async()=>{try{await navigator.clipboard.writeText(connResult)}catch{}}} className="w-full py-2 bg-emerald-600 rounded-xl text-white text-xs font-semibold">📋 Copy</button>
+              </div>
+            )}
+            {connResult==='Error'&&<p className="text-xs text-red-400">code 不符或格式錯誤</p>}
+          </div>
+
+          {/* Change store */}
+          <div className="flex gap-2 items-center">
+            <select value={editStoreVal||editStaff.store||''} onChange={e=>setEditStoreVal(e.target.value)}
+              className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-gray-200 focus:outline-none">
+              {storeList.map(st=><option key={st} value={st}>{st}</option>)}
+            </select>
+            <button onClick={async()=>{
+              const sv=editStoreVal||editStaff.store||'';
+              const updated=staffList.map(x=>x.code===editStaff.code?{...x,store:sv}:x);
+              const ok=await writeStaff(gh,updated);
+              if(ok){setStaffList(updated);setEditStaff({...editStaff,store:sv});setEditStatus('✓')}
+              setTimeout(()=>setEditStatus(''),2000);
+            }} className="px-4 py-2 bg-amber-600 rounded-xl text-white text-xs font-bold">{t.editStore}</button>
+          </div>
+
+          {/* Revoke supervisor / delete */}
+          <div className="flex gap-2 pt-2 border-t border-white/[0.04]">
+            {editStaff.role==='supervisor'&&<button onClick={async()=>{
+              const updated=staffList.map(x=>x.code===editStaff.code?{...x,role:'teacher',level:0}:x);
+              await writeStaff(gh,updated);setStaffList(updated);setEditStaff({...editStaff,role:'teacher',level:0});
+              addLog(fmtLog(t.logRevoke,[editStaff.code,editStaff.store||'']),'admin');
+            }} className="flex-1 py-2 bg-amber-500/10 rounded-xl text-amber-400 text-xs font-medium">{t.removeSup}</button>}
+            {editStaff.role!=='admin'&&<button onClick={async()=>{
+              const updated=staffList.filter(x=>x.code!==editStaff.code);
+              await writeStaff(gh,updated);setStaffList(updated);setEditStaff(null);
+              addLog('刪除員工 '+editStaff.code,'admin');
+            }} className="flex-1 py-2 bg-red-500/10 rounded-xl text-red-400 text-xs font-medium">{t.editDel}</button>}
+          </div>
+          {editStatus&&<p className="text-xs text-center text-emerald-400">{editStatus}</p>}
+        </div>
+      )}
 
       {/* Test/Reset tools */}
       <div className="space-y-2 bg-white/[0.02] border border-red-500/10 rounded-2xl p-4">
