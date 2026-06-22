@@ -261,7 +261,17 @@ function saveGHConfigLocal(cfg){LS.set(GH_KEY,cfg)}
 // Save GitHub config (admin only - to localStorage + optionally sync)
 async function saveGHConfig(cfg){LS.set(GH_KEY,cfg)}
 
-// ── Device-specific encryption for activation codes ──
+// ── Simple 9-digit activation code (identity only, no token) ──
+function genSimpleAct(code){
+  const S="MassagePay2026!SimpleAct";
+  let h=fnv(S+code+S);
+  for(let i=0;i<50;i++)h=fnv(String(h)+S+code);
+  const n=h%1000000000;
+  const s=String(n).padStart(9,'0');
+  return s.substring(0,3)+'-'+s.substring(3,6)+'-'+s.substring(6,9);
+}
+
+// ── Device-specific encryption for connection codes (carries token) ──
 // Encrypts GitHub token into activation code, bound to code+deviceId
 function encWithKey(text,key){return Array.from(text).map((c,i)=>(c.charCodeAt(0)^key.charCodeAt(i%key.length)).toString(16).padStart(2,'0')).join('')}
 function decWithKey(hex,key){try{return hex.match(/.{2}/g).map((x,i)=>String.fromCharCode(parseInt(x,16)^key.charCodeAt(i%key.length))).join('')}catch{return''}}
@@ -489,6 +499,10 @@ zh:{
   resetAllOk:"已還原初始設定 ✓",resetSup:"一鍵移除所有主管權限",resetSupConfirm:"確定移除所有主管權限？",
   resetSupOk:"已移除所有主管權限 ✓",resetApp:"重置申請",
   removeToken:"移除（轉離線）",removeSup:"取消主管權限",removeConfirm:"確定移除 {0}？",
+  connection:"連線作業",connApply:"申請認證",connCode:"連線碼",connInput:"貼上連線碼",connOk:"連線成功 ✓",
+  connFail:"連線碼錯誤",connExpired:"你的連線認證已逾期，請重新申請",connStatus:"連線狀態",connOnline:"已連線 ☁️",connOffline:"離線 📥",
+  editStaff:"人員編輯",editStore:"所在店面",editDel:"刪除此員工",editDelConfirm:"確定刪除 {0}？",
+  editDevices:"連線設備",editRevokeConn:"取消連線",editNoDevices:"無連線設備",
   skills:"老師技能",guasha:"刮痧",baguang:"拔罐",xiujiao:"修腳皮",gs:"刮",bg:"拔",xj:"修",clearAll:"一鍵清除",
   notice1:"⚠️ 資料只存在本機，不會上傳雲端。",
   notice2:"LINE 與手機內建瀏覽器的暫存是分開的，啟動碼會不同，請固定使用同一個瀏覽器。",
@@ -568,6 +582,10 @@ vi:{
   resetAllOk:"Đã khôi phục ✓",resetSup:"Xóa tất cả quyền QL",resetSupConfirm:"Xác nhận xóa tất cả quyền QL?",
   resetSupOk:"Đã xóa ✓",resetApp:"Đặt lại đơn",
   removeToken:"Xóa (offline)",removeSup:"Hủy quyền QL",removeConfirm:"Xác nhận xóa {0}?",
+  connection:"Kết nối",connApply:"Yêu cầu xác thực",connCode:"Mã kết nối",connInput:"Dán mã kết nối",connOk:"Kết nối OK ✓",
+  connFail:"Sai mã kết nối",connExpired:"Xác thực đã hết hạn, vui lòng yêu cầu lại",connStatus:"Trạng thái",connOnline:"Online ☁️",connOffline:"Offline 📥",
+  editStaff:"Chỉnh sửa NV",editStore:"Chi nhánh",editDel:"Xóa NV",editDelConfirm:"Xác nhận xóa {0}?",
+  editDevices:"Thiết bị",editRevokeConn:"Ngắt kết nối",editNoDevices:"Không có thiết bị",
   skills:"Kỹ năng",guasha:"Cạo gió",baguang:"Giác hơi",xiujiao:"Sửa da chân",gs:"C",bg:"G",xj:"S",clearAll:"Xóa tất cả",
   notice1:"⚠️ Dữ liệu chỉ lưu trên máy, không tải lên đám mây.",
   notice2:"Trình duyệt LINE và trình duyệt mặc định lưu riêng, mã kích hoạt sẽ khác nhau. Hãy dùng cùng một trình duyệt.",
@@ -731,16 +749,9 @@ function Onboarding({onComplete}){
 
   const verify=()=>{
     const input=actInput.replace(/[\s-]/g,'').trim();
-    // Try new format: token-carrying activation code
-    const ghCfg=verifyActToken(input,code,devId);
-    if(ghCfg){
-      saveGHConfigLocal(ghCfg);
-      doActivate({code,unitPrice:250,lang,store,year:new Date().getFullYear(),deviceId:devId});
-      return;
-    }
-    // Fallback: old short activation code
-    const correct=genAct(code,devId);
-    if(input===correct.replace(/-/g,'')){
+    // Simple 9-digit activation code
+    const correct=genSimpleAct(code).replace(/-/g,'');
+    if(input===correct){
       doActivate({code,unitPrice:250,lang,store,year:new Date().getFullYear(),deviceId:devId});
     }else{setErr(t.activationFail)}
   };
@@ -801,8 +812,8 @@ function Onboarding({onComplete}){
             {/* Activation code input */}
             <div>
               <label className="text-sm text-gray-400 mb-1.5 block">{t.enterActivation}</label>
-              <textarea value={actInput} onChange={e=>setActInput(e.target.value)} rows={3}
-                className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none break-all"/>
+              <input value={actInput} onChange={e=>setActInput(e.target.value.replace(/[^0-9-]/g,''))} placeholder="xxx-xxx-xxx" maxLength={11}
+                className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3.5 text-xl text-center text-gray-100 font-mono tracking-widest focus:outline-none focus:border-amber-500"/>
             </div>
             {err&&<p className="text-red-400 text-sm text-center fi">{err}</p>}
             <div className="flex gap-2">
@@ -1392,6 +1403,52 @@ function SettingsPage({settings,onUpdate,t}){
       <BackupSection settings={settings} t={t}/>
       <button onClick={handleSave} className={`w-full py-4 rounded-xl font-bold text-white text-lg ${saved?'bg-emerald-600':'bg-amber-600 active:bg-amber-700'}`}>{saved?t.saved:t.save}</button>
 
+      {/* Connection section */}
+      {(()=>{
+        const ghLocal=getGHConfig();
+        const hasConn=!!(ghLocal&&ghLocal.token);
+        const[connMode,setConnMode]=useState(null); // null | 'apply' | 'input'
+        const[connInput,setConnInput]=useState('');
+        const[connStatus,setConnStatus]=useState('');
+        return(
+          <div className="pt-4 border-t border-white/[0.06] space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-500 font-medium">{t.connection}</p>
+              <span className="text-xs">{hasConn?t.connOnline:t.connOffline}</span>
+            </div>
+            {!hasConn&&!connMode&&(
+              <div className="flex gap-2">
+                <button onClick={()=>setConnMode('apply')} className="flex-1 py-3 rounded-xl bg-amber-600/20 border border-amber-500/30 text-amber-400 text-sm font-semibold active:bg-amber-600/30">{t.connApply}</button>
+              </div>
+            )}
+            {connMode==='apply'&&(
+              <div className="space-y-3 fi">
+                <div className="flex justify-center">
+                  <div className="bg-white p-2.5 rounded-xl">
+                    <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(settings.code+':'+devId)}`} alt="QR" className="w-40 h-40"/>
+                  </div>
+                </div>
+                <p className="text-[10px] text-gray-600 text-center font-mono select-all break-all">{settings.code}:{devId}</p>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">{t.connCode}</label>
+                  <textarea value={connInput} onChange={e=>setConnInput(e.target.value)} rows={2} placeholder={t.connInput}
+                    className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none"/>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={()=>{setConnMode(null);setConnInput('');setConnStatus('')}} className="flex-1 py-2.5 bg-white/[0.04] rounded-xl text-gray-500 text-sm">{t.cancel}</button>
+                  <button onClick={()=>{
+                    const ghCfg=verifyActToken(connInput.trim(),settings.code,devId);
+                    if(ghCfg){saveGHConfigLocal(ghCfg);setConnStatus(t.connOk);setConnMode(null);setConnInput('')}
+                    else{setConnStatus(t.connFail)}
+                  }} className="flex-1 py-2.5 bg-amber-600 rounded-xl text-white text-sm font-bold">{t.confirm}</button>
+                </div>
+                {connStatus&&<p className={`text-xs text-center ${connStatus.includes('✓')?'text-emerald-400':'text-red-400'}`}>{connStatus}</p>}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {/* Admin / Supervisor section */}
       <div className="pt-4 border-t border-white/[0.06] space-y-3">
         <p className="text-sm text-gray-500 font-medium">{t.admin}</p>
@@ -1531,7 +1588,7 @@ function SupervisorPage({t,onBack}){
 
   // Generate user activation code
   const gh=getGHConfig();
-  const genCode=()=>{try{const dec=xDec(encInput.trim());const idx=dec.indexOf(':');if(idx<1){setActResult('Error');setDecodedInfo('');return}const code=dec.substring(0,idx);const devId=dec.substring(idx+1);setDecodedInfo(code);setActResult(gh.token?genActWithToken(code,devId,gh):genAct(code,devId));addLog(fmtLog(t.logGenUser,[code]),'supervisor')}catch{setActResult('Error');setDecodedInfo('')}};
+  const genCode=()=>{try{const dec=xDec(encInput.trim());const idx=dec.indexOf(':');if(idx<1){setActResult('Error');setDecodedInfo('');return}const code=dec.substring(0,idx);setDecodedInfo(code);setActResult(genSimpleAct(code));addLog(fmtLog(t.logGenUser,[code]),'supervisor')}catch{setActResult('Error');setDecodedInfo('')}};
 
   // Parse supervisor application + generate admin activation code + save to approved list
   const parseSup=()=>{
@@ -1739,12 +1796,7 @@ function AdminPage({t,onBack}){
     if(!info){setActResult('Error');setDecodedInfo('');setTeacherDecoded(null);return}
     setDecodedInfo(info.code);
     setTeacherDecoded(info);
-    // If GitHub config exists, generate token-carrying activation code
-    if(gh.token&&gh.owner&&gh.repo){
-      setActResult(genActWithToken(info.code,info.devId,gh));
-    }else{
-      setActResult(genAct(info.code,info.devId));
-    }
+    setActResult(genSimpleAct(info.code));
     addLog(fmtLog(t.logGenUser,[info.code]),'admin');
   };
 
@@ -1962,6 +2014,85 @@ function AdminPage({t,onBack}){
       <StaffListSection t={t} staffList={staffList} sortMode={sortMode} setSortMode={setSortMode}
         onRemove={onRemoveStaff} onEdit={s=>setEditStaff(s)} myCode={myCode} myLevel={myLevel} myStore={myStore}/>
 
+      {/* Employee edit panel */}
+      {editStaff&&(()=>{
+        const s=editStaff;
+        const[connDevInput,setConnDevInput]=useState('');
+        const[connResult,setConnResult]=useState('');
+        const[editStoreVal,setEditStoreVal]=useState(s.store||'');
+        const[editStatus,setEditStatus]=useState('');
+        const actCode=genSimpleAct(s.code);
+        const genConn=()=>{
+          // Parse code:uuid from input
+          const parts=connDevInput.trim().split(':');
+          if(parts.length<2){setConnResult('Error');return}
+          const code=parts[0],uuid=parts.slice(1).join(':');
+          if(code!==s.code){setConnResult('Error: code mismatch');return}
+          setConnResult(genActWithToken(code,uuid,gh));
+        };
+        const saveEdit=async(updates)=>{
+          const updated=staffList.map(x=>x.code===s.code?{...x,...updates}:x);
+          const ok=await writeStaff(gh,updated);
+          if(ok){setStaffList(updated);setEditStaff({...s,...updates});setEditStatus('✓')}
+          setTimeout(()=>setEditStatus(''),2000);
+        };
+        const delTeacher=async()=>{
+          const updated=staffList.filter(x=>x.code!==s.code);
+          await writeStaff(gh,updated);
+          setStaffList(updated);
+          setEditStaff(null);
+          addLog('刪除員工 '+s.code,'admin');
+        };
+        return(
+          <div className="space-y-3 bg-white/[0.02] border border-amber-500/20 rounded-2xl p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-amber-400">{t.editStaff}: {s.code}</h3>
+              <button onClick={()=>setEditStaff(null)} className="text-gray-500 text-sm">✕</button>
+            </div>
+
+            {/* Activation code */}
+            <div className="flex items-center justify-between bg-white/[0.03] rounded-xl p-3">
+              <div><p className="text-[10px] text-gray-600">{t.teacherActivation}</p><p className="text-lg font-bold text-emerald-400 font-mono">{actCode}</p></div>
+              <button onClick={async()=>{try{await navigator.clipboard.writeText(actCode)}catch{}}} className="px-3 py-1.5 bg-emerald-600/20 rounded-lg text-emerald-400 text-xs">📋</button>
+            </div>
+
+            {/* Generate connection code */}
+            <div className="space-y-2">
+              <p className="text-[10px] text-gray-500">{t.connCode}</p>
+              <div className="flex gap-2">
+                <input value={connDevInput} onChange={e=>setConnDevInput(e.target.value)} placeholder="code:uuid"
+                  className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
+                <button onClick={genConn} className="px-4 py-2 bg-amber-600 rounded-xl text-white text-xs font-bold">{t.confirm}</button>
+              </div>
+              {connResult&&connResult!=='Error'&&!connResult.startsWith('Error')&&(
+                <div className="space-y-2">
+                  <p className="text-[10px] text-emerald-400 font-mono break-all select-all bg-white/[0.03] rounded-lg p-2">{connResult}</p>
+                  <div className="flex justify-center"><div className="bg-white p-2 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(connResult)}`} alt="QR" className="w-36 h-36"/></div></div>
+                  <button onClick={async()=>{try{await navigator.clipboard.writeText(connResult)}catch{}}} className="w-full py-2 bg-emerald-600 rounded-xl text-white text-xs font-semibold">📋 Copy</button>
+                </div>
+              )}
+              {connResult&&(connResult==='Error'||connResult.startsWith('Error'))&&<p className="text-xs text-red-400">{connResult}</p>}
+            </div>
+
+            {/* Change store */}
+            <div className="flex gap-2 items-center">
+              <select value={editStoreVal} onChange={e=>setEditStoreVal(e.target.value)}
+                className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-gray-200 focus:outline-none">
+                {storeList.map(st=><option key={st} value={st}>{st}</option>)}
+              </select>
+              <button onClick={()=>saveEdit({store:editStoreVal})} className="px-4 py-2 bg-amber-600 rounded-xl text-white text-xs font-bold">{t.editStore}</button>
+            </div>
+
+            {/* Revoke supervisor / delete */}
+            <div className="flex gap-2 pt-2 border-t border-white/[0.04]">
+              {s.role==='supervisor'&&<button onClick={()=>saveEdit({role:'teacher',level:0})} className="flex-1 py-2 bg-amber-500/10 rounded-xl text-amber-400 text-xs font-medium">{t.removeSup}</button>}
+              {s.role!=='admin'&&<button onClick={delTeacher} className="flex-1 py-2 bg-red-500/10 rounded-xl text-red-400 text-xs font-medium">{t.editDel}</button>}
+            </div>
+            {editStatus&&<p className="text-xs text-center text-emerald-400">{editStatus}</p>}
+          </div>
+        );
+      })()}
+
       {/* Test/Reset tools */}
       <div className="space-y-2 bg-white/[0.02] border border-red-500/10 rounded-2xl p-4">
         <h3 className="text-[10px] text-gray-600 uppercase tracking-wider">測試工具</h3>
@@ -2113,18 +2244,12 @@ function AdminPage({t,onBack}){
                 </button>
               </div>
             )}
-            {/* Step 2: After approve, show activation code + QR */}
+            {/* Step 2: After approve, show simple activation code */}
             {teacherApproveStatus.includes('✓')&&(
               <div className="space-y-3">
                 <p className="text-xs text-center text-emerald-400">{t.approveOk}</p>
-                <p className="text-[10px] text-gray-600 text-center">{t.resultCode}</p>
-                <p className="text-[10px] font-bold text-emerald-400 font-mono select-all text-center break-all leading-relaxed bg-white/[0.03] rounded-lg p-2">{actResult}</p>
-                <div className="flex justify-center">
-                  <div className="bg-white p-2.5 rounded-xl">
-                    <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(actResult)}`} alt="QR" className="w-40 h-40"/>
-                  </div>
-                </div>
-                <button onClick={async()=>{try{await navigator.clipboard.writeText(actResult+'\n\n'+t.approveMsg)}catch{}}} className="w-full py-2 bg-emerald-600 rounded-xl text-white text-sm font-semibold active:bg-emerald-700">📋 Copy</button>
+                <p className="text-3xl font-bold text-emerald-400 font-mono tracking-widest select-all text-center">{actResult}</p>
+                <button onClick={async()=>{try{await navigator.clipboard.writeText(actResult+'\n\n'+t.approveMsg)}catch{};setMsgCopied('teacher');setTimeout(()=>setMsgCopied(''),3000)}} className="w-full py-2 bg-emerald-600 rounded-xl text-white text-sm font-semibold active:bg-emerald-700">📋 Copy</button>
                 {msgCopied==='teacher'&&<p className="text-xs text-center text-emerald-400">{t.approveCopied}</p>}
               </div>
             )}
