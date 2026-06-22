@@ -213,9 +213,21 @@ async function ghWriteFile(cfg,path,content,sha,msg){
 
 async function ghAppendLine(cfg,path,line,msg){
   const file=await ghReadFile(cfg,path);
-  if(!file)return false;
+  if(!file){
+    // File doesn't exist, create it
+    try{
+      const res=await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${path}`,{
+        method:'PUT',headers:{'Authorization':'token '+cfg.token,'Content-Type':'application/json'},
+        body:JSON.stringify({message:msg||'create '+path,content:btoa(unescape(encodeURIComponent(line+'\n')))})
+      });
+      if(res.ok)return{ok:true};
+      const err=await res.json().catch(()=>({}));
+      return{ok:false,reason:err.message||'HTTP '+res.status};
+    }catch(e){return{ok:false,reason:e.message||'network error'}}
+  }
   const newContent=file.content.trim()+'\n'+line+'\n';
-  return ghWriteFile(cfg,path,newContent,file.sha,msg);
+  const ok=await ghWriteFile(cfg,path,newContent,file.sha,msg);
+  return ok?{ok:true}:{ok:false,reason:'write failed (SHA conflict?)'};
 }
 
 async function ghRemoveLine(cfg,path,line,msg){
@@ -252,7 +264,7 @@ function ApprovedList({t,isAdmin}){
     if(gh.token&&gh.owner&&gh.repo){
       setWriteStatus(t.ghWriting);
       const ok=await ghAppendLine(gh,'revoked.cfg',h,'revoke '+item.code);
-      setWriteStatus(ok?t.ghWriteOk:t.ghWriteFail);
+      setWriteStatus(ok?.ok?t.ghWriteOk:t.ghWriteFail);
     }
   };
 
@@ -668,44 +680,18 @@ function Onboarding({onComplete}){
               </button>
             </div>
 
-            {/* Online approval: wait + check */}
-            <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 text-center space-y-3">
-              <div className="flex items-center justify-center gap-2">
-                <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
-                <p className="text-sm text-amber-400 font-semibold">{t.waitApproval}</p>
-              </div>
-              <p className="text-[11px] text-gray-500">{t.waitHint}</p>
-              <button onClick={checkOnlineApproval}
-                className="w-full py-3 rounded-xl bg-amber-600/20 text-amber-400 font-medium text-sm active:bg-amber-600/30">
-                {waitStatus===t.checking?t.checking:waitStatus===t.approved?'✓ '+t.approved:t.checkApproval}
-              </button>
-            </div>
-
-            {/* Manual activation fallback */}
-            <button onClick={()=>setStep(3)} className="w-full text-center text-[11px] text-gray-600 active:text-gray-400 py-2">
-              {t.enterActivation} →
-            </button>
-            {err&&<p className="text-amber-400/60 text-[11px] text-center">{err}</p>}
-            <div className="flex gap-2">
-              <button onClick={()=>{setStep(1);setErr('');setWaitStatus('')}} className="flex-1 py-4 rounded-xl bg-white/[0.05] text-gray-400 font-semibold">{t.cancel}</button>
-            </div>
-            <NoticeBox t={t}/>
-          </div>
-        )}
-
-        {step===3&&(
-          <div className="space-y-5">
+            {/* Activation code input */}
             <div>
               <label className="text-sm text-gray-400 mb-1.5 block">{t.enterActivation}</label>
-              <input value={actInput} onChange={e=>setActInput(e.target.value)} placeholder="XXXX-XXXX-XXXX"
-                className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3.5 text-xl text-center text-gray-100 font-mono tracking-widest focus:outline-none focus:border-amber-500"/>
-              <p className="text-[10px] text-gray-600 mt-1 text-center">{t.activationHint}</p>
+              <textarea value={actInput} onChange={e=>setActInput(e.target.value)} rows={3} placeholder={t.activationHint}
+                className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none break-all"/>
             </div>
             {err&&<p className="text-red-400 text-sm text-center fi">{err}</p>}
             <div className="flex gap-2">
-              <button onClick={()=>{setStep(2);setErr('')}} className="flex-1 py-4 rounded-xl bg-white/[0.05] text-gray-400 font-semibold">{t.cancel}</button>
+              <button onClick={()=>{setStep(1);setErr('')}} className="flex-1 py-4 rounded-xl bg-white/[0.05] text-gray-400 font-semibold">{t.cancel}</button>
               <button onClick={verify} className="flex-1 py-4 rounded-xl bg-amber-600 text-white font-bold text-lg">{t.confirm}</button>
             </div>
+            <NoticeBox t={t}/>
           </div>
         )}
       </div>
@@ -1388,8 +1374,9 @@ function SupervisorPage({t,onBack}){
   const[encInput,setEncInput]=useState('');const[actResult,setActResult]=useState('');const[decodedInfo,setDecodedInfo]=useState('');
   const[supInput,setSupInput]=useState('');const[supResult,setSupResult]=useState('');const[supInfo,setSupInfo]=useState(null);
   const[revoked,setRevoked]=useState(false);
+  const[staffList,setStaffList]=useState([]);
 
-  // Check revoked.cfg on mount
+  // Check revoked.cfg on mount + load staff
   useEffect(()=>{
     (async()=>{
       try{
@@ -1404,6 +1391,9 @@ function SupervisorPage({t,onBack}){
           setRevoked(true);
         }
       }catch{}
+      // Load staff
+      const gh=getGHConfig();
+      if(gh.token){try{const s=await readStaff(gh);setStaffList(s)}catch{}}
     })();
   },[]);
 
@@ -1482,6 +1472,33 @@ function SupervisorPage({t,onBack}){
           </div>
         )}
       </div>
+
+      {/* Staff List */}
+      {staffList.length>0&&(
+        <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+          <h3 className="text-sm font-semibold text-amber-400">{t.staffList}</h3>
+          <div className="space-y-1.5">
+            {staffList.map((s,i)=>{
+              const name=s.name?xDec(s.name):'';
+              const lvName=s.level?supLevelName(s.level,t===T.zh?'zh':'vi'):'';
+              return(
+                <div key={i} className="flex items-center justify-between py-2 px-3 bg-white/[0.02] rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-amber-400 font-bold font-mono">{s.code}</span>
+                    {name&&<span className="text-sm text-gray-300">{name}</span>}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {s.supRequest&&<span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">{t.adminApply}</span>}
+                    {lvName&&<span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">{lvName}</span>}
+                    <span className="text-[10px] text-gray-700">{s.role==='supervisor'?'👔':'👤'}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <ApprovedList t={t} isAdmin={false}/>
       <LogSection t={t} filterLevel="supervisor"/>
     </div>
@@ -1567,21 +1584,23 @@ function AdminPage({t,onBack}){
 
   // Online teacher approval
   const approveTeacherOnline=async()=>{
-    if(!teacherDecoded||!gh.token)return;
+    if(!teacherDecoded){setTeacherApproveStatus(t.approveFail+': no data');return}
+    if(!gh.token){setTeacherApproveStatus(t.approveFail+': no GitHub Token');return}
     setTeacherApproveStatus(t.approving);
     const hash=approveHash(teacherDecoded.code,teacherDecoded.devId);
-    const ok=await writeApproval(gh,'t',hash);
-    if(!ok){setTeacherApproveStatus(t.approveFail);return}
+    const r1=await writeApproval(gh,'t',hash);
+    if(!r1||!r1.ok){setTeacherApproveStatus(t.approveFail+': approved.cfg '+(r1?.reason||'unknown'));return}
     // Add to staff.json
     const newStaff={code:teacherDecoded.code,name:xEnc(teacherName||''),lang:teacherDecoded.lang,
       skills:[],role:'teacher',level:0,status:'active',approvedAt:Date.now()};
     const updated=[...staffList.filter(s=>s.code!==teacherDecoded.code),newStaff];
-    await writeStaff(gh,updated);
+    const r2=await writeStaff(gh,updated);
+    if(!r2){setTeacherApproveStatus(t.approveFail+': staff.json error');return}
     setStaffList(updated);
     addLog(fmtLog(t.logApproveTeacher,[teacherDecoded.code,teacherName||'']),'admin');
     setTeacherApproveStatus(t.approveOk);
-    // Copy reply message
-    try{await navigator.clipboard.writeText(t.approveMsg)}catch{}
+    // Copy activation code to clipboard (admin sends this to teacher)
+    if(actResult)try{await navigator.clipboard.writeText(actResult+'\n\n'+t.approveMsg)}catch{}
     setMsgCopied('teacher');setTimeout(()=>setMsgCopied(''),3000);
   };
 
@@ -1602,11 +1621,12 @@ function AdminPage({t,onBack}){
 
   // Online supervisor approval
   const approveSupOnline=async()=>{
-    if(!supInfo||!gh.token)return;
+    if(!supInfo){setSupApproveStatus(t.approveFail+': no data');return}
+    if(!gh.token){setSupApproveStatus(t.approveFail+': no GitHub Token');return}
     setSupApproveStatus(t.approving);
     const hash=supApproveHash(supInfo.code);
-    const ok=await writeApproval(gh,'s',hash,supLevel);
-    if(!ok){setSupApproveStatus(t.approveFail);return}
+    const r1=await writeApproval(gh,'s',hash,supLevel);
+    if(!r1||!r1.ok){setSupApproveStatus(t.approveFail+': approved.cfg '+(r1?.reason||'unknown'));return}
     // Update staff.json
     const existing=staffList.find(s=>s.code===supInfo.code);
     const entry={...(existing||{code:supInfo.code,name:xEnc(supName||''),lang:'zh',skills:[]}),
@@ -1633,8 +1653,8 @@ function AdminPage({t,onBack}){
     if(gh.token&&gh.owner&&gh.repo){
       setNewHashStatus(t.ghWriting);
       const ok=await ghAppendLine(gh,'admin.cfg',newLine,'add admin '+code);
-      setNewHashStatus(ok?t.ghWriteOk:t.ghWriteFail);
-      if(ok)setCfgEntries(prev=>[...prev,{line:newLine,hash:h,code}]);
+      setNewHashStatus(ok?.ok?t.ghWriteOk:t.ghWriteFail);
+      if(ok?.ok)setCfgEntries(prev=>[...prev,{line:newLine,hash:h,code}]);
     }else{setNewHashStatus('')}
   };
 
@@ -1889,7 +1909,7 @@ function AdminPage({t,onBack}){
             {/* Fallback: manual activation code */}
             <div className="pt-3 border-t border-white/[0.06]">
               <p className="text-[10px] text-gray-600 mb-1">{t.resultCode}</p>
-              <p className="text-lg font-bold text-emerald-400 font-mono tracking-widest select-all text-center">{actResult}</p>
+              <p className="text-xs font-bold text-emerald-400 font-mono select-all text-center break-all leading-relaxed">{actResult}</p>
               <button onClick={async()=>{try{await navigator.clipboard.writeText(actResult)}catch{}}} className="w-full mt-2 py-2 bg-white/[0.06] rounded-xl text-gray-400 text-xs font-medium">📋 Copy</button>
             </div>
           </div>
@@ -1911,7 +1931,8 @@ function AdminPage({t,onBack}){
                    <span className="text-sm text-amber-400 font-bold font-mono">{s.code}</span>
                    {name&&<span className="text-sm text-gray-300">{name}</span>}
                  </div>
-                 <div className="flex items-center gap-2">
+                 <div className="flex items-center gap-1.5">
+                   {s.supRequest&&<span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 animate-pulse">{t.adminApply}</span>}
                    {lvName&&<span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">{lvName}</span>}
                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${s.status==='active'?'bg-emerald-500/10 text-emerald-400':'bg-red-500/10 text-red-400'}`}>
                      {s.status==='active'?t.staffActive:t.staffRevoked}
