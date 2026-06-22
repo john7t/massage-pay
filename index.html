@@ -168,15 +168,18 @@ async function saveStores(gh,stores){
 }
 
 // ── Shared StaffList component ──
-function StaffListSection({t,staffList,sortMode,setSortMode}){
+function StaffListSection({t,staffList,sortMode,setSortMode,onRemove,myCode,myLevel,myStore}){
   if(!staffList.length)return(
     <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
       <h3 className="text-sm font-semibold text-amber-400">{t.staffList}</h3>
       <p className="text-xs text-gray-600 text-center">{t.staffEmpty}</p>
     </div>
   );
+  const roleOrder=s=>s.role==='admin'?99:s.role==='supervisor'?(10+(s.level||0)):0;
   const sorted=sortMode==='store'
     ?[...staffList].sort((a,b)=>(a.store||'').localeCompare(b.store||'')||(a.code||'').localeCompare(b.code||''))
+    :sortMode==='role'
+    ?[...staffList].sort((a,b)=>roleOrder(b)-roleOrder(a)||(a.code||'').localeCompare(b.code||''))
     :[...staffList].sort((a,b)=>(a.code||'').localeCompare(b.code||''));
   let lastStore='';
   return(
@@ -185,6 +188,7 @@ function StaffListSection({t,staffList,sortMode,setSortMode}){
         <h3 className="text-sm font-semibold text-amber-400">{t.staffList}</h3>
         <div className="flex gap-1">
           <button onClick={()=>setSortMode('store')} className={`px-2 py-1 rounded text-[10px] ${sortMode==='store'?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t.sortByStore}</button>
+          <button onClick={()=>setSortMode('role')} className={`px-2 py-1 rounded text-[10px] ${sortMode==='role'?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t.sortByRole}</button>
           <button onClick={()=>setSortMode('code')} className={`px-2 py-1 rounded text-[10px] ${sortMode==='code'?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t.sortByCode}</button>
         </div>
       </div>
@@ -193,6 +197,9 @@ function StaffListSection({t,staffList,sortMode,setSortMode}){
           const lvName=s.level?supLevelName(s.level,t===T.zh?'zh':'vi'):'';
           const showStoreHeader=sortMode==='store'&&(s.store||'')!==lastStore;
           if(showStoreHeader)lastStore=s.store||'';
+          // Can remove: same store + level <= my level + not admin + not self
+          const canRemove=onRemove&&s.code!==myCode&&s.role!=='admin'
+            &&(myLevel>=4||(s.store===myStore&&(s.level||0)<=(myLevel||0)));
           return(
             <React.Fragment key={i}>
               {showStoreHeader&&<p className="text-[11px] text-gray-500 font-semibold pt-2 pb-1">{s.store||'—'}</p>}
@@ -204,10 +211,8 @@ function StaffListSection({t,staffList,sortMode,setSortMode}){
                 <div className="flex items-center gap-1.5">
                   {s.supRequest&&<span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 animate-pulse">{t.adminApply}</span>}
                   {lvName&&<span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">{lvName}</span>}
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${s.status==='active'?'bg-emerald-500/10 text-emerald-400':'bg-red-500/10 text-red-400'}`}>
-                    {s.status==='active'?t.staffActive:t.staffRevoked}
-                  </span>
                   <span className="text-[10px] text-gray-700">{s.role==='supervisor'?'👔':s.role==='admin'?'⚙️':'👤'}</span>
+                  {canRemove&&<button onClick={()=>onRemove(s)} className="text-red-400/60 text-sm px-0.5 active:text-red-400">✕</button>}
                 </div>
               </div>
             </React.Fragment>
@@ -469,7 +474,11 @@ zh:{
   logApproveSupervisor:"核准主管 {0}({1}) {2}",
   store:"所在店面",storeManage:"店面管理",storeAdd:"新增店面",storeDel:"刪除",storeEmpty:"尚無店面",
   storeSaved:"已儲存 ✓",teacherActivation:"老師啟動碼",supActivation:"主管啟動碼",
-  sortByStore:"按店面",sortByCode:"按編號",
+  sortByStore:"按店面",sortByCode:"按編號",sortByRole:"按職務",
+  resetAll:"一鍵還原初始設定",resetAllConfirm:"確定還原？將清除所有員工與主管資料（保留管理員122、Token、記錄）",
+  resetAllOk:"已還原初始設定 ✓",resetSup:"一鍵移除所有主管權限",resetSupConfirm:"確定移除所有主管權限？",
+  resetSupOk:"已移除所有主管權限 ✓",resetApp:"重置申請",
+  removeToken:"移除（轉離線）",removeSup:"取消主管權限",removeConfirm:"確定移除 {0}？",
   skills:"老師技能",guasha:"刮痧",baguang:"拔罐",xiujiao:"修腳皮",gs:"刮",bg:"拔",xj:"修",clearAll:"一鍵清除",
   notice1:"⚠️ 資料只存在本機，不會上傳雲端。",
   notice2:"LINE 與手機內建瀏覽器的暫存是分開的，啟動碼會不同，請固定使用同一個瀏覽器。",
@@ -544,7 +553,11 @@ vi:{
   logApproveSupervisor:"Duyệt QL {0}({1}) {2}",
   store:"Chi nhánh",storeManage:"Quản lý CN",storeAdd:"Thêm CN",storeDel:"Xóa",storeEmpty:"Chưa có CN",
   storeSaved:"Đã lưu ✓",teacherActivation:"Mã kích hoạt NV",supActivation:"Mã kích hoạt QL",
-  sortByStore:"Theo CN",sortByCode:"Theo mã",
+  sortByStore:"Theo CN",sortByCode:"Theo mã",sortByRole:"Theo chức vụ",
+  resetAll:"Khôi phục mặc định",resetAllConfirm:"Xác nhận? Sẽ xóa tất cả NV và QL (giữ admin 122, Token, log)",
+  resetAllOk:"Đã khôi phục ✓",resetSup:"Xóa tất cả quyền QL",resetSupConfirm:"Xác nhận xóa tất cả quyền QL?",
+  resetSupOk:"Đã xóa ✓",resetApp:"Đặt lại đơn",
+  removeToken:"Xóa (offline)",removeSup:"Hủy quyền QL",removeConfirm:"Xác nhận xóa {0}?",
   skills:"Kỹ năng",guasha:"Cạo gió",baguang:"Giác hơi",xiujiao:"Sửa da chân",gs:"C",bg:"G",xj:"S",clearAll:"Xóa tất cả",
   notice1:"⚠️ Dữ liệu chỉ lưu trên máy, không tải lên đám mây.",
   notice2:"Trình duyệt LINE và trình duyệt mặc định lưu riêng, mã kích hoạt sẽ khác nhau. Hãy dùng cùng một trình duyệt.",
@@ -1426,6 +1439,8 @@ function SettingsPage({settings,onUpdate,t}){
                 className="w-full py-2.5 rounded-xl bg-amber-600/20 text-amber-400 font-medium text-sm active:bg-amber-600/30">
                 {supCheckStatus||t.checkApproval}
               </button>
+              <button onClick={()=>{LS.set(supKey,null);setSupStatus(null);setSupErr('');setSupCheckStatus('')}}
+                className="w-full py-2 text-[11px] text-gray-600 active:text-gray-400">{t.resetApp}</button>
               {supErr&&<p className="text-amber-400/60 text-xs mt-1">{supErr}</p>}
             </div>
           </div>
@@ -1529,7 +1544,14 @@ function SupervisorPage({t,onBack}){
       </div>
 
       {/* Staff List - at top */}
-      <StaffListSection t={t} staffList={staffList} sortMode={sortMode} setSortMode={setSortMode}/>
+      {(()=>{const ms=LS.get('app-settings')||{};const ml=staffList.find(s=>s.code===ms.code);
+        return<StaffListSection t={t} staffList={staffList} sortMode={sortMode} setSortMode={setSortMode}
+          onRemove={async(s)=>{if(!confirm(fmtLog(t.removeConfirm,[s.code])))return;const gh=getGHConfig();let u;
+            if(s.role==='supervisor'){u=staffList.map(x=>x.code===s.code?{...x,role:'teacher',level:0}:x);addLog(fmtLog(t.logRevoke,[s.code,s.store||'']),'supervisor')}
+            else{u=staffList.filter(x=>x.code!==s.code);addLog('移除員工 '+s.code,'supervisor')}
+            await writeStaff(gh,u);setStaffList(u)}}
+          myCode={ms.code||''} myLevel={ml?.level||0} myStore={ml?.store||''}/>;
+      })()}
 
       {/* Store management */}
       <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
@@ -1608,7 +1630,7 @@ function AdminPage({t,onBack}){
   // Online approval states
   const[teacherApproveStatus,setTeacherApproveStatus]=useState('');
   const[teacherDecoded,setTeacherDecoded]=useState(null);
-  const[supLevel,setSupLevel]=useState(2);
+  const[supLevel,setSupLevel]=useState(1);
   const[supApproveStatus,setSupApproveStatus]=useState('');
   const[staffList,setStaffList]=useState([]);
   const[staffLoading,setStaffLoading]=useState(false);
@@ -1617,9 +1639,58 @@ function AdminPage({t,onBack}){
   const[storeList,setStoreList]=useState([]);
   const[newStore,setNewStore]=useState('');
   const[storeStatus,setStoreStatus]=useState('');
+  const[resetStatus,setResetStatus]=useState('');
 
-  // My supervisor level (admin = max level 4)
+  // My info
   const myLevel=4;
+  const mySettings=LS.get('app-settings')||{};
+  const myCode=mySettings.code||'';
+  const myStore=staffList.find(s=>s.code===myCode)?.store||'';
+
+  // Reset all staff data except admin 122
+  const resetAllData=async()=>{
+    if(!confirm(t.resetAllConfirm))return;
+    const cleaned=staffList.filter(s=>s.code==='122'&&s.role==='admin');
+    const ok=await writeStaff(gh,cleaned);
+    // Clear approved.cfg
+    if(gh.token){try{
+      const file=await ghReadFile(gh,'approved.cfg');
+      if(file)await ghWriteFile(gh,'approved.cfg','# Online approvals\n',file.sha,'reset approvals');
+    }catch{}}
+    // Clear revoked.cfg (keep first line)
+    try{
+      const file=await ghReadFile(gh,'revoked.cfg');
+      if(file){const firstLine=file.content.split('\n')[0]||'';await ghWriteFile(gh,'revoked.cfg',firstLine+'\n',file.sha,'reset revoked')}
+    }catch{}
+    if(ok){setStaffList(cleaned);setResetStatus(t.resetAllOk);addLog('還原初始設定 (管理員122)','admin')}
+    setTimeout(()=>setResetStatus(''),3000);
+  };
+
+  // Remove all supervisor rights
+  const resetAllSup=async()=>{
+    if(!confirm(t.resetSupConfirm))return;
+    const updated=staffList.map(s=>s.role==='supervisor'?{...s,role:'teacher',level:0,supRequest:false}:s);
+    const ok=await writeStaff(gh,updated);
+    if(ok){setStaffList(updated);setResetStatus(t.resetSupOk);addLog('移除所有主管權限','admin')}
+    setTimeout(()=>setResetStatus(''),3000);
+  };
+
+  // Remove single employee or revoke supervisor
+  const onRemoveStaff=async(s)=>{
+    if(!confirm(fmtLog(t.removeConfirm,[s.code])))return;
+    let updated;
+    if(s.role==='supervisor'){
+      // Demote to teacher
+      updated=staffList.map(x=>x.code===s.code?{...x,role:'teacher',level:0,supRequest:false}:x);
+      addLog(fmtLog(t.logRevoke,[s.code,s.store||'']),'admin');
+    }else{
+      // Remove from staff
+      updated=staffList.filter(x=>x.code!==s.code);
+      addLog('移除員工 '+s.code,'admin');
+    }
+    await writeStaff(gh,updated);
+    setStaffList(updated);
+  };
 
   // Parse admin.cfg entries: support "encCode:hash" and legacy "hash"
   const parseEntries=(text)=>{
@@ -1884,7 +1955,18 @@ function AdminPage({t,onBack}){
       </div>
 
       {/* Staff List - at top */}
-      <StaffListSection t={t} staffList={staffList} sortMode={sortMode} setSortMode={setSortMode}/>
+      <StaffListSection t={t} staffList={staffList} sortMode={sortMode} setSortMode={setSortMode}
+        onRemove={onRemoveStaff} myCode={myCode} myLevel={myLevel} myStore={myStore}/>
+
+      {/* Test/Reset tools */}
+      <div className="space-y-2 bg-white/[0.02] border border-red-500/10 rounded-2xl p-4">
+        <h3 className="text-[10px] text-gray-600 uppercase tracking-wider">測試工具</h3>
+        <div className="flex gap-2">
+          <button onClick={resetAllData} className="flex-1 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-medium active:bg-red-500/20">{t.resetAll}</button>
+          <button onClick={resetAllSup} className="flex-1 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 text-xs font-medium active:bg-amber-500/20">{t.resetSup}</button>
+        </div>
+        {resetStatus&&<p className={`text-xs text-center ${resetStatus.includes('✓')?'text-emerald-400':'text-red-400'}`}>{resetStatus}</p>}
+      </div>
 
       {/* Store management */}
       <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
@@ -1999,13 +2081,26 @@ function AdminPage({t,onBack}){
         {actResult&&actResult!=='Error'&&(
           <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 fi space-y-3">
             {decodedInfo&&<p className="text-sm text-amber-400 font-bold text-center">{t.teacherCode}: {decodedInfo}{teacherDecoded?.store?' · '+teacherDecoded.store:''}</p>}
-            {/* Online approve */}
-            {gh.token&&teacherDecoded&&(
-              <div className="pt-3 border-t border-white/[0.06] space-y-2">
-                <p className="text-xs text-emerald-400 font-semibold">{t.onlineApprove}</p>
+            {/* Step 1: Approve button */}
+            {gh.token&&teacherDecoded&&!teacherApproveStatus.includes('✓')&&(
+              <div className="space-y-2">
                 <button onClick={approveTeacherOnline} className="w-full py-3 rounded-xl bg-emerald-600 text-white font-bold active:bg-emerald-700">
                   {teacherApproveStatus||t.approveBtn}
                 </button>
+              </div>
+            )}
+            {/* Step 2: After approve, show activation code + QR */}
+            {teacherApproveStatus.includes('✓')&&(
+              <div className="space-y-3">
+                <p className="text-xs text-center text-emerald-400">{t.approveOk}</p>
+                <p className="text-[10px] text-gray-600 text-center">{t.resultCode}</p>
+                <p className="text-[10px] font-bold text-emerald-400 font-mono select-all text-center break-all leading-relaxed bg-white/[0.03] rounded-lg p-2">{actResult}</p>
+                <div className="flex justify-center">
+                  <div className="bg-white p-2.5 rounded-xl">
+                    <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(actResult)}`} alt="QR" className="w-40 h-40"/>
+                  </div>
+                </div>
+                <button onClick={async()=>{try{await navigator.clipboard.writeText(actResult+'\n\n'+t.approveMsg)}catch{}}} className="w-full py-2 bg-emerald-600 rounded-xl text-white text-sm font-semibold active:bg-emerald-700">📋 Copy</button>
                 {msgCopied==='teacher'&&<p className="text-xs text-center text-emerald-400">{t.approveCopied}</p>}
               </div>
             )}
