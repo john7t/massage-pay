@@ -84,8 +84,10 @@ async function readStaff(gh){
     if(!res.ok)return[];
     const enc=(await res.text()).trim();
     if(!enc)return[];
-    const json=decodeURIComponent(xDec(enc));
-    return JSON.parse(json);
+    const raw=xDec(enc);
+    // Try new format (URI-encoded) then old format
+    try{return JSON.parse(decodeURIComponent(raw))}
+    catch{try{return JSON.parse(raw)}catch{return[]}}
   }catch{return[]}
 }
 async function writeStaff(gh,staffList){
@@ -168,8 +170,10 @@ async function saveStores(gh,stores){
 }
 
 // ── Shared StaffList component ──
-function StaffListSection({t,staffList,sortMode,setSortMode,onRemove,onEdit,myCode,myLevel,myStore}){
-  const[pendingRm,setPendingRm]=useState(null);
+function StaffListSection({t,staffList,sortMode,setSortMode,onEdit,myCode,myLevel,myStore}){
+  const[page,setPage]=useState(0);
+  const[selected,setSelected]=useState(null);
+  const PER_PAGE=10;
   if(!staffList.length)return(
     <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
       <h3 className="text-sm font-semibold text-amber-400">{t.staffList}</h3>
@@ -177,58 +181,70 @@ function StaffListSection({t,staffList,sortMode,setSortMode,onRemove,onEdit,myCo
     </div>
   );
   const roleOrder=s=>s.role==='admin'?99:s.role==='supervisor'?(10+(s.level||0)):0;
+  // 副理(1)/經理(2) only see own store
+  const filtered=(myLevel<=2)?staffList.filter(s=>s.store===myStore||s.role==='admin'):staffList;
   const sorted=sortMode==='store'
-    ?[...staffList].sort((a,b)=>(a.store||'').localeCompare(b.store||'')||(a.code||'').localeCompare(b.code||''))
+    ?[...filtered].sort((a,b)=>(a.store||'').localeCompare(b.store||'')||(a.code||'').localeCompare(b.code||''))
     :sortMode==='role'
-    ?[...staffList].sort((a,b)=>roleOrder(b)-roleOrder(a)||(a.code||'').localeCompare(b.code||''))
-    :[...staffList].sort((a,b)=>(a.code||'').localeCompare(b.code||''));
+    ?[...filtered].sort((a,b)=>roleOrder(b)-roleOrder(a)||(a.code||'').localeCompare(b.code||''))
+    :[...filtered].sort((a,b)=>(a.code||'').localeCompare(b.code||''));
+  const totalPages=Math.ceil(sorted.length/PER_PAGE);
+  const paged=sorted.slice(page*PER_PAGE,(page+1)*PER_PAGE);
   let lastStore='';
   const lvIcon=s=>{if(s.role==='admin')return'⚙️';if(s.role==='supervisor')return{4:'⭐',3:'💎',2:'🔷',1:'🔹'}[s.level]||'👔';return'👤'};
+  const handleClick=(s)=>{
+    if(selected===s.code)return; // already selected, no re-click
+    setSelected(s.code);
+    if(onEdit)onEdit(s);
+  };
   return(
     <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-amber-400">{t.staffList}</h3>
         <div className="flex gap-1">
-          <button onClick={()=>setSortMode('store')} className={`px-2 py-1 rounded text-[10px] ${sortMode==='store'?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t.sortByStore}</button>
-          <button onClick={()=>setSortMode('role')} className={`px-2 py-1 rounded text-[10px] ${sortMode==='role'?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t.sortByRole}</button>
-          <button onClick={()=>setSortMode('code')} className={`px-2 py-1 rounded text-[10px] ${sortMode==='code'?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t.sortByCode}</button>
+          <button onClick={()=>{setSortMode('store');setPage(0)}} className={`px-2 py-1 rounded text-[10px] ${sortMode==='store'?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t.sortByStore}</button>
+          <button onClick={()=>{setSortMode('role');setPage(0)}} className={`px-2 py-1 rounded text-[10px] ${sortMode==='role'?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t.sortByRole}</button>
+          <button onClick={()=>{setSortMode('code');setPage(0)}} className={`px-2 py-1 rounded text-[10px] ${sortMode==='code'?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t.sortByCode}</button>
         </div>
       </div>
       <div className="space-y-1">
-        {sorted.map((s,i)=>{
+        {paged.map((s,i)=>{
           const lvName=s.level?supLevelName(s.level,t===T.zh?'zh':'vi'):'';
           const showH=sortMode==='store'&&(s.store||'')!==lastStore;
           if(showH)lastStore=s.store||'';
-          const canRm=onRemove&&s.code!==myCode&&s.role!=='admin'&&(myLevel>=4||(s.store===myStore&&(s.level||0)<=(myLevel||0)));
+          const isSel=selected===s.code;
           return(
-            <React.Fragment key={i}>
+            <React.Fragment key={s.code}>
               {showH&&<p className="text-[11px] text-gray-500 font-semibold pt-2 pb-1">{s.store||'—'}</p>}
-              <div className="py-2 px-3 bg-white/[0.02] rounded-xl">
+              <div className={`py-2 px-3 rounded-xl transition-all ${isSel?'bg-amber-600/10 border border-amber-500/30':'bg-white/[0.02]'}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-[12px]">{lvIcon(s)}</span>
-                    <button onClick={()=>onEdit&&onEdit(s)} className="text-sm text-amber-400 font-bold font-mono active:text-amber-300">{s.code}</button>
-                    {sortMode!=='store'&&s.store&&<span className="text-[10px] text-gray-600">{s.store}</span>}
+                    <button onClick={()=>handleClick(s)} disabled={isSel}
+                      className={`text-sm font-bold font-mono ${isSel?'text-amber-300 cursor-default':'text-amber-400 active:text-amber-300'}`}>
+                      {s.code}{isSel?' (編輯模式)':''}
+                    </button>
+                    {!isSel&&sortMode!=='store'&&s.store&&<span className="text-[10px] text-gray-600">{s.store}</span>}
                   </div>
                   <div className="flex items-center gap-1.5">
                     {s.supRequest&&<span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 animate-pulse">{t.adminApply}</span>}
                     {lvName&&<span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">{lvName}</span>}
-                    <span className="text-[11px]">{s.hasToken!==false?'☁️':'📥'}</span>
-                    {canRm&&pendingRm!==s.code&&<button onClick={()=>setPendingRm(s.code)} className="text-red-400/40 text-sm px-0.5 active:text-red-400">✕</button>}
+                    <span className="text-[11px]">{s.hasToken?'☁️':'📥'}</span>
                   </div>
                 </div>
-                {pendingRm===s.code&&(
-                  <div className="flex items-center gap-2 mt-2 pt-2 border-t border-white/[0.04]">
-                    <p className="flex-1 text-[11px] text-red-300">{s.role==='supervisor'?t.removeSup:t.removeToken} {s.code}？</p>
-                    <button onClick={()=>{setPendingRm(null);onRemove(s)}} className="px-3 py-1 bg-red-500/20 rounded-lg text-red-400 text-xs font-medium">{t.confirm}</button>
-                    <button onClick={()=>setPendingRm(null)} className="px-3 py-1 bg-white/[0.04] rounded-lg text-gray-500 text-xs">{t.cancel}</button>
-                  </div>
-                )}
               </div>
             </React.Fragment>
           );
         })}
       </div>
+      {/* Pagination */}
+      {totalPages>1&&(
+        <div className="flex items-center justify-center gap-3 pt-2">
+          <button onClick={()=>setPage(Math.max(0,page-1))} disabled={page===0} className={`px-3 py-1.5 rounded-lg text-xs ${page===0?'text-gray-700':'text-gray-400 bg-white/[0.04] active:bg-white/[0.08]'}`}>←</button>
+          <span className="text-xs text-gray-500">{page+1} / {totalPages}</span>
+          <button onClick={()=>setPage(Math.min(totalPages-1,page+1))} disabled={page>=totalPages-1} className={`px-3 py-1.5 rounded-lg text-xs ${page>=totalPages-1?'text-gray-700':'text-gray-400 bg-white/[0.04] active:bg-white/[0.08]'}`}>→</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -503,6 +519,7 @@ zh:{
   connFail:"連線碼錯誤",connExpired:"你的連線認證已逾期，請重新申請",connStatus:"連線狀態",connOnline:"已連線 ☁️",connOffline:"離線 📥",
   editStaff:"人員編輯",editStore:"所在店面",editDel:"刪除此員工",editDelConfirm:"確定刪除 {0}？",
   editDevices:"連線設備",editRevokeConn:"取消連線",editNoDevices:"無連線設備",
+  genConn:"產生連線碼",genConnHint:"貼上老師的 編號:uuid",needConnFirst:"請先完成連線設定才能申請主管",
   skills:"老師技能",guasha:"刮痧",baguang:"拔罐",xiujiao:"修腳皮",gs:"刮",bg:"拔",xj:"修",clearAll:"一鍵清除",
   notice1:"⚠️ 資料只存在本機，不會上傳雲端。",
   notice2:"LINE 與手機內建瀏覽器的暫存是分開的，啟動碼會不同，請固定使用同一個瀏覽器。",
@@ -586,6 +603,7 @@ vi:{
   connFail:"Sai mã kết nối",connExpired:"Xác thực đã hết hạn, vui lòng yêu cầu lại",connStatus:"Trạng thái",connOnline:"Online ☁️",connOffline:"Offline 📥",
   editStaff:"Chỉnh sửa NV",editStore:"Chi nhánh",editDel:"Xóa NV",editDelConfirm:"Xác nhận xóa {0}?",
   editDevices:"Thiết bị",editRevokeConn:"Ngắt kết nối",editNoDevices:"Không có thiết bị",
+  genConn:"Tạo mã kết nối",genConnHint:"Dán mã:uuid của NV",needConnFirst:"Cần kết nối trước khi yêu cầu quyền QL",
   skills:"Kỹ năng",guasha:"Cạo gió",baguang:"Giác hơi",xiujiao:"Sửa da chân",gs:"C",bg:"G",xj:"S",clearAll:"Xóa tất cả",
   notice1:"⚠️ Dữ liệu chỉ lưu trên máy, không tải lên đám mây.",
   notice2:"Trình duyệt LINE và trình duyệt mặc định lưu riêng, mã kích hoạt sẽ khác nhau. Hãy dùng cùng một trình duyệt.",
@@ -1475,14 +1493,21 @@ function SettingsPage({settings,onUpdate,t}){
           )}
         </div>
 
-        {/* Apply form */}
+        {/* Apply form - requires connection */}
         {applyStep&&!isPending&&!isApproved&&(
-          <div className="fi space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
-            <p className="text-sm text-gray-400">{t.adminApplyDesc}</p>
-            <input value={devNameInput} onChange={e=>setDevNameInput(e.target.value)} placeholder={t.deviceName}
-              className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>
-            <button onClick={doApply} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold">{t.confirm}</button>
-          </div>
+          (()=>{const ghLocal=getGHConfig();const hasConn=!!(ghLocal&&ghLocal.token);
+          return hasConn?(
+            <div className="fi space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
+              <p className="text-sm text-gray-400">{t.adminApplyDesc}</p>
+              <input value={devNameInput} onChange={e=>setDevNameInput(e.target.value)} placeholder={t.deviceName}
+                className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>
+              <button onClick={doApply} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold">{t.confirm}</button>
+            </div>
+          ):(
+            <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4 text-center">
+              <p className="text-xs text-red-300">{t.needConnFirst}</p>
+            </div>
+          )})()
         )}
 
         {/* Pending: show app code + online check */}
@@ -1548,6 +1573,9 @@ function SupervisorPage({t,onBack}){
   const[storeList,setStoreList]=useState([]);
   const[newStore,setNewStore]=useState('');
   const[storeStatus,setStoreStatus]=useState('');
+  const[genConnInput,setGenConnInput]=useState('');
+  const[genConnResult,setGenConnResult]=useState('');
+  const[genConnCopied,setGenConnCopied]=useState(false);
 
   // Check revoked.cfg on mount + load staff + stores
   useEffect(()=>{
@@ -1612,10 +1640,6 @@ function SupervisorPage({t,onBack}){
       {/* Staff List - at top */}
       {(()=>{const ms=LS.get('app-settings')||{};const ml=staffList.find(s=>s.code===ms.code);
         return<StaffListSection t={t} staffList={staffList} sortMode={sortMode} setSortMode={setSortMode}
-          onRemove={async(s)=>{const gh=getGHConfig();let u;
-            if(s.role==='supervisor'){u=staffList.map(x=>x.code===s.code?{...x,role:'teacher',level:0}:x);addLog(fmtLog(t.logRevoke,[s.code,s.store||'']),'supervisor')}
-            else{u=staffList.filter(x=>x.code!==s.code);addLog('移除員工 '+s.code,'supervisor')}
-            await writeStaff(gh,u);setStaffList(u)}}
           myCode={ms.code||''} myLevel={ml?.level||0} myStore={ml?.store||''}/>;
       })()}
 
@@ -1637,6 +1661,30 @@ function SupervisorPage({t,onBack}){
             className="px-4 py-2 bg-amber-600 rounded-xl text-white text-sm font-bold">+</button>
         </div>
         {storeStatus&&<p className="text-xs text-center text-emerald-400">{storeStatus}</p>}
+      </div>
+
+      {/* Connection code generator */}
+      <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-amber-400">{t.genConn}</h3>
+        <div className="relative">
+          <input value={genConnInput} onChange={e=>setGenConnInput(e.target.value)} placeholder={t.genConnHint}
+            className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
+          {genConnInput&&<button onClick={()=>{setGenConnInput('');setGenConnResult('')}} className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full bg-white/10 text-gray-400 text-xs">✕</button>}
+        </div>
+        <button onClick={()=>{
+          const gh=getGHConfig();const parts=genConnInput.trim().split(':');
+          if(parts.length<2||!gh.token){setGenConnResult('Error');return}
+          setGenConnResult(genActWithToken(parts[0],parts.slice(1).join(':'),gh));
+        }} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold">{t.genConn}</button>
+        {genConnResult&&genConnResult!=='Error'&&(
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 fi space-y-3">
+            <p className="text-[10px] text-emerald-400 font-mono break-all select-all bg-white/[0.03] rounded-lg p-2">{genConnResult}</p>
+            <div className="flex justify-center"><div className="bg-white p-2 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(genConnResult)}`} alt="QR" className="w-36 h-36"/></div></div>
+            <button onClick={async()=>{try{await navigator.clipboard.writeText(genConnResult)}catch{};setGenConnCopied(true);setTimeout(()=>setGenConnCopied(false),2000)}}
+              className="w-full py-2 bg-emerald-600 rounded-xl text-white text-sm font-semibold">{genConnCopied?'✓':'📋 Copy'}</button>
+          </div>
+        )}
+        {genConnResult==='Error'&&<p className="text-xs text-red-400 text-center">格式錯誤或 Token 未設定</p>}
       </div>
 
       {/* Teacher activation */}
@@ -1754,6 +1802,9 @@ function AdminPage({t,onBack}){
   const[connResult,setConnResult]=useState('');
   const[editStoreVal,setEditStoreVal]=useState('');
   const[editStatus,setEditStatus]=useState('');
+  const[genConnInput,setGenConnInput]=useState('');
+  const[genConnResult,setGenConnResult]=useState('');
+  const[genConnCopied,setGenConnCopied]=useState(false);
 
   // Parse admin.cfg entries: support "encCode:hash" and legacy "hash"
   const parseEntries=(text)=>{
@@ -2014,14 +2065,14 @@ function AdminPage({t,onBack}){
 
       {/* Staff List - at top */}
       <StaffListSection t={t} staffList={staffList} sortMode={sortMode} setSortMode={setSortMode}
-        onRemove={onRemoveStaff} onEdit={s=>setEditStaff(s)} myCode={myCode} myLevel={myLevel} myStore={myStore}/>
+        onEdit={s=>{setEditStaff(s);setConnDevInput('');setConnResult('');setEditStoreVal(s.store||'');setEditStatus('')}} myCode={myCode} myLevel={myLevel} myStore={myStore}/>
 
       {/* Employee edit panel */}
       {editStaff&&(
         <div className="space-y-3 bg-white/[0.02] border border-amber-500/20 rounded-2xl p-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-amber-400">{t.editStaff}: {editStaff.code}</h3>
-            <button onClick={()=>{setEditStaff(null);setConnDevInput('');setConnResult('')}} className="text-gray-500 text-sm">✕</button>
+            <button onClick={()=>{setEditStaff(null);setConnDevInput('');setConnResult('');setEditStatus('')}} className="text-gray-500 text-sm">✕</button>
           </div>
 
           {/* Activation code */}
@@ -2030,26 +2081,36 @@ function AdminPage({t,onBack}){
             <button onClick={async()=>{try{await navigator.clipboard.writeText(genSimpleAct(editStaff.code))}catch{}}} className="px-3 py-1.5 bg-emerald-600/20 rounded-lg text-emerald-400 text-xs">📋</button>
           </div>
 
-          {/* Generate connection code */}
+          {/* Connection devices */}
           <div className="space-y-2">
-            <p className="text-[10px] text-gray-500">{t.connCode}</p>
-            <div className="flex gap-2">
-              <input value={connDevInput} onChange={e=>setConnDevInput(e.target.value)} placeholder="code:uuid"
-                className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
-              <button onClick={()=>{
-                const parts=connDevInput.trim().split(':');
-                if(parts.length<2||parts[0]!==editStaff.code){setConnResult('Error');return}
-                setConnResult(genActWithToken(parts[0],parts.slice(1).join(':'),gh));
-              }} className="px-4 py-2 bg-amber-600 rounded-xl text-white text-xs font-bold">{t.confirm}</button>
-            </div>
-            {connResult&&connResult!=='Error'&&(
+            <p className="text-[10px] text-gray-500">{t.editDevices}</p>
+            {connDevInput&&connResult&&connResult!=='Error'?(
               <div className="space-y-2">
                 <p className="text-[10px] text-emerald-400 font-mono break-all select-all bg-white/[0.03] rounded-lg p-2">{connResult}</p>
                 <div className="flex justify-center"><div className="bg-white p-2 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(connResult)}`} alt="QR" className="w-36 h-36"/></div></div>
                 <button onClick={async()=>{try{await navigator.clipboard.writeText(connResult)}catch{}}} className="w-full py-2 bg-emerald-600 rounded-xl text-white text-xs font-semibold">📋 Copy</button>
               </div>
+            ):(
+              <div className="flex gap-2">
+                <input value={connDevInput} onChange={e=>setConnDevInput(e.target.value)} placeholder={t.genConnHint}
+                  className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
+                <button onClick={()=>{
+                  const parts=connDevInput.trim().split(':');
+                  if(parts.length<2||parts[0]!==editStaff.code){setConnResult('Error');return}
+                  setConnResult(genActWithToken(parts[0],parts.slice(1).join(':'),gh));
+                }} className="px-4 py-2 bg-amber-600 rounded-xl text-white text-xs font-bold">{t.genConn}</button>
+              </div>
             )}
             {connResult==='Error'&&<p className="text-xs text-red-400">code 不符或格式錯誤</p>}
+            {editStaff.hasToken&&(
+              <button onClick={async()=>{
+                setEditStatus('...');
+                const updated=staffList.map(x=>x.code===editStaff.code?{...x,hasToken:false}:x);
+                const ok=await writeStaff(gh,updated);
+                if(ok){setStaffList(updated);setEditStaff({...editStaff,hasToken:false})}
+                setEditStatus(ok?'✓':'✗');setTimeout(()=>setEditStatus(''),2000);
+              }} className="w-full py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-medium">{t.editRevokeConn}</button>
+            )}
           </div>
 
           {/* Change store */}
@@ -2059,28 +2120,37 @@ function AdminPage({t,onBack}){
               {storeList.map(st=><option key={st} value={st}>{st}</option>)}
             </select>
             <button onClick={async()=>{
+              setEditStatus('...');
               const sv=editStoreVal||editStaff.store||'';
               const updated=staffList.map(x=>x.code===editStaff.code?{...x,store:sv}:x);
               const ok=await writeStaff(gh,updated);
-              if(ok){setStaffList(updated);setEditStaff({...editStaff,store:sv});setEditStatus('✓')}
-              setTimeout(()=>setEditStatus(''),2000);
-            }} className="px-4 py-2 bg-amber-600 rounded-xl text-white text-xs font-bold">{t.editStore}</button>
+              if(ok){setStaffList(updated);setEditStaff({...editStaff,store:sv})}
+              setEditStatus(ok?'✓':'✗');setTimeout(()=>setEditStatus(''),2000);
+            }} className={`px-4 py-2 rounded-xl text-xs font-bold ${editStatus==='...'?'bg-gray-600 text-gray-400 cursor-not-allowed':'bg-amber-600 text-white'}`}
+              disabled={editStatus==='...'}>更改門店</button>
           </div>
 
           {/* Revoke supervisor / delete */}
           <div className="flex gap-2 pt-2 border-t border-white/[0.04]">
             {editStaff.role==='supervisor'&&<button onClick={async()=>{
+              setEditStatus('...');
               const updated=staffList.map(x=>x.code===editStaff.code?{...x,role:'teacher',level:0}:x);
-              await writeStaff(gh,updated);setStaffList(updated);setEditStaff({...editStaff,role:'teacher',level:0});
+              const ok=await writeStaff(gh,updated);
+              if(ok){setStaffList(updated);setEditStaff({...editStaff,role:'teacher',level:0})}
               addLog(fmtLog(t.logRevoke,[editStaff.code,editStaff.store||'']),'admin');
-            }} className="flex-1 py-2 bg-amber-500/10 rounded-xl text-amber-400 text-xs font-medium">{t.removeSup}</button>}
+              setEditStatus(ok?'✓':'✗');setTimeout(()=>setEditStatus(''),2000);
+            }} className={`flex-1 py-2 rounded-xl text-xs font-medium ${editStatus==='...'?'bg-gray-600/10 text-gray-500':'bg-amber-500/10 text-amber-400'}`}
+              disabled={editStatus==='...'}>{t.removeSup}</button>}
             {editStaff.role!=='admin'&&<button onClick={async()=>{
+              setEditStatus('...');
               const updated=staffList.filter(x=>x.code!==editStaff.code);
-              await writeStaff(gh,updated);setStaffList(updated);setEditStaff(null);
+              const ok=await writeStaff(gh,updated);
+              if(ok){setStaffList(updated);setEditStaff(null)}
               addLog('刪除員工 '+editStaff.code,'admin');
-            }} className="flex-1 py-2 bg-red-500/10 rounded-xl text-red-400 text-xs font-medium">{t.editDel}</button>}
+            }} className={`flex-1 py-2 rounded-xl text-xs font-medium ${editStatus==='...'?'bg-gray-600/10 text-gray-500':'bg-red-500/10 text-red-400'}`}
+              disabled={editStatus==='...'}>{t.editDel}</button>}
           </div>
-          {editStatus&&<p className="text-xs text-center text-emerald-400">{editStatus}</p>}
+          {editStatus&&editStatus!=='...'&&<p className={`text-xs text-center ${editStatus==='✓'?'text-emerald-400':'text-red-400'}`}>{editStatus}</p>}
         </div>
       )}
 
@@ -2174,6 +2244,32 @@ function AdminPage({t,onBack}){
             {delStatus&&<p className={`text-xs text-center mt-1 ${delStatus.includes('✓')?'text-emerald-400':delStatus.includes('失敗')||delStatus.includes('thất')?'text-red-400':'text-amber-400'}`}>{delStatus}</p>}
           </div>
         )}
+      </div>
+
+      {/* Connection code generator */}
+      <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-amber-400">{t.genConn}</h3>
+        <div className="relative">
+          <input value={genConnInput} onChange={e=>setGenConnInput(e.target.value)} placeholder={t.genConnHint}
+            className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
+          {genConnInput&&<button onClick={()=>{setGenConnInput('');setGenConnResult('')}} className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full bg-white/10 text-gray-400 text-xs">✕</button>}
+        </div>
+        <button onClick={()=>{
+          const parts=genConnInput.trim().split(':');
+          if(parts.length<2||!gh.token){setGenConnResult('Error');return}
+          setGenConnResult(genActWithToken(parts[0],parts.slice(1).join(':'),gh));
+        }} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold">{t.genConn}</button>
+        {genConnResult&&genConnResult!=='Error'&&(
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 fi space-y-3">
+            <p className="text-[10px] text-emerald-400 font-mono break-all select-all bg-white/[0.03] rounded-lg p-2">{genConnResult}</p>
+            <div className="flex justify-center"><div className="bg-white p-2 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(genConnResult)}`} alt="QR" className="w-36 h-36"/></div></div>
+            <button onClick={async()=>{try{await navigator.clipboard.writeText(genConnResult)}catch{};setGenConnCopied(true);setTimeout(()=>setGenConnCopied(false),2000)}}
+              className="w-full py-2 bg-emerald-600 rounded-xl text-white text-sm font-semibold">
+              {genConnCopied?'✓':'📋 Copy'}
+            </button>
+          </div>
+        )}
+        {genConnResult==='Error'&&<p className="text-xs text-red-400 text-center">格式錯誤或 Token 未設定</p>}
       </div>
 
       {/* Supervisor application approval + online approve */}
