@@ -420,7 +420,7 @@ zh:{
   addLaodian:"新增老點？",other:"其他",
   welcome:"歡迎使用薪資追蹤系統",enterCode:"請輸入老師編號",confirm:"確定",
   showQR:"請將 QR Code 提供給管理員索取啟動碼",enterActivation:"輸入啟動碼",
-  activationHint:"格式：XXXX-XXXX-XXXX",activationFail:"啟動碼錯誤，請重新確認",
+  activationHint:"貼上管理者提供的啟動碼",activationFail:"啟動碼錯誤，請重新確認",
   copyToLine:"點此複製，傳 LINE 給管理者",
   adminWelcome:"管理員身分確認，自動啟動中...",
   admin:"管理",adminTitle:"管理頁面",genActivation:"產生啟動碼",
@@ -495,7 +495,7 @@ vi:{
   addLaodian:"Thêm KH quen?",other:"Khác",
   welcome:"Chào mừng",enterCode:"Nhập mã nhân viên",confirm:"Xác nhận",
   showQR:"Đưa mã QR cho quản lý để nhận mã kích hoạt",enterActivation:"Nhập mã kích hoạt",
-  activationHint:"Định dạng: XXXX-XXXX-XXXX",activationFail:"Sai mã kích hoạt",
+  activationHint:"Dán mã kích hoạt từ quản lý",activationFail:"Sai mã kích hoạt",
   copyToLine:"Nhấn để sao chép, gửi LINE cho quản lý",
   adminWelcome:"Xác nhận quản lý, tự động kích hoạt...",
   admin:"Quản lý",adminTitle:"Trang quản lý",genActivation:"Tạo mã kích hoạt",
@@ -672,6 +672,10 @@ function Onboarding({onComplete}){
     setChecking(false);
     setStep(2);
     setErr('');
+    // Auto-copy registration code
+    const enc=xEnc(`${code}:${devId}:${lang}:${store}`);
+    try{navigator.clipboard.writeText(enc)}catch{}
+    setCopied(true);setTimeout(()=>setCopied(false),2000);
   };
 
   const checkOnlineApproval=async()=>{
@@ -774,7 +778,7 @@ function Onboarding({onComplete}){
             {/* Activation code input */}
             <div>
               <label className="text-sm text-gray-400 mb-1.5 block">{t.enterActivation}</label>
-              <textarea value={actInput} onChange={e=>setActInput(e.target.value)} rows={3} placeholder={t.activationHint}
+              <textarea value={actInput} onChange={e=>setActInput(e.target.value)} rows={3}
                 className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none break-all"/>
             </div>
             {err&&<p className="text-red-400 text-sm text-center fi">{err}</p>}
@@ -1244,6 +1248,8 @@ function SettingsPage({settings,onUpdate,t}){
     LS.set(supKey,data);
     setSupStatus(data);
     setApplyStep(false);
+    // Auto-copy application code
+    try{navigator.clipboard.writeText(appCode)}catch{}
     // Try to write request to GitHub staff.json
     const gh=getGHConfig();
     if(gh.token){
@@ -1400,7 +1406,7 @@ function SettingsPage({settings,onUpdate,t}){
           </div>
         )}
 
-        {/* Pending: show app code + online check + manual fallback */}
+        {/* Pending: show app code + online check */}
         {isPending&&(
           <div className="fi space-y-3">
             <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3">
@@ -1420,15 +1426,6 @@ function SettingsPage({settings,onUpdate,t}){
                 className="w-full py-2.5 rounded-xl bg-amber-600/20 text-amber-400 font-medium text-sm active:bg-amber-600/30">
                 {supCheckStatus||t.checkApproval}
               </button>
-            </div>
-            {/* Manual activation code fallback */}
-            <div>
-              <label className="text-xs text-gray-500 mb-1.5 block">{t.adminActInput}</label>
-              <div className="flex gap-2">
-                <input value={supActInput} onChange={e=>setSupActInput(e.target.value)} placeholder="XXXX-XXXX-XXXX"
-                  className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3 text-center text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
-                <button onClick={verifySup} className="px-5 py-3 bg-amber-600 rounded-xl text-white font-bold text-sm">{t.adminActivate}</button>
-              </div>
               {supErr&&<p className="text-amber-400/60 text-xs mt-1">{supErr}</p>}
             </div>
           </div>
@@ -1578,16 +1575,13 @@ function SupervisorPage({t,onBack}){
           {supInput&&<button onClick={()=>{setSupInput('');setSupResult('');setSupInfo(null)}} className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full bg-white/10 text-gray-400 text-xs">✕</button>}
         </div>
         <button onClick={parseSup} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold">{t.supActivation}</button>
-        {supInfo&&supResult&&supResult!=='Error'&&(
+        {supInfo&&(
           <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 fi">
             <p className="text-xs text-gray-500 mb-2">{t.supervisorInfo}</p>
-            <div className="space-y-1 mb-3">
+            <div className="space-y-1">
               <p className="text-sm text-gray-300">{t.teacherCode}: <span className="text-amber-400 font-bold">{supInfo.code}</span></p>
               <p className="text-sm text-gray-300">{t.deviceName}: <span className="text-gray-400">{supInfo.devName}</span></p>
             </div>
-            <p className="text-xs text-gray-500 mb-1">{t.resultCode}</p>
-            <p className="text-xl font-bold text-emerald-400 font-mono tracking-widest select-all text-center mb-3">{supResult}</p>
-            <button onClick={async()=>{try{await navigator.clipboard.writeText(supResult)}catch{}}} className="w-full py-2 bg-emerald-600 rounded-xl text-white text-sm font-semibold active:bg-emerald-700">📋 Copy</button>
           </div>
         )}
       </div>
@@ -1990,12 +1984,6 @@ function AdminPage({t,onBack}){
                 {msgCopied==='sup'&&<p className="text-xs text-center text-emerald-400">{t.approveCopied}</p>}
               </div>
             )}
-            {/* Fallback: manual activation code */}
-            <div className="pt-3 border-t border-white/[0.06]">
-              <p className="text-[10px] text-gray-600 mb-1">{t.resultCode}</p>
-              <p className="text-lg font-bold text-emerald-400 font-mono tracking-widest select-all text-center">{supResult}</p>
-              <button onClick={async()=>{try{await navigator.clipboard.writeText(supResult)}catch{}}} className="w-full mt-2 py-2 bg-white/[0.06] rounded-xl text-gray-400 text-xs font-medium">📋 Copy</button>
-            </div>
           </div>
         )}
       </div>
@@ -2021,12 +2009,6 @@ function AdminPage({t,onBack}){
                 {msgCopied==='teacher'&&<p className="text-xs text-center text-emerald-400">{t.approveCopied}</p>}
               </div>
             )}
-            {/* Fallback: manual activation code */}
-            <div className="pt-3 border-t border-white/[0.06]">
-              <p className="text-[10px] text-gray-600 mb-1">{t.resultCode}</p>
-              <p className="text-xs font-bold text-emerald-400 font-mono select-all text-center break-all leading-relaxed">{actResult}</p>
-              <button onClick={async()=>{try{await navigator.clipboard.writeText(actResult)}catch{}}} className="w-full mt-2 py-2 bg-white/[0.06] rounded-xl text-gray-400 text-xs font-medium">📋 Copy</button>
-            </div>
           </div>
         )}
       </div>
