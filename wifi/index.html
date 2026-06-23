@@ -199,7 +199,7 @@ input:focus{border-color:var(--gold-dim)}
         <button class="btn-primary" onclick="saveSettings()">儲存</button>
       </div>
 
-      <div class="admin-section">
+      <div class="admin-section" id="sectionGenCode">
         <div class="admin-section-title">換算啟動碼</div>
         <div class="admin-fields">
           <div class="field-group">
@@ -217,10 +217,12 @@ input:focus{border-color:var(--gold-dim)}
 </div>
 
 <script>
-// ── 資料 ──
-const SALT = 'YXG9';
-const KEY  = 'WF2026';
+// ── 常數 ──
+const SALT     = 'YXG9';
+const KEY      = 'WF2026';
+const ADMIN_ID = '122';   // 固定管理者員工編號
 
+// ── 啟動碼演算 ──
 function fnv(str){
   let h = 2166136261;
   for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=(h*16777619)>>>0}
@@ -231,6 +233,10 @@ function makeCode(empId){
   const b = fnv(KEY + empId + SALT) % 1000;
   const pad = n => String(n).padStart(3,'0');
   return `${pad(a)}-${pad(b)}`;
+}
+function verifyCode(empId, input){
+  const clean = input.replace('-','');
+  return clean === makeCode(empId).replace('-','');
 }
 
 // ── 設定存取 ──
@@ -244,13 +250,12 @@ function loadSettings(){
 }
 function saveToLS(s){ localStorage.setItem('wifiSettings', JSON.stringify(s)); }
 
-// ── 管理者 ──
-function isFirstTime(){ return !localStorage.getItem('adminCode'); }
-function setAdmin(code){ localStorage.setItem('adminCode', code); }
-function getAdmin(){ return localStorage.getItem('adminCode'); }
-function isLoggedIn(){ return sessionStorage.getItem('adminLoggedIn') === '1'; }
-function setLoggedIn(){ sessionStorage.setItem('adminLoggedIn','1'); }
-function clearLogin(){ sessionStorage.removeItem('adminLoggedIn'); }
+// ── Session ──
+function isLoggedIn(){ return sessionStorage.getItem('wfLoggedIn') === '1'; }
+function currentUser(){ return sessionStorage.getItem('wfUser') || ''; }
+function isAdmin(){ return currentUser() === ADMIN_ID; }
+function setSession(empId){ sessionStorage.setItem('wfLoggedIn','1'); sessionStorage.setItem('wfUser', empId); }
+function clearSession(){ sessionStorage.removeItem('wfLoggedIn'); sessionStorage.removeItem('wfUser'); }
 
 // ── 頁面渲染 ──
 function render(){
@@ -264,8 +269,7 @@ render();
 
 // ── 複製密碼 ──
 function copyPwd(){
-  const pwd = loadSettings().pwd;
-  navigator.clipboard.writeText(pwd).then(()=>{
+  navigator.clipboard.writeText(loadSettings().pwd).then(()=>{
     const t = document.getElementById('toast');
     t.classList.add('show');
     setTimeout(()=>t.classList.remove('show'), 2000);
@@ -275,46 +279,39 @@ function copyPwd(){
 // ── Overlay ──
 function openAdmin(){
   document.getElementById('overlay').classList.add('open');
-  if(isLoggedIn()){ showPanel('admin'); } else { showPanel('auth'); }
+  isLoggedIn() ? showPanel('admin') : showPanel('auth');
 }
 function closeOverlay(){ document.getElementById('overlay').classList.remove('open'); }
 function closeIfBg(e){ if(e.target===document.getElementById('overlay')) closeOverlay(); }
+
 function showPanel(p){
-  document.getElementById('panelAuth').style.display = p==='auth'?'':'none';
-  document.getElementById('panelAdmin').style.display = p==='admin'?'':'none';
+  document.getElementById('panelAuth').style.display  = p==='auth'  ? '' : 'none';
+  document.getElementById('panelAdmin').style.display = p==='admin' ? '' : 'none';
   if(p==='admin'){
     const s = loadSettings();
     document.getElementById('set-company').value = s.company;
-    document.getElementById('set-ssid').value = s.ssid;
-    document.getElementById('set-pwd').value = s.pwd;
+    document.getElementById('set-ssid').value    = s.ssid;
+    document.getElementById('set-pwd').value     = s.pwd;
+    // 只有管理者看到換算區塊
+    document.getElementById('sectionGenCode').style.display = isAdmin() ? '' : 'none';
   }
   if(p==='auth'){
-    const first = isFirstTime();
-    document.getElementById('authTitle').textContent = first ? '設定管理員帳號' : '管理員登入';
-    document.getElementById('activationField').style.display = first ? 'none' : '';
     document.getElementById('authErr').classList.remove('show');
-    document.getElementById('inputCode').value = '';
+    document.getElementById('inputCode').value       = '';
     document.getElementById('inputActivation').value = '';
   }
 }
 
 // ── 登入 ──
 function doLogin(){
-  const code = document.getElementById('inputCode').value.trim();
-  if(!code){ return; }
-  if(isFirstTime()){
-    setAdmin(code);
-    setLoggedIn();
+  const empId = document.getElementById('inputCode').value.trim();
+  const act   = document.getElementById('inputActivation').value.trim();
+  if(!empId || !act){ return; }
+  if(verifyCode(empId, act)){
+    setSession(empId);
     showPanel('admin');
   } else {
-    const act = document.getElementById('inputActivation').value.trim().replace('-','');
-    const expected = makeCode(code).replace('-','');
-    if(act === expected || code === getAdmin()){
-      setLoggedIn();
-      showPanel('admin');
-    } else {
-      document.getElementById('authErr').classList.add('show');
-    }
+    document.getElementById('authErr').classList.add('show');
   }
 }
 document.getElementById('inputActivation').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
@@ -331,18 +328,18 @@ function saveSettings(){
   closeOverlay();
 }
 
-// ── 產生啟動碼 ──
+// ── 產生啟動碼（僅管理者） ──
 function genActivation(){
   const code = document.getElementById('gen-code').value.trim();
   if(!code) return;
   const result = document.getElementById('codeResult');
   const c = makeCode(code);
-  result.textContent = `${c}　 ${c.replace('-','')}`;
+  result.textContent = `${c}　${c.replace('-','')}`;
   result.classList.add('show');
 }
 
 // ── 登出 ──
-function doLogout(){ clearLogin(); showPanel('auth'); }
+function doLogout(){ clearSession(); showPanel('auth'); }
 
 // ── 多語系 ──
 const LANGS = {
@@ -353,17 +350,15 @@ const LANGS = {
   th:{ ssid:'ชื่อ WiFi', hint:'แตะชื่อ WiFi ด้านบนเพื่อเชื่อมต่อ', pwd:'รหัสผ่าน', copy:'แตะเพื่อคัดลอก', or:'หรือ', qr:'สแกน QR Code', toast:'✓ คัดลอกแล้ว' },
   vi:{ ssid:'Tên WiFi', hint:'Nhấn tên WiFi ở trên để kết nối', pwd:'Mật khẩu', copy:'Nhấn để sao chép', or:'hoặc', qr:'Quét mã QR để kết nối', toast:'✓ Đã sao chép' },
 };
-let curLang = 'zh';
 function setLang(l){
-  curLang = l;
   const t = LANGS[l];
-  document.getElementById('lbl-ssid').textContent   = t.ssid;
-  document.getElementById('lbl-hint').textContent   = t.hint;
-  document.getElementById('lbl-pwd').textContent    = t.pwd;
-  document.getElementById('lbl-copy').textContent   = t.copy;
-  document.getElementById('lbl-or').textContent     = t.or;
-  document.getElementById('lbl-qr').textContent     = t.qr;
-  document.getElementById('toast').textContent      = t.toast;
+  document.getElementById('lbl-ssid').textContent = t.ssid;
+  document.getElementById('lbl-hint').textContent = t.hint;
+  document.getElementById('lbl-pwd').textContent  = t.pwd;
+  document.getElementById('lbl-copy').textContent = t.copy;
+  document.getElementById('lbl-or').textContent   = t.or;
+  document.getElementById('lbl-qr').textContent   = t.qr;
+  document.getElementById('toast').textContent    = t.toast;
   document.querySelectorAll('.lang-btn').forEach(b=>{
     b.classList.toggle('active', b.textContent.includes({zh:'中',en:'En',ja:'日',ko:'한',th:'ภ',vi:'Ti'}[l]||l));
   });
