@@ -22,6 +22,20 @@ input[type=number]{-moz-appearance:textfield}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .fi{animation:fadeIn .2s ease-out}.su{animation:slideUp .25s ease-out}
 </style>
+<style>
+[data-light] [class*="border-white"] { border-color: rgba(0,0,0,0.12) !important; }
+[data-light] [class*="bg-white/[0.0"] { background-color: rgba(0,0,0,0.04) !important; }
+[data-light] [class*="bg-white/[0.1"] { background-color: rgba(0,0,0,0.06) !important; }
+[data-light] .text-gray-100 { color: #1f2937 !important; }
+[data-light] .text-gray-200 { color: #374151 !important; }
+[data-light] .text-gray-300 { color: #4b5563 !important; }
+[data-light] .text-gray-400 { color: #6b7280 !important; }
+[data-light] .text-gray-500 { color: #9ca3af !important; }
+[data-light] .text-gray-600 { color: #9ca3af !important; }
+[data-light] .text-gray-700 { color: #d1d5db !important; }
+[data-light] input, [data-light] textarea, [data-light] select { color: #1f2937 !important; }
+[data-light] input::placeholder, [data-light] textarea::placeholder { color: #9ca3af !important; }
+</style>
 </head>
 <body>
 <div id="root"></div>
@@ -145,6 +159,10 @@ function getLogs(filterLevel){
 function fmtLog(s,args){return args.reduce((r,a,i)=>r.replace(`{${i}}`,a),s)}
 function fmtDate(ts){const d=new Date(ts);return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
 
+// ── Theme ──
+const THEMES={pink:'#fce4f6',black:'#030712',white:'#f9fafb',gray:'#1f2937'};
+function getThemeBg(){return THEMES[localStorage.getItem('app-theme')]||THEMES.black}
+
 // ── Store management ──
 async function loadStores(){
   try{
@@ -183,11 +201,12 @@ function StaffListSection({t,staffList,sortMode,setSortMode,onEdit,myCode,myLeve
   const roleOrder=s=>s.role==='admin'?99:s.role==='supervisor'?(10+(s.level||0)):0;
   // 副理(1)/經理(2) only see own store
   const filtered=(myLevel<=2)?staffList.filter(s=>s.store===myStore||s.role==='admin'):staffList;
+  const numCode=s=>parseInt(s.code)||0;
   const sorted=sortMode==='store'
-    ?[...filtered].sort((a,b)=>(a.store||'').localeCompare(b.store||'')||(a.code||'').localeCompare(b.code||''))
+    ?[...filtered].sort((a,b)=>(a.store||'').localeCompare(b.store||'')||numCode(a)-numCode(b))
     :sortMode==='role'
-    ?[...filtered].sort((a,b)=>roleOrder(b)-roleOrder(a)||(a.code||'').localeCompare(b.code||''))
-    :[...filtered].sort((a,b)=>(a.code||'').localeCompare(b.code||''));
+    ?[...filtered].sort((a,b)=>roleOrder(b)-roleOrder(a)||numCode(a)-numCode(b))
+    :[...filtered].sort((a,b)=>numCode(a)-numCode(b));
   const totalPages=Math.ceil(sorted.length/PER_PAGE);
   const paged=sorted.slice(page*PER_PAGE,(page+1)*PER_PAGE);
   let lastStore='';
@@ -511,6 +530,7 @@ zh:{
   store:"所在店面",storeManage:"店面管理",storeAdd:"新增店面",storeDel:"刪除",storeEmpty:"尚無店面",
   storeSaved:"已儲存 ✓",teacherActivation:"老師啟動碼",supActivation:"主管啟動碼",
   sortByStore:"按店面",sortByCode:"按編號",sortByRole:"按職務",
+  theme:"背景主題",themePink:"粉紅",themeBlack:"黑色",themeWhite:"白色",themeGray:"灰色",
   resetAll:"一鍵還原初始設定",resetAllConfirm:"確定還原？將清除所有員工與主管資料（保留管理員122、Token、記錄）",
   resetAllOk:"已還原初始設定 ✓",resetSup:"一鍵移除所有主管權限",resetSupConfirm:"確定移除所有主管權限？",
   resetSupOk:"已移除所有主管權限 ✓",resetApp:"重置申請",
@@ -595,6 +615,7 @@ vi:{
   store:"Chi nhánh",storeManage:"Quản lý CN",storeAdd:"Thêm CN",storeDel:"Xóa",storeEmpty:"Chưa có CN",
   storeSaved:"Đã lưu ✓",teacherActivation:"Mã kích hoạt NV",supActivation:"Mã kích hoạt QL",
   sortByStore:"Theo CN",sortByCode:"Theo mã",sortByRole:"Theo chức vụ",
+  theme:"Giao diện",themePink:"Hồng",themeBlack:"Đen",themeWhite:"Trắng",themeGray:"Xám",
   resetAll:"Khôi phục mặc định",resetAllConfirm:"Xác nhận? Sẽ xóa tất cả NV và QL (giữ admin 122, Token, log)",
   resetAllOk:"Đã khôi phục ✓",resetSup:"Xóa tất cả quyền QL",resetSupConfirm:"Xác nhận xóa tất cả quyền QL?",
   resetSupOk:"Đã xóa ✓",resetApp:"Đặt lại đơn",
@@ -693,7 +714,7 @@ function Onboarding({onComplete}){
 
   useEffect(()=>{loadStores().then(s=>{setStores(s);setStore(s[0]||'龍山寺店')})},[]);
 
-  const encReg=code?xEnc(`${code}:${devId}:${lang}:${store}`):'';
+  const encReg=code?xEnc(`${code}:${devId}:${lang}:${encodeURIComponent(store)}`):'';
   const qrUrl=encReg?`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(encReg)}&bgcolor=030712&color=f3f4f6`:'';
 
   const doActivate=(settings)=>{
@@ -775,7 +796,7 @@ function Onboarding({onComplete}){
   };
 
   return(
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-6">
+    <div className="min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-sm fi">
         {step===1&&(
           <div className="space-y-6">
@@ -1253,7 +1274,7 @@ function YearlyPage({settings,t}){
 }
 
 /* ══════════ Settings ══════════ */
-function SettingsPage({settings,onUpdate,t}){
+function SettingsPage({settings,onUpdate,t,theme,setTheme}){
   const[form,setForm]=useState({...settings});
   const[saved,setSaved]=useState(false);
   const[showAdmin,setShowAdmin]=useState(false);
@@ -1380,7 +1401,7 @@ function SettingsPage({settings,onUpdate,t}){
   const checkLabel={idle:t.adminCheck,checking:'...',ok:t.adminEnter,denied:t.adminFail}[checkState];
 
   const isPending=supStatus?.status==='pending';
-  const isApproved=supStatus?.status==='approved';
+  const isApproved=supStatus?.status==='approved'||checkState==='ok'; // admin auto-supervisor
 
   return(
     <div className="p-5 max-w-md mx-auto fi space-y-6">
@@ -1394,6 +1415,13 @@ function SettingsPage({settings,onUpdate,t}){
       </div>
       <div><label className="text-sm text-gray-400 mb-1.5 block">{t.language}</label>
         <div className="grid grid-cols-2 gap-2">{[['zh','中文'],['vi','Tiếng Việt']].map(([c,l])=>(<button key={c} onClick={()=>{setForm({...form,lang:c});onUpdate({...form,lang:c})}} className={`py-3.5 rounded-xl text-sm font-semibold ${form.lang===c?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div>
+      </div>
+      <div><label className="text-sm text-gray-400 mb-1.5 block">{t.theme}</label>
+        <div className="grid grid-cols-4 gap-2">
+          {[['pink',t.themePink,'#fce4f6'],['black',t.themeBlack,'#030712'],['gray',t.themeGray,'#1f2937'],['white',t.themeWhite,'#f9fafb']].map(([k,l,c])=>(
+            <button key={k} onClick={()=>setTheme(k)} className={`py-3 rounded-xl text-xs font-semibold border-2 ${theme===k?'border-amber-500':'border-transparent'}`} style={{backgroundColor:c,color:k==='black'||k==='gray'?'#ccc':'#333'}}>{l}</button>
+          ))}
+        </div>
       </div>
       <div><label className="text-sm text-gray-400 mb-1.5 block">{t.year}</label>
         <div className="flex items-center gap-3">
@@ -1601,7 +1629,7 @@ function SupervisorPage({t,onBack}){
   },[]);
 
   if(revoked)return(
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-8">
+    <div className="min-h-screen flex items-center justify-center p-8">
       <div className="text-center">
         <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <span className="text-3xl">⚠️</span>
@@ -1802,6 +1830,7 @@ function AdminPage({t,onBack}){
   const[connResult,setConnResult]=useState('');
   const[editStoreVal,setEditStoreVal]=useState('');
   const[editStatus,setEditStatus]=useState('');
+  const[editLevel,setEditLevel]=useState(1);
   const[genConnInput,setGenConnInput]=useState('');
   const[genConnResult,setGenConnResult]=useState('');
   const[genConnCopied,setGenConnCopied]=useState(false);
@@ -1834,13 +1863,14 @@ function AdminPage({t,onBack}){
     })();
   },[]);
 
-  // Decode teacher encrypted string: code:deviceId:lang:store
+  // Decode teacher encrypted string: code:deviceId:lang:store(URI-encoded)
   const decodeTeacher=(enc)=>{
     try{
       const dec=xDec(enc.trim());
       const parts=dec.split(':');
       if(parts.length<2)return null;
-      return{code:parts[0],devId:parts[1],lang:parts[2]||'zh',store:parts[3]||''};
+      let store='';try{store=decodeURIComponent(parts.slice(3).join(':'))}catch{store=parts[3]||''}
+      return{code:parts[0],devId:parts[1],lang:parts[2]||'zh',store};
     }catch{return null}
   };
 
@@ -2130,9 +2160,29 @@ function AdminPage({t,onBack}){
               disabled={editStatus==='...'}>更改門店</button>
           </div>
 
-          {/* Revoke supervisor / delete */}
-          <div className="flex gap-2 pt-2 border-t border-white/[0.04]">
-            {editStaff.role==='supervisor'&&<button onClick={async()=>{
+          {/* Revoke supervisor / promote / delete */}
+          <div className="space-y-2 pt-2 border-t border-white/[0.04]">
+            {editStaff.role==='teacher'&&(
+              <div className="flex gap-2 items-center">
+                <select value={editLevel} onChange={e=>setEditLevel(parseInt(e.target.value)||1)}
+                  className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-gray-200 focus:outline-none">
+                  {SUP_LEVELS.filter(lv=>lv.id<=myLevel).map(lv=>(
+                    <option key={lv.id} value={lv.id}>{lv[t===T.zh?'zh':'vi']}</option>
+                  ))}
+                </select>
+                <button onClick={async()=>{
+                  setEditStatus('...');
+                  const updated=staffList.map(x=>x.code===editStaff.code?{...x,role:'supervisor',level:editLevel}:x);
+                  const ok=await writeStaff(gh,updated);
+                  if(ok){setStaffList(updated);setEditStaff({...editStaff,role:'supervisor',level:editLevel})}
+                  addLog('任命主管 '+editStaff.code+' Lv'+editLevel,'admin');
+                  setEditStatus(ok?'✓':'✗');setTimeout(()=>setEditStatus(''),2000);
+                }} className={`px-4 py-2 rounded-xl text-xs font-bold ${editStatus==='...'?'bg-gray-600 text-gray-400':'bg-emerald-600 text-white'}`}
+                  disabled={editStatus==='...'}>任命主管</button>
+              </div>
+            )}
+            <div className="flex gap-2">
+              {editStaff.role==='supervisor'&&<button onClick={async()=>{
               setEditStatus('...');
               const updated=staffList.map(x=>x.code===editStaff.code?{...x,role:'teacher',level:0}:x);
               const ok=await writeStaff(gh,updated);
@@ -2152,6 +2202,7 @@ function AdminPage({t,onBack}){
           </div>
           {editStatus&&editStatus!=='...'&&<p className={`text-xs text-center ${editStatus==='✓'?'text-emerald-400':'text-red-400'}`}>{editStatus}</p>}
         </div>
+      </div>
       )}
 
       {/* Test/Reset tools */}
@@ -2456,8 +2507,39 @@ function App(){
   const[ready,setReady]=useState(false);
   const[needOnboard,setNeedOnboard]=useState(false);
   const[refreshKey,setRefreshKey]=useState(0);
+  const[theme,setTheme]=useState(()=>localStorage.getItem('app-theme')||'black');
+
+  const bgColor=THEMES[theme]||THEMES.black;
+  const isLight=theme==='white'||theme==='pink';
+
+  useEffect(()=>{document.body.style.backgroundColor=bgColor},[bgColor]);
+  useEffect(()=>{localStorage.setItem('app-theme',theme)},[theme]);
 
   useEffect(()=>{buildDynamicKey()},[]);
+
+  // Daily connection check for teachers with token
+  useEffect(()=>{
+    if(!settings||!settings.code)return;
+    const gh=getGHConfig();
+    if(!gh.token)return; // offline user, skip
+    const lastCheck=localStorage.getItem('conn-check-date');
+    const today=new Date().toISOString().slice(0,10);
+    if(lastCheck===today)return; // already checked today
+    (async()=>{
+      try{
+        const staff=await readStaff(gh);
+        const me=staff.find(s=>s.code===settings.code);
+        if(me&&me.hasToken===false){
+          // Connection revoked by admin
+          saveGHConfigLocal({});
+          localStorage.removeItem('conn-check-date');
+          alert(T[settings.lang||'zh'].connExpired);
+        }else{
+          localStorage.setItem('conn-check-date',today);
+        }
+      }catch{}
+    })();
+  },[settings]);
 
   useEffect(()=>{
     const s=LS.get('app-settings');
@@ -2471,7 +2553,7 @@ function App(){
   const updateSettings=(s)=>{setSettings(s);LS.set('app-settings',s)};
   const handleTab=(id)=>{setTab(id);if(id==='home')setRefreshKey(k=>k+1)};
 
-  if(!ready)return<div className="min-h-screen bg-gray-950 flex items-center justify-center"><div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/></div>;
+  if(!ready)return<div className="min-h-screen flex items-center justify-center" style={{backgroundColor:bgColor}}><div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/></div>;
   if(needOnboard)return<Onboarding onComplete={onOnboardComplete}/>;
   if(!settings)return null;
 
@@ -2479,15 +2561,15 @@ function App(){
   const tabs=[{id:'home',label:t.home},{id:'monthly',label:t.monthly},{id:'yearly',label:t.yearly},{id:'settings',label:t.settings}];
 
   return(
-    <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col">
+    <div className={`min-h-screen ${isLight?'text-gray-900':'text-gray-100'} flex flex-col`} style={{backgroundColor:bgColor}} data-light={isLight||undefined}>
       <div className="flex-1 pb-[72px] overflow-y-auto">
         {tab==='home'&&<HomePage settings={settings} t={t} refreshKey={refreshKey}/>}
         {tab==='monthly'&&<MonthlyPage settings={settings} curM={curM} setCurM={setCurM} t={t}/>}
         {tab==='yearly'&&<YearlyPage settings={settings} t={t}/>}
-        {tab==='settings'&&<SettingsPage settings={settings} onUpdate={updateSettings} t={t}/>}
+        {tab==='settings'&&<SettingsPage settings={settings} onUpdate={updateSettings} t={t} theme={theme} setTheme={setTheme}/>}
       </div>
-      <nav className="fixed bottom-0 left-0 right-0 bg-gray-950/95 backdrop-blur-xl border-t border-white/[0.06] flex z-40" style={{paddingBottom:'env(safe-area-inset-bottom)'}}>
-        {tabs.map(({id,label})=>(<button key={id} onClick={()=>handleTab(id)} className={`flex-1 flex flex-col items-center pt-2 pb-1.5 gap-0.5 transition-all ${tab===id?'text-amber-400':'text-gray-700 active:text-gray-500'}`}>{IC[id]}<span className="text-[10px] font-medium">{label}</span></button>))}
+      <nav className="fixed bottom-0 left-0 right-0 backdrop-blur-xl border-t border-white/[0.06] flex z-40" style={{backgroundColor:bgColor+'ee',paddingBottom:'env(safe-area-inset-bottom)'}}>
+        {tabs.map(({id,label})=>(<button key={id} onClick={()=>handleTab(id)} className={`flex-1 flex flex-col items-center pt-2 pb-1.5 gap-0.5 transition-all ${tab===id?'text-amber-400':'text-gray-500 active:text-gray-400'}`}>{IC[id]}<span className="text-[10px] font-medium">{label}</span></button>))}
       </nav>
     </div>
   );
