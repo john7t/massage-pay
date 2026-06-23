@@ -39,6 +39,8 @@ input[type=number]{-moz-appearance:textfield}
 </head>
 <body>
 <div id="root"></div>
+<div id="err" style="display:none;position:fixed;top:0;left:0;right:0;padding:16px;background:#1a0000;color:#f87171;font-size:12px;z-index:9999;word-break:break-all"></div>
+<script>window.onerror=function(m,s,l,c,e){document.getElementById('err').style.display='block';document.getElementById('err').textContent='Error: '+m+' (line '+l+')'}</script>
 <script type="text/babel">
 const{useState,useEffect,useCallback,useMemo}=React;
 
@@ -2617,6 +2619,10 @@ const IC={
 
 /* ══════════ App ══════════ */
 function App(){
+  return <AppInner/>;
+}
+
+function AppInner(){
   const[settings,setSettings]=useState(null);
   const[tab,setTab]=useState('home');
   const[curM,setCurM]=useState(new Date().getMonth()+1);
@@ -2676,10 +2682,16 @@ function App(){
   const lang=settings.lang||'zh';const t=T[lang];
   const tabs=[{id:'home',label:t.home},{id:'monthly',label:t.monthly},{id:'yearly',label:t.yearly},{id:'groupbuy',label:t.groupBuy},{id:'settings',label:t.settings}];
 
-  // Group buy unread badge
+  // Group buy unread badge - only run after settings loaded
   const gbReadCount=parseInt(localStorage.getItem('gb-read-count'))||0;
   const[gbBadge,setGbBadge]=useState(0);
-  useEffect(()=>{readNotices().then(d=>{const active=d.filter(i=>i.status==='active').length;setGbBadge(Math.max(0,active-gbReadCount))}).catch(()=>{})},[]);
+  useEffect(()=>{
+    if(!settings)return;
+    readNotices().then(d=>{
+      const active=(d||[]).filter(i=>i.status==='active'&&i.type==='groupbuy').length;
+      setGbBadge(Math.max(0,active-gbReadCount));
+    }).catch(()=>{});
+  },[settings]);
 
   return(
     <div className={`min-h-screen ${isLight?'text-gray-900':'text-gray-100'} flex flex-col`} style={{backgroundColor:bgColor}} data-light={isLight||undefined}>
