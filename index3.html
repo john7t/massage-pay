@@ -1,0 +1,2567 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#030712">
+<title>薪資追蹤</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+*{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+body{margin:0;background:#030712;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none}
+.no-sb::-webkit-scrollbar{display:none}.no-sb{-ms-overflow-style:none;scrollbar-width:none}
+select option{background:#111827;color:#f3f4f6}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.fi{animation:fadeIn .2s ease-out}.su{animation:slideUp .25s ease-out}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const{useState,useEffect,useCallback,useMemo}=React;
+
+/* ══════════ CRYPTO ══════════ */
+const CK_DEFAULT="STK2026X";
+let CK=CK_DEFAULT;
+
+// Dynamic key builder: extract chars from cfg files
+const KC_KEY='key-config';
+function getKeyConfig(){return LS.get(KC_KEY)||null}
+function saveKeyConfig(cfg){LS.set(KC_KEY,cfg)}
+
+async function buildDynamicKey(){
+  const cfg=getKeyConfig();
+  if(!cfg||!cfg.rules||!cfg.rules.length){CK=CK_DEFAULT;return}
+  try{
+    const parts=[];
+    for(const r of cfg.rules){
+      if(!r.file||r.start==null||!r.len)continue;
+      const res=await fetch('./'+r.file,{cache:'no-store'});
+      if(!res.ok){CK=CK_DEFAULT;return}
+      const text=await res.text();
+      const firstLine=text.split('\n')[0]||'';
+      if(firstLine.length<r.start+r.len){CK=CK_DEFAULT;return}
+      parts.push(firstLine.substring(r.start,r.start+r.len));
+    }
+    const built=parts.join('');
+    if(built.length>=4)CK=built; else CK=CK_DEFAULT;
+  }catch{CK=CK_DEFAULT}
+}
+
+function xEnc(t){return Array.from(t).map((c,i)=>(c.charCodeAt(0)^CK.charCodeAt(i%CK.length)).toString(16).padStart(2,'0')).join('')}
+function xDec(h){try{return h.match(/.{2}/g).map((x,i)=>String.fromCharCode(parseInt(x,16)^CK.charCodeAt(i%CK.length))).join('')}catch{return''}}
+function fnv(s){let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193);h=h&0x7fffffff}return h}
+function genAct(code,devId){const b=`${code}:${devId}`;return['#ALPHA','#BRAVO','#CHARLIE'].map(s=>String(fnv(b+s)%10000).padStart(4,'0')).join('-')}
+function adminHash(code){const S="MassagePay2026!Adm";let h=fnv(S+code+S);for(let i=0;i<200;i++)h=fnv(String(h)+S+code);return h.toString(36).padStart(6,'0')}
+function genAdminAct(code,uuid){const b=`ADM:${code}:${uuid}`;return['#DELTA','#ECHO','#FOXTROT'].map(s=>String(fnv(b+s)%10000).padStart(4,'0')).join('-')}
+function revokeHash(code){const S="MassagePay2026!Rvk";let h=fnv(S+code+S);for(let i=0;i<200;i++)h=fnv(String(h)+S+code);return h.toString(36).padStart(6,'0')}
+
+// ── Online approval hashes ──
+function approveHash(code,devId){const S="MassagePay2026!Apr";let h=fnv(S+code+':'+devId+S);for(let i=0;i<200;i++)h=fnv(String(h)+S+code);return h.toString(36).padStart(6,'0')}
+function supApproveHash(code){const S="MassagePay2026!Sup";let h=fnv(S+code+S);for(let i=0;i<200;i++)h=fnv(String(h)+S+code);return h.toString(36).padStart(6,'0')}
+
+// Supervisor levels
+const SUP_LEVELS=[
+  {id:1,zh:'副理',vi:'Phó quản lý'},
+  {id:2,zh:'經理',vi:'Quản lý'},
+  {id:3,zh:'區經理',vi:'Quản lý khu vực'},
+  {id:4,zh:'執行長',vi:'Giám đốc'}
+];
+function supLevelName(id,lang){const lv=SUP_LEVELS.find(l=>l.id===id);return lv?(lv[lang]||lv.zh):''}
+
+// ── Staff management (encrypted staff.json, UTF-8 safe) ──
+async function readStaff(gh){
+  try{
+    const res=await fetch('./staff.json',{cache:'no-store'});
+    if(!res.ok)return[];
+    const enc=(await res.text()).trim();
+    if(!enc)return[];
+    const raw=xDec(enc);
+    // Try new format (URI-encoded) then old format
+    try{return JSON.parse(decodeURIComponent(raw))}
+    catch{try{return JSON.parse(raw)}catch{return[]}}
+  }catch{return[]}
+}
+async function writeStaff(gh,staffList){
+  if(!gh.token||!gh.owner||!gh.repo)return false;
+  const json=JSON.stringify(staffList);
+  const enc=xEnc(encodeURIComponent(json));
+  const file=await ghReadFile(gh,'staff.json');
+  if(file)return ghWriteFile(gh,'staff.json',enc,file.sha,'update staff');
+  // Create new file
+  try{
+    const res=await fetch(`https://api.github.com/repos/${gh.owner}/${gh.repo}/contents/staff.json`,{
+      method:'PUT',headers:{'Authorization':'token '+gh.token,'Content-Type':'application/json'},
+      body:JSON.stringify({message:'create staff.json',content:btoa(unescape(encodeURIComponent(enc)))})
+    });
+    return res.ok;
+  }catch{return false}
+}
+
+// ── Approved.cfg management ──
+async function checkApproved(type,hash){
+  try{
+    const res=await fetch('./approved.cfg',{cache:'no-store'});
+    if(!res.ok)return null;
+    const text=await res.text();
+    const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
+    for(const line of lines){
+      const parts=line.split(':');
+      if(parts[0]===type&&parts[1]===hash)return{level:parts[2]?parseInt(parts[2]):0};
+    }
+    return null;
+  }catch{return null}
+}
+async function writeApproval(gh,type,hash,level){
+  const line=level?`${type}:${hash}:${level}`:`${type}:${hash}`;
+  return ghAppendLine(gh,'approved.cfg',line,'approve '+type+' '+hash);
+}
+
+// Action log with levels: 'teacher' | 'supervisor' | 'admin'
+function addLog(msg,level='admin'){
+  const logs=LS.get('admin-log')||[];
+  const s=LS.get('app-settings');
+  const operator=s?.code||'';
+  logs.push({ts:Date.now(),msg,level:level||'admin',op:operator});
+  if(logs.length>200)logs.splice(0,logs.length-200);
+  LS.set('admin-log',logs);
+}
+function getLogs(filterLevel){
+  const logs=(LS.get('admin-log')||[]).reverse();
+  if(!filterLevel)return logs;
+  // teacher sees only teacher, supervisor sees teacher+supervisor, admin sees all
+  if(filterLevel==='teacher')return logs.filter(l=>l.level==='teacher');
+  if(filterLevel==='supervisor')return logs.filter(l=>l.level==='teacher'||l.level==='supervisor');
+  return logs;
+}
+function fmtLog(s,args){return args.reduce((r,a,i)=>r.replace(`{${i}}`,a),s)}
+function fmtDate(ts){const d=new Date(ts);return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
+
+// ── Theme ──
+const THEMES={pink:'#1c0a12',black:'#030712',white:'#f3f0ed',gray:'#1f2937'};
+function getThemeBg(){return THEMES[localStorage.getItem('app-theme')]||THEMES.black}
+
+// ── Store management ──
+async function loadStores(){
+  try{
+    const res=await fetch('./stores.cfg',{cache:'no-store'});
+    if(!res.ok)return['龍山寺店'];
+    const text=(await res.text()).trim();
+    const stores=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
+    return stores.length?stores:['龍山寺店'];
+  }catch{return['龍山寺店']}
+}
+async function saveStores(gh,stores){
+  if(!gh.token)return false;
+  const content=stores.join('\n')+'\n';
+  const file=await ghReadFile(gh,'stores.cfg');
+  if(file)return ghWriteFile(gh,'stores.cfg',content,file.sha,'update stores');
+  try{
+    const res=await fetch(`https://api.github.com/repos/${gh.owner}/${gh.repo}/contents/stores.cfg`,{
+      method:'PUT',headers:{'Authorization':'token '+gh.token,'Content-Type':'application/json'},
+      body:JSON.stringify({message:'create stores.cfg',content:btoa(unescape(encodeURIComponent(content)))})
+    });
+    return res.ok;
+  }catch{return false}
+}
+
+// ── Shared StaffList component ──
+function StaffListSection({t,staffList,sortMode,setSortMode,onEdit,myCode,myLevel,myStore}){
+  const[page,setPage]=useState(0);
+  const[selected,setSelected]=useState(null);
+  const PER_PAGE=10;
+  if(!staffList.length)return(
+    <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+      <h3 className="text-sm font-semibold text-amber-400">{t.staffList}</h3>
+      <p className="text-xs text-gray-600 text-center">{t.staffEmpty}</p>
+    </div>
+  );
+  const roleOrder=s=>s.role==='admin'?99:s.role==='supervisor'?(10+(s.level||0)):0;
+  // 副理(1)/經理(2) only see own store
+  const filtered=(myLevel<=2)?staffList.filter(s=>s.store===myStore||s.role==='admin'):staffList;
+  const numCode=s=>parseInt(s.code)||0;
+  const sorted=sortMode==='store'
+    ?[...filtered].sort((a,b)=>(a.store||'').localeCompare(b.store||'')||numCode(a)-numCode(b))
+    :sortMode==='role'
+    ?[...filtered].sort((a,b)=>roleOrder(b)-roleOrder(a)||numCode(a)-numCode(b))
+    :[...filtered].sort((a,b)=>numCode(a)-numCode(b));
+  const totalPages=Math.ceil(sorted.length/PER_PAGE);
+  const paged=sorted.slice(page*PER_PAGE,(page+1)*PER_PAGE);
+  let lastStore='';
+  const lvIcon=s=>{if(s.role==='admin')return'⚙️';if(s.role==='supervisor')return{4:'⭐',3:'💎',2:'🔷',1:'🔹'}[s.level]||'👔';return'👤'};
+  const handleClick=(s)=>{
+    if(selected===s.code)return; // already selected, no re-click
+    setSelected(s.code);
+    if(onEdit)onEdit(s);
+  };
+  return(
+    <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-amber-400">{t.staffList}</h3>
+        <div className="flex gap-1">
+          <button onClick={()=>{setSortMode('store');setPage(0)}} className={`px-2 py-1 rounded text-[10px] ${sortMode==='store'?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t.sortByStore}</button>
+          <button onClick={()=>{setSortMode('role');setPage(0)}} className={`px-2 py-1 rounded text-[10px] ${sortMode==='role'?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t.sortByRole}</button>
+          <button onClick={()=>{setSortMode('code');setPage(0)}} className={`px-2 py-1 rounded text-[10px] ${sortMode==='code'?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t.sortByCode}</button>
+        </div>
+      </div>
+      <div className="space-y-1">
+        {paged.map((s,i)=>{
+          const lvName=s.level?supLevelName(s.level,t===T.zh?'zh':'vi'):'';
+          const showH=sortMode==='store'&&(s.store||'')!==lastStore;
+          if(showH)lastStore=s.store||'';
+          const isSel=selected===s.code;
+          return(
+            <React.Fragment key={s.code}>
+              {showH&&<p className="text-[11px] text-gray-500 font-semibold pt-2 pb-1">{s.store||'—'}</p>}
+              <div className={`py-2 px-3 rounded-xl transition-all ${isSel?'bg-amber-600/10 border border-amber-500/30':'bg-white/[0.02]'}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[12px]">{lvIcon(s)}</span>
+                    <button onClick={()=>handleClick(s)} disabled={isSel}
+                      className={`text-sm font-bold font-mono ${isSel?'text-amber-300 cursor-default':'text-amber-400 active:text-amber-300'}`}>
+                      {s.code}{isSel?' (編輯模式)':''}
+                    </button>
+                    {!isSel&&sortMode!=='store'&&s.store&&<span className="text-[10px] text-gray-600">{s.store}</span>}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {s.supRequest&&<span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 animate-pulse">{t.adminApply}</span>}
+                    {lvName&&<span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">{lvName}</span>}
+                    <span className="text-[11px]">{s.hasToken?'☁️':'📥'}</span>
+                  </div>
+                </div>
+              </div>
+            </React.Fragment>
+          );
+        })}
+      </div>
+      {/* Pagination */}
+      {totalPages>1&&(
+        <div className="flex items-center justify-center gap-3 pt-2">
+          <button onClick={()=>setPage(Math.max(0,page-1))} disabled={page===0} className={`px-3 py-1.5 rounded-lg text-xs ${page===0?'text-gray-700':'text-gray-400 bg-white/[0.04] active:bg-white/[0.08]'}`}>←</button>
+          <span className="text-xs text-gray-500">{page+1} / {totalPages}</span>
+          <button onClick={()=>setPage(Math.min(totalPages-1,page+1))} disabled={page>=totalPages-1} className={`px-3 py-1.5 rounded-lg text-xs ${page>=totalPages-1?'text-gray-700':'text-gray-400 bg-white/[0.04] active:bg-white/[0.08]'}`}>→</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+function LogSection({t,filterLevel}){
+  const[logs]=useState(()=>getLogs(filterLevel));
+  if(!logs.length)return null;
+  return(
+    <div className="space-y-2 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+      <h3 className="text-sm font-semibold text-amber-400">{t.actionLog}</h3>
+      <div className="max-h-60 overflow-y-auto space-y-1 no-sb">
+        {logs.map((l,i)=>(
+          <div key={i} className="text-[11px] py-1 border-b border-white/[0.03]">
+            <span className="text-gray-600 font-mono">{fmtDate(l.ts)}</span>
+            <span className="text-gray-400 ml-2">{l.msg}</span>
+            {l.op&&filterLevel==='admin'&&<span className="text-gray-700 ml-1">[{l.op}]</span>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// GitHub API helpers
+const GH_KEY='github-config';
+function getGHConfig(){return LS.get(GH_KEY)||{}}
+function saveGHConfigLocal(cfg){LS.set(GH_KEY,cfg)}
+
+// Save GitHub config (admin only - to localStorage + optionally sync)
+async function saveGHConfig(cfg){LS.set(GH_KEY,cfg)}
+
+// ── Simple 9-digit activation code (identity only, no token) ──
+function genSimpleAct(code){
+  const S="MassagePay2026!SimpleAct";
+  let h=fnv(S+code+S);
+  for(let i=0;i<50;i++)h=fnv(String(h)+S+code);
+  const n=h%1000000000;
+  const s=String(n).padStart(9,'0');
+  return s.substring(0,3)+'-'+s.substring(3,6)+'-'+s.substring(6,9);
+}
+
+// ── Device-specific encryption for connection codes (carries token) ──
+// Encrypts GitHub token into activation code, bound to code+deviceId
+function encWithKey(text,key){return Array.from(text).map((c,i)=>(c.charCodeAt(0)^key.charCodeAt(i%key.length)).toString(16).padStart(2,'0')).join('')}
+function decWithKey(hex,key){try{return hex.match(/.{2}/g).map((x,i)=>String.fromCharCode(parseInt(x,16)^key.charCodeAt(i%key.length))).join('')}catch{return''}}
+function actKey(code,devId){return code+':'+devId+':ACT2026'}
+
+// Generate activation code containing encrypted GitHub config
+function genActWithToken(code,devId,ghCfg){
+  const payload=JSON.stringify({t:ghCfg.token,o:ghCfg.owner,r:ghCfg.repo});
+  return encWithKey(payload,actKey(code,devId));
+}
+
+// Verify activation code and extract GitHub config
+function verifyActToken(actCode,code,devId){
+  try{
+    const json=decWithKey(actCode.trim(),actKey(code,devId));
+    const d=JSON.parse(json);
+    if(d.t&&d.o&&d.r)return{token:d.t,owner:d.o,repo:d.r};
+    return null;
+  }catch{return null}
+}
+
+async function ghReadFile(cfg,path){
+  const res=await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${path}`,{
+    headers:{'Authorization':`token ${cfg.token}`,'Accept':'application/vnd.github.v3+json'}
+  });
+  if(!res.ok)return null;
+  const data=await res.json();
+  return{content:atob(data.content.replace(/\n/g,'')),sha:data.sha};
+}
+
+async function ghWriteFile(cfg,path,content,sha,msg){
+  const res=await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${path}`,{
+    method:'PUT',
+    headers:{'Authorization':`token ${cfg.token}`,'Content-Type':'application/json'},
+    body:JSON.stringify({message:msg||'update '+path,content:btoa(unescape(encodeURIComponent(content))),sha})
+  });
+  return res.ok;
+}
+
+async function ghAppendLine(cfg,path,line,msg){
+  const file=await ghReadFile(cfg,path);
+  if(!file){
+    // File doesn't exist, create it
+    try{
+      const res=await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${path}`,{
+        method:'PUT',headers:{'Authorization':'token '+cfg.token,'Content-Type':'application/json'},
+        body:JSON.stringify({message:msg||'create '+path,content:btoa(unescape(encodeURIComponent(line+'\n')))})
+      });
+      if(res.ok)return{ok:true};
+      const err=await res.json().catch(()=>({}));
+      return{ok:false,reason:err.message||'HTTP '+res.status};
+    }catch(e){return{ok:false,reason:e.message||'network error'}}
+  }
+  const newContent=file.content.trim()+'\n'+line+'\n';
+  const ok=await ghWriteFile(cfg,path,newContent,file.sha,msg);
+  return ok?{ok:true}:{ok:false,reason:'write failed (SHA conflict?)'};
+}
+
+async function ghRemoveLine(cfg,path,line,msg){
+  const file=await ghReadFile(cfg,path);
+  if(!file)return false;
+  const lines=file.content.split('\n').filter(l=>l.trim()!==line.trim());
+  return ghWriteFile(cfg,path,lines.join('\n'),file.sha,msg);
+}
+
+// Approved supervisors list management
+function getApproved(){return LS.get('approved-supervisors')||[]}
+function saveApproved(list){LS.set('approved-supervisors',list)}
+function addApproved(code,devName){
+  const list=getApproved();
+  list.push({code,devName,ts:Date.now(),revoked:false});
+  saveApproved(list);
+}
+
+function ApprovedList({t,isAdmin}){
+  const[list,setList]=useState(getApproved);
+  const[revokedHash,setRevokedHash]=useState(null);
+  const[copiedIdx,setCopiedIdx]=useState(-1);
+  const[writeStatus,setWriteStatus]=useState('');
+
+  const doRevoke=async(i)=>{
+    const item=list[i];
+    const h=revokeHash(item.code);
+    const updated=[...list];updated[i]={...item,revoked:true,revokedAt:Date.now()};
+    setList(updated);saveApproved(updated);
+    setRevokedHash({idx:i,hash:h});
+    addLog(fmtLog(t.logRevoke,[item.code,item.devName||'']),'supervisor');
+    // Auto-write to GitHub if config exists
+    const gh=getGHConfig();
+    if(gh.token&&gh.owner&&gh.repo){
+      setWriteStatus(t.ghWriting);
+      const ok=await ghAppendLine(gh,'revoked.cfg',h,'revoke '+item.code);
+      setWriteStatus(ok?.ok?t.ghWriteOk:t.ghWriteFail);
+    }
+  };
+
+  const copyRvHash=async(h,i)=>{
+    try{await navigator.clipboard.writeText(h)}catch{};
+    setCopiedIdx(i);setTimeout(()=>setCopiedIdx(-1),2000);
+  };
+
+  const active=list.filter(x=>!x.revoked);
+  const revoked=list.filter(x=>x.revoked);
+
+  if(!list.length)return null;
+  return(
+    <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+      <h3 className="text-sm font-semibold text-amber-400">{t.supervisorList||t.adminList}</h3>
+      {active.map((item,i)=>{
+        const realIdx=list.indexOf(item);
+        return(
+          <div key={realIdx} className="flex items-center justify-between py-2 border-b border-white/[0.04]">
+            <div>
+              <span className="text-sm text-gray-200 font-semibold">{item.code}</span>
+              {item.devName&&<span className="text-[10px] text-gray-600 ml-2">{item.devName}</span>}
+              <div className="text-[10px] text-gray-700">{fmtDate(item.ts)}</div>
+            </div>
+            <button onClick={()=>doRevoke(realIdx)}
+              className="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs font-medium active:bg-red-500/20">{t.revoke}</button>
+          </div>
+        );
+      })}
+      {revokedHash&&(
+        <div className="fi bg-red-500/10 border border-red-500/20 rounded-xl p-3 space-y-2">
+          <p className="text-xs text-gray-400">{isAdmin?(writeStatus.includes('✓')?writeStatus:t.revokeHint):t.revokeToAdmin}</p>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-red-400 font-mono select-all flex-1 text-center">{revokedHash.hash}</span>
+            <button onClick={()=>copyRvHash(revokedHash.hash,revokedHash.idx)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium ${copiedIdx===revokedHash.idx?'bg-emerald-600/20 text-emerald-400':'bg-white/10 text-gray-300'}`}>
+              {copiedIdx===revokedHash.idx?'✓':'📋'}
+            </button>
+          </div>
+          {writeStatus&&!writeStatus.includes('✓')&&<p className="text-xs text-center text-red-400">{writeStatus}</p>}
+        </div>
+      )}
+      {revoked.length>0&&(
+        <div className="pt-2">
+          <p className="text-[10px] text-gray-700 mb-1">{t.revokedList}</p>
+          {revoked.map((item,i)=>(
+            <div key={i} className="flex items-center justify-between py-1">
+              <span className="text-xs text-gray-600 line-through">{item.code} {item.devName&&`(${item.devName})`}</span>
+              <span className="text-[10px] text-red-400/50">{t.expired}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+function genUUID(){return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&0x3|0x8)).toString(16)})}
+
+/* ══════════ i18n ══════════ */
+const T={
+zh:{
+  settings:"設定",yearly:"年度薪資",monthly:"月份明細",home:"首頁",
+  unitPrice:"每支單價",teacherCode:"老師代碼",language:"語系",
+  year:"年份",save:"儲存",saved:"已儲存 ✓",
+  units:"支數",salary:"薪水",laodian:"老點",subtotal:"小計",
+  prevPeriod:"上期",nextPeriod:"下期",monthTotal:"月合計",total:"合計",
+  sick:"病假",late:"遲到",rest:"休假",normal:"正常",personal:"事假",early:"早退",
+  dn:["日","一","二","三","四","五","六"],
+  months:["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"],
+  addGroup:"新增客組",directMode:"直接輸入",groupMode:"分組輸入",
+  status:"狀態",done:"完成",cancel:"取消",
+  exportUrl:"匯出備份碼",importUrl:"匯入備份碼",importOk:"匯入成功！",
+  importFail:"格式錯誤",copyDone:"已複製",enterUrl:"貼上備份碼...",
+  noData:"無資料",totalUnits:"總支數",groupLabel:"組",backup:"備份",
+  p1:"上半月 (1-15日)",p2:"下半月 (16日-月底)",
+  yesterday:"昨日",lastRecord:"上一筆",
+  todayDone:"今日已完成",startAdd:"開始新增本日的支數？",continueAdd:"繼續新增本日的支數？",
+  addLaodian:"新增老點？",other:"其他",
+  welcome:"歡迎使用薪資追蹤系統",enterCode:"請輸入老師編號",confirm:"確定",
+  showQR:"請將 QR Code 提供給管理員索取啟動碼",enterActivation:"輸入啟動碼",
+  activationHint:"貼上管理者提供的啟動碼",activationFail:"啟動碼錯誤，請重新確認",
+  copyToLine:"點此複製，傳 LINE 給管理者",
+  adminWelcome:"管理員身分確認，自動啟動中...",
+  admin:"管理",adminTitle:"管理頁面",genActivation:"產生啟動碼",
+  pasteEncrypted:"貼上加密字串",resultCode:"啟動碼",adminFail:"無管理權限",
+  encryptTool:"加密/解密工具",encryptLabel:"加密",decryptLabel:"解密",
+  inputText:"輸入文字",deviceId:"裝置 ID",
+  adminCheck:"檢查",adminEnter:"進入",
+  adminApply:"申請主管",adminPending:"審核中",adminActivate:"啟動",
+  adminApplyDesc:"申請主管權限",deviceName:"設備名稱（選填）",
+  adminAppCode:"申請碼",adminAppCopy:"點此複製，傳 LINE 給管理者",
+  adminActInput:"輸入管理啟動碼",adminActFail:"啟動碼錯誤",
+  adminFail:"無管理權限",
+  supervisor:"主管頁面",supervisorTitle:"主管",
+  supervisorApprove:"主管申請審核",supervisorApproveHint:"貼上申請碼",
+  supervisorInfo:"申請人資訊",
+  revoke:"取消主管權限",revokeHint:"請將此碼新增到 GitHub revoked.cfg",revokeCode:"撤銷碼",
+  revokeInput:"輸入撤銷碼",revokeSuccess:"主管權限已取消",revokeFail:"撤銷碼錯誤",
+  actionLog:"操作記錄",logGenUser:"生成{0}號啟動碼",logGenSup:"生成{0}號主管啟動碼({1})",
+  logRevoke:"取消{0}號主管權限({1})",supervisorList:"主管名單",
+  logTeacherActivate:"{0}號老師啟用主管權限({1})",
+  revokeToAdmin:"請將此碼傳給管理者新增到 revoked.cfg",
+  revokedList:"已撤銷",expired:"權限已過期",ok:"確認",
+  ghConfig:"GitHub 設定",ghOwner:"帳號",ghRepo:"Repo 名稱",ghToken:"Personal Access Token",
+  ghSave:"儲存",ghSaved:"已儲存 ✓",ghTest:"測試連線",ghOk:"連線成功 ✓",ghFail:"連線失敗",
+  ghWriting:"寫入中...",ghWriteOk:"已寫入 GitHub ✓",ghWriteFail:"寫入失敗",ghAuto:"自動寫入 GitHub",
+  ghEdit:"編輯",ghLocked:"設定已鎖定，按編輯可修改",
+  keyConfig:"密鑰設定",keyFile:"檔案",keyStart:"起始位置",keyLen:"取幾字",keyTest:"測試密鑰",
+  keyResult:"組合結果",keyMatch:"與現行密鑰一致 ✓",keyMismatch:"⚠️ 與現行密鑰不同，儲存後將更換密鑰",
+  keySave:"儲存密鑰設定",keySaved:"密鑰設定已儲存 ✓",keyAddRule:"新增規則",keyDelRule:"刪除",
+  keyFileOk:"{0} 存在",keyFileFail:"{0} 不存在",keyLenOk:"{0} 第1行 {1} 字 ≥ 需要 {2} 字",
+  keyLenFail:"{0} 第1行僅 {1} 字，需至少 {2} 字",keyBuilt:"組合密鑰：{0} 字元",
+  keyAdminOk:"admin.cfg 共 {0} 筆，全部符合",keyAdminPartial:"admin.cfg {0}/{1} 筆符合",
+  keyAdminNone:"admin.cfg {0} 筆皆不符合",keyMigrate:"轉換為新密鑰",keyMigrating:"轉換中...",
+  keyMigrateOk:"已轉換並寫入 GitHub ✓",keyMigrateFail:"轉換失敗",
+  adminList:"管理者名單",adminAdd:"新增管理者",adminDel:"刪除",adminDelConfirm:"確定刪除此管理者？",
+  adminDelLast:"至少需保留一位管理者",adminDelOk:"已從 GitHub 刪除 ✓",adminDelFail:"刪除失敗",
+  adminAddHint:"請將此雜湊碼新增到 GitHub admin.cfg",adminCfg:"目前 admin.cfg",adminLocal:"本機新增",
+  onlineApprove:"線上核准",approveTeacher:"核准老師",approveSupervisor:"核准主管",
+  approveName:"姓名",approveLang:"語系",approveLevel:"主管等級",
+  approveBtn:"核准",approving:"核准中...",approveOk:"已核准 ✓",approveFail:"核准失敗",
+  approveMsg:"你的帳號已可使用了，再看看有沒有使用上的問題 😊",approveCopied:"已複製回覆訊息 ✓",
+  waitApproval:"等待審核中",waitHint:"請將上方申請碼傳給管理者，核准後重開 App 即可使用",
+  checkApproval:"重新檢查",checking:"檢查中...",approved:"已核准！",
+  staffList:"員工名單",staffEmpty:"尚無員工資料",staffRole:"角色",staffStatus:"狀態",
+  staffActive:"在職",staffRevoked:"已停用",logApproveTeacher:"核准老師 {0}({1})",
+  logApproveSupervisor:"核准主管 {0}({1}) {2}",
+  store:"所在店面",storeManage:"店面管理",storeAdd:"新增店面",storeDel:"刪除",storeEmpty:"尚無店面",
+  storeSaved:"已儲存 ✓",teacherActivation:"老師啟動碼",supActivation:"主管啟動碼",
+  sortByStore:"按店面",sortByCode:"按編號",sortByRole:"按職務",
+  theme:"背景主題",themePink:"粉紅",themeBlack:"黑色",themeWhite:"白色",themeGray:"灰色",
+  resetAll:"一鍵還原初始設定",resetAllConfirm:"確定還原？將清除所有員工與主管資料（保留管理員122、Token、記錄）",
+  resetAllOk:"已還原初始設定 ✓",resetSup:"一鍵移除所有主管權限",resetSupConfirm:"確定移除所有主管權限？",
+  resetSupOk:"已移除所有主管權限 ✓",resetApp:"重置申請",
+  removeToken:"移除（轉離線）",removeSup:"取消主管權限",removeConfirm:"確定移除 {0}？",
+  connection:"連線作業",connApply:"申請認證",connCode:"連線碼",connInput:"貼上連線碼",connOk:"連線成功 ✓",
+  connFail:"連線碼錯誤",connExpired:"你的連線認證已逾期，請重新申請",connStatus:"連線狀態",connOnline:"已連線 ☁️",connOffline:"離線 📥",
+  editStaff:"人員編輯",editStore:"所在店面",editDel:"刪除此員工",editDelConfirm:"確定刪除 {0}？",
+  editDevices:"連線設備",editRevokeConn:"取消連線",editNoDevices:"無連線設備",
+  genConn:"產生連線碼",genConnHint:"貼上老師的 編號:uuid",needConnFirst:"請先完成連線設定才能申請主管",
+  skills:"老師技能",guasha:"刮痧",baguang:"拔罐",xiujiao:"修腳皮",gs:"刮",bg:"拔",xj:"修",clearAll:"一鍵清除",
+  notice1:"⚠️ 資料只存在本機，不會上傳雲端。",
+  notice2:"LINE 與手機內建瀏覽器的暫存是分開的，啟動碼會不同，請固定使用同一個瀏覽器。",
+  notice3:"資料跟著手機走，換手機前請先到設定頁匯出備份。",
+},
+vi:{
+  settings:"Cài đặt",yearly:"Lương năm",monthly:"Chi tiết",home:"Trang chủ",
+  unitPrice:"Đơn giá",teacherCode:"Mã NV",language:"Ngôn ngữ",
+  year:"Năm",save:"Lưu",saved:"Đã lưu ✓",
+  units:"SL",salary:"Lương",laodian:"KH quen",subtotal:"Tổng",
+  prevPeriod:"Kỳ trước",nextPeriod:"Kỳ sau",monthTotal:"Tổng tháng",total:"Tổng cộng",
+  sick:"Nghỉ bệnh",late:"Đi trễ",rest:"Nghỉ phép",normal:"BT",personal:"Nghỉ việc riêng",early:"Về sớm",
+  dn:["CN","T2","T3","T4","T5","T6","T7"],
+  months:["Th1","Th2","Th3","Th4","Th5","Th6","Th7","Th8","Th9","Th10","Th11","Th12"],
+  addGroup:"Thêm khách",directMode:"Nhập trực tiếp",groupMode:"Nhập theo nhóm",
+  status:"Trạng thái",done:"Xong",cancel:"Hủy",
+  exportUrl:"Xuất mã",importUrl:"Nhập mã",importOk:"Thành công!",
+  importFail:"Sai định dạng",copyDone:"Đã chép",enterUrl:"Dán mã...",
+  noData:"Không có",totalUnits:"Tổng SL",groupLabel:"Nhóm",backup:"Sao lưu",
+  p1:"Nửa đầu (1-15)",p2:"Nửa sau (16-cuối)",
+  yesterday:"Hôm qua",lastRecord:"Lần trước",
+  todayDone:"Hôm nay đã xong",startAdd:"Thêm SL hôm nay?",continueAdd:"Tiếp tục thêm?",
+  addLaodian:"Thêm KH quen?",other:"Khác",
+  welcome:"Chào mừng",enterCode:"Nhập mã nhân viên",confirm:"Xác nhận",
+  showQR:"Đưa mã QR cho quản lý để nhận mã kích hoạt",enterActivation:"Nhập mã kích hoạt",
+  activationHint:"Dán mã kích hoạt từ quản lý",activationFail:"Sai mã kích hoạt",
+  copyToLine:"Nhấn để sao chép, gửi LINE cho quản lý",
+  adminWelcome:"Xác nhận quản lý, tự động kích hoạt...",
+  admin:"Quản lý",adminTitle:"Trang quản lý",genActivation:"Tạo mã kích hoạt",
+  pasteEncrypted:"Dán chuỗi mã hóa",resultCode:"Mã kích hoạt",adminFail:"Không có quyền",
+  encryptTool:"Mã hóa/Giải mã",encryptLabel:"Mã hóa",decryptLabel:"Giải mã",
+  inputText:"Nhập văn bản",deviceId:"Mã thiết bị",
+  adminCheck:"Kiểm tra",adminEnter:"Vào",
+  adminApply:"Đăng ký quản lý",adminPending:"Đang xét duyệt",adminActivate:"Kích hoạt",
+  adminApplyDesc:"Đăng ký quyền quản lý",deviceName:"Tên thiết bị (tùy chọn)",
+  adminAppCode:"Mã đăng ký",adminAppCopy:"Nhấn để sao chép, gửi LINE cho quản lý",
+  adminActInput:"Nhập mã kích hoạt quản lý",adminActFail:"Sai mã kích hoạt",
+  adminFail:"Không có quyền",
+  supervisor:"Trang quản lý",supervisorTitle:"Quản lý",
+  supervisorApprove:"Duyệt đăng ký quản lý",supervisorApproveHint:"Dán mã đăng ký",
+  supervisorInfo:"Thông tin người đăng ký",
+  revoke:"Hủy quyền quản lý",revokeHint:"Thêm mã này vào GitHub revoked.cfg",revokeCode:"Mã hủy",
+  revokeInput:"Nhập mã hủy",revokeSuccess:"Đã hủy quyền quản lý",revokeFail:"Sai mã hủy",
+  actionLog:"Nhật ký",logGenUser:"Tạo mã kích hoạt #{0}",logGenSup:"Tạo mã quản lý #{0}({1})",
+  logRevoke:"Hủy quyền #{0}({1})",supervisorList:"Danh sách quản lý",
+  logTeacherActivate:"NV #{0} kích hoạt quyền quản lý({1})",
+  revokeToAdmin:"Gửi mã này cho quản trị viên để thêm vào revoked.cfg",
+  revokedList:"Đã hủy",expired:"Quyền đã hết hạn",ok:"OK",
+  ghConfig:"Cài đặt GitHub",ghOwner:"Tài khoản",ghRepo:"Tên Repo",ghToken:"Personal Access Token",
+  ghSave:"Lưu",ghSaved:"Đã lưu ✓",ghTest:"Thử kết nối",ghOk:"Kết nối OK ✓",ghFail:"Kết nối thất bại",
+  ghWriting:"Đang ghi...",ghWriteOk:"Đã ghi GitHub ✓",ghWriteFail:"Ghi thất bại",ghAuto:"Tự động ghi GitHub",
+  ghEdit:"Sửa",ghLocked:"Đã khóa, nhấn Sửa để chỉnh",
+  keyConfig:"Cài đặt khóa",keyFile:"Tệp",keyStart:"Vị trí",keyLen:"Số ký tự",keyTest:"Thử khóa",
+  keyResult:"Kết quả",keyMatch:"Khớp khóa hiện tại ✓",keyMismatch:"⚠️ Khác khóa hiện tại",
+  keySave:"Lưu cài đặt khóa",keySaved:"Đã lưu ✓",keyAddRule:"Thêm quy tắc",keyDelRule:"Xóa",
+  keyFileOk:"{0} tồn tại",keyFileFail:"{0} không tồn tại",keyLenOk:"{0} dòng 1: {1} ký tự ≥ cần {2}",
+  keyLenFail:"{0} dòng 1: chỉ {1} ký tự, cần ≥ {2}",keyBuilt:"Khóa: {0} ký tự",
+  keyAdminOk:"admin.cfg {0} mục, tất cả khớp",keyAdminPartial:"admin.cfg {0}/{1} khớp",
+  keyAdminNone:"admin.cfg {0} mục không khớp",keyMigrate:"Chuyển sang khóa mới",keyMigrating:"Đang chuyển...",
+  keyMigrateOk:"Đã chuyển và ghi GitHub ✓",keyMigrateFail:"Chuyển thất bại",
+  adminList:"Danh sách quản lý",adminAdd:"Thêm quản lý",adminDel:"Xóa",adminDelConfirm:"Xác nhận xóa quản lý?",
+  adminDelLast:"Cần giữ ít nhất một quản lý",adminDelOk:"Đã xóa khỏi GitHub ✓",adminDelFail:"Xóa thất bại",
+  adminAddHint:"Thêm mã hash này vào GitHub admin.cfg",adminCfg:"admin.cfg hiện tại",adminLocal:"Thêm cục bộ",
+  onlineApprove:"Duyệt online",approveTeacher:"Duyệt NV",approveSupervisor:"Duyệt quản lý",
+  approveName:"Họ tên",approveLang:"Ngôn ngữ",approveLevel:"Cấp bậc",
+  approveBtn:"Duyệt",approving:"Đang duyệt...",approveOk:"Đã duyệt ✓",approveFail:"Duyệt thất bại",
+  approveMsg:"Tài khoản của bạn đã sẵn sàng, hãy thử và cho mình biết nếu có vấn đề gì nhé 😊",approveCopied:"Đã copy tin nhắn ✓",
+  waitApproval:"Đang chờ duyệt",waitHint:"Gửi mã trên cho quản lý, mở lại app sau khi được duyệt",
+  checkApproval:"Kiểm tra lại",checking:"Đang kiểm tra...",approved:"Đã duyệt!",
+  staffList:"Danh sách NV",staffEmpty:"Chưa có dữ liệu",staffRole:"Vai trò",staffStatus:"Trạng thái",
+  staffActive:"Đang làm",staffRevoked:"Đã nghỉ",logApproveTeacher:"Duyệt NV {0}({1})",
+  logApproveSupervisor:"Duyệt QL {0}({1}) {2}",
+  store:"Chi nhánh",storeManage:"Quản lý CN",storeAdd:"Thêm CN",storeDel:"Xóa",storeEmpty:"Chưa có CN",
+  storeSaved:"Đã lưu ✓",teacherActivation:"Mã kích hoạt NV",supActivation:"Mã kích hoạt QL",
+  sortByStore:"Theo CN",sortByCode:"Theo mã",sortByRole:"Theo chức vụ",
+  theme:"Giao diện",themePink:"Hồng",themeBlack:"Đen",themeWhite:"Trắng",themeGray:"Xám",
+  resetAll:"Khôi phục mặc định",resetAllConfirm:"Xác nhận? Sẽ xóa tất cả NV và QL (giữ admin 122, Token, log)",
+  resetAllOk:"Đã khôi phục ✓",resetSup:"Xóa tất cả quyền QL",resetSupConfirm:"Xác nhận xóa tất cả quyền QL?",
+  resetSupOk:"Đã xóa ✓",resetApp:"Đặt lại đơn",
+  removeToken:"Xóa (offline)",removeSup:"Hủy quyền QL",removeConfirm:"Xác nhận xóa {0}?",
+  connection:"Kết nối",connApply:"Yêu cầu xác thực",connCode:"Mã kết nối",connInput:"Dán mã kết nối",connOk:"Kết nối OK ✓",
+  connFail:"Sai mã kết nối",connExpired:"Xác thực đã hết hạn, vui lòng yêu cầu lại",connStatus:"Trạng thái",connOnline:"Online ☁️",connOffline:"Offline 📥",
+  editStaff:"Chỉnh sửa NV",editStore:"Chi nhánh",editDel:"Xóa NV",editDelConfirm:"Xác nhận xóa {0}?",
+  editDevices:"Thiết bị",editRevokeConn:"Ngắt kết nối",editNoDevices:"Không có thiết bị",
+  genConn:"Tạo mã kết nối",genConnHint:"Dán mã:uuid của NV",needConnFirst:"Cần kết nối trước khi yêu cầu quyền QL",
+  skills:"Kỹ năng",guasha:"Cạo gió",baguang:"Giác hơi",xiujiao:"Sửa da chân",gs:"C",bg:"G",xj:"S",clearAll:"Xóa tất cả",
+  notice1:"⚠️ Dữ liệu chỉ lưu trên máy, không tải lên đám mây.",
+  notice2:"Trình duyệt LINE và trình duyệt mặc định lưu riêng, mã kích hoạt sẽ khác nhau. Hãy dùng cùng một trình duyệt.",
+  notice3:"Dữ liệu gắn với điện thoại. Trước khi đổi máy, hãy xuất sao lưu trong Cài đặt.",
+}};
+
+/* ══════════ Helpers ══════════ */
+const SKILL_KEYS=['guasha','baguang','xiujiao'];
+const SKILL_SHORT=['gs','bg','xj'];
+const SKILL_PRICES=[250,250,300];
+const SKILL_COLORS=['text-cyan-400','text-violet-400','text-pink-400'];
+const SK=["normal","sick","late","rest","personal","early"];
+const SBG=["","bg-red-500/20","bg-yellow-500/20","bg-blue-500/20","bg-purple-500/20","bg-orange-500/20"];
+const STC=["","text-red-300","text-yellow-300","text-blue-300","text-purple-300","text-orange-300"];
+const canWork=[true,false,true,false,false,true]; // which statuses allow recording
+const toB36=n=>Math.min(Math.max(Math.round(n),0),35).toString(36);
+const fromB36=c=>parseInt(c,36)||0;
+const dim=(y,m)=>new Date(y,m,0).getDate();
+const dow=(y,m,d)=>new Date(y,m-1,d).getDay();
+
+const LS={
+  get(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null}catch{return null}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){console.error(e)}},
+};
+const dk=(c,y,m)=>`data-${c}-${y}-${String(m).padStart(2,'0')}`;
+const eDay=()=>({groups:[],total:0,laodian:0,status:0,skills:{guasha:0,baguang:0,xiujiao:0},did:'',ts:0});
+const stamp=(dd)=>{dd.did=getDeviceId();dd.ts=Date.now();return dd};
+const calcSal=(day,unitPrice,enabledSkills)=>{
+  let sal=day.total*unitPrice;
+  const sk=day.skills||{};
+  SKILL_KEYS.forEach((k,i)=>{if(enabledSkills?.[k])sal+=(sk[k]||0)*SKILL_PRICES[i]});
+  return sal;
+};
+const eMon=()=>{const d={};for(let i=1;i<=31;i++)d[i]=eDay();return{days:d}};
+
+function encMonth(code,y,m,data){
+  let u="",l="",s="",sg="",sb="",sx="";
+  for(let d=1;d<=31;d++){const day=d<=dim(y,m)&&data.days[d]?data.days[d]:eDay();const sk=day.skills||{};
+    u+=toB36(day.total);l+=toB36(day.laodian);s+=day.status.toString();
+    sg+=toB36(sk.guasha||0);sb+=toB36(sk.baguang||0);sx+=toB36(sk.xiujiao||0);
+  }
+  // Only append skill fields if any non-zero
+  const hasSkills=sg.replace(/0/g,'')||sb.replace(/0/g,'')||sx.replace(/0/g,'');
+  return`${code}-${y}-${String(m).padStart(2,'0')}:${u}:${l}:${s}${hasSkills?`:${sg}:${sb}:${sx}`:''}`;
+}
+function decBackup(str){
+  try{const c=str.replace(/^#/,'').trim();const parts=c.split(':');const hd=parts[0],units=parts[1],laodian=parts[2],status=parts[3];
+  const sg=parts[4]||'',sb=parts[5]||'',sx=parts[6]||'';
+  const p=hd.split('-');const m=parseInt(p.pop());const y=parseInt(p.pop());const code=p.join('-');
+  if(!y||!m||m<1||m>12||!code)return null;const data=eMon();const dm=dim(y,m);
+  for(let d=1;d<=dm;d++)data.days[d]={groups:[],total:fromB36(units?.[d-1]||'0'),laodian:fromB36(laodian?.[d-1]||'0'),status:parseInt(status?.[d-1]||'0')||0,
+    skills:{guasha:fromB36(sg?.[d-1]||'0'),baguang:fromB36(sb?.[d-1]||'0'),xiujiao:fromB36(sx?.[d-1]||'0')}};
+  return{code,year:y,month:m,data}}catch{return null}
+}
+
+// Get or create device UUID
+function getDeviceId(){
+  let id=localStorage.getItem('device-uuid');
+  if(!id){id=genUUID();localStorage.setItem('device-uuid',id)}
+  return id;
+}
+
+
+function NoticeBox({t}){
+  return(
+    <div className="mt-6 space-y-2 text-[11px] text-gray-600 leading-relaxed">
+      <p>{t.notice1}</p>
+      <p>{t.notice2}</p>
+      <p>{t.notice3}</p>
+    </div>
+  );
+}
+
+/* ══════════ Onboarding ══════════ */
+function Onboarding({onComplete}){
+  const[step,setStep]=useState(1);
+  const[lang,setLang]=useState('zh');
+  const[code,setCode]=useState('');
+  const[actInput,setActInput]=useState('');
+  const[err,setErr]=useState('');
+  const[checking,setChecking]=useState(false);
+  const[copied,setCopied]=useState(false);
+  const[devId]=useState(()=>getDeviceId());
+  const[stores,setStores]=useState(['龍山寺店']);
+  const[store,setStore]=useState('龍山寺店');
+  const t=T[lang];
+
+  useEffect(()=>{loadStores().then(s=>{setStores(s);setStore(s[0]||'龍山寺店')})},[]);
+
+  const encReg=code?xEnc(`${code}:${devId}:${lang}:${encodeURIComponent(store)}`):'';
+  const qrUrl=encReg?`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(encReg)}&bgcolor=030712&color=f3f4f6`:'';
+
+  const doActivate=(settings)=>{
+    LS.set('app-settings',settings);
+    LS.set(`activated-${code}`,{deviceId:devId,ts:Date.now()});
+    onComplete(settings);
+  };
+
+  const goStep2=async()=>{
+    if(!code.trim())return;
+    setChecking(true);
+    try{
+      // Check admin.cfg (admin auto-activate)
+      const ctrl=new AbortController();
+      const timer=setTimeout(()=>ctrl.abort(),5000);
+      const res=await fetch('./admin.cfg',{cache:'no-store',signal:ctrl.signal});
+      clearTimeout(timer);
+      if(res.ok){
+        const text=(await res.text()).trim();
+        const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
+        const myHash=adminHash(code);
+        const match=lines.some(l=>{const parts=l.split(':');const h=parts.length>=2?parts[parts.length-1]:parts[0];return h===myHash});
+        if(match){
+          doActivate({code,unitPrice:250,lang,store,year:new Date().getFullYear(),deviceId:devId});return;
+        }
+      }
+    }catch{}
+    // Check approved.cfg (online approval)
+    try{
+      const result=await checkApproved('t',approveHash(code,devId));
+      if(result){
+        doActivate({code,unitPrice:250,lang,store,year:new Date().getFullYear(),deviceId:devId});return;
+      }
+    }catch{}
+    setChecking(false);
+    setStep(2);
+    setErr('');
+    // Auto-copy registration code
+    const enc=xEnc(`${code}:${devId}:${lang}:${store}`);
+    try{navigator.clipboard.writeText(enc)}catch{}
+    setCopied(true);setTimeout(()=>setCopied(false),2000);
+  };
+
+  const checkOnlineApproval=async()=>{
+    setWaitStatus(t.checking);
+    // Check staff.json if we have GitHub config
+    const gh=getGHConfig();
+    if(gh.token){
+      try{
+        const staff=await readStaff(gh);
+        const me=staff.find(s=>s.code===code&&s.status==='active');
+        if(me){
+          setWaitStatus(t.approved);
+          setTimeout(()=>doActivate({code,unitPrice:250,lang,store,year:new Date().getFullYear(),deviceId:devId}),800);
+          return;
+        }
+      }catch{}
+    }
+    // Fallback: check approved.cfg
+    try{
+      const result=await checkApproved('t',approveHash(code,devId));
+      if(result){
+        setWaitStatus(t.approved);
+        setTimeout(()=>doActivate({code,unitPrice:250,lang,store,year:new Date().getFullYear(),deviceId:devId}),800);
+        return;
+      }
+    }catch{}
+    setWaitStatus('');
+    setErr(t.waitHint);
+  };
+
+  const verify=()=>{
+    const input=actInput.replace(/[\s-]/g,'').trim();
+    // Simple 9-digit activation code
+    const correct=genSimpleAct(code).replace(/-/g,'');
+    if(input===correct){
+      doActivate({code,unitPrice:250,lang,store,year:new Date().getFullYear(),deviceId:devId});
+    }else{setErr(t.activationFail)}
+  };
+
+  return(
+    <div className="min-h-screen flex items-center justify-center p-6">
+      <div className="w-full max-w-sm fi">
+        {step===1&&(
+          <div className="space-y-6">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-amber-600/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
+              </div>
+              <h1 className="text-xl font-bold text-gray-100 mb-1">{t.welcome}</h1>
+            </div>
+            <div>
+              <label className="text-sm text-gray-400 mb-1.5 block">{t.language}</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[['zh','中文'],['vi','Tiếng Việt']].map(([c,l])=>(
+                  <button key={c} onClick={()=>setLang(c)} className={`py-3 rounded-xl text-sm font-semibold transition-all ${lang===c?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-sm text-gray-400 mb-1.5 block">{t.store}</label>
+              <select value={store} onChange={e=>setStore(e.target.value)}
+                className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3.5 text-lg text-gray-100 focus:outline-none focus:border-amber-500 appearance-none">
+                {stores.map(s=><option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-sm text-gray-400 mb-1.5 block">{t.enterCode}</label>
+              <input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))}
+                className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3.5 text-xl text-center text-gray-100 tracking-widest focus:outline-none focus:border-amber-500" placeholder="122"/>
+            </div>
+            <button onClick={goStep2} disabled={!code.trim()||checking}
+              className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${code.trim()&&!checking?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>
+              {checking?t.adminWelcome:t.confirm}
+            </button>
+            <NoticeBox t={t}/>
+          </div>
+        )}
+
+        {step===2&&(
+          <div className="space-y-5">
+            <div className="flex justify-center">
+              <div className="bg-white p-2.5 rounded-xl"><img src={qrUrl} alt="QR" className="w-44 h-44"/></div>
+            </div>
+            <p className="text-sm text-amber-400 text-center font-medium">{t.showQR}</p>
+            <div className="bg-white/[0.03] rounded-xl p-3 text-center">
+              <p className="text-[10px] text-gray-600 break-all font-mono select-all mb-2">{encReg}</p>
+              <button onClick={async()=>{try{await navigator.clipboard.writeText(encReg)}catch{};setCopied(true);setTimeout(()=>setCopied(false),2000)}}
+                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${copied?'bg-emerald-600/20 text-emerald-400':'bg-amber-600/20 text-amber-400 active:bg-amber-600/30'}`}>
+                {copied?'✓ '+t.copyDone:'📋 '+t.copyToLine}
+              </button>
+            </div>
+
+            {/* Activation code input */}
+            <div>
+              <label className="text-sm text-gray-400 mb-1.5 block">{t.enterActivation}</label>
+              <input value={actInput} onChange={e=>setActInput(e.target.value.replace(/[^0-9-]/g,''))} placeholder="xxx-xxx-xxx" maxLength={11}
+                className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3.5 text-xl text-center text-gray-100 font-mono tracking-widest focus:outline-none focus:border-amber-500"/>
+            </div>
+            {err&&<p className="text-red-400 text-sm text-center fi">{err}</p>}
+            <div className="flex gap-2">
+              <button onClick={()=>{setStep(1);setErr('')}} className="flex-1 py-4 rounded-xl bg-white/[0.05] text-gray-400 font-semibold">{t.cancel}</button>
+              <button onClick={verify} className="flex-1 py-4 rounded-xl bg-amber-600 text-white font-bold text-lg">{t.confirm}</button>
+            </div>
+            <NoticeBox t={t}/>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════ Home Page ══════════ */
+function HomePage({settings,t,refreshKey}){
+  const now=new Date();
+  const ty=settings.year||now.getFullYear(),tm=now.getMonth()+1,td=now.getDate();
+  const[data,setData]=useState(null);
+  const[prev,setPrev]=useState(null);
+  const[otherMode,setOtherMode]=useState(false);
+  const[otherVal,setOtherVal]=useState('');
+  const[editPrev,setEditPrev]=useState(false);
+
+  const load=()=>{
+    const md=LS.get(dk(settings.code,ty,tm));
+    setData(md);
+    let found=false;
+    if(md?.days){for(let d=td-1;d>=1;d--){const day=md.days[d];if(day&&(day.total>0||day.status>0)){setPrev({day:d,month:tm,year:ty,...day});found=true;break}}}
+    if(!found){for(let pm=tm-1;pm>=1;pm--){const pmd=LS.get(dk(settings.code,ty,pm));if(!pmd)continue;for(let d=dim(ty,pm);d>=1;d--){const day=pmd.days?.[d];if(day&&(day.total>0||day.status>0)){setPrev({day:d,month:pm,year:ty,...day});found=true;break}}if(found)break}}
+    if(!found)setPrev(null);
+  };
+  useEffect(load,[settings.code,refreshKey]);
+
+  const todayData=data?.days?.[td]||eDay();
+  const hasToday=todayData.total>0||todayData.status>0||(todayData.skills&&Object.values(todayData.skills).some(v=>v>0));
+  const sal=calcSal(todayData,settings.unitPrice,settings.skills);
+
+  const addUnits=(n)=>{
+    const md=data?JSON.parse(JSON.stringify(data)):eMon();
+    const dd=md.days[td]||eDay();
+    dd.total+=n;dd.groups=[...dd.groups,n];
+    stamp(dd);md.days[td]=dd;setData({...md});
+    LS.set(dk(settings.code,ty,tm),md);
+    setOtherMode(false);setOtherVal('');
+  };
+  const addLaodian=(n)=>{
+    const md=data?JSON.parse(JSON.stringify(data)):eMon();
+    const dd=md.days[td]||eDay();
+    dd.laodian+=n;stamp(dd);md.days[td]=dd;setData({...md});
+    LS.set(dk(settings.code,ty,tm),md);
+  };
+
+  const setTodayStatus=(s)=>{
+    const md=data?JSON.parse(JSON.stringify(data)):eMon();
+    const dd=md.days[td]||eDay();
+    dd.status=s;
+    if(!canWork[s]){dd.total=0;dd.laodian=0;dd.groups=[];dd.skills={guasha:0,baguang:0,xiujiao:0};}
+    stamp(dd);md.days[td]=dd;setData({...md});
+    LS.set(dk(settings.code,ty,tm),md);
+  };
+
+  const addSkill=(key)=>{
+    const md=data?JSON.parse(JSON.stringify(data)):eMon();
+    const dd=md.days[td]||eDay();
+    if(!dd.skills)dd.skills={guasha:0,baguang:0,xiujiao:0};
+    dd.skills[key]=(dd.skills[key]||0)+1;
+    stamp(dd);md.days[td]=dd;setData({...md});
+    LS.set(dk(settings.code,ty,tm),md);
+  };
+
+  const savePrevDay=(d,dd)=>{
+    if(!prev)return;
+    const key=dk(settings.code,prev.year,prev.month);
+    const md=JSON.parse(JSON.stringify(LS.get(key)||eMon()));
+    md.days[d]=dd;
+    LS.set(key,md);
+    setPrev({...prev,...dd});
+    if(prev.month===tm)setData(md);
+    setEditPrev(false);
+  };
+
+  const prevDow=prev?dow(prev.year,prev.month,prev.day):0;
+
+  return(
+    <div className="p-5 max-w-md mx-auto fi">
+      {/* Previous day - always show, clickable */}
+      {prev&&(
+        <div onClick={()=>setEditPrev(true)} className="bg-white/[0.03] border border-white/[0.05] rounded-2xl p-4 mb-4 active:bg-white/[0.06] cursor-pointer">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-lg font-bold text-gray-400">{prev.month}/{prev.day}</span>
+              <span className="text-sm text-gray-600 ml-1">({t.dn[prevDow]})</span>
+            </div>
+            <div className="text-right">
+              {canWork[prev.status||0]?(
+                <span className="text-xl font-bold text-gray-400 tabular-nums">${calcSal(prev,settings.unitPrice,settings.skills).toLocaleString()}</span>
+              ):(
+                <span className={`text-sm px-2 py-0.5 rounded-full ${SBG[prev.status]} ${STC[prev.status]}`}>{t[SK[prev.status]]}</span>
+              )}
+            </div>
+          </div>
+          {canWork[prev.status||0]&&(
+            <div className="flex items-center justify-between mt-0.5">
+              <span className="text-xs text-gray-600">{prev.total}{t.units}{prev.laodian>0?` · ${prev.laodian}${t.laodian}`:''}</span>
+              <svg className="w-3.5 h-3.5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Today header */}
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-100">{tm}/{td} <span className="text-gray-500 font-normal text-lg">({t.dn[now.getDay()]})</span></h1>
+          <p className="text-xs text-gray-600 font-mono">#{settings.code}</p>
+        </div>
+        <div className="text-right">
+          <div className="text-3xl font-bold text-emerald-400 tabular-nums">${sal.toLocaleString()}</div>
+          <div className="text-xs text-gray-600">{todayData.total} {t.units}</div>
+        </div>
+      </div>
+
+      {/* Today status */}
+      {hasToday&&(
+        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 mb-5">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-emerald-400 font-medium">{t.todayDone}</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-emerald-300 font-bold text-lg">{todayData.total}{t.units}</span>
+              <span className="text-emerald-400 font-bold text-lg">${sal.toLocaleString()}</span>
+            </div>
+          </div>
+          {todayData.laodian>0&&<div className="mt-1 text-sm text-orange-400">{t.laodian}: {todayData.laodian}</div>}
+          {todayData.groups.length>1&&<div className="mt-1 text-xs text-gray-600">{todayData.groups.join(' + ')} = {todayData.total}</div>}
+          {todayData.skills&&SKILL_KEYS.map((k,i)=>(settings.skills?.[k]&&todayData.skills[k]>0)?
+            <span key={k} className={`inline-block mt-1 mr-2 text-xs ${SKILL_COLORS[i]}`}>{t[SKILL_SHORT[i]]}×{todayData.skills[k]}</span>:null
+          )}
+        </div>
+      )}
+
+      {/* Quick add units */}
+      <div className="mb-6">
+        <p className="text-sm text-gray-400 mb-3">{hasToday?t.continueAdd:t.startAdd}</p>
+        <div className="grid grid-cols-4 gap-2">
+          {[1,2,3,4,5,6].map(n=>(
+            <button key={n} onClick={()=>addUnits(n)}
+              className="py-4 rounded-xl bg-amber-600/15 border border-amber-600/20 text-amber-300 text-lg font-bold active:bg-amber-600/30 transition-all">+{n}</button>
+          ))}
+          {!otherMode?(
+            <button onClick={()=>setOtherMode(true)}
+              className="py-4 rounded-xl bg-white/[0.04] border border-white/[0.06] text-gray-500 text-sm font-medium active:bg-white/[0.08] col-span-2">{t.other}</button>
+          ):(
+            <div className="col-span-2 flex gap-1">
+              <input type="number" inputMode="numeric" value={otherVal} onChange={e=>setOtherVal(e.target.value)} autoFocus
+                className="flex-1 bg-white/[0.06] border border-amber-500/50 rounded-xl px-2 py-2 text-center text-lg text-gray-100 font-bold focus:outline-none" placeholder="?"/>
+              <button onClick={()=>{const v=parseInt(otherVal);if(v>0)addUnits(v)}}
+                className="px-4 rounded-xl bg-amber-600 text-white font-bold text-sm">OK</button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Quick add laodian */}
+      <div className="mb-6">
+        <p className="text-sm text-gray-400 mb-3">{t.addLaodian}</p>
+        <div className="grid grid-cols-6 gap-2">
+          {[1,2,3,4,5,6].map(n=>(
+            <button key={n} onClick={()=>addLaodian(n)}
+              className="py-3.5 rounded-xl bg-orange-500/10 border border-orange-500/15 text-orange-400 font-bold active:bg-orange-500/25 transition-all">+{n}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Skill buttons */}
+      {SKILL_KEYS.some(k=>settings.skills?.[k])&&(
+        <div className="mb-6">
+          <p className="text-sm text-gray-400 mb-3">{t.skills}</p>
+          <div className="grid grid-cols-3 gap-2">
+            {SKILL_KEYS.map((k,i)=>settings.skills?.[k]?(
+              <button key={k} onClick={()=>addSkill(k)}
+                className={`py-3 rounded-xl bg-white/[0.04] border border-white/[0.06] active:bg-white/[0.08] transition-all text-center`}>
+                <div className={`text-sm font-bold ${SKILL_COLORS[i]}`}>{t[SKILL_SHORT[i]]}{(todayData.skills?.[k]||0)>0?` ×${todayData.skills[k]}`:''}</div>
+                <div className="text-[10px] text-gray-600">{t[k]} ${SKILL_PRICES[i]}</div>
+              </button>
+            ):null)}
+          </div>
+        </div>
+      )}
+
+      {/* Status buttons */}
+      <div>
+        <p className="text-sm text-gray-400 mb-3">{t.status}</p>
+        <div className="grid grid-cols-3 gap-2">
+          {[0,3,4,1,2,5].map(s=>(
+            <button key={s} onClick={()=>setTodayStatus(s)}
+              className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                todayData.status===s
+                  ? (s===0?'bg-gray-600 text-white ring-2 ring-gray-500':`${SBG[s].replace('/20','/30')} ${STC[s]} ring-2 ring-current`)
+                  : 'bg-white/[0.04] text-gray-600'
+              }`}>{t[SK[s]]}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Edit previous day modal */}
+      {editPrev&&prev&&(
+        <DayEditor day={{groups:prev.groups||[],total:prev.total,laodian:prev.laodian,status:prev.status,skills:prev.skills||{}}}
+          d={prev.day} y={prev.year} m={prev.month} t={t} up={settings.unitPrice} sk={settings.skills}
+          onSave={savePrevDay} onCancel={()=>setEditPrev(false)}/>
+      )}
+    </div>
+  );
+}
+
+/* ══════════ Shared ══════════ */
+function SummaryTable({prev,next,month,t}){
+  const Row=({label,data,bold})=>(
+    <div className={`flex items-center py-2.5 ${bold?'':'border-b border-white/[0.04]'}`}>
+      <div className={`w-16 text-sm font-semibold ${bold?'text-amber-300':'text-gray-400'}`}>{label}</div>
+      <div className={`flex-1 text-right text-lg font-bold tabular-nums ${bold?'text-emerald-400':'text-emerald-400/80'}`}>${data.salary.toLocaleString()}</div>
+      <div className="w-14 text-right text-sm text-gray-400 tabular-nums">{data.units}</div>
+      <div className="w-10 text-right text-sm text-orange-400 tabular-nums">{data.laodian}</div>
+    </div>
+  );
+  return(
+    <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl px-3 py-1">
+      <div className="flex items-center pt-1.5 pb-1 text-[10px] text-gray-600">
+        <div className="w-16"></div>
+        <div className="flex-1 text-right">{t.salary}</div>
+        <div className="w-14 text-right">{t.units}</div>
+        <div className="w-10 text-right">{t.laodian}</div>
+      </div>
+      <Row label={t.prevPeriod} data={prev}/>
+      <Row label={t.nextPeriod} data={next}/>
+      <div className="border-t border-amber-500/30 mt-0.5 pt-0.5">
+        <Row label={t.monthTotal} data={month} bold/>
+      </div>
+    </div>
+  );
+}
+
+function DayRow({day,d,y,m,t,up,sk,onEdit}){
+  const dw=dow(y,m,d),we=dw===0||dw===6,nw=!canWork[day.status];
+  const sal=calcSal(day,up,sk);
+  return(
+    <div onClick={()=>onEdit(d)} className={`flex items-center px-3 py-2.5 border-b border-white/[0.04] active:bg-white/[0.06] cursor-pointer ${nw?'opacity-50':''}`}>
+      <div className="w-14 flex-shrink-0">
+        <span className="text-sm font-semibold text-gray-200">{d}</span>
+        <span className={`text-[11px] ml-1 ${we?'text-amber-500':'text-gray-600'}`}>{t.dn[dw]}</span>
+      </div>
+      <div className="flex-1 flex items-center gap-2 min-w-0">
+        {nw?(<span className={`text-xs px-2 py-0.5 rounded-full ${SBG[day.status]} ${STC[day.status]}`}>{t[SK[day.status]]}</span>):(
+          <>
+            <span className="text-sm text-gray-200 w-8 text-right tabular-nums font-medium">{day.total||''}</span>
+            <span className="text-sm text-emerald-400/80 w-16 text-right tabular-nums">{sal>0?'$'+sal.toLocaleString():''}</span>
+            <span className="text-sm text-orange-400/80 w-5 text-center tabular-nums">{day.laodian||''}</span>
+            {(day.status===2||day.status===5)&&<span className={`text-[10px] px-1.5 py-0.5 rounded-full ${SBG[day.status]} ${STC[day.status]}`}>{t[SK[day.status]]}</span>}
+            {day.skills&&SKILL_KEYS.map((k,i)=>(sk?.[k]&&day.skills[k]>0)?<span key={k} className={`text-[10px] ${SKILL_COLORS[i]}`}>{t[SKILL_SHORT[i]]}{day.skills[k]}</span>:null)}
+            {day.groups.length>1&&<span className="text-[10px] text-gray-600 truncate">{day.groups.join('+')}</span>}
+          </>
+        )}
+      </div>
+      <svg className="w-3.5 h-3.5 text-gray-700 flex-shrink-0 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
+    </div>
+  );
+}
+
+function DayEditor({day,d,y,m,t,up,sk,onSave,onCancel}){
+  const[mode,setMode]=useState(day.groups.length>1?'group':'direct');
+  const[groups,setGroups]=useState(day.groups.length>0?[...day.groups]:[]);
+  const[dt,setDt]=useState(day.total);
+  const[lo,setLo]=useState(day.laodian);
+  const[st,setSt]=useState(day.status);
+  const[skCounts,setSkCounts]=useState(()=>{const s=day.skills||{};return{guasha:s.guasha||0,baguang:s.baguang||0,xiujiao:s.xiujiao||0}});
+  const dw=dow(y,m,d);
+  const gt=groups.reduce((a,b)=>a+(parseInt(b)||0),0);
+  const ct=(!canWork[st])?0:(mode==='group'?gt:(parseInt(dt)||0));
+  const sw=canWork[st];
+  const previewSal=ct*up+SKILL_KEYS.reduce((a,k,i)=>a+(sk?.[k]?(skCounts[k]||0)*SKILL_PRICES[i]:0),0);
+
+  const save=()=>{const nr=!canWork[st];onSave(d,{
+    groups:nr?[]:(mode==='group'?groups.map(g=>parseInt(g)||0).filter(g=>g>0):[]),
+    total:nr?0:ct,laodian:nr?0:(parseInt(lo)||0),status:st,
+    skills:nr?{guasha:0,baguang:0,xiujiao:0}:skCounts,
+    did:getDeviceId(),ts:Date.now()
+  })};
+
+  const clearAll=()=>{setDt(0);setLo(0);setSt(0);setGroups([]);setSkCounts({guasha:0,baguang:0,xiujiao:0})};
+  const skAdj=(k,delta)=>setSkCounts(p=>({...p,[k]:Math.max(0,(p[k]||0)+delta)}));
+
+  return(
+    <div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onCancel}>
+      <div className="su bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+        <div className="p-4 border-b border-white/[0.06] flex items-center justify-between">
+          <h3 className="text-lg font-bold text-gray-100">{m}/{d} <span className="text-gray-500 font-normal">({t.dn[dw]})</span></h3>
+          <div className="text-right"><div className="text-emerald-400 text-xl font-bold tabular-nums">${previewSal.toLocaleString()}</div></div>
+        </div>
+        <div className="p-4 space-y-5">
+          <div>
+            <label className="text-xs text-gray-500 mb-2 block font-medium">{t.status}</label>
+            <div className="grid grid-cols-3 gap-2">
+              {[0,3,4,1,2,5].map(s=>(<button key={s} onClick={()=>setSt(s)} className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${st===s?(s===0?'bg-gray-600 text-white ring-2 ring-gray-500':`${SBG[s].replace('/20','/30')} ${STC[s]} ring-2 ring-current`):'bg-white/[0.04] text-gray-600'}`}>{t[SK[s]]}</button>))}
+            </div>
+          </div>
+          {sw&&(<>
+            <div className="flex bg-white/[0.04] rounded-xl p-1">
+              <button onClick={()=>setMode('direct')} className={`flex-1 py-2.5 rounded-lg text-sm font-medium ${mode==='direct'?'bg-amber-600 text-white':'text-gray-500'}`}>{t.directMode}</button>
+              <button onClick={()=>{setMode('group');if(!groups.length)setGroups([0])}} className={`flex-1 py-2.5 rounded-lg text-sm font-medium ${mode==='group'?'bg-amber-600 text-white':'text-gray-500'}`}>{t.groupMode}</button>
+            </div>
+            {mode==='direct'?(
+              <div><label className="text-xs text-gray-500 mb-2 block">{t.totalUnits}</label>
+              <input type="number" inputMode="numeric" value={dt||''} onChange={e=>setDt(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-4 text-3xl text-center text-gray-100 font-bold focus:outline-none focus:border-amber-500"/></div>
+            ):(
+              <div>
+                <div className="flex justify-between mb-2"><label className="text-xs text-gray-500">{t.groupMode}</label><span className="text-sm text-amber-400 font-bold">{t.totalUnits}: {gt}</span></div>
+                <div className="space-y-2">{groups.map((g,i)=>(<div key={i} className="flex items-center gap-2 fi"><span className="text-xs text-gray-600 w-10 text-right">{t.groupLabel}{i+1}</span><input type="number" inputMode="numeric" value={g||''} onChange={e=>{const ng=[...groups];ng[i]=e.target.value;setGroups(ng)}} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3 text-xl text-center text-gray-100 font-semibold focus:outline-none focus:border-amber-500"/>{groups.length>1&&<button onClick={()=>setGroups(groups.filter((_,j)=>j!==i))} className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-500/10 text-red-400 text-lg font-bold">×</button>}</div>))}</div>
+                <button onClick={()=>setGroups([...groups,0])} className="mt-3 w-full py-2.5 border-2 border-dashed border-white/10 rounded-xl text-sm text-gray-500 active:bg-white/[0.03]">+ {t.addGroup}</button>
+              </div>
+            )}
+            <div><label className="text-xs text-gray-500 mb-2 block">{t.laodian}</label>
+            <input type="number" inputMode="numeric" value={lo||''} onChange={e=>setLo(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-xl text-center text-gray-100 font-semibold focus:outline-none focus:border-amber-500"/></div>
+            {/* Skills */}
+            {SKILL_KEYS.some(k=>sk?.[k])&&(
+              <div>
+                <label className="text-xs text-gray-500 mb-2 block">{t.skills}</label>
+                <div className="space-y-2">
+                  {SKILL_KEYS.map((k,i)=>sk?.[k]?(
+                    <div key={k} className="flex items-center gap-2">
+                      <span className={`text-sm flex-1 ${SKILL_COLORS[i]}`}>{t[k]} <span className="text-xs text-gray-600">${SKILL_PRICES[i]}</span></span>
+                      <button onClick={()=>skAdj(k,-1)} className="w-10 h-10 rounded-xl bg-white/[0.06] text-gray-400 text-lg font-bold active:bg-white/[0.1]">−</button>
+                      <span className={`w-8 text-center text-lg font-bold ${SKILL_COLORS[i]}`}>{skCounts[k]||0}</span>
+                      <button onClick={()=>skAdj(k,1)} className="w-10 h-10 rounded-xl bg-white/[0.06] text-gray-400 text-lg font-bold active:bg-white/[0.1]">+</button>
+                    </div>
+                  ):null)}
+                </div>
+              </div>
+            )}
+          </>)}
+        </div>
+        <div className="p-4 border-t border-white/[0.06] space-y-2">
+          <div className="flex gap-3">
+            <button onClick={onCancel} className="flex-1 py-3.5 rounded-xl bg-white/[0.05] text-gray-400 font-semibold">{t.cancel}</button>
+            <button onClick={save} className="flex-1 py-3.5 rounded-xl bg-amber-600 text-white font-bold">{t.done}</button>
+          </div>
+          <button onClick={clearAll} className="w-full py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium active:bg-red-500/20">🗑 {t.clearAll}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════ Monthly ══════════ */
+function MonthlyPage({settings,curM,setCurM,t}){
+  const[data,setData]=useState(null);
+  const[editDay,setEditDay]=useState(null);
+  const y=settings.year||new Date().getFullYear();
+  useEffect(()=>{setData(LS.get(dk(settings.code,y,curM))||eMon())},[settings.code,y,curM]);
+  const saveDay=(d,dd)=>{const nd={...data,days:{...data.days,[d]:dd}};setData(nd);setEditDay(null);LS.set(dk(settings.code,y,curM),nd)};
+  const dm=dim(y,curM);
+  const calc=useMemo(()=>{
+    if(!data)return{prev:{units:0,salary:0,laodian:0},next:{units:0,salary:0,laodian:0},month:{units:0,salary:0,laodian:0}};
+    let pu=0,ps=0,pl=0,nu=0,ns=0,nl=0;
+    for(let d=1;d<=dm;d++){const day=data.days[d]||eDay();const u=day.total||0,lo=day.laodian||0,s=calcSal(day,settings.unitPrice,settings.skills);if(d<=15){pu+=u;ps+=s;pl+=lo}else{nu+=u;ns+=s;nl+=lo}}
+    return{prev:{units:pu,salary:ps,laodian:pl},next:{units:nu,salary:ns,laodian:nl},month:{units:pu+nu,salary:ps+ns,laodian:pl+nl}};
+  },[data,dm,settings.unitPrice,settings.skills]);
+
+  return(
+    <div className="max-w-lg mx-auto fi">
+      <div className="sticky top-0 z-10 bg-gray-950 pb-1">
+        <div className="px-2 py-2 flex gap-1 overflow-x-auto no-sb">
+          {Array.from({length:12},(_,i)=>i+1).map(m=>(<button key={m} onClick={()=>setCurM(m)} className={`px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 ${m===curM?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-600'}`}>{t.months[m-1]}</button>))}
+        </div>
+        <div className="px-3 py-2">
+          <SummaryTable prev={calc.prev} next={calc.next} month={calc.month} t={t}/>
+        </div>
+      </div>
+      <div className="px-3 py-1.5 bg-amber-600/[0.06] border-b border-amber-500/10"><span className="text-[11px] text-amber-500/80 font-semibold">{t.p1}</span></div>
+      {Array.from({length:Math.min(15,dm)},(_,i)=>i+1).map(d=>(<DayRow key={d} d={d} day={data?.days[d]||eDay()} y={y} m={curM} t={t} up={settings.unitPrice} sk={settings.skills} onEdit={setEditDay}/>))}
+      {dm>15&&(<>
+        <div className="px-3 py-1.5 bg-amber-600/[0.06] border-b border-amber-500/10 mt-0.5"><span className="text-[11px] text-amber-500/80 font-semibold">{t.p2}</span></div>
+        {Array.from({length:dm-15},(_,i)=>i+16).map(d=>(<DayRow key={d} d={d} day={data?.days[d]||eDay()} y={y} m={curM} t={t} up={settings.unitPrice} sk={settings.skills} onEdit={setEditDay}/>))}
+      </>)}
+      {editDay&&data&&<DayEditor day={data.days[editDay]||eDay()} d={editDay} y={y} m={curM} t={t} up={settings.unitPrice} sk={settings.skills} onSave={saveDay} onCancel={()=>setEditDay(null)}/>}
+    </div>
+  );
+}
+
+/* ══════════ Yearly ══════════ */
+function YearlyPage({settings,t}){
+  const y=settings.year||new Date().getFullYear();
+  const rows=useMemo(()=>{
+    const r=[];for(let m=1;m<=12;m++){const d=LS.get(dk(settings.code,y,m));let u=0,lo=0,sal=0;if(d?.days){for(let i=1;i<=dim(y,m);i++){const day=d.days[i];if(day){u+=day.total||0;lo+=day.laodian||0;sal+=calcSal(day,settings.unitPrice,settings.skills)}}}r.push({month:m,units:u,salary:sal,laodian:lo})}return r;
+  },[settings.code,y,settings.unitPrice]);
+  const tot=rows.reduce((a,r)=>({u:a.u+r.units,s:a.s+r.salary,l:a.l+r.laodian}),{u:0,s:0,l:0});
+
+  return(
+    <div className="max-w-lg mx-auto fi">
+      <div className="px-4 py-3 flex items-baseline justify-between"><h2 className="text-xl font-bold text-gray-100">{y} {t.yearly}</h2><span className="text-xs text-gray-600 font-mono">#{settings.code}</span></div>
+      <div className="flex px-3 py-2 border-b border-white/[0.06] text-[11px] text-gray-600 font-medium">
+        <div className="w-12"></div><div className="flex-1 text-right">{t.units}</div><div className="flex-1 text-right">{t.salary}</div><div className="w-12 text-right">{t.laodian}</div><div className="flex-1 text-right">{t.subtotal}</div>
+      </div>
+      {rows.map(r=>(<div key={r.month} className={`flex items-center px-3 py-3 border-b border-white/[0.03] ${r.units>0?'':'opacity-30'}`}>
+        <div className="w-12 text-sm font-medium text-gray-300">{t.months[r.month-1]}</div>
+        <div className="flex-1 text-right text-sm text-gray-400 tabular-nums">{r.units}</div>
+        <div className="flex-1 text-right text-sm text-emerald-400/80 tabular-nums">{r.salary.toLocaleString()}</div>
+        <div className="w-12 text-right text-sm text-orange-400/80 tabular-nums">{r.laodian}</div>
+        <div className="flex-1 text-right text-sm text-emerald-400 font-semibold tabular-nums">{r.salary.toLocaleString()}</div>
+      </div>))}
+      <div className="flex items-center px-3 py-3.5 bg-amber-600/10 border-t-2 border-amber-500/40">
+        <div className="w-12 text-sm font-bold text-amber-400">{t.total}</div>
+        <div className="flex-1 text-right text-sm text-amber-300 font-bold tabular-nums">{tot.u}</div>
+        <div className="flex-1 text-right text-sm text-emerald-400 font-bold tabular-nums">{tot.s.toLocaleString()}</div>
+        <div className="w-12 text-right text-sm text-orange-400 font-bold tabular-nums">{tot.l}</div>
+        <div className="flex-1 text-right text-sm text-emerald-400 font-bold tabular-nums">{tot.s.toLocaleString()}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════ Settings ══════════ */
+function SettingsPage({settings,onUpdate,t,theme,setTheme}){
+  const[form,setForm]=useState({...settings});
+  const[saved,setSaved]=useState(false);
+  const[showAdmin,setShowAdmin]=useState(false);
+  const[showSupervisor,setShowSupervisor]=useState(false);
+  const[checkState,setCheckState]=useState('idle');
+  const devId=getDeviceId();
+
+  // Supervisor application state
+  const supKey=`supervisor-${settings.code}`;
+  const[supStatus,setSupStatus]=useState(()=>LS.get(supKey)||null);
+  const[applyStep,setApplyStep]=useState(false);
+  const[devNameInput,setDevNameInput]=useState('');
+  const[supActInput,setSupActInput]=useState('');
+  const[supErr,setSupErr]=useState('');
+  const[appCopied,setAppCopied]=useState(false);
+  const[supCheckStatus,setSupCheckStatus]=useState('');
+  const[connMode,setConnMode]=useState(null);
+  const[connInput,setConnInput]=useState('');
+  const[connStatus,setConnStatus]=useState('');
+
+  const handleSave=()=>{onUpdate(form);setSaved(true);setTimeout(()=>setSaved(false),2000)};
+
+  const tryCheck=async()=>{
+    if(checkState==='ok'){setShowAdmin(true);return}
+    if(checkState==='denied')return;
+    setCheckState('checking');
+    try{
+      const ctrl=new AbortController();
+      const timer=setTimeout(()=>ctrl.abort(),5000);
+      const res=await fetch('./admin.cfg',{cache:'no-store',signal:ctrl.signal});
+      clearTimeout(timer);
+      if(!res.ok)throw new Error();
+      const text=(await res.text()).trim();
+      const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
+      const myHash=adminHash(settings.code);
+      // Support both formats: "encCode:hash" and legacy "hash"
+      const match=lines.some(l=>{const parts=l.split(':');const h=parts.length>=2?parts[parts.length-1]:parts[0];return h===myHash});
+      setCheckState(match?'ok':'denied');
+    }catch{setCheckState('denied')}
+  };
+
+  // Generate application code + write request to GitHub if possible
+  const doApply=async()=>{
+    const payload=`${settings.code}:${devId}:${devNameInput.trim()||'unknown'}`;
+    const appCode=xEnc(payload);
+    const data={status:'pending',deviceName:devNameInput.trim()||'',appCode,appliedAt:Date.now()};
+    LS.set(supKey,data);
+    setSupStatus(data);
+    setApplyStep(false);
+    // Auto-copy application code
+    try{navigator.clipboard.writeText(appCode)}catch{}
+    // Try to write request to GitHub staff.json
+    const gh=getGHConfig();
+    if(gh.token){
+      try{
+        const staff=await readStaff(gh);
+        const existing=staff.find(s=>s.code===settings.code);
+        if(existing){
+          existing.supRequest=true;
+          existing.supRequestAt=Date.now();
+          await writeStaff(gh,staff);
+        }
+      }catch{}
+    }
+  };
+
+  // Check online supervisor approval
+  const checkSupOnline=async()=>{
+    setSupCheckStatus(t.checking);
+    // Check staff.json for role update
+    const gh=getGHConfig();
+    if(gh.token){
+      try{
+        const staff=await readStaff(gh);
+        const me=staff.find(s=>s.code===settings.code);
+        if(me&&me.role==='supervisor'&&me.status==='active'){
+          const data={...supStatus,status:'approved',approvedAt:Date.now(),level:me.level||0};
+          LS.set(supKey,data);setSupStatus(data);setSupCheckStatus(t.approved);
+          addLog(fmtLog(t.logTeacherActivate,[settings.code,supStatus?.deviceName||'']),'teacher');
+          return;
+        }
+      }catch{}
+    }
+    // Fallback: check approved.cfg
+    try{
+      const result=await checkApproved('s',supApproveHash(settings.code));
+      if(result){
+        const data={...supStatus,status:'approved',approvedAt:Date.now(),level:result.level||0};
+        LS.set(supKey,data);setSupStatus(data);setSupCheckStatus(t.approved);
+        addLog(fmtLog(t.logTeacherActivate,[settings.code,supStatus?.deviceName||'']),'teacher');
+        return;
+      }
+    }catch{}
+    setSupCheckStatus('');
+    setSupErr(t.waitHint);
+  };
+
+  // Verify admin activation code for supervisor (manual fallback)
+  const verifySup=()=>{
+    const correct=genAdminAct(settings.code,devId);
+    if(supActInput.replace(/[\s-]/g,'')===correct.replace(/-/g,'')){
+      const data={...supStatus,status:'approved',approvedAt:Date.now()};
+      LS.set(supKey,data);
+      setSupStatus(data);
+      setSupErr('');
+      addLog(fmtLog(t.logTeacherActivate,[settings.code,supStatus?.deviceName||'']),'teacher');
+    }else{setSupErr(t.adminActFail)}
+  };
+
+  const copyAppCode=async()=>{
+    if(supStatus?.appCode){try{await navigator.clipboard.writeText(supStatus.appCode)}catch{}}
+    setAppCopied(true);setTimeout(()=>setAppCopied(false),2000);
+  };
+
+  if(showAdmin)return<AdminPage t={t} onBack={()=>setShowAdmin(false)}/>;
+  if(showSupervisor)return<SupervisorPage t={t} onBack={()=>{setShowSupervisor(false);setSupStatus(LS.get(supKey)||null)}}/>;
+
+  const checkBtnClass={
+    idle:'bg-white/[0.03] border border-white/[0.06] text-gray-400 active:bg-white/[0.06]',
+    checking:'bg-white/[0.03] border border-white/[0.06] text-gray-600',
+    ok:'bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 active:bg-emerald-600/30',
+    denied:'bg-gray-800/50 border border-gray-700/30 text-gray-600 cursor-not-allowed',
+  }[checkState];
+  const checkLabel={idle:t.adminCheck,checking:'...',ok:t.adminEnter,denied:t.adminFail}[checkState];
+
+  const isPending=supStatus?.status==='pending';
+  const isApproved=supStatus?.status==='approved'||checkState==='ok'; // admin auto-supervisor
+
+  return(
+    <div className="p-5 max-w-md mx-auto fi space-y-6">
+      <h2 className="text-2xl font-bold text-gray-100">{t.settings}</h2>
+      <div><label className="text-sm text-gray-400 mb-1.5 block">{t.store}</label><div className="bg-white/[0.04] rounded-xl px-4 py-2.5 text-sm text-gray-400">{settings.store||'—'}</div></div>
+      <div><label className="text-sm text-gray-400 mb-1.5 block">{t.teacherCode}</label><div className="bg-white/[0.04] rounded-xl px-4 py-3.5 text-lg text-gray-300 font-mono">{settings.code}</div></div>
+      <div><label className="text-sm text-gray-400 mb-1.5 block">{t.unitPrice}</label>
+        <div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+        <input type="number" inputMode="numeric" value={form.unitPrice} onChange={e=>setForm({...form,unitPrice:parseInt(e.target.value)||0})}
+          className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl pl-9 pr-4 py-3.5 text-lg text-gray-100 focus:outline-none focus:border-amber-500"/></div>
+      </div>
+      <div><label className="text-sm text-gray-400 mb-1.5 block">{t.language}</label>
+        <div className="grid grid-cols-2 gap-2">{[['zh','中文'],['vi','Tiếng Việt']].map(([c,l])=>(<button key={c} onClick={()=>{setForm({...form,lang:c});onUpdate({...form,lang:c})}} className={`py-3.5 rounded-xl text-sm font-semibold ${form.lang===c?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div>
+      </div>
+      <div><label className="text-sm text-gray-400 mb-1.5 block">{t.theme}</label>
+        <div className="grid grid-cols-4 gap-2">
+          {[['pink',t.themePink,'#1c0a12'],['black',t.themeBlack,'#030712'],['gray',t.themeGray,'#1f2937'],['white',t.themeWhite,'#f3f0ed']].map(([k,l,c])=>(
+            <button key={k} onClick={()=>setTheme(k)} className={`py-3 rounded-xl text-xs font-semibold border-2 ${theme===k?'border-amber-500':'border-transparent'}`} style={{backgroundColor:c,color:k==='white'?'#333':'#ccc'}}>{l}</button>
+          ))}
+        </div>
+      </div>
+      <div><label className="text-sm text-gray-400 mb-1.5 block">{t.year}</label>
+        <div className="flex items-center gap-3">
+          <button onClick={()=>setForm({...form,year:form.year-1})} className="w-14 h-14 rounded-xl bg-white/[0.04] text-gray-300 text-2xl active:bg-white/[0.08]">−</button>
+          <span className="text-3xl font-bold text-gray-100 flex-1 text-center tabular-nums">{form.year}</span>
+          <button onClick={()=>setForm({...form,year:form.year+1})} className="w-14 h-14 rounded-xl bg-white/[0.04] text-gray-300 text-2xl active:bg-white/[0.08]">+</button>
+        </div>
+      </div>
+      <div className="text-[10px] text-gray-700 font-mono break-all">{t.deviceId}: {devId}</div>
+      {/* Skills */}
+      <div>
+        <label className="text-sm text-gray-400 mb-2 block">{t.skills}</label>
+        <div className="space-y-2">
+          {SKILL_KEYS.map((k,i)=>{
+            const checked=form.skills?.[k]||false;
+            return(
+              <button key={k} onClick={()=>{const ns={...form,skills:{...(form.skills||{}), [k]:!checked}};setForm(ns);onUpdate(ns)}}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${checked?'bg-white/[0.06] border border-amber-500/30':'bg-white/[0.02] border border-white/[0.06]'}`}>
+                <div className={`w-5 h-5 rounded flex items-center justify-center text-xs ${checked?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-700'}`}>{checked?'✓':''}</div>
+                <span className={`text-sm ${checked?'text-gray-200':'text-gray-500'}`}>{t[k]}</span>
+                <span className="text-xs text-gray-600 ml-auto">${SKILL_PRICES[i]}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <NoticeBox t={t}/>
+      <BackupSection settings={settings} t={t}/>
+      <button onClick={handleSave} className={`w-full py-4 rounded-xl font-bold text-white text-lg ${saved?'bg-emerald-600':'bg-amber-600 active:bg-amber-700'}`}>{saved?t.saved:t.save}</button>
+
+      {/* Connection section */}
+      {(()=>{
+        const ghLocal=getGHConfig();
+        const hasConn=!!(ghLocal&&ghLocal.token);
+        return(
+          <div className="pt-4 border-t border-white/[0.06] space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-500 font-medium">{t.connection}</p>
+              <span className="text-xs">{hasConn?t.connOnline:t.connOffline}</span>
+            </div>
+            {!hasConn&&!connMode&&(
+              <button onClick={()=>setConnMode('apply')} className="w-full py-3 rounded-xl bg-amber-600/20 border border-amber-500/30 text-amber-400 text-sm font-semibold active:bg-amber-600/30">{t.connApply}</button>
+            )}
+            {connMode==='apply'&&(
+              <div className="space-y-3 fi">
+                <div className="flex justify-center">
+                  <div className="bg-white p-2.5 rounded-xl">
+                    <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(settings.code+':'+devId)}`} alt="QR" className="w-40 h-40"/>
+                  </div>
+                </div>
+                <p className="text-[10px] text-gray-600 text-center font-mono select-all break-all">{settings.code}:{devId}</p>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">{t.connCode}</label>
+                  <textarea value={connInput} onChange={e=>setConnInput(e.target.value)} rows={2} placeholder={t.connInput}
+                    className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none"/>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={()=>{setConnMode(null);setConnInput('');setConnStatus('')}} className="flex-1 py-2.5 bg-white/[0.04] rounded-xl text-gray-500 text-sm">{t.cancel}</button>
+                  <button onClick={()=>{
+                    const ghCfg=verifyActToken(connInput.trim(),settings.code,devId);
+                    if(ghCfg){saveGHConfigLocal(ghCfg);setConnStatus(t.connOk);setConnMode(null);setConnInput('')}
+                    else{setConnStatus(t.connFail)}
+                  }} className="flex-1 py-2.5 bg-amber-600 rounded-xl text-white text-sm font-bold">{t.confirm}</button>
+                </div>
+                {connStatus&&<p className={`text-xs text-center ${connStatus.includes('✓')?'text-emerald-400':'text-red-400'}`}>{connStatus}</p>}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Admin / Supervisor section */}
+      <div className="pt-4 border-t border-white/[0.06] space-y-3">
+        <p className="text-sm text-gray-500 font-medium">{t.admin}</p>
+        <div className="flex gap-2">
+          {/* Admin check button */}
+          <button onClick={tryCheck} disabled={checkState==='checking'||checkState==='denied'}
+            className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-all ${checkBtnClass}`}>
+            {checkLabel}
+          </button>
+
+          {/* Supervisor: approved → green enter button */}
+          {isApproved?(
+            <button onClick={()=>setShowSupervisor(true)}
+              className="flex-1 py-3 rounded-xl text-sm font-semibold bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 active:bg-emerald-600/30">
+              {t.supervisor}
+            </button>
+          ):(
+            /* Apply or pending */
+            <button onClick={()=>{if(!isPending)setApplyStep(!applyStep)}} disabled={isPending}
+              className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-all ${
+                isPending?'bg-gray-800/50 border border-gray-700/30 text-gray-600 cursor-not-allowed'
+                :'bg-white/[0.03] border border-white/[0.06] text-gray-400 active:bg-white/[0.06]'
+              }`}>
+              {isPending?t.adminPending:t.adminApply}
+            </button>
+          )}
+        </div>
+
+        {/* Apply form - requires connection */}
+        {applyStep&&!isPending&&!isApproved&&(
+          (()=>{const ghLocal=getGHConfig();const hasConn=!!(ghLocal&&ghLocal.token);
+          return hasConn?(
+            <div className="fi space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
+              <p className="text-sm text-gray-400">{t.adminApplyDesc}</p>
+              <input value={devNameInput} onChange={e=>setDevNameInput(e.target.value)} placeholder={t.deviceName}
+                className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>
+              <button onClick={doApply} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold">{t.confirm}</button>
+            </div>
+          ):(
+            <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4 text-center">
+              <p className="text-xs text-red-300">{t.needConnFirst}</p>
+            </div>
+          )})()
+        )}
+
+        {/* Pending: show app code + online check */}
+        {isPending&&(
+          <div className="fi space-y-3">
+            <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3">
+              <p className="text-[10px] text-gray-600 break-all font-mono select-all mb-2">{supStatus.appCode}</p>
+              <button onClick={copyAppCode}
+                className={`w-full py-2 rounded-lg text-xs font-medium ${appCopied?'bg-emerald-600/20 text-emerald-400':'bg-amber-600/20 text-amber-400'}`}>
+                {appCopied?'✓ '+t.copyDone:'📋 '+t.adminAppCopy}
+              </button>
+            </div>
+            {/* Online approval check */}
+            <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 text-center space-y-2">
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                <p className="text-xs text-amber-400 font-semibold">{t.waitApproval}</p>
+              </div>
+              <button onClick={checkSupOnline}
+                className="w-full py-2.5 rounded-xl bg-amber-600/20 text-amber-400 font-medium text-sm active:bg-amber-600/30">
+                {supCheckStatus||t.checkApproval}
+              </button>
+              <button onClick={()=>{LS.set(supKey,null);setSupStatus(null);setSupErr('');setSupCheckStatus('')}}
+                className="w-full py-2 text-[11px] text-gray-600 active:text-gray-400">{t.resetApp}</button>
+              {supErr&&<p className="text-amber-400/60 text-xs mt-1">{supErr}</p>}
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+function BackupSection({settings,t}){
+  const[input,setInput]=useState('');const[result,setResult]=useState(null);const[expCode,setExpCode]=useState('');const[expM,setExpM]=useState(new Date().getMonth()+1);
+  const doExport=()=>{const d=LS.get(dk(settings.code,settings.year,expM));if(d){setExpCode(encMonth(settings.code,settings.year,expM,d))}else{setExpCode('');setResult(t.noData);setTimeout(()=>setResult(null),2000)}};
+  const doCopy=async()=>{try{await navigator.clipboard.writeText(expCode)}catch{};setResult(t.copyDone);setTimeout(()=>setResult(null),2000)};
+  const doImport=()=>{const p=decBackup(input);if(p){LS.set(dk(p.code,p.year,p.month),p.data);setResult(`${t.importOk} → ${p.code} ${p.year}-${String(p.month).padStart(2,'0')}`);setInput('')}else{setResult(t.importFail)};setTimeout(()=>setResult(null),3000)};
+  return(
+    <div className="space-y-3 pt-4 border-t border-white/[0.06]">
+      <h3 className="text-sm font-semibold text-amber-400">{t.backup}</h3>
+      <div className="flex gap-2">
+        <select value={expM} onChange={e=>setExpM(parseInt(e.target.value))} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-gray-100 text-sm focus:outline-none appearance-none">{t.months.map((m,i)=><option key={i} value={i+1}>{settings.year} {m}</option>)}</select>
+        <button onClick={doExport} className="px-4 py-2.5 bg-amber-600 rounded-xl text-white text-sm font-semibold">{t.exportUrl}</button>
+      </div>
+      {expCode&&(<div className="relative"><div className="bg-white/[0.04] rounded-xl p-3 text-[10px] text-gray-500 break-all font-mono select-all">{expCode}</div><button onClick={doCopy} className="absolute top-2 right-2 px-2 py-1 bg-white/10 rounded text-xs text-gray-300">📋</button></div>)}
+      <textarea value={input} onChange={e=>setInput(e.target.value)} rows={2} placeholder={t.enterUrl} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none"/>
+      <button onClick={doImport} disabled={!input.trim()} className={`w-full py-3 rounded-xl font-bold text-white ${input.trim()?'bg-amber-600':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{t.importUrl}</button>
+      {result&&<div className={`p-2.5 rounded-xl text-sm text-center fi ${result.includes(t.importFail)||result===t.noData?'bg-red-500/15 text-red-300':'bg-emerald-500/15 text-emerald-300'}`}>{result}</div>}
+    </div>
+  );
+}
+
+
+/* ══════════ Supervisor Page ══════════ */
+function SupervisorPage({t,onBack}){
+  const[encInput,setEncInput]=useState('');const[actResult,setActResult]=useState('');const[decodedInfo,setDecodedInfo]=useState('');
+  const[supInput,setSupInput]=useState('');const[supResult,setSupResult]=useState('');const[supInfo,setSupInfo]=useState(null);
+  const[revoked,setRevoked]=useState(false);
+  const[staffList,setStaffList]=useState([]);
+  const[sortMode,setSortMode]=useState('store');
+  const[storeList,setStoreList]=useState([]);
+  const[newStore,setNewStore]=useState('');
+  const[storeStatus,setStoreStatus]=useState('');
+  const[genConnInput,setGenConnInput]=useState('');
+  const[genConnResult,setGenConnResult]=useState('');
+  const[genConnCopied,setGenConnCopied]=useState(false);
+
+  // Check revoked.cfg on mount + load staff + stores
+  useEffect(()=>{
+    (async()=>{
+      try{
+        const s=LS.get('app-settings');if(!s)return;
+        const res=await fetch('./revoked.cfg',{cache:'no-store'});
+        if(!res.ok)return;
+        const text=(await res.text()).trim();
+        const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
+        const myHash=revokeHash(s.code);
+        if(lines.some(l=>l===myHash)){
+          LS.set(`supervisor-${s.code}`,null);
+          setRevoked(true);
+        }
+      }catch{}
+      // Load staff
+      const gh=getGHConfig();
+      if(gh.token){try{const s=await readStaff(gh);setStaffList(s)}catch{}}
+      // Load stores
+      try{const st=await loadStores();setStoreList(st)}catch{}
+    })();
+  },[]);
+
+  if(revoked)return(
+    <div className="min-h-screen flex items-center justify-center p-8">
+      <div className="text-center">
+        <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <span className="text-3xl">⚠️</span>
+        </div>
+        <p className="text-red-400 text-lg font-bold mb-4">{t.expired}</p>
+        <button onClick={onBack} className="px-6 py-3 bg-white/[0.06] rounded-xl text-gray-300">{t.ok}</button>
+      </div>
+    </div>
+  );
+
+  // Generate user activation code
+  const gh=getGHConfig();
+  const genCode=()=>{try{const dec=xDec(encInput.trim());const idx=dec.indexOf(':');if(idx<1){setActResult('Error');setDecodedInfo('');return}const code=dec.substring(0,idx);setDecodedInfo(code);setActResult(genSimpleAct(code));addLog(fmtLog(t.logGenUser,[code]),'supervisor')}catch{setActResult('Error');setDecodedInfo('')}};
+
+  // Parse supervisor application + generate admin activation code + save to approved list
+  const parseSup=()=>{
+    try{
+      const dec=xDec(supInput.trim());
+      const parts=dec.split(':');
+      if(parts.length<2){setSupInfo(null);setSupResult('Error');return}
+      const code=parts[0],uuid=parts[1],devName=parts.slice(2).join(':')||'unknown';
+      setSupInfo({code,uuid:uuid.substring(0,8)+'...',devName});
+      setSupResult(genAdminAct(code,uuid));
+      addApproved(code,devName);
+      addLog(fmtLog(t.logGenSup,[code,devName]),'supervisor');
+    }catch{setSupInfo(null);setSupResult('Error')}
+  };
+
+  return(
+    <div className="p-5 max-w-md mx-auto fi space-y-6">
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="text-gray-500"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg></button>
+        <h2 className="text-xl font-bold text-gray-100">{t.supervisorTitle}</h2>
+      </div>
+
+      {/* Staff List - at top */}
+      {(()=>{const ms=LS.get('app-settings')||{};const ml=staffList.find(s=>s.code===ms.code);
+        return<StaffListSection t={t} staffList={staffList} sortMode={sortMode} setSortMode={setSortMode}
+          myCode={ms.code||''} myLevel={ml?.level||0} myStore={ml?.store||''}/>;
+      })()}
+
+      {/* Store management */}
+      <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-amber-400">{t.storeManage}</h3>
+        <div className="space-y-1.5">
+          {storeList.map((s,i)=>(
+            <div key={i} className="flex items-center justify-between py-1.5 px-3 bg-white/[0.02] rounded-lg">
+              <span className="text-sm text-gray-300">{s}</span>
+              {storeList.length>1&&<button onClick={async()=>{const gh=getGHConfig();const ns=storeList.filter((_,j)=>j!==i);setStoreList(ns);await saveStores(gh,ns)}} className="text-red-400/50 text-xs px-1">✕</button>}
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input value={newStore} onChange={e=>setNewStore(e.target.value)} placeholder={t.storeAdd}
+            className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>
+          <button onClick={async()=>{if(!newStore.trim())return;const gh=getGHConfig();const ns=[...storeList,newStore.trim()];setStoreList(ns);setNewStore('');const ok=await saveStores(gh,ns);setStoreStatus(ok?t.storeSaved:'');setTimeout(()=>setStoreStatus(''),2000)}}
+            className="px-4 py-2 bg-amber-600 rounded-xl text-white text-sm font-bold">+</button>
+        </div>
+        {storeStatus&&<p className="text-xs text-center text-emerald-400">{storeStatus}</p>}
+      </div>
+
+      {/* Connection code generator */}
+      <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-amber-400">{t.genConn}</h3>
+        <div className="relative">
+          <input value={genConnInput} onChange={e=>setGenConnInput(e.target.value)} placeholder={t.genConnHint}
+            className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
+          {genConnInput&&<button onClick={()=>{setGenConnInput('');setGenConnResult('')}} className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full bg-white/10 text-gray-400 text-xs">✕</button>}
+        </div>
+        <button onClick={()=>{
+          const gh=getGHConfig();const parts=genConnInput.trim().split(':');
+          if(parts.length<2||!gh.token){setGenConnResult('Error');return}
+          setGenConnResult(genActWithToken(parts[0],parts.slice(1).join(':'),gh));
+        }} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold">{t.genConn}</button>
+        {genConnResult&&genConnResult!=='Error'&&(
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 fi space-y-3">
+            <p className="text-[10px] text-emerald-400 font-mono break-all select-all bg-white/[0.03] rounded-lg p-2">{genConnResult}</p>
+            <div className="flex justify-center"><div className="bg-white p-2 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(genConnResult)}`} alt="QR" className="w-36 h-36"/></div></div>
+            <button onClick={async()=>{try{await navigator.clipboard.writeText(genConnResult)}catch{};setGenConnCopied(true);setTimeout(()=>setGenConnCopied(false),2000)}}
+              className="w-full py-2 bg-emerald-600 rounded-xl text-white text-sm font-semibold">{genConnCopied?'✓':'📋 Copy'}</button>
+          </div>
+        )}
+        {genConnResult==='Error'&&<p className="text-xs text-red-400 text-center">格式錯誤或 Token 未設定</p>}
+      </div>
+
+      {/* Teacher activation */}
+      <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-amber-400">{t.teacherActivation}</h3>
+        <div className="relative">
+          <textarea value={encInput} onChange={e=>setEncInput(e.target.value)} rows={2} placeholder={t.pasteEncrypted} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 pr-10 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none"/>
+          {encInput&&<button onClick={()=>{setEncInput('');setActResult('');setDecodedInfo('')}} className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full bg-white/10 text-gray-400 text-xs">✕</button>}
+        </div>
+        <button onClick={genCode} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold">{t.teacherActivation}</button>
+        {actResult&&actResult!=='Error'&&(<div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-center fi">
+          {decodedInfo&&<p className="text-sm text-amber-400 font-bold mb-2">{t.teacherCode}: {decodedInfo}</p>}
+          <p className="text-xs text-gray-500 mb-1">{t.resultCode}</p>
+          <p className="text-xs font-bold text-emerald-400 font-mono select-all text-center break-all leading-relaxed">{actResult}</p>
+          <button onClick={async()=>{try{await navigator.clipboard.writeText(actResult)}catch{}}} className="mt-2 px-6 py-2 bg-emerald-600 rounded-xl text-white text-sm font-semibold active:bg-emerald-700">📋 Copy</button>
+        </div>)}
+      </div>
+
+      {/* Supervisor application approval */}
+      <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-amber-400">{t.supActivation}</h3>
+        <div className="relative">
+          <textarea value={supInput} onChange={e=>setSupInput(e.target.value)} rows={2} placeholder={t.supervisorApproveHint} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 pr-10 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none"/>
+          {supInput&&<button onClick={()=>{setSupInput('');setSupResult('');setSupInfo(null)}} className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full bg-white/10 text-gray-400 text-xs">✕</button>}
+        </div>
+        <button onClick={parseSup} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold">{t.supActivation}</button>
+        {supInfo&&(
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 fi">
+            <p className="text-xs text-gray-500 mb-2">{t.supervisorInfo}</p>
+            <div className="space-y-1">
+              <p className="text-sm text-gray-300">{t.teacherCode}: <span className="text-amber-400 font-bold">{supInfo.code}</span></p>
+              <p className="text-sm text-gray-300">{t.deviceName}: <span className="text-gray-400">{supInfo.devName}</span></p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <ApprovedList t={t} isAdmin={false}/>
+      <LogSection t={t} filterLevel="supervisor"/>
+    </div>
+  );
+}
+
+function AdminPage({t,onBack}){
+  const[encInput,setEncInput]=useState('');const[actResult,setActResult]=useState('');const[decodedInfo,setDecodedInfo]=useState('');
+  const[toolInput,setToolInput]=useState('');const[toolResult,setToolResult]=useState('');const[toolMode,setToolMode]=useState('enc');
+  const[cfgEntries,setCfgEntries]=useState([]); // [{line,hash,code}]
+  const[newCode,setNewCode]=useState('');const[newHash,setNewHash]=useState('');const[newHashStatus,setNewHashStatus]=useState('');
+  const[supInput,setSupInput]=useState('');const[supResult,setSupResult]=useState('');const[supInfo,setSupInfo]=useState(null);
+  const[gh,setGh]=useState(()=>getGHConfig());
+  const[ghStatus,setGhStatus]=useState('');
+  const[ghEditing,setGhEditing]=useState(()=>{const c=getGHConfig();return!c.token});
+  const[delStatus,setDelStatus]=useState('');
+  const[keyRules,setKeyRules]=useState(()=>{const kc=getKeyConfig();return kc?.rules||[{file:'key.cfg',start:18,len:3},{file:'admin.cfg',start:25,len:2},{file:'revoked.cfg',start:10,len:3}]});
+  const[keySaveStatus,setKeySaveStatus]=useState('');
+
+  // Online approval states
+  const[teacherApproveStatus,setTeacherApproveStatus]=useState('');
+  const[teacherDecoded,setTeacherDecoded]=useState(null);
+  const[supLevel,setSupLevel]=useState(1);
+  const[supApproveStatus,setSupApproveStatus]=useState('');
+  const[staffList,setStaffList]=useState([]);
+  const[staffLoading,setStaffLoading]=useState(false);
+  const[msgCopied,setMsgCopied]=useState('');
+  const[sortMode,setSortMode]=useState('store');
+  const[storeList,setStoreList]=useState([]);
+  const[newStore,setNewStore]=useState('');
+  const[storeStatus,setStoreStatus]=useState('');
+  const[resetStatus,setResetStatus]=useState('');
+  const[resetPending,setResetPending]=useState(null); // 'all'|'sup'|null
+
+  // My info
+  const myLevel=4;
+  const mySettings=LS.get('app-settings')||{};
+  const myCode=mySettings.code||'';
+  const myStore=staffList.find(s=>s.code===myCode)?.store||'';
+
+  // Reset all staff data except admin 122
+  const resetAllData=async()=>{
+    setResetPending(null);
+    const cleaned=staffList.filter(s=>s.code==='122'&&s.role==='admin');
+    const ok=await writeStaff(gh,cleaned);
+    if(gh.token){try{const file=await ghReadFile(gh,'approved.cfg');if(file)await ghWriteFile(gh,'approved.cfg','# Online approvals\n',file.sha,'reset')}catch{}}
+    try{const file=await ghReadFile(gh,'revoked.cfg');if(file){const fl=file.content.split('\n')[0]||'';await ghWriteFile(gh,'revoked.cfg',fl+'\n',file.sha,'reset')}}catch{}
+    if(ok){setStaffList(cleaned);setResetStatus(t.resetAllOk);addLog('還原初始設定 (管理員122)','admin')}
+    setTimeout(()=>setResetStatus(''),3000);
+  };
+
+  // Remove all supervisor rights
+  const resetAllSup=async()=>{
+    setResetPending(null);
+    const updated=staffList.map(s=>s.role==='supervisor'?{...s,role:'teacher',level:0,supRequest:false}:s);
+    const ok=await writeStaff(gh,updated);
+    if(ok){setStaffList(updated);setResetStatus(t.resetSupOk);addLog('移除所有主管權限','admin')}
+    setTimeout(()=>setResetStatus(''),3000);
+  };
+
+  // Remove single employee or revoke supervisor (no confirm needed - handled by StaffListSection inline)
+  const onRemoveStaff=async(s)=>{
+    let updated;
+    if(s.role==='supervisor'){
+      updated=staffList.map(x=>x.code===s.code?{...x,role:'teacher',level:0,supRequest:false}:x);
+      addLog(fmtLog(t.logRevoke,[s.code,s.store||'']),'admin');
+    }else{
+      updated=staffList.filter(x=>x.code!==s.code);
+      addLog('移除員工 '+s.code,'admin');
+    }
+    await writeStaff(gh,updated);
+    setStaffList(updated);
+  };
+
+  // Edit employee
+  const[editStaff,setEditStaff]=useState(null);
+  const[connDevInput,setConnDevInput]=useState('');
+  const[connResult,setConnResult]=useState('');
+  const[editStoreVal,setEditStoreVal]=useState('');
+  const[editStatus,setEditStatus]=useState('');
+  const[editLevel,setEditLevel]=useState(1);
+  const[genConnInput,setGenConnInput]=useState('');
+  const[genConnResult,setGenConnResult]=useState('');
+  const[genConnCopied,setGenConnCopied]=useState(false);
+
+  // Parse admin.cfg entries: support "encCode:hash" and legacy "hash"
+  const parseEntries=(text)=>{
+    const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
+    return lines.map(line=>{
+      const parts=line.split(':');
+      if(parts.length>=2){
+        const encCode=parts.slice(0,-1).join(':');
+        const hash=parts[parts.length-1];
+        const code=xDec(encCode)||'?';
+        return{line,hash,code};
+      }
+      return{line,hash:line,code:'?'};
+    });
+  };
+
+  useEffect(()=>{
+    (async()=>{
+      try{const res=await fetch('./admin.cfg',{cache:'no-store'});if(!res.ok)return;
+        const text=(await res.text()).trim();
+        setCfgEntries(parseEntries(text));
+      }catch{}
+      // Load staff
+      try{setStaffLoading(true);const s=await readStaff(gh);setStaffList(s);setStaffLoading(false)}catch{setStaffLoading(false)}
+      // Load stores
+      try{const st=await loadStores();setStoreList(st)}catch{}
+    })();
+  },[]);
+
+  // Decode teacher encrypted string: code:deviceId:lang:store(URI-encoded)
+  const decodeTeacher=(enc)=>{
+    try{
+      const dec=xDec(enc.trim());
+      const parts=dec.split(':');
+      if(parts.length<2)return null;
+      let store='';try{store=decodeURIComponent(parts.slice(3).join(':'))}catch{store=parts[3]||''}
+      return{code:parts[0],devId:parts[1],lang:parts[2]||'zh',store};
+    }catch{return null}
+  };
+
+  const genCode=()=>{
+    const info=decodeTeacher(encInput);
+    if(!info){setActResult('Error');setDecodedInfo('');setTeacherDecoded(null);return}
+    setDecodedInfo(info.code);
+    setTeacherDecoded(info);
+    setActResult(genSimpleAct(info.code));
+    addLog(fmtLog(t.logGenUser,[info.code]),'admin');
+  };
+
+  // Online teacher approval
+  const approveTeacherOnline=async()=>{
+    if(!teacherDecoded){setTeacherApproveStatus(t.approveFail+': no data');return}
+    if(!gh.token){setTeacherApproveStatus(t.approveFail+': no GitHub Token');return}
+    setTeacherApproveStatus(t.approving);
+    const hash=approveHash(teacherDecoded.code,teacherDecoded.devId);
+    const r1=await writeApproval(gh,'t',hash);
+    if(!r1||!r1.ok){setTeacherApproveStatus(t.approveFail+': approved.cfg '+(r1?.reason||'unknown'));return}
+    // Add to staff.json
+    const newStaff={code:teacherDecoded.code,store:teacherDecoded.store||'',lang:teacherDecoded.lang,
+      skills:[],role:'teacher',level:0,status:'active',approvedAt:Date.now()};
+    const updated=[...staffList.filter(s=>s.code!==teacherDecoded.code),newStaff];
+    const r2=await writeStaff(gh,updated);
+    if(!r2){setTeacherApproveStatus(t.approveFail+': staff.json error');return}
+    setStaffList(updated);
+    addLog(fmtLog(t.logApproveTeacher,[teacherDecoded.code,teacherDecoded.store||'']),'admin');
+    setTeacherApproveStatus(t.approveOk);
+    // Copy activation code to clipboard (admin sends this to teacher)
+    if(actResult)try{await navigator.clipboard.writeText(actResult+'\n\n'+t.approveMsg)}catch{}
+    setMsgCopied('teacher');setTimeout(()=>setMsgCopied(''),3000);
+  };
+
+  const runTool=()=>{if(toolMode==='enc')setToolResult(xEnc(toolInput));else setToolResult(xDec(toolInput.trim()))};
+
+  const parseSup=()=>{
+    try{
+      const dec=xDec(supInput.trim());
+      const parts=dec.split(':');
+      if(parts.length<2){setSupInfo(null);setSupResult('Error');return}
+      const code=parts[0],uuid=parts[1],devName=parts.slice(2).join(':')||'unknown';
+      setSupInfo({code,uuid:uuid.substring(0,8)+'...',fullUuid:uuid,devName});
+      setSupResult(genAdminAct(code,uuid));
+      addApproved(code,devName);
+      addLog(fmtLog(t.logGenSup,[code,devName]),'admin');
+    }catch{setSupInfo(null);setSupResult('Error')}
+  };
+
+  // Online supervisor approval
+  const approveSupOnline=async()=>{
+    if(!supInfo){setSupApproveStatus(t.approveFail+': no data');return}
+    if(!gh.token){setSupApproveStatus(t.approveFail+': no GitHub Token');return}
+    setSupApproveStatus(t.approving);
+    const hash=supApproveHash(supInfo.code);
+    const r1=await writeApproval(gh,'s',hash,supLevel);
+    if(!r1||!r1.ok){setSupApproveStatus(t.approveFail+': approved.cfg '+(r1?.reason||'unknown'));return}
+    // Update staff.json
+    const existing=staffList.find(s=>s.code===supInfo.code);
+    const entry={...(existing||{code:supInfo.code,store:'',lang:'zh',skills:[]}),
+      role:'supervisor',level:supLevel,status:'active',approvedAt:Date.now()};
+    const updated=[...staffList.filter(s=>s.code!==supInfo.code),entry];
+    await writeStaff(gh,updated);
+    setStaffList(updated);
+    const lvName=supLevelName(supLevel,t===T.zh?'zh':'vi');
+    addLog(fmtLog(t.logApproveSupervisor,[supInfo.code,supInfo.devName||'',lvName]),'admin');
+    setSupApproveStatus(t.approveOk);
+    try{await navigator.clipboard.writeText(t.approveMsg)}catch{}
+    setMsgCopied('sup');setTimeout(()=>setMsgCopied(''),3000);
+  };
+
+  // Write new format: encCode:hash
+  const genAdminHashAndWrite=async()=>{
+    if(!newCode.trim())return;
+    const code=newCode.trim();
+    const h=adminHash(code);
+    const encCode=xEnc(code);
+    const newLine=`${encCode}:${h}`;
+    setNewHash(h);
+    if(gh.token&&gh.owner&&gh.repo){
+      setNewHashStatus(t.ghWriting);
+      const ok=await ghAppendLine(gh,'admin.cfg',newLine,'add admin '+code);
+      setNewHashStatus(ok?.ok?t.ghWriteOk:t.ghWriteFail);
+      if(ok?.ok)setCfgEntries(prev=>[...prev,{line:newLine,hash:h,code}]);
+    }else{setNewHashStatus('')}
+  };
+
+  // Delete admin from admin.cfg via GitHub
+  const doDeleteAdmin=async(entry,idx)=>{
+    if(cfgEntries.length<=1){setDelStatus(t.adminDelLast);setTimeout(()=>setDelStatus(''),2000);return}
+    if(!confirm(t.adminDelConfirm))return;
+    if(gh.token&&gh.owner&&gh.repo){
+      setDelStatus(t.ghWriting);
+      const ok=await ghRemoveLine(gh,'admin.cfg',entry.line,'remove admin '+(entry.code||entry.hash));
+      if(ok){
+        setCfgEntries(prev=>prev.filter((_,i)=>i!==idx));
+        setDelStatus(t.adminDelOk);
+        addLog(fmtLog('刪除管理者 {0}',[entry.code||'?']),'admin');
+      }else{setDelStatus(t.adminDelFail)}
+      setTimeout(()=>setDelStatus(''),2000);
+    }
+  };
+
+  const saveGH=()=>{saveGHConfig(gh);setGhStatus(t.ghSaved);setGhEditing(false);setTimeout(()=>setGhStatus(''),2000)};
+  const testGH=async()=>{setGhStatus('...');try{const f=await ghReadFile(gh,'admin.cfg');setGhStatus(f?t.ghOk:t.ghFail)}catch{setGhStatus(t.ghFail)}};
+
+  // Key config helpers
+  const updateRule=(idx,field,val)=>{const r=[...keyRules];r[idx]={...r[idx],[field]:field==='file'?val:parseInt(val)||0};setKeyRules(r)};
+  const addRule=()=>setKeyRules([...keyRules,{file:'key.cfg',start:0,len:1}]);
+  const delRule=(i)=>setKeyRules(keyRules.filter((_,j)=>j!==i));
+
+  // Comprehensive key test
+  const[keyChecks,setKeyChecks]=useState([]);
+  const[builtKey,setBuiltKey]=useState('');
+  const[needMigrate,setNeedMigrate]=useState(false);
+  const[migrateStatus,setMigrateStatus]=useState('');
+
+  const testKey=async()=>{
+    const checks=[];let parts=[];let allOk=true;
+    // Step 1 & 2: Check each file exists and first line length
+    for(const r of keyRules){
+      if(!r.file||r.start==null||!r.len){checks.push({ok:false,msg:'Error: missing rule fields'});allOk=false;continue}
+      try{
+        const res=await fetch('./'+r.file,{cache:'no-store'});
+        if(!res.ok){checks.push({ok:false,msg:fmtLog(t.keyFileFail,[r.file])});allOk=false;continue}
+        checks.push({ok:true,msg:fmtLog(t.keyFileOk,[r.file])});
+        const text=await res.text();
+        const fl=text.split('\n')[0]||'';
+        const need=r.start+r.len;
+        if(fl.length<need){
+          checks.push({ok:false,msg:fmtLog(t.keyLenFail,[r.file,String(fl.length),String(need)])});
+          allOk=false;continue;
+        }
+        checks.push({ok:true,msg:fmtLog(t.keyLenOk,[r.file,String(fl.length),String(need)])});
+        parts.push(fl.substring(r.start,r.start+r.len));
+      }catch{checks.push({ok:false,msg:fmtLog(t.keyFileFail,[r.file])});allOk=false}
+    }
+    if(!allOk||!parts.length){setKeyChecks(checks);setBuiltKey('');setNeedMigrate(false);return}
+    // Step 3: Show built key
+    const built=parts.join('');
+    setBuiltKey(built);
+    checks.push({ok:true,msg:fmtLog(t.keyBuilt,[String(built.length)])});
+
+    // Step 4 & 5: Check admin.cfg entries against this key
+    try{
+      const res=await fetch('./admin.cfg',{cache:'no-store'});
+      if(res.ok){
+        const text=(await res.text()).trim();
+        const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
+        let matched=0;
+        for(const line of lines){
+          const ps=line.split(':');
+          if(ps.length>=2){
+            const encCode=ps.slice(0,-1).join(':');
+            const hash=ps[ps.length-1];
+            // Try decrypt with the new key
+            const dec=Array.from({length:encCode.length/2},(_,i)=>
+              String.fromCharCode(parseInt(encCode.substr(i*2,2),16)^built.charCodeAt((i)%built.length))
+            ).join('');
+            if(adminHash(dec)===hash)matched++;
+          }
+        }
+        if(lines.length===0){checks.push({ok:true,msg:'admin.cfg: 0 entries'})}
+        else if(matched===lines.length){checks.push({ok:true,msg:fmtLog(t.keyAdminOk,[String(lines.length)])});setNeedMigrate(false)}
+        else if(matched>0){checks.push({ok:false,msg:fmtLog(t.keyAdminPartial,[String(matched),String(lines.length)])});setNeedMigrate(true)}
+        else{checks.push({ok:false,msg:fmtLog(t.keyAdminNone,[String(lines.length)])});setNeedMigrate(true)}
+      }
+    }catch{}
+    setKeyChecks(checks);
+  };
+
+  // Migrate admin.cfg entries: decrypt with OLD key, re-encrypt with NEW key
+  const migrateAdminCfg=async()=>{
+    if(!builtKey||!gh.token||!gh.owner||!gh.repo)return;
+    setMigrateStatus(t.keyMigrating);
+    try{
+      const file=await ghReadFile(gh,'admin.cfg');
+      if(!file){setMigrateStatus(t.keyMigrateFail);return}
+      const allLines=file.content.split('\n');
+      const newLines=[];
+      for(const line of allLines){
+        const trimmed=line.trim();
+        if(!trimmed||trimmed.startsWith('#')){newLines.push(line);continue}
+        const ps=trimmed.split(':');
+        if(ps.length>=2){
+          const encCode=ps.slice(0,-1).join(':');
+          const hash=ps[ps.length-1];
+          // Decrypt with current (old) key
+          const oldDec=xDec(encCode);
+          if(oldDec&&adminHash(oldDec)===hash){
+            // Re-encrypt with new key
+            const newEnc=Array.from(oldDec).map((c,i)=>(c.charCodeAt(0)^builtKey.charCodeAt(i%builtKey.length)).toString(16).padStart(2,'0')).join('');
+            newLines.push(newEnc+':'+hash);
+            continue;
+          }
+          // Try: maybe it's legacy format (hash only) - can't migrate, keep as is
+          newLines.push(line);
+        }else{newLines.push(line)}
+      }
+      const ok=await ghWriteFile(gh,'admin.cfg',newLines.join('\n'),file.sha,'migrate admin.cfg key');
+      if(ok){
+        setMigrateStatus(t.keyMigrateOk);
+        // Now save new key config and rebuild
+        saveKeyConfig({rules:keyRules});
+        await buildDynamicKey();
+        // Refresh entries display
+        setCfgEntries(parseEntries(newLines.filter(l=>l.trim()&&!l.trim().startsWith('#')).join('\n')));
+      }else{setMigrateStatus(t.keyMigrateFail)}
+    }catch{setMigrateStatus(t.keyMigrateFail)}
+    setTimeout(()=>setMigrateStatus(''),3000);
+  };
+
+  const saveKeyRules=()=>{saveKeyConfig({rules:keyRules});buildDynamicKey();setKeySaveStatus(t.keySaved);setTimeout(()=>setKeySaveStatus(''),2000)};
+
+
+  return(
+    <div className="p-5 max-w-md mx-auto fi space-y-6">
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="text-gray-500"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg></button>
+        <h2 className="text-xl font-bold text-gray-100">{t.adminTitle}</h2>
+      </div>
+
+      {/* Staff List - at top */}
+      <StaffListSection t={t} staffList={staffList} sortMode={sortMode} setSortMode={setSortMode}
+        onEdit={s=>{setEditStaff(s);setConnDevInput('');setConnResult('');setEditStoreVal(s.store||'');setEditStatus('')}} myCode={myCode} myLevel={myLevel} myStore={myStore}/>
+
+      {/* Employee edit panel */}
+      {editStaff&&(
+        <div className="space-y-3 bg-white/[0.02] border border-amber-500/20 rounded-2xl p-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-amber-400">{t.editStaff}: {editStaff.code}</h3>
+            <button onClick={()=>{setEditStaff(null);setConnDevInput('');setConnResult('');setEditStatus('')}} className="text-gray-500 text-sm">✕</button>
+          </div>
+
+          {/* Activation code */}
+          <div className="flex items-center justify-between bg-white/[0.03] rounded-xl p-3">
+            <div><p className="text-[10px] text-gray-600">{t.teacherActivation}</p><p className="text-lg font-bold text-emerald-400 font-mono">{genSimpleAct(editStaff.code)}</p></div>
+            <button onClick={async()=>{try{await navigator.clipboard.writeText(genSimpleAct(editStaff.code))}catch{}}} className="px-3 py-1.5 bg-emerald-600/20 rounded-lg text-emerald-400 text-xs">📋</button>
+          </div>
+
+          {/* Connection devices */}
+          <div className="space-y-2">
+            <p className="text-[10px] text-gray-500">{t.editDevices}</p>
+            {connDevInput&&connResult&&connResult!=='Error'?(
+              <div className="space-y-2">
+                <p className="text-[10px] text-emerald-400 font-mono break-all select-all bg-white/[0.03] rounded-lg p-2">{connResult}</p>
+                <div className="flex justify-center"><div className="bg-white p-2 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(connResult)}`} alt="QR" className="w-36 h-36"/></div></div>
+                <button onClick={async()=>{try{await navigator.clipboard.writeText(connResult)}catch{}}} className="w-full py-2 bg-emerald-600 rounded-xl text-white text-xs font-semibold">📋 Copy</button>
+              </div>
+            ):(
+              <div className="flex gap-2">
+                <input value={connDevInput} onChange={e=>setConnDevInput(e.target.value)} placeholder={t.genConnHint}
+                  className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
+                <button onClick={()=>{
+                  const parts=connDevInput.trim().split(':');
+                  if(parts.length<2||parts[0]!==editStaff.code){setConnResult('Error');return}
+                  setConnResult(genActWithToken(parts[0],parts.slice(1).join(':'),gh));
+                }} className="px-4 py-2 bg-amber-600 rounded-xl text-white text-xs font-bold">{t.genConn}</button>
+              </div>
+            )}
+            {connResult==='Error'&&<p className="text-xs text-red-400">code 不符或格式錯誤</p>}
+            {editStaff.hasToken&&(
+              <button onClick={async()=>{
+                setEditStatus('...');
+                const updated=staffList.map(x=>x.code===editStaff.code?{...x,hasToken:false}:x);
+                const ok=await writeStaff(gh,updated);
+                if(ok){setStaffList(updated);setEditStaff({...editStaff,hasToken:false})}
+                setEditStatus(ok?'✓':'✗');setTimeout(()=>setEditStatus(''),2000);
+              }} className="w-full py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-medium">{t.editRevokeConn}</button>
+            )}
+          </div>
+
+          {/* Change store */}
+          <div className="flex gap-2 items-center">
+            <select value={editStoreVal||editStaff.store||''} onChange={e=>setEditStoreVal(e.target.value)}
+              className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-gray-200 focus:outline-none">
+              {storeList.map(st=><option key={st} value={st}>{st}</option>)}
+            </select>
+            <button onClick={async()=>{
+              setEditStatus('...');
+              const sv=editStoreVal||editStaff.store||'';
+              const updated=staffList.map(x=>x.code===editStaff.code?{...x,store:sv}:x);
+              const ok=await writeStaff(gh,updated);
+              if(ok){setStaffList(updated);setEditStaff({...editStaff,store:sv})}
+              setEditStatus(ok?'✓':'✗');setTimeout(()=>setEditStatus(''),2000);
+            }} className={`px-4 py-2 rounded-xl text-xs font-bold ${editStatus==='...'?'bg-gray-600 text-gray-400 cursor-not-allowed':'bg-amber-600 text-white'}`}
+              disabled={editStatus==='...'}>更改門店</button>
+          </div>
+
+          {/* Revoke supervisor / promote / delete */}
+          <div className="space-y-2 pt-2 border-t border-white/[0.04]">
+            {editStaff.role==='teacher'&&(
+              <div className="flex gap-2 items-center">
+                <select value={editLevel} onChange={e=>setEditLevel(parseInt(e.target.value)||1)}
+                  className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-gray-200 focus:outline-none">
+                  {SUP_LEVELS.filter(lv=>lv.id<=myLevel).map(lv=>(
+                    <option key={lv.id} value={lv.id}>{lv[t===T.zh?'zh':'vi']}</option>
+                  ))}
+                </select>
+                <button onClick={async()=>{
+                  setEditStatus('...');
+                  const updated=staffList.map(x=>x.code===editStaff.code?{...x,role:'supervisor',level:editLevel}:x);
+                  const ok=await writeStaff(gh,updated);
+                  if(ok){setStaffList(updated);setEditStaff({...editStaff,role:'supervisor',level:editLevel})}
+                  addLog('任命主管 '+editStaff.code+' Lv'+editLevel,'admin');
+                  setEditStatus(ok?'✓':'✗');setTimeout(()=>setEditStatus(''),2000);
+                }} className={`px-4 py-2 rounded-xl text-xs font-bold ${editStatus==='...'?'bg-gray-600 text-gray-400':'bg-emerald-600 text-white'}`}
+                  disabled={editStatus==='...'}>任命主管</button>
+              </div>
+            )}
+            <div className="flex gap-2">
+              {editStaff.role==='supervisor'&&<button onClick={async()=>{
+              setEditStatus('...');
+              const updated=staffList.map(x=>x.code===editStaff.code?{...x,role:'teacher',level:0}:x);
+              const ok=await writeStaff(gh,updated);
+              if(ok){setStaffList(updated);setEditStaff({...editStaff,role:'teacher',level:0})}
+              addLog(fmtLog(t.logRevoke,[editStaff.code,editStaff.store||'']),'admin');
+              setEditStatus(ok?'✓':'✗');setTimeout(()=>setEditStatus(''),2000);
+            }} className={`flex-1 py-2 rounded-xl text-xs font-medium ${editStatus==='...'?'bg-gray-600/10 text-gray-500':'bg-amber-500/10 text-amber-400'}`}
+              disabled={editStatus==='...'}>{t.removeSup}</button>}
+            {editStaff.role!=='admin'&&<button onClick={async()=>{
+              setEditStatus('...');
+              const updated=staffList.filter(x=>x.code!==editStaff.code);
+              const ok=await writeStaff(gh,updated);
+              if(ok){setStaffList(updated);setEditStaff(null)}
+              addLog('刪除員工 '+editStaff.code,'admin');
+            }} className={`flex-1 py-2 rounded-xl text-xs font-medium ${editStatus==='...'?'bg-gray-600/10 text-gray-500':'bg-red-500/10 text-red-400'}`}
+              disabled={editStatus==='...'}>{t.editDel}</button>}
+          </div>
+          {editStatus&&editStatus!=='...'&&<p className={`text-xs text-center ${editStatus==='✓'?'text-emerald-400':'text-red-400'}`}>{editStatus}</p>}
+        </div>
+      </div>
+      )}
+
+      {/* Test/Reset tools */}
+      <div className="space-y-2 bg-white/[0.02] border border-red-500/10 rounded-2xl p-4">
+        <h3 className="text-[10px] text-gray-600 uppercase tracking-wider">測試工具</h3>
+        {!resetPending&&(
+          <div className="flex gap-2">
+            <button onClick={()=>setResetPending('all')} className="flex-1 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-medium active:bg-red-500/20">{t.resetAll}</button>
+            <button onClick={()=>setResetPending('sup')} className="flex-1 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 text-xs font-medium active:bg-amber-500/20">{t.resetSup}</button>
+          </div>
+        )}
+        {resetPending==='all'&&(
+          <div className="space-y-2">
+            <p className="text-xs text-red-300">{t.resetAllConfirm}</p>
+            <div className="flex gap-2">
+              <button onClick={resetAllData} className="flex-1 py-2 bg-red-500/20 rounded-xl text-red-400 text-xs font-bold">{t.confirm}</button>
+              <button onClick={()=>setResetPending(null)} className="flex-1 py-2 bg-white/[0.04] rounded-xl text-gray-500 text-xs">{t.cancel}</button>
+            </div>
+          </div>
+        )}
+        {resetPending==='sup'&&(
+          <div className="space-y-2">
+            <p className="text-xs text-amber-300">{t.resetSupConfirm}</p>
+            <div className="flex gap-2">
+              <button onClick={resetAllSup} className="flex-1 py-2 bg-amber-500/20 rounded-xl text-amber-400 text-xs font-bold">{t.confirm}</button>
+              <button onClick={()=>setResetPending(null)} className="flex-1 py-2 bg-white/[0.04] rounded-xl text-gray-500 text-xs">{t.cancel}</button>
+            </div>
+          </div>
+        )}
+        {resetStatus&&<p className={`text-xs text-center ${resetStatus.includes('✓')?'text-emerald-400':'text-red-400'}`}>{resetStatus}</p>}
+      </div>
+
+      {/* Store management */}
+      <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-amber-400">{t.storeManage}</h3>
+        <div className="space-y-1.5">
+          {storeList.map((s,i)=>(
+            <div key={i} className="flex items-center justify-between py-1.5 px-3 bg-white/[0.02] rounded-lg">
+              <span className="text-sm text-gray-300">{s}</span>
+              {storeList.length>1&&<button onClick={async()=>{const ns=storeList.filter((_,j)=>j!==i);setStoreList(ns);await saveStores(gh,ns)}} className="text-red-400/50 text-xs px-1">✕</button>}
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input value={newStore} onChange={e=>setNewStore(e.target.value)} placeholder={t.storeAdd}
+            className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>
+          <button onClick={async()=>{if(!newStore.trim())return;const ns=[...storeList,newStore.trim()];setStoreList(ns);setNewStore('');const ok=await saveStores(gh,ns);setStoreStatus(ok?t.storeSaved:'');setTimeout(()=>setStoreStatus(''),2000)}}
+            className="px-4 py-2 bg-amber-600 rounded-xl text-white text-sm font-bold">+</button>
+        </div>
+        {storeStatus&&<p className="text-xs text-center text-emerald-400">{storeStatus}</p>}
+      </div>
+
+      {/* Add admin - generate hash */}
+      <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-amber-400">{t.adminAdd}</h3>
+        <div className="flex gap-2">
+          <input value={newCode} onChange={e=>setNewCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={t.teacherCode+" (ex: 205)"}
+            className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-lg text-center text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
+          <button onClick={genAdminHashAndWrite} className="px-5 py-2.5 bg-amber-600 rounded-xl text-white font-bold">{t.genActivation.substring(0,2)}</button>
+        </div>
+        {newHash&&(
+          <div className="fi space-y-2">
+            <p className="text-xs text-gray-500">{gh.token?t.ghAuto:t.adminAddHint}</p>
+            <div className="relative">
+              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-center">
+                <p className="text-lg font-bold text-emerald-400 font-mono select-all">{newHash}</p>
+              </div>
+              <button onClick={async()=>{try{await navigator.clipboard.writeText(newHash)}catch{}}} className="absolute top-2 right-2 px-2 py-1 bg-white/10 rounded text-xs text-gray-300">📋</button>
+            </div>
+            {newHashStatus&&<p className={`text-xs text-center ${newHashStatus.includes('✓')?'text-emerald-400':'text-red-400'}`}>{newHashStatus}</p>}
+          </div>
+        )}
+        {/* Current admins in admin.cfg - show decoded teacher codes */}
+        {cfgEntries.length>0&&(
+          <div className="pt-2 border-t border-white/[0.04]">
+            <p className="text-[10px] text-gray-600 mb-1">{t.adminCfg}</p>
+            {cfgEntries.map((entry,i)=>(
+              <div key={i} className="flex items-center justify-between py-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-amber-400 font-bold font-mono">{entry.code!=='?'?entry.code:'—'}</span>
+                  <span className="text-[10px] text-gray-600 font-mono">({entry.hash})</span>
+                </div>
+                {gh.token&&gh.owner&&gh.repo?(
+                  cfgEntries.length>1?(
+                    <button onClick={()=>doDeleteAdmin(entry,i)} className="px-2 py-1 rounded-lg bg-red-500/10 text-red-400 text-[10px] font-medium active:bg-red-500/20">{t.adminDel}</button>
+                  ):<span className="text-[10px] text-gray-700">🔒</span>
+                ):<span className="text-[10px] text-gray-700">🔒</span>}
+              </div>
+            ))}
+            {delStatus&&<p className={`text-xs text-center mt-1 ${delStatus.includes('✓')?'text-emerald-400':delStatus.includes('失敗')||delStatus.includes('thất')?'text-red-400':'text-amber-400'}`}>{delStatus}</p>}
+          </div>
+        )}
+      </div>
+
+      {/* Connection code generator */}
+      <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-amber-400">{t.genConn}</h3>
+        <div className="relative">
+          <input value={genConnInput} onChange={e=>setGenConnInput(e.target.value)} placeholder={t.genConnHint}
+            className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
+          {genConnInput&&<button onClick={()=>{setGenConnInput('');setGenConnResult('')}} className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full bg-white/10 text-gray-400 text-xs">✕</button>}
+        </div>
+        <button onClick={()=>{
+          const parts=genConnInput.trim().split(':');
+          if(parts.length<2||!gh.token){setGenConnResult('Error');return}
+          setGenConnResult(genActWithToken(parts[0],parts.slice(1).join(':'),gh));
+        }} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold">{t.genConn}</button>
+        {genConnResult&&genConnResult!=='Error'&&(
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 fi space-y-3">
+            <p className="text-[10px] text-emerald-400 font-mono break-all select-all bg-white/[0.03] rounded-lg p-2">{genConnResult}</p>
+            <div className="flex justify-center"><div className="bg-white p-2 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(genConnResult)}`} alt="QR" className="w-36 h-36"/></div></div>
+            <button onClick={async()=>{try{await navigator.clipboard.writeText(genConnResult)}catch{};setGenConnCopied(true);setTimeout(()=>setGenConnCopied(false),2000)}}
+              className="w-full py-2 bg-emerald-600 rounded-xl text-white text-sm font-semibold">
+              {genConnCopied?'✓':'📋 Copy'}
+            </button>
+          </div>
+        )}
+        {genConnResult==='Error'&&<p className="text-xs text-red-400 text-center">格式錯誤或 Token 未設定</p>}
+      </div>
+
+      {/* Supervisor application approval + online approve */}
+      <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-amber-400">{t.supervisorApprove}</h3>
+        <div className="relative">
+          <textarea value={supInput} onChange={e=>setSupInput(e.target.value)} rows={2} placeholder={t.supervisorApproveHint} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 pr-10 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none"/>
+          {supInput&&<button onClick={()=>{setSupInput('');setSupResult('');setSupInfo(null);setSupApproveStatus('')}} className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full bg-white/10 text-gray-400 text-xs">✕</button>}
+        </div>
+        <button onClick={parseSup} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold">{t.supervisorApprove}</button>
+        {supInfo&&supResult&&supResult!=='Error'&&(
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 fi space-y-3">
+            <p className="text-xs text-gray-500">{t.supervisorInfo}</p>
+            <div className="space-y-1">
+              <p className="text-sm text-gray-300">{t.teacherCode}: <span className="text-amber-400 font-bold">{supInfo.code}</span></p>
+              <p className="text-sm text-gray-300">{t.deviceName}: <span className="text-gray-400">{supInfo.devName}</span></p>
+            </div>
+            {/* Online approve section */}
+            {gh.token&&(
+              <div className="pt-3 border-t border-white/[0.06] space-y-2">
+                <p className="text-xs text-emerald-400 font-semibold">{t.onlineApprove}</p>
+                <div>
+                  <label className="text-[10px] text-gray-500 block mb-1">{t.approveLevel}</label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {SUP_LEVELS.filter(lv=>lv.id<=myLevel).map(lv=>(
+                      <button key={lv.id} onClick={()=>setSupLevel(lv.id)}
+                        className={`py-2 rounded-lg text-xs font-medium ${supLevel===lv.id?'bg-emerald-600 text-white':'bg-white/[0.04] text-gray-500'}`}>
+                        {lv[t===T.zh?'zh':'vi']}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <button onClick={approveSupOnline} className="w-full py-3 rounded-xl bg-emerald-600 text-white font-bold active:bg-emerald-700">
+                  {supApproveStatus||t.approveBtn}
+                </button>
+                {msgCopied==='sup'&&<p className="text-xs text-center text-emerald-400">{t.approveCopied}</p>}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Teacher activation + online approve */}
+      <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-amber-400">{t.teacherActivation}</h3>
+        <div className="relative">
+          <textarea value={encInput} onChange={e=>setEncInput(e.target.value)} rows={2} placeholder={t.pasteEncrypted} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 pr-10 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none"/>
+          {encInput&&<button onClick={()=>{setEncInput('');setActResult('');setDecodedInfo('');setTeacherDecoded(null);setTeacherApproveStatus('')}} className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full bg-white/10 text-gray-400 text-xs">✕</button>}
+        </div>
+        <button onClick={genCode} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold">{t.teacherActivation}</button>
+        {actResult&&actResult!=='Error'&&(
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 fi space-y-3">
+            {decodedInfo&&<p className="text-sm text-amber-400 font-bold text-center">{t.teacherCode}: {decodedInfo}{teacherDecoded?.store?' · '+teacherDecoded.store:''}</p>}
+            {/* Step 1: Approve button */}
+            {gh.token&&teacherDecoded&&!teacherApproveStatus.includes('✓')&&(
+              <div className="space-y-2">
+                <button onClick={approveTeacherOnline} className="w-full py-3 rounded-xl bg-emerald-600 text-white font-bold active:bg-emerald-700">
+                  {teacherApproveStatus||t.approveBtn}
+                </button>
+              </div>
+            )}
+            {/* Step 2: After approve, show simple activation code */}
+            {teacherApproveStatus.includes('✓')&&(
+              <div className="space-y-3">
+                <p className="text-xs text-center text-emerald-400">{t.approveOk}</p>
+                <p className="text-3xl font-bold text-emerald-400 font-mono tracking-widest select-all text-center">{actResult}</p>
+                <button onClick={async()=>{try{await navigator.clipboard.writeText(actResult+'\n\n'+t.approveMsg)}catch{};setMsgCopied('teacher');setTimeout(()=>setMsgCopied(''),3000)}} className="w-full py-2 bg-emerald-600 rounded-xl text-white text-sm font-semibold active:bg-emerald-700">📋 Copy</button>
+                {msgCopied==='teacher'&&<p className="text-xs text-center text-emerald-400">{t.approveCopied}</p>}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Encrypt/Decrypt tool */}
+      <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-amber-400">{t.encryptTool}</h3>
+        <div className="flex bg-white/[0.04] rounded-xl p-1">
+          <button onClick={()=>setToolMode('enc')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${toolMode==='enc'?'bg-amber-600 text-white':'text-gray-500'}`}>{t.encryptLabel}</button>
+          <button onClick={()=>setToolMode('dec')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${toolMode==='dec'?'bg-amber-600 text-white':'text-gray-500'}`}>{t.decryptLabel}</button>
+        </div>
+        <input value={toolInput} onChange={e=>setToolInput(e.target.value)} placeholder={t.inputText} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
+        <button onClick={runTool} className="w-full py-2.5 rounded-xl bg-white/[0.06] text-gray-300 font-medium text-sm active:bg-white/[0.1]">{t.confirm}</button>
+        {toolResult&&<div className="bg-white/[0.04] rounded-xl p-3 text-sm text-gray-300 font-mono break-all select-all fi">{toolResult}</div>}
+      </div>
+      <ApprovedList t={t} isAdmin={true}/>
+
+      {/* GitHub Config - locked by default */}
+      <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-amber-400">{t.ghConfig}</h3>
+          {!ghEditing&&gh.token&&<button onClick={()=>setGhEditing(true)} className="px-3 py-1 rounded-lg bg-white/[0.06] text-amber-400 text-xs font-medium active:bg-white/[0.1]">{t.ghEdit}</button>}
+        </div>
+        {ghEditing?(
+          <>
+            <input value={gh.owner||''} onChange={e=>setGh({...gh,owner:e.target.value.trim()})} placeholder={t.ghOwner+" (ex: john7t)"}
+              className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
+            <input value={gh.repo||''} onChange={e=>setGh({...gh,repo:e.target.value.trim()})} placeholder={t.ghRepo+" (ex: massage-pay)"}
+              className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
+            <input value={gh.token||''} onChange={e=>setGh({...gh,token:e.target.value.trim()})} placeholder={t.ghToken} type="password"
+              className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
+            <div className="flex gap-2">
+              <button onClick={saveGH} className="flex-1 py-2.5 bg-amber-600 rounded-xl text-white text-sm font-bold">{t.ghSave}</button>
+              <button onClick={testGH} className="flex-1 py-2.5 bg-white/[0.06] rounded-xl text-gray-300 text-sm font-medium">{t.ghTest}</button>
+            </div>
+          </>
+        ):(
+          <>
+            <input value={gh.owner||''} disabled className="w-full bg-white/[0.03] border border-white/[0.04] rounded-xl px-3 py-2.5 text-sm text-gray-500 font-mono cursor-not-allowed"/>
+            <input value={gh.repo||''} disabled className="w-full bg-white/[0.03] border border-white/[0.04] rounded-xl px-3 py-2.5 text-sm text-gray-500 font-mono cursor-not-allowed"/>
+            <input value={'●'.repeat(12)} disabled type="text" className="w-full bg-white/[0.03] border border-white/[0.04] rounded-xl px-3 py-2.5 text-sm text-gray-500 font-mono cursor-not-allowed"/>
+            <div className="flex gap-2">
+              <button onClick={testGH} className="flex-1 py-2.5 bg-white/[0.06] rounded-xl text-gray-300 text-sm font-medium">{t.ghTest}</button>
+            </div>
+          </>
+        )}
+        {ghStatus&&<p className={`text-xs text-center ${ghStatus.includes('✓')?'text-emerald-400':'text-amber-400'}`}>{ghStatus}</p>}
+      </div>
+
+      {/* Key Config */}
+      <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-amber-400">{t.keyConfig}</h3>
+        {keyRules.map((r,i)=>(
+          <div key={i} className="flex gap-1.5 items-center">
+            <select value={r.file} onChange={e=>updateRule(i,'file',e.target.value)}
+              className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200 focus:outline-none">
+              {['key.cfg','admin.cfg','revoked.cfg','index.html'].map(f=><option key={f} value={f}>{f}</option>)}
+            </select>
+            <input type="number" value={r.start} onChange={e=>updateRule(i,'start',e.target.value)} placeholder={t.keyStart}
+              className="w-14 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-center text-gray-200 font-mono focus:outline-none"/>
+            <input type="number" value={r.len} onChange={e=>updateRule(i,'len',e.target.value)} placeholder={t.keyLen}
+              className="w-12 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-center text-gray-200 font-mono focus:outline-none"/>
+            {keyRules.length>1&&<button onClick={()=>delRule(i)} className="text-red-400/50 text-xs px-1">✕</button>}
+          </div>
+        ))}
+        <button onClick={addRule} className="text-xs text-amber-400/60 active:text-amber-400">+ {t.keyAddRule}</button>
+        <div className="flex gap-2">
+          <button onClick={testKey} className="flex-1 py-2 bg-white/[0.06] rounded-xl text-gray-300 text-sm font-medium">{t.keyTest}</button>
+          <button onClick={saveKeyRules} className="flex-1 py-2 bg-amber-600 rounded-xl text-white text-sm font-bold">{t.keySave}</button>
+        </div>
+        {keySaveStatus&&<p className="text-xs text-center text-emerald-400">{keySaveStatus}</p>}
+
+        {/* Test results checklist */}
+        {keyChecks.length>0&&(
+          <div className="space-y-1 pt-2 border-t border-white/[0.04]">
+            {keyChecks.map((c,i)=>(
+              <div key={i} className="flex items-start gap-2 text-[11px]">
+                <span className={c.ok?'text-emerald-400':'text-red-400'}>{c.ok?'✓':'✗'}</span>
+                <span className={c.ok?'text-gray-400':'text-red-300'}>{c.msg}</span>
+              </div>
+            ))}
+            {builtKey&&(
+              <div className="mt-2 bg-white/[0.04] rounded-lg p-2">
+                <p className="text-[10px] text-gray-600 mb-1">{t.keyResult}</p>
+                <p className="text-sm font-mono text-amber-400 select-all text-center">{builtKey}</p>
+              </div>
+            )}
+            {needMigrate&&gh.token&&(
+              <button onClick={migrateAdminCfg} className="w-full mt-2 py-2.5 bg-red-500/20 border border-red-500/30 rounded-xl text-red-300 text-sm font-medium active:bg-red-500/30">{t.keyMigrate}</button>
+            )}
+            {migrateStatus&&<p className={`text-xs text-center ${migrateStatus.includes('✓')?'text-emerald-400':'text-amber-400'}`}>{migrateStatus}</p>}
+          </div>
+        )}
+      </div>
+
+      <LogSection t={t} filterLevel="admin"/>
+    </div>
+  );
+}
+
+/* ══════════ Icons ══════════ */
+const IC={
+  home:<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z"/></svg>,
+  monthly:<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>,
+  yearly:<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>,
+  settings:<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>,
+};
+
+/* ══════════ App ══════════ */
+function App(){
+  const[settings,setSettings]=useState(null);
+  const[tab,setTab]=useState('home');
+  const[curM,setCurM]=useState(new Date().getMonth()+1);
+  const[ready,setReady]=useState(false);
+  const[needOnboard,setNeedOnboard]=useState(false);
+  const[refreshKey,setRefreshKey]=useState(0);
+  const[theme,setTheme]=useState(()=>localStorage.getItem('app-theme')||'black');
+
+  const bgColor=THEMES[theme]||THEMES.black;
+  const isLight=theme==='white';
+
+  useEffect(()=>{document.body.style.backgroundColor=bgColor},[bgColor]);
+  useEffect(()=>{localStorage.setItem('app-theme',theme)},[theme]);
+
+  useEffect(()=>{buildDynamicKey()},[]);
+
+  // Daily connection check for teachers with token
+  useEffect(()=>{
+    if(!settings||!settings.code)return;
+    const gh=getGHConfig();
+    if(!gh.token)return; // offline user, skip
+    const lastCheck=localStorage.getItem('conn-check-date');
+    const today=new Date().toISOString().slice(0,10);
+    if(lastCheck===today)return; // already checked today
+    (async()=>{
+      try{
+        const staff=await readStaff(gh);
+        const me=staff.find(s=>s.code===settings.code);
+        if(me&&me.hasToken===false){
+          // Connection revoked by admin
+          saveGHConfigLocal({});
+          localStorage.removeItem('conn-check-date');
+          alert(T[settings.lang||'zh'].connExpired);
+        }else{
+          localStorage.setItem('conn-check-date',today);
+        }
+      }catch{}
+    })();
+  },[settings]);
+
+  useEffect(()=>{
+    const s=LS.get('app-settings');
+    if(s&&s.code){const act=LS.get(`activated-${s.code}`);if(act){setSettings(s);setReady(true);return}}
+    const hash=window.location.hash;
+    if(hash&&hash.length>5){const p=decBackup(hash.slice(1));if(p){LS.set(dk(p.code,p.year,p.month),p.data);const ns={code:p.code,unitPrice:250,lang:'zh',year:p.year,deviceId:getDeviceId()};LS.set('app-settings',ns);LS.set(`activated-${p.code}`,{deviceId:getDeviceId(),ts:Date.now()});setSettings(ns);setCurM(p.month);setTab('monthly');setReady(true);history.replaceState(null,'',location.pathname);return}}
+    setNeedOnboard(true);setReady(true);
+  },[]);
+
+  const onOnboardComplete=(s)=>{setSettings(s);setNeedOnboard(false)};
+  const updateSettings=(s)=>{setSettings(s);LS.set('app-settings',s)};
+  const handleTab=(id)=>{setTab(id);if(id==='home')setRefreshKey(k=>k+1)};
+
+  if(!ready)return<div className="min-h-screen flex items-center justify-center" style={{backgroundColor:bgColor}}><div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/></div>;
+  if(needOnboard)return<Onboarding onComplete={onOnboardComplete}/>;
+  if(!settings)return null;
+
+  const lang=settings.lang||'zh';const t=T[lang];
+  const tabs=[{id:'home',label:t.home},{id:'monthly',label:t.monthly},{id:'yearly',label:t.yearly},{id:'settings',label:t.settings}];
+
+  return(
+    <div className={`min-h-screen ${isLight?'text-gray-900':'text-gray-100'} flex flex-col`} style={{backgroundColor:bgColor}}>
+      <div className="flex-1 pb-[72px] overflow-y-auto">
+        {tab==='home'&&<HomePage settings={settings} t={t} refreshKey={refreshKey}/>}
+        {tab==='monthly'&&<MonthlyPage settings={settings} curM={curM} setCurM={setCurM} t={t}/>}
+        {tab==='yearly'&&<YearlyPage settings={settings} t={t}/>}
+        {tab==='settings'&&<SettingsPage settings={settings} onUpdate={updateSettings} t={t} theme={theme} setTheme={setTheme}/>}
+      </div>
+      <nav className="fixed bottom-0 left-0 right-0 backdrop-blur-xl border-t border-white/[0.06] flex z-40" style={{backgroundColor:bgColor+'ee',paddingBottom:'env(safe-area-inset-bottom)'}}>
+        {tabs.map(({id,label})=>(<button key={id} onClick={()=>handleTab(id)} className={`flex-1 flex flex-col items-center pt-2 pb-1.5 gap-0.5 transition-all ${tab===id?'text-amber-400':'text-gray-500 active:text-gray-400'}`}>{IC[id]}<span className="text-[10px] font-medium">{label}</span></button>))}
+      </nav>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
