@@ -60,8 +60,9 @@ main{flex:1;display:flex;flex-direction:column;align-items:center;justify-conten
 .qr-hint{font-size:12px;color:var(--muted);margin-bottom:2rem;text-align:center}
 
 /* LANG */
-.lang-bar{display:flex;gap:.4rem;flex-wrap:wrap;justify-content:center;padding:.5rem 1.5rem 2rem}
-.lang-btn{background:none;border:1px solid var(--border);border-radius:8px;padding:.35rem .7rem;font-size:12px;color:var(--muted);cursor:pointer;transition:border-color .2s,color .2s,background .2s}
+.lang-bar{display:flex;gap:.3rem;flex-wrap:nowrap;justify-content:center;padding:.5rem .75rem 2rem;overflow-x:auto;scrollbar-width:none}
+.lang-bar::-webkit-scrollbar{display:none}
+.lang-btn{background:none;border:1px solid var(--border);border-radius:8px;padding:.3rem .45rem;font-size:11px;color:var(--muted);cursor:pointer;transition:border-color .2s,color .2s,background .2s;white-space:nowrap;flex-shrink:0}
 .lang-btn.active,.lang-btn:hover{border-color:var(--accent);color:var(--accent-dark);background:rgba(245,137,192,.08)}
 
 /* OVERLAY */
@@ -156,11 +157,11 @@ input:focus{border-color:var(--accent)}
 
 <div class="lang-bar">
   <button class="lang-btn active" onclick="setLang('zh')">中文</button>
-  <button class="lang-btn" onclick="setLang('en')">English</button>
-  <button class="lang-btn" onclick="setLang('ja')">日本語</button>
-  <button class="lang-btn" onclick="setLang('ko')">한국어</button>
-  <button class="lang-btn" onclick="setLang('th')">ภาษาไทย</button>
-  <button class="lang-btn" onclick="setLang('vi')">Tiếng Việt</button>
+  <button class="lang-btn" onclick="setLang('en')">EN</button>
+  <button class="lang-btn" onclick="setLang('ja')">JP</button>
+  <button class="lang-btn" onclick="setLang('ko')">KR</button>
+  <button class="lang-btn" onclick="setLang('th')">TH</button>
+  <button class="lang-btn" onclick="setLang('vi')">VI</button>
 </div>
 
 <div class="copied-toast" id="toast">✓ 已複製密碼</div>
@@ -387,8 +388,9 @@ function setLang(l){
   document.getElementById('lbl-or').textContent=t.or;
   document.getElementById('lbl-qr').textContent=t.qr;
   document.getElementById('toast').textContent=t.toast;
+  const map={zh:'中文',en:'EN',ja:'JP',ko:'KR',th:'TH',vi:'VI'};
   document.querySelectorAll('.lang-btn').forEach(b=>{
-    b.classList.toggle('active',b.textContent.includes({zh:'中',en:'En',ja:'日',ko:'한',th:'ภ',vi:'Ti'}[l]||l));
+    b.classList.toggle('active', b.textContent===map[l]);
   });
 }
 </script>
