@@ -73,14 +73,9 @@ async function buildDynamicKey(){
 function xEnc(t){return Array.from(t).map((c,i)=>(c.charCodeAt(0)^CK.charCodeAt(i%CK.length)).toString(16).padStart(2,'0')).join('')}
 function xDec(h){try{return h.match(/.{2}/g).map((x,i)=>String.fromCharCode(parseInt(x,16)^CK.charCodeAt(i%CK.length))).join('')}catch{return''}}
 function fnv(s){let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193);h=h&0x7fffffff}return h}
-function genAct(code,devId){const b=`${code}:${devId}`;return['#ALPHA','#BRAVO','#CHARLIE'].map(s=>String(fnv(b+s)%10000).padStart(4,'0')).join('-')}
 function adminHash(code){const S="MassagePay2026!Adm";let h=fnv(S+code+S);for(let i=0;i<200;i++)h=fnv(String(h)+S+code);return h.toString(36).padStart(6,'0')}
-function genAdminAct(code,uuid){const b=`ADM:${code}:${uuid}`;return['#DELTA','#ECHO','#FOXTROT'].map(s=>String(fnv(b+s)%10000).padStart(4,'0')).join('-')}
-function revokeHash(code){const S="MassagePay2026!Rvk";let h=fnv(S+code+S);for(let i=0;i<200;i++)h=fnv(String(h)+S+code);return h.toString(36).padStart(6,'0')}
 
 // ── Online approval hashes ──
-function approveHash(code,devId){const S="MassagePay2026!Apr";let h=fnv(S+code+':'+devId+S);for(let i=0;i<200;i++)h=fnv(String(h)+S+code);return h.toString(36).padStart(6,'0')}
-function supApproveHash(code){const S="MassagePay2026!Sup";let h=fnv(S+code+S);for(let i=0;i<200;i++)h=fnv(String(h)+S+code);return h.toString(36).padStart(6,'0')}
 
 // Supervisor levels
 const SUP_LEVELS=[
@@ -121,23 +116,7 @@ async function writeStaff(gh,staffList){
 }
 
 // ── Approved.cfg management ──
-async function checkApproved(type,hash){
-  try{
-    const res=await fetch('./approved.cfg',{cache:'no-store'});
-    if(!res.ok)return null;
-    const text=await res.text();
-    const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
-    for(const line of lines){
-      const parts=line.split(':');
-      if(parts[0]===type&&parts[1]===hash)return{level:parts[2]?parseInt(parts[2]):0};
-    }
-    return null;
-  }catch{return null}
-}
-async function writeApproval(gh,type,hash,level){
-  const line=level?`${type}:${hash}:${level}`:`${type}:${hash}`;
-  return ghAppendLine(gh,'approved.cfg',line,'approve '+type+' '+hash);
-}
+
 
 // Action log with levels: 'teacher' | 'supervisor' | 'admin'
 function addLog(msg,level='admin'){
@@ -370,93 +349,7 @@ async function ghRemoveLine(cfg,path,line,msg){
   if(!file)return false;
   const lines=file.content.split('\n').filter(l=>l.trim()!==line.trim());
   return ghWriteFile(cfg,path,lines.join('\n'),file.sha,msg);
-}
-
-// Approved supervisors list management
-function getApproved(){return LS.get('approved-supervisors')||[]}
-function saveApproved(list){LS.set('approved-supervisors',list)}
-function addApproved(code,devName){
-  const list=getApproved();
-  list.push({code,devName,ts:Date.now(),revoked:false});
-  saveApproved(list);
-}
-
-function ApprovedList({t,isAdmin}){
-  const[list,setList]=useState(getApproved);
-  const[revokedHash,setRevokedHash]=useState(null);
-  const[copiedIdx,setCopiedIdx]=useState(-1);
-  const[writeStatus,setWriteStatus]=useState('');
-
-  const doRevoke=async(i)=>{
-    const item=list[i];
-    const h=revokeHash(item.code);
-    const updated=[...list];updated[i]={...item,revoked:true,revokedAt:Date.now()};
-    setList(updated);saveApproved(updated);
-    setRevokedHash({idx:i,hash:h});
-    addLog(fmtLog(t.logRevoke,[item.code,item.devName||'']),'supervisor');
-    // Auto-write to GitHub if config exists
-    const gh=getGHConfig();
-    if(gh.token&&gh.owner&&gh.repo){
-      setWriteStatus(t.ghWriting);
-      const ok=await ghAppendLine(gh,'revoked.cfg',h,'revoke '+item.code);
-      setWriteStatus(ok?.ok?t.ghWriteOk:t.ghWriteFail);
-    }
-  };
-
-  const copyRvHash=async(h,i)=>{
-    try{await navigator.clipboard.writeText(h)}catch{};
-    setCopiedIdx(i);setTimeout(()=>setCopiedIdx(-1),2000);
-  };
-
-  const active=list.filter(x=>!x.revoked);
-  const revoked=list.filter(x=>x.revoked);
-
-  if(!list.length)return null;
-  return(
-    <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
-      <h3 className="text-sm font-semibold text-amber-400">{t.supervisorList||t.adminList}</h3>
-      {active.map((item,i)=>{
-        const realIdx=list.indexOf(item);
-        return(
-          <div key={realIdx} className="flex items-center justify-between py-2 border-b border-white/[0.04]">
-            <div>
-              <span className="text-sm text-gray-200 font-semibold">{item.code}</span>
-              {item.devName&&<span className="text-[10px] text-gray-600 ml-2">{item.devName}</span>}
-              <div className="text-[10px] text-gray-700">{fmtDate(item.ts)}</div>
-            </div>
-            <button onClick={()=>doRevoke(realIdx)}
-              className="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs font-medium active:bg-red-500/20">{t.revoke}</button>
-          </div>
-        );
-      })}
-      {revokedHash&&(
-        <div className="fi bg-red-500/10 border border-red-500/20 rounded-xl p-3 space-y-2">
-          <p className="text-xs text-gray-400">{isAdmin?(writeStatus.includes('✓')?writeStatus:t.revokeHint):t.revokeToAdmin}</p>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-red-400 font-mono select-all flex-1 text-center">{revokedHash.hash}</span>
-            <button onClick={()=>copyRvHash(revokedHash.hash,revokedHash.idx)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium ${copiedIdx===revokedHash.idx?'bg-emerald-600/20 text-emerald-400':'bg-white/10 text-gray-300'}`}>
-              {copiedIdx===revokedHash.idx?'✓':'📋'}
-            </button>
-          </div>
-          {writeStatus&&!writeStatus.includes('✓')&&<p className="text-xs text-center text-red-400">{writeStatus}</p>}
-        </div>
-      )}
-      {revoked.length>0&&(
-        <div className="pt-2">
-          <p className="text-[10px] text-gray-700 mb-1">{t.revokedList}</p>
-          {revoked.map((item,i)=>(
-            <div key={i} className="flex items-center justify-between py-1">
-              <span className="text-xs text-gray-600 line-through">{item.code} {item.devName&&`(${item.devName})`}</span>
-              <span className="text-[10px] text-red-400/50">{t.expired}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-function genUUID(){return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&0x3|0x8)).toString(16)})}
+}function genUUID(){return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&0x3|0x8)).toString(16)})}
 
 /* ══════════ i18n ══════════ */
 const T={
@@ -496,12 +389,11 @@ zh:{
   supervisor:"主管頁面",supervisorTitle:"主管",
   supervisorApprove:"主管申請審核",supervisorApproveHint:"貼上申請碼",
   supervisorInfo:"申請人資訊",
-  revoke:"取消主管權限",revokeHint:"請將此碼新增到 GitHub revoked.cfg",revokeCode:"撤銷碼",
+  revoke:"取消主管權限",
   revokeInput:"輸入撤銷碼",revokeSuccess:"主管權限已取消",revokeFail:"撤銷碼錯誤",
   actionLog:"操作記錄",logGenUser:"生成{0}號啟動碼",logGenSup:"生成{0}號主管啟動碼({1})",
   logRevoke:"取消{0}號主管權限({1})",supervisorList:"主管名單",
   logTeacherActivate:"{0}號老師啟用主管權限({1})",
-  revokeToAdmin:"請將此碼傳給管理者新增到 revoked.cfg",
   revokedList:"已撤銷",expired:"權限已過期",ok:"確認",
   ghConfig:"GitHub 設定",ghOwner:"帳號",ghRepo:"Repo 名稱",ghToken:"Personal Access Token",
   ghSave:"儲存",ghSaved:"已儲存 ✓",ghTest:"測試連線",ghOk:"連線成功 ✓",ghFail:"連線失敗",
@@ -581,12 +473,11 @@ vi:{
   supervisor:"Trang quản lý",supervisorTitle:"Quản lý",
   supervisorApprove:"Duyệt đăng ký quản lý",supervisorApproveHint:"Dán mã đăng ký",
   supervisorInfo:"Thông tin người đăng ký",
-  revoke:"Hủy quyền quản lý",revokeHint:"Thêm mã này vào GitHub revoked.cfg",revokeCode:"Mã hủy",
+  revoke:"Hủy quyền quản lý",
   revokeInput:"Nhập mã hủy",revokeSuccess:"Đã hủy quyền quản lý",revokeFail:"Sai mã hủy",
   actionLog:"Nhật ký",logGenUser:"Tạo mã kích hoạt #{0}",logGenSup:"Tạo mã quản lý #{0}({1})",
   logRevoke:"Hủy quyền #{0}({1})",supervisorList:"Danh sách quản lý",
   logTeacherActivate:"NV #{0} kích hoạt quyền quản lý({1})",
-  revokeToAdmin:"Gửi mã này cho quản trị viên để thêm vào revoked.cfg",
   revokedList:"Đã hủy",expired:"Quyền đã hết hạn",ok:"OK",
   ghConfig:"Cài đặt GitHub",ghOwner:"Tài khoản",ghRepo:"Tên Repo",ghToken:"Personal Access Token",
   ghSave:"Lưu",ghSaved:"Đã lưu ✓",ghTest:"Thử kết nối",ghOk:"Kết nối OK ✓",ghFail:"Kết nối thất bại",
@@ -742,13 +633,7 @@ function Onboarding({onComplete}){
         }
       }
     }catch{}
-    // Check approved.cfg (online approval)
-    try{
-      const result=await checkApproved('t',approveHash(code,devId));
-      if(result){
-        doActivate({code,unitPrice:250,lang,store,year:new Date().getFullYear(),deviceId:devId});return;
-      }
-    }catch{}
+
     setChecking(false);
     setStep(2);
     setErr('');
@@ -773,15 +658,7 @@ function Onboarding({onComplete}){
         }
       }catch{}
     }
-    // Fallback: check approved.cfg
-    try{
-      const result=await checkApproved('t',approveHash(code,devId));
-      if(result){
-        setWaitStatus(t.approved);
-        setTimeout(()=>doActivate({code,unitPrice:250,lang,store,year:new Date().getFullYear(),deviceId:devId}),800);
-        return;
-      }
-    }catch{}
+
     setWaitStatus('');
     setErr(t.waitHint);
   };
@@ -1287,7 +1164,6 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
   const[supStatus,setSupStatus]=useState(()=>LS.get(supKey)||null);
   const[applyStep,setApplyStep]=useState(false);
   const[devNameInput,setDevNameInput]=useState('');
-  const[supActInput,setSupActInput]=useState('');
   const[supErr,setSupErr]=useState('');
   const[appCopied,setAppCopied]=useState(false);
   const[supCheckStatus,setSupCheckStatus]=useState('');
@@ -1358,31 +1234,12 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
         }
       }catch{}
     }
-    // Fallback: check approved.cfg
-    try{
-      const result=await checkApproved('s',supApproveHash(settings.code));
-      if(result){
-        const data={...supStatus,status:'approved',approvedAt:Date.now(),level:result.level||0};
-        LS.set(supKey,data);setSupStatus(data);setSupCheckStatus(t.approved);
-        addLog(fmtLog(t.logTeacherActivate,[settings.code,supStatus?.deviceName||'']),'teacher');
-        return;
-      }
-    }catch{}
+
     setSupCheckStatus('');
     setSupErr(t.waitHint);
   };
 
-  // Verify admin activation code for supervisor (manual fallback)
-  const verifySup=()=>{
-    const correct=genAdminAct(settings.code,devId);
-    if(supActInput.replace(/[\s-]/g,'')===correct.replace(/-/g,'')){
-      const data={...supStatus,status:'approved',approvedAt:Date.now()};
-      LS.set(supKey,data);
-      setSupStatus(data);
-      setSupErr('');
-      addLog(fmtLog(t.logTeacherActivate,[settings.code,supStatus?.deviceName||'']),'teacher');
-    }else{setSupErr(t.adminActFail)}
-  };
+
 
   const copyAppCode=async()=>{
     if(supStatus?.appCode){try{await navigator.clipboard.writeText(supStatus.appCode)}catch{}}
@@ -1605,19 +1462,20 @@ function SupervisorPage({t,onBack}){
   const[genConnResult,setGenConnResult]=useState('');
   const[genConnCopied,setGenConnCopied]=useState(false);
 
-  // Check revoked.cfg on mount + load staff + stores
+  // Check staff.json on mount + load staff + stores
   useEffect(()=>{
     (async()=>{
       try{
         const s=LS.get('app-settings');if(!s)return;
-        const res=await fetch('./revoked.cfg',{cache:'no-store'});
-        if(!res.ok)return;
-        const text=(await res.text()).trim();
-        const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
-        const myHash=revokeHash(s.code);
-        if(lines.some(l=>l===myHash)){
-          LS.set(`supervisor-${s.code}`,null);
-          setRevoked(true);
+        // Check staff.json for supervisor status (admins auto-pass)
+        const gh=getGHConfig();
+        if(gh.token){
+          try{const staff=await readStaff(gh);
+            const me=staff.find(x=>x.code===s.code);
+            const isAdmin=me&&me.role==='admin';
+            if(!isAdmin&&(!me||me.role!=='supervisor'||me.status!=='active')){
+              LS.set(`supervisor-${s.code}`,null);setRevoked(true)}
+          }catch{}
         }
       }catch{}
       // Load staff
@@ -1652,8 +1510,6 @@ function SupervisorPage({t,onBack}){
       if(parts.length<2){setSupInfo(null);setSupResult('Error');return}
       const code=parts[0],uuid=parts[1],devName=parts.slice(2).join(':')||'unknown';
       setSupInfo({code,uuid:uuid.substring(0,8)+'...',devName});
-      setSupResult(genAdminAct(code,uuid));
-      addApproved(code,devName);
       addLog(fmtLog(t.logGenSup,[code,devName]),'supervisor');
     }catch{setSupInfo(null);setSupResult('Error')}
   };
@@ -1749,8 +1605,6 @@ function SupervisorPage({t,onBack}){
           </div>
         )}
       </div>
-
-      <ApprovedList t={t} isAdmin={false}/>
       <LogSection t={t} filterLevel="supervisor"/>
     </div>
   );
@@ -1766,7 +1620,7 @@ function AdminPage({t,onBack}){
   const[ghStatus,setGhStatus]=useState('');
   const[ghEditing,setGhEditing]=useState(()=>{const c=getGHConfig();return!c.token});
   const[delStatus,setDelStatus]=useState('');
-  const[keyRules,setKeyRules]=useState(()=>{const kc=getKeyConfig();return kc?.rules||[{file:'key.cfg',start:18,len:3},{file:'admin.cfg',start:25,len:2},{file:'revoked.cfg',start:10,len:3}]});
+  const[keyRules,setKeyRules]=useState(()=>{const kc=getKeyConfig();return kc?.rules||[{file:'key.cfg',start:18,len:3},{file:'admin.cfg',start:25,len:2},{file:'stores.cfg',start:8,len:3}]});
   const[keySaveStatus,setKeySaveStatus]=useState('');
 
   // Online approval states
@@ -1795,8 +1649,7 @@ function AdminPage({t,onBack}){
     setResetPending(null);
     const cleaned=staffList.filter(s=>s.code==='122'&&s.role==='admin');
     const ok=await writeStaff(gh,cleaned);
-    if(gh.token){try{const file=await ghReadFile(gh,'approved.cfg');if(file)await ghWriteFile(gh,'approved.cfg','# Online approvals\n',file.sha,'reset')}catch{}}
-    try{const file=await ghReadFile(gh,'revoked.cfg');if(file){const fl=file.content.split('\n')[0]||'';await ghWriteFile(gh,'revoked.cfg',fl+'\n',file.sha,'reset')}}catch{}
+
     if(ok){setStaffList(cleaned);setResetStatus(t.resetAllOk);addLog('還原初始設定 (管理員122)','admin')}
     setTimeout(()=>setResetStatus(''),3000);
   };
@@ -1888,10 +1741,7 @@ function AdminPage({t,onBack}){
     if(!teacherDecoded){setTeacherApproveStatus(t.approveFail+': no data');return}
     if(!gh.token){setTeacherApproveStatus(t.approveFail+': no GitHub Token');return}
     setTeacherApproveStatus(t.approving);
-    const hash=approveHash(teacherDecoded.code,teacherDecoded.devId);
-    const r1=await writeApproval(gh,'t',hash);
-    if(!r1||!r1.ok){setTeacherApproveStatus(t.approveFail+': approved.cfg '+(r1?.reason||'unknown'));return}
-    // Add to staff.json
+    // Write to staff.json
     const newStaff={code:teacherDecoded.code,store:teacherDecoded.store||'',lang:teacherDecoded.lang,
       skills:[],role:'teacher',level:0,status:'active',approvedAt:Date.now()};
     const updated=[...staffList.filter(s=>s.code!==teacherDecoded.code),newStaff];
@@ -1914,8 +1764,6 @@ function AdminPage({t,onBack}){
       if(parts.length<2){setSupInfo(null);setSupResult('Error');return}
       const code=parts[0],uuid=parts[1],devName=parts.slice(2).join(':')||'unknown';
       setSupInfo({code,uuid:uuid.substring(0,8)+'...',fullUuid:uuid,devName});
-      setSupResult(genAdminAct(code,uuid));
-      addApproved(code,devName);
       addLog(fmtLog(t.logGenSup,[code,devName]),'admin');
     }catch{setSupInfo(null);setSupResult('Error')}
   };
@@ -1925,10 +1773,7 @@ function AdminPage({t,onBack}){
     if(!supInfo){setSupApproveStatus(t.approveFail+': no data');return}
     if(!gh.token){setSupApproveStatus(t.approveFail+': no GitHub Token');return}
     setSupApproveStatus(t.approving);
-    const hash=supApproveHash(supInfo.code);
-    const r1=await writeApproval(gh,'s',hash,supLevel);
-    if(!r1||!r1.ok){setSupApproveStatus(t.approveFail+': approved.cfg '+(r1?.reason||'unknown'));return}
-    // Update staff.json
+    // Write to staff.json
     const existing=staffList.find(s=>s.code===supInfo.code);
     const entry={...(existing||{code:supInfo.code,store:'',lang:'zh',skills:[]}),
       role:'supervisor',level:supLevel,status:'active',approvedAt:Date.now()};
@@ -2406,7 +2251,6 @@ function AdminPage({t,onBack}){
         <button onClick={runTool} className="w-full py-2.5 rounded-xl bg-white/[0.06] text-gray-300 font-medium text-sm active:bg-white/[0.1]">{t.confirm}</button>
         {toolResult&&<div className="bg-white/[0.04] rounded-xl p-3 text-sm text-gray-300 font-mono break-all select-all fi">{toolResult}</div>}
       </div>
-      <ApprovedList t={t} isAdmin={true}/>
 
       {/* GitHub Config - locked by default */}
       <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
@@ -2447,7 +2291,7 @@ function AdminPage({t,onBack}){
           <div key={i} className="flex gap-1.5 items-center">
             <select value={r.file} onChange={e=>updateRule(i,'file',e.target.value)}
               className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200 focus:outline-none">
-              {['key.cfg','admin.cfg','revoked.cfg','index.html'].map(f=><option key={f} value={f}>{f}</option>)}
+              {['key.cfg','admin.cfg','stores.cfg','index.html'].map(f=><option key={f} value={f}>{f}</option>)}
             </select>
             <input type="number" value={r.start} onChange={e=>updateRule(i,'start',e.target.value)} placeholder={t.keyStart}
               className="w-14 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-center text-gray-200 font-mono focus:outline-none"/>
