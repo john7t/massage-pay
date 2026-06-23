@@ -55,12 +55,12 @@ main{flex:1;display:flex;flex-direction:column;align-items:center;justify-conten
 .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
 .divider span{font-size:11px;color:var(--muted);letter-spacing:.06em}
 
-.qr-wrap{background:white;border-radius:16px;padding:14px;display:inline-block;margin-bottom:.75rem;box-shadow:0 2px 12px rgba(245,137,192,.2)}
+.qr-wrap{background:white;border-radius:16px;padding:14px;display:inline-block;margin-bottom:.5rem;box-shadow:0 2px 12px rgba(245,137,192,.2)}
 .qr-wrap img{display:block;width:160px;height:160px}
-.qr-hint{font-size:12px;color:var(--muted);margin-bottom:2rem;text-align:center}
+.qr-hint{font-size:12px;color:var(--muted);margin-bottom:1rem;text-align:center}
 
 /* LANG */
-.lang-bar{display:flex;gap:.3rem;flex-wrap:nowrap;justify-content:center;padding:.5rem .75rem 2rem;overflow-x:auto;scrollbar-width:none}
+.lang-bar{display:flex;gap:.3rem;flex-wrap:nowrap;justify-content:center;padding:.25rem .75rem 1.5rem;overflow-x:auto;scrollbar-width:none}
 .lang-bar::-webkit-scrollbar{display:none}
 .lang-btn{background:none;border:1px solid var(--border);border-radius:8px;padding:.3rem .45rem;font-size:11px;color:var(--muted);cursor:pointer;transition:border-color .2s,color .2s,background .2s;white-space:nowrap;flex-shrink:0}
 .lang-btn.active,.lang-btn:hover{border-color:var(--accent);color:var(--accent-dark);background:rgba(245,137,192,.08)}
@@ -162,6 +162,7 @@ input:focus{border-color:var(--accent)}
   <button class="lang-btn" onclick="setLang('ko')">KR</button>
   <button class="lang-btn" onclick="setLang('th')">TH</button>
   <button class="lang-btn" onclick="setLang('vi')">VI</button>
+  <button class="lang-btn" onclick="setLang('id')">ID</button>
 </div>
 
 <div class="copied-toast" id="toast">✓ 已複製密碼</div>
@@ -378,6 +379,7 @@ const LANGS={
   ko:{ssid:'WiFi 이름',hint:'위의 WiFi 이름을 눌러 연결하세요',pwd:'비밀번호',copy:'탭하여 복사',or:'또는',qr:'QR 코드 스캔',toast:'✓ 복사됨'},
   th:{ssid:'ชื่อ WiFi',hint:'แตะชื่อ WiFi ด้านบนเพื่อเชื่อมต่อ',pwd:'รหัสผ่าน',copy:'แตะเพื่อคัดลอก',or:'หรือ',qr:'สแกน QR Code',toast:'✓ คัดลอกแล้ว'},
   vi:{ssid:'Tên WiFi',hint:'Nhấn tên WiFi ở trên để kết nối',pwd:'Mật khẩu',copy:'Nhấn để sao chép',or:'hoặc',qr:'Quét mã QR để kết nối',toast:'✓ Đã sao chép'},
+  id:{ssid:'Nama WiFi',hint:'Ketuk nama WiFi di atas untuk terhubung',pwd:'Kata Sandi',copy:'Ketuk untuk menyalin',or:'atau',qr:'Pindai QR Code untuk terhubung',toast:'✓ Berhasil disalin'},
 };
 function setLang(l){
   const t=LANGS[l];
@@ -388,7 +390,7 @@ function setLang(l){
   document.getElementById('lbl-or').textContent=t.or;
   document.getElementById('lbl-qr').textContent=t.qr;
   document.getElementById('toast').textContent=t.toast;
-  const map={zh:'中文',en:'EN',ja:'JP',ko:'KR',th:'TH',vi:'VI'};
+  const map={zh:'中文',en:'EN',ja:'JP',ko:'KR',th:'TH',vi:'VI',id:'ID'};
   document.querySelectorAll('.lang-btn').forEach(b=>{
     b.classList.toggle('active', b.textContent===map[l]);
   });
