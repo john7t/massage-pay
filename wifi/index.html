@@ -3,92 +3,104 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="theme-color" content="#0d1117">
+<meta name="theme-color" content="#fce4f3">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>雲心閣養生會館 · WiFi</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0d1117;
-  --card:#161b22;
-  --border:rgba(255,255,255,0.07);
-  --gold:#c9965a;
-  --gold-dim:#8a6238;
-  --text:#e6edf3;
-  --muted:#8b949e;
-  --faint:#30363d;
+  --bg:#fce4f3;
+  --card:#fff0f9;
+  --border:#f0b8dc;
+  --accent:#f589c0;
+  --accent-dark:#c9579a;
+  --text:#4a1a38;
+  --muted:#a06080;
+  --faint:#f0c8e4;
+  --err:#c0392b;
 }
 body{background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text);min-height:100svh;display:flex;flex-direction:column}
 
-/* ── HEADER ── */
+/* HEADER */
 header{display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.25rem 0}
 .brand{display:flex;flex-direction:column;gap:2px}
-.brand-name{font-size:13px;font-weight:500;letter-spacing:.04em;color:var(--gold)}
+.brand-name{font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--accent-dark)}
 .brand-sub{font-size:10px;color:var(--muted);letter-spacing:.06em}
 .admin-btn{width:36px;height:36px;border-radius:50%;background:var(--card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);transition:color .2s,border-color .2s}
-.admin-btn:hover{color:var(--gold);border-color:var(--gold-dim)}
+.admin-btn:hover{color:var(--accent-dark);border-color:var(--accent)}
 .admin-btn svg{width:16px;height:16px}
 
-/* ── MAIN ── */
+/* MAIN */
 main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1.5rem}
-
-.wifi-icon{margin-bottom:1.75rem;opacity:.9}
-.wifi-icon svg{width:56px;height:56px;stroke:var(--gold)}
-
+.wifi-icon{margin-bottom:1.75rem}
 .ssid-label{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem}
-.ssid-name{font-size:20px;font-weight:600;color:var(--text);margin-bottom:.3rem;text-align:center}
+.ssid-name{font-size:20px;font-weight:700;color:var(--text);margin-bottom:.3rem;text-align:center}
 .ssid-hint{font-size:12px;color:var(--muted);margin-bottom:2rem;text-align:center;line-height:1.5}
 
-.copy-btn{display:flex;align-items:center;gap:.5rem;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:.75rem 1.25rem;cursor:pointer;color:var(--text);font-size:14px;transition:border-color .2s,background .2s;width:100%;max-width:320px;justify-content:space-between;margin-bottom:1.5rem}
-.copy-btn:hover{border-color:var(--gold-dim);background:#1c2330}
-.copy-btn:active{background:#222c3c}
+.copy-btn{display:flex;align-items:center;background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:.75rem 1.25rem;cursor:pointer;color:var(--text);font-size:14px;transition:border-color .2s,box-shadow .2s;width:100%;max-width:320px;justify-content:space-between;margin-bottom:1.5rem;box-shadow:0 2px 8px rgba(245,137,192,.1)}
+.copy-btn:hover{border-color:var(--accent);box-shadow:0 4px 16px rgba(245,137,192,.25)}
+.copy-btn:active{background:var(--faint)}
 .copy-btn .label{color:var(--muted);font-size:12px;margin-bottom:2px}
-.copy-btn .val{font-size:15px;font-weight:500;letter-spacing:.05em}
-.copy-btn .icon{color:var(--gold);flex-shrink:0}
+.copy-btn .val{font-size:15px;font-weight:600;letter-spacing:.05em}
+.copy-btn .icon{color:var(--accent-dark);flex-shrink:0;text-align:center}
 .copy-btn .icon svg{width:18px;height:18px}
-.copied-toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:#1f6feb;color:#fff;font-size:13px;padding:.5rem 1.25rem;border-radius:20px;opacity:0;pointer-events:none;transition:opacity .2s;white-space:nowrap;z-index:99}
+.copy-btn .icon span{font-size:11px;display:block;margin-top:2px;color:var(--muted)}
+
+.copied-toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:var(--accent-dark);color:#fff;font-size:13px;padding:.5rem 1.25rem;border-radius:20px;opacity:0;pointer-events:none;transition:opacity .2s;white-space:nowrap;z-index:99}
 .copied-toast.show{opacity:1}
 
 .divider{display:flex;align-items:center;gap:.75rem;width:100%;max-width:320px;margin-bottom:1.5rem}
 .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
 .divider span{font-size:11px;color:var(--muted);letter-spacing:.06em}
 
-.qr-wrap{background:white;border-radius:16px;padding:14px;display:inline-block;margin-bottom:.75rem}
+.qr-wrap{background:white;border-radius:16px;padding:14px;display:inline-block;margin-bottom:.75rem;box-shadow:0 2px 12px rgba(245,137,192,.2)}
 .qr-wrap img{display:block;width:160px;height:160px}
 .qr-hint{font-size:12px;color:var(--muted);margin-bottom:2rem;text-align:center}
 
-/* ── LANG ── */
+/* LANG */
 .lang-bar{display:flex;gap:.4rem;flex-wrap:wrap;justify-content:center;padding:.5rem 1.5rem 2rem}
-.lang-btn{background:none;border:1px solid var(--border);border-radius:8px;padding:.35rem .7rem;font-size:12px;color:var(--muted);cursor:pointer;transition:border-color .2s,color .2s}
-.lang-btn.active,.lang-btn:hover{border-color:var(--gold-dim);color:var(--gold)}
+.lang-btn{background:none;border:1px solid var(--border);border-radius:8px;padding:.35rem .7rem;font-size:12px;color:var(--muted);cursor:pointer;transition:border-color .2s,color .2s,background .2s}
+.lang-btn.active,.lang-btn:hover{border-color:var(--accent);color:var(--accent-dark);background:rgba(245,137,192,.08)}
 
-/* ── OVERLAY ── */
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:none;align-items:flex-end;justify-content:center}
+/* OVERLAY */
+.overlay{position:fixed;inset:0;background:rgba(74,26,56,.45);z-index:100;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px)}
 .overlay.open{display:flex}
-.sheet{background:var(--card);border-radius:20px 20px 0 0;border-top:1px solid var(--border);width:100%;max-width:480px;padding:1.5rem 1.25rem 2.5rem;max-height:90svh;overflow-y:auto}
+.sheet{background:var(--card);border-radius:20px 20px 0 0;border-top:2px solid var(--accent);width:100%;max-width:480px;padding:1.5rem 1.25rem 2.5rem;max-height:90svh;overflow-y:auto}
 .sheet-handle{width:36px;height:4px;background:var(--faint);border-radius:2px;margin:0 auto 1.25rem}
-.sheet-title{font-size:16px;font-weight:600;margin-bottom:1.5rem;color:var(--text)}
+.sheet-title{font-size:16px;font-weight:700;margin-bottom:1.5rem;color:var(--text)}
 
-/* ── AUTH ── */
+/* AUTH */
 .auth-box{display:flex;flex-direction:column;gap:.75rem}
 .field-group{display:flex;flex-direction:column;gap:.4rem}
 .field-group label{font-size:12px;color:var(--muted);letter-spacing:.04em}
-input[type=text],input[type=password]{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:.65rem .9rem;color:var(--text);font-size:15px;width:100%;outline:none;transition:border-color .2s}
-input:focus{border-color:var(--gold-dim)}
-.btn-primary{background:var(--gold);color:#0d1117;border:none;border-radius:10px;padding:.75rem;font-size:14px;font-weight:600;cursor:pointer;width:100%;transition:opacity .2s}
-.btn-primary:hover{opacity:.88}
-.btn-secondary{background:none;border:1px solid var(--border);border-radius:10px;padding:.7rem;font-size:14px;color:var(--muted);cursor:pointer;width:100%;margin-top:.5rem;transition:border-color .2s,color .2s}
-.btn-secondary:hover{border-color:var(--gold-dim);color:var(--gold)}
-.auth-err{font-size:12px;color:#f85149;display:none}
+input[type=text],input[type=password]{background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:.65rem .9rem;color:var(--text);font-size:15px;width:100%;outline:none;transition:border-color .2s}
+input::placeholder{color:transparent}
+input:focus{border-color:var(--accent)}
+
+/* CAPTCHA */
+.captcha-row{display:flex;gap:.6rem;align-items:center}
+.captcha-row input{flex:1}
+.captcha-box{flex-shrink:0;background:var(--faint);border:1.5px solid var(--border);border-radius:10px;padding:.55rem .9rem;font-size:18px;font-weight:700;letter-spacing:.18em;color:var(--accent-dark);cursor:pointer;user-select:none;min-width:90px;text-align:center;transition:background .2s}
+.captcha-box:hover{background:#f8d0ec}
+.captcha-hint{font-size:10px;color:var(--muted);text-align:right;margin-top:2px}
+
+.btn-primary{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:.75rem;font-size:14px;font-weight:700;cursor:pointer;width:100%;transition:opacity .2s,box-shadow .2s;box-shadow:0 4px 12px rgba(245,137,192,.4)}
+.btn-primary:hover{opacity:.9;box-shadow:0 6px 18px rgba(245,137,192,.5)}
+.btn-secondary{background:none;border:1.5px solid var(--border);border-radius:10px;padding:.7rem;font-size:14px;color:var(--muted);cursor:pointer;width:100%;margin-top:.5rem}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent-dark)}
+.auth-err{font-size:12px;color:var(--err);display:none;padding:.4rem .6rem;background:rgba(192,57,43,.06);border-radius:8px}
 .auth-err.show{display:block}
 
-/* ── ADMIN PANEL ── */
+/* ADMIN */
 .admin-section{margin-bottom:1.5rem}
 .admin-section-title{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.75rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)}
 .admin-fields{display:flex;flex-direction:column;gap:.75rem;margin-bottom:.75rem}
-.code-result{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:.65rem .9rem;font-size:18px;font-weight:700;letter-spacing:.12em;color:var(--gold);text-align:center;display:none}
+.code-result{background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:.65rem .9rem;font-size:18px;font-weight:700;letter-spacing:.12em;color:var(--accent-dark);text-align:center;display:none}
 .code-result.show{display:block}
-.logout-btn{background:none;border:1px solid #30363d;border-radius:10px;padding:.6rem;font-size:13px;color:var(--muted);cursor:pointer;width:100%;margin-top:.5rem}
-.logout-btn:hover{border-color:#f85149;color:#f85149}
+.logout-btn{background:none;border:1px solid var(--border);border-radius:10px;padding:.6rem;font-size:13px;color:var(--muted);cursor:pointer;width:100%;margin-top:.5rem}
+.logout-btn:hover{border-color:var(--err);color:var(--err)}
 </style>
 </head>
 <body>
@@ -108,11 +120,11 @@ input:focus{border-color:var(--gold-dim)}
 
 <main>
   <div class="wifi-icon">
-    <svg viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M5 12.55a11 11 0 0 1 14 0" stroke="var(--gold)" opacity=".35"/>
-      <path d="M1.42 9A16 16 0 0 1 22.58 9" stroke="var(--gold)" opacity=".2"/>
-      <path d="M8.53 16.11a6 6 0 0 1 6.95 0" stroke="var(--gold)" opacity=".65"/>
-      <circle cx="12" cy="20" r="1.2" fill="var(--gold)"/>
+    <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5 12.55a11 11 0 0 1 14 0" stroke="#f589c0" opacity=".4"/>
+      <path d="M1.42 9A16 16 0 0 1 22.58 9" stroke="#f589c0" opacity=".2"/>
+      <path d="M8.53 16.11a6 6 0 0 1 6.95 0" stroke="#f589c0" opacity=".7"/>
+      <circle cx="12" cy="20" r="1.2" fill="#f589c0"/>
     </svg>
   </div>
 
@@ -130,7 +142,7 @@ input:focus{border-color:var(--gold-dim)}
         <rect x="9" y="9" width="13" height="13" rx="2"/>
         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
       </svg>
-      <span id="lbl-copy" style="font-size:11px;display:block;margin-top:2px">點此複製</span>
+      <span id="lbl-copy">點此複製</span>
     </div>
   </button>
 
@@ -153,30 +165,38 @@ input:focus{border-color:var(--gold-dim)}
 
 <div class="copied-toast" id="toast">✓ 已複製密碼</div>
 
-<!-- ── OVERLAY ── -->
+<!-- OVERLAY -->
 <div class="overlay" id="overlay" onclick="closeIfBg(event)">
-  <div class="sheet" id="sheet">
+  <div class="sheet">
     <div class="sheet-handle"></div>
 
-    <!-- 未登入：登入/初始化 -->
+    <!-- 登入 -->
     <div id="panelAuth">
-      <div class="sheet-title" id="authTitle">管理員登入</div>
+      <div class="sheet-title">登入</div>
       <div class="auth-box">
         <div class="field-group">
-          <label>員工編號</label>
-          <input type="text" id="inputCode" placeholder="例如 122" inputmode="numeric">
+          <label>帳號</label>
+          <input type="text" id="inputCode" autocomplete="off">
         </div>
-        <div class="field-group" id="activationField">
-          <label>啟動碼</label>
-          <input type="text" id="inputActivation" placeholder="xxx-xxx 或 xxxxxx" maxlength="7">
+        <div class="field-group">
+          <label>密碼</label>
+          <input type="text" id="inputActivation" autocomplete="off" maxlength="7">
         </div>
-        <p class="auth-err" id="authErr">啟動碼錯誤，請確認後再試</p>
+        <div class="field-group">
+          <label>驗證碼</label>
+          <div class="captcha-row">
+            <input type="text" id="inputCaptcha" autocomplete="off" maxlength="4" inputmode="numeric">
+            <div class="captcha-box" id="captchaDisplay" onclick="refreshCaptcha()"></div>
+          </div>
+          <div class="captcha-hint">點擊數字可刷新</div>
+        </div>
+        <p class="auth-err" id="authErr">驗證失敗，請重新輸入</p>
         <button class="btn-primary" onclick="doLogin()">登入</button>
         <button class="btn-secondary" onclick="closeOverlay()">取消</button>
       </div>
     </div>
 
-    <!-- 已登入：管理面板 -->
+    <!-- 管理 -->
     <div id="panelAdmin" style="display:none">
       <div class="sheet-title">⚙️ 管理設定</div>
 
@@ -185,15 +205,15 @@ input:focus{border-color:var(--gold-dim)}
         <div class="admin-fields">
           <div class="field-group">
             <label>公司名稱</label>
-            <input type="text" id="set-company" placeholder="雲心閣養生會館">
+            <input type="text" id="set-company">
           </div>
           <div class="field-group">
-            <label>WiFi 名稱 (SSID)</label>
-            <input type="text" id="set-ssid" placeholder="Massage218">
+            <label>WiFi 名稱</label>
+            <input type="text" id="set-ssid">
           </div>
           <div class="field-group">
             <label>WiFi 密碼</label>
-            <input type="text" id="set-pwd" placeholder="密碼">
+            <input type="text" id="set-pwd">
           </div>
         </div>
         <button class="btn-primary" onclick="saveSettings()">儲存</button>
@@ -204,7 +224,7 @@ input:focus{border-color:var(--gold-dim)}
         <div class="admin-fields">
           <div class="field-group">
             <label>員工編號</label>
-            <input type="text" id="gen-code" placeholder="例如 122" inputmode="numeric">
+            <input type="text" id="gen-code" inputmode="numeric">
           </div>
         </div>
         <button class="btn-primary" onclick="genActivation()">產生啟動碼</button>
@@ -217,66 +237,65 @@ input:focus{border-color:var(--gold-dim)}
 </div>
 
 <script>
-// ── 常數 ──
 const SALT     = 'YXG9';
 const KEY      = 'WF2026';
-const ADMIN_ID = '122';   // 固定管理者員工編號
+const ADMIN_ID = '122';
 
-// ── 啟動碼演算 ──
+// 啟動碼
 function fnv(str){
-  let h = 2166136261;
+  let h=2166136261;
   for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=(h*16777619)>>>0}
   return h;
 }
-function makeCode(empId){
-  const a = fnv(empId + SALT + KEY) % 1000;
-  const b = fnv(KEY + empId + SALT) % 1000;
-  const pad = n => String(n).padStart(3,'0');
-  return `${pad(a)}-${pad(b)}`;
+function makeCode(id){
+  const a=fnv(id+SALT+KEY)%1000, b=fnv(KEY+id+SALT)%1000;
+  const p=n=>String(n).padStart(3,'0');
+  return `${p(a)}-${p(b)}`;
 }
-function verifyCode(empId, input){
-  const clean = input.replace('-','');
-  return clean === makeCode(empId).replace('-','');
-}
+function verifyCode(id,input){ return input.replace('-','')=== makeCode(id).replace('-',''); }
 
-// ── 設定存取 ──
+// 設定
 function loadSettings(){
-  const d = JSON.parse(localStorage.getItem('wifiSettings')||'{}');
-  return {
-    company: d.company || '雲心閣養生會館',
-    ssid:    d.ssid    || 'Massage218',
-    pwd:     d.pwd     || '23380193',
-  };
+  const d=JSON.parse(localStorage.getItem('wifiSettings')||'{}');
+  return { company:d.company||'雲心閣養生會館', ssid:d.ssid||'Massage218', pwd:d.pwd||'23380193' };
 }
-function saveToLS(s){ localStorage.setItem('wifiSettings', JSON.stringify(s)); }
+function saveToLS(s){ localStorage.setItem('wifiSettings',JSON.stringify(s)); }
 
-// ── Session ──
-function isLoggedIn(){ return sessionStorage.getItem('wfLoggedIn') === '1'; }
-function currentUser(){ return sessionStorage.getItem('wfUser') || ''; }
-function isAdmin(){ return currentUser() === ADMIN_ID; }
-function setSession(empId){ sessionStorage.setItem('wfLoggedIn','1'); sessionStorage.setItem('wfUser', empId); }
+// Session
+function isLoggedIn(){ return sessionStorage.getItem('wfLoggedIn')==='1'; }
+function currentUser(){ return sessionStorage.getItem('wfUser')||''; }
+function isAdmin(){ return currentUser()===ADMIN_ID; }
+function setSession(id){ sessionStorage.setItem('wfLoggedIn','1'); sessionStorage.setItem('wfUser',id); }
 function clearSession(){ sessionStorage.removeItem('wfLoggedIn'); sessionStorage.removeItem('wfUser'); }
 
-// ── 頁面渲染 ──
+// 驗證碼
+let captchaVal = '';
+function refreshCaptcha(){
+  captchaVal = String(Math.floor(1000+Math.random()*9000));
+  document.getElementById('captchaDisplay').textContent = captchaVal;
+  document.getElementById('inputCaptcha').value = '';
+}
+
+// 渲染
 function render(){
-  const s = loadSettings();
-  document.getElementById('brandName').textContent = s.company;
-  document.getElementById('ssidDisplay').textContent = s.ssid;
-  const q = `WIFI:T:WPA;S:${s.ssid};P:${s.pwd};;`;
-  document.getElementById('qrImg').src = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(q)}&size=300x300&color=000000&bgcolor=ffffff`;
+  const s=loadSettings();
+  document.getElementById('brandName').textContent=s.company;
+  document.getElementById('ssidDisplay').textContent=s.ssid;
+  const q=`WIFI:T:WPA;S:${s.ssid};P:${s.pwd};;`;
+  document.getElementById('qrImg').src=`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(q)}&size=300x300&color=000000&bgcolor=ffffff`;
 }
 render();
 
-// ── 複製密碼 ──
+// 複製
 function copyPwd(){
   navigator.clipboard.writeText(loadSettings().pwd).then(()=>{
-    const t = document.getElementById('toast');
+    const t=document.getElementById('toast');
     t.classList.add('show');
-    setTimeout(()=>t.classList.remove('show'), 2000);
+    setTimeout(()=>t.classList.remove('show'),2000);
   });
 }
 
-// ── Overlay ──
+// Overlay
 function openAdmin(){
   document.getElementById('overlay').classList.add('open');
   isLoggedIn() ? showPanel('admin') : showPanel('auth');
@@ -288,79 +307,88 @@ function showPanel(p){
   document.getElementById('panelAuth').style.display  = p==='auth'  ? '' : 'none';
   document.getElementById('panelAdmin').style.display = p==='admin' ? '' : 'none';
   if(p==='admin'){
-    const s = loadSettings();
-    document.getElementById('set-company').value = s.company;
-    document.getElementById('set-ssid').value    = s.ssid;
-    document.getElementById('set-pwd').value     = s.pwd;
-    // 只有管理者看到換算區塊
-    document.getElementById('sectionGenCode').style.display = isAdmin() ? '' : 'none';
+    const s=loadSettings();
+    document.getElementById('set-company').value=s.company;
+    document.getElementById('set-ssid').value=s.ssid;
+    document.getElementById('set-pwd').value=s.pwd;
+    document.getElementById('sectionGenCode').style.display=isAdmin()?'':'none';
   }
   if(p==='auth'){
     document.getElementById('authErr').classList.remove('show');
-    document.getElementById('inputCode').value       = '';
-    document.getElementById('inputActivation').value = '';
+    document.getElementById('inputCode').value='';
+    document.getElementById('inputActivation').value='';
+    document.getElementById('inputCaptcha').value='';
+    refreshCaptcha();
   }
 }
 
-// ── 登入 ──
+// 登入
 function doLogin(){
-  const empId = document.getElementById('inputCode').value.trim();
-  const act   = document.getElementById('inputActivation').value.trim();
-  if(!empId || !act){ return; }
-  if(verifyCode(empId, act)){
-    setSession(empId);
+  const id  = document.getElementById('inputCode').value.trim();
+  const act = document.getElementById('inputActivation').value.trim();
+  const cap = document.getElementById('inputCaptcha').value.trim();
+  const err = document.getElementById('authErr');
+  if(!id||!act||!cap){ return; }
+  if(cap !== captchaVal){
+    err.textContent='驗證碼錯誤，請重新輸入';
+    err.classList.add('show');
+    refreshCaptcha();
+    return;
+  }
+  if(verifyCode(id,act)){
+    setSession(id);
     showPanel('admin');
   } else {
-    document.getElementById('authErr').classList.add('show');
+    err.textContent='驗證失敗，請重新輸入';
+    err.classList.add('show');
+    refreshCaptcha();
   }
 }
-document.getElementById('inputActivation').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+document.getElementById('inputCaptcha').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
 
-// ── 儲存設定 ──
+// 儲存
 function saveSettings(){
-  const s = {
-    company: document.getElementById('set-company').value.trim() || '雲心閣養生會館',
-    ssid:    document.getElementById('set-ssid').value.trim()    || 'Massage218',
-    pwd:     document.getElementById('set-pwd').value.trim()     || '23380193',
+  const s={
+    company:document.getElementById('set-company').value.trim()||'雲心閣養生會館',
+    ssid:   document.getElementById('set-ssid').value.trim()   ||'Massage218',
+    pwd:    document.getElementById('set-pwd').value.trim()    ||'23380193',
   };
-  saveToLS(s);
-  render();
-  closeOverlay();
+  saveToLS(s); render(); closeOverlay();
 }
 
-// ── 產生啟動碼（僅管理者） ──
+// 換算啟動碼
 function genActivation(){
-  const code = document.getElementById('gen-code').value.trim();
+  const code=document.getElementById('gen-code').value.trim();
   if(!code) return;
-  const result = document.getElementById('codeResult');
-  const c = makeCode(code);
-  result.textContent = `${c}　${c.replace('-','')}`;
-  result.classList.add('show');
+  const c=makeCode(code);
+  const r=document.getElementById('codeResult');
+  r.textContent=`${c}　${c.replace('-','')}`;
+  r.classList.add('show');
 }
 
-// ── 登出 ──
+// 登出
 function doLogout(){ clearSession(); showPanel('auth'); }
 
-// ── 多語系 ──
-const LANGS = {
-  zh:{ ssid:'WiFi 名稱', hint:'請點選以上 WiFi 名稱連線', pwd:'密碼', copy:'點此複製', or:'或', qr:'掃描 QR Code 自動連線', toast:'✓ 已複製密碼' },
-  en:{ ssid:'WiFi Name', hint:'Tap the WiFi name above to connect', pwd:'Password', copy:'Tap to copy', or:'or', qr:'Scan QR Code to connect', toast:'✓ Password copied' },
-  ja:{ ssid:'WiFi名前', hint:'上のWiFi名をタップして接続', pwd:'パスワード', copy:'タップでコピー', or:'または', qr:'QRコードをスキャン', toast:'✓ コピーしました' },
-  ko:{ ssid:'WiFi 이름', hint:'위의 WiFi 이름을 눌러 연결하세요', pwd:'비밀번호', copy:'탭하여 복사', or:'또는', qr:'QR 코드 스캔', toast:'✓ 복사됨' },
-  th:{ ssid:'ชื่อ WiFi', hint:'แตะชื่อ WiFi ด้านบนเพื่อเชื่อมต่อ', pwd:'รหัสผ่าน', copy:'แตะเพื่อคัดลอก', or:'หรือ', qr:'สแกน QR Code', toast:'✓ คัดลอกแล้ว' },
-  vi:{ ssid:'Tên WiFi', hint:'Nhấn tên WiFi ở trên để kết nối', pwd:'Mật khẩu', copy:'Nhấn để sao chép', or:'hoặc', qr:'Quét mã QR để kết nối', toast:'✓ Đã sao chép' },
+// 多語系
+const LANGS={
+  zh:{ssid:'WiFi 名稱',hint:'請點選以上 WiFi 名稱連線',pwd:'密碼',copy:'點此複製',or:'或',qr:'掃描 QR Code 自動連線',toast:'✓ 已複製密碼'},
+  en:{ssid:'WiFi Name',hint:'Tap the WiFi name above to connect',pwd:'Password',copy:'Tap to copy',or:'or',qr:'Scan QR Code to connect',toast:'✓ Password copied'},
+  ja:{ssid:'WiFi名前',hint:'上のWiFi名をタップして接続',pwd:'パスワード',copy:'タップでコピー',or:'または',qr:'QRコードをスキャン',toast:'✓ コピーしました'},
+  ko:{ssid:'WiFi 이름',hint:'위의 WiFi 이름을 눌러 연결하세요',pwd:'비밀번호',copy:'탭하여 복사',or:'또는',qr:'QR 코드 스캔',toast:'✓ 복사됨'},
+  th:{ssid:'ชื่อ WiFi',hint:'แตะชื่อ WiFi ด้านบนเพื่อเชื่อมต่อ',pwd:'รหัสผ่าน',copy:'แตะเพื่อคัดลอก',or:'หรือ',qr:'สแกน QR Code',toast:'✓ คัดลอกแล้ว'},
+  vi:{ssid:'Tên WiFi',hint:'Nhấn tên WiFi ở trên để kết nối',pwd:'Mật khẩu',copy:'Nhấn để sao chép',or:'hoặc',qr:'Quét mã QR để kết nối',toast:'✓ Đã sao chép'},
 };
 function setLang(l){
-  const t = LANGS[l];
-  document.getElementById('lbl-ssid').textContent = t.ssid;
-  document.getElementById('lbl-hint').textContent = t.hint;
-  document.getElementById('lbl-pwd').textContent  = t.pwd;
-  document.getElementById('lbl-copy').textContent = t.copy;
-  document.getElementById('lbl-or').textContent   = t.or;
-  document.getElementById('lbl-qr').textContent   = t.qr;
-  document.getElementById('toast').textContent    = t.toast;
+  const t=LANGS[l];
+  document.getElementById('lbl-ssid').textContent=t.ssid;
+  document.getElementById('lbl-hint').textContent=t.hint;
+  document.getElementById('lbl-pwd').textContent=t.pwd;
+  document.getElementById('lbl-copy').textContent=t.copy;
+  document.getElementById('lbl-or').textContent=t.or;
+  document.getElementById('lbl-qr').textContent=t.qr;
+  document.getElementById('toast').textContent=t.toast;
   document.querySelectorAll('.lang-btn').forEach(b=>{
-    b.classList.toggle('active', b.textContent.includes({zh:'中',en:'En',ja:'日',ko:'한',th:'ภ',vi:'Ti'}[l]||l));
+    b.classList.toggle('active',b.textContent.includes({zh:'中',en:'En',ja:'日',ko:'한',th:'ภ',vi:'Ti'}[l]||l));
   });
 }
 </script>
