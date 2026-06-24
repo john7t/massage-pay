@@ -174,27 +174,42 @@ input:focus{border-color:var(--accent)}
 
     <!-- 登入 -->
     <div id="panelAuth">
-      <div class="sheet-title">登入</div>
+      <div class="sheet-title">管理登入</div>
       <div class="auth-box">
-        <div class="field-group">
-          <label>帳號</label>
-          <input type="text" id="inputCode" autocomplete="off">
-        </div>
-        <div class="field-group">
-          <label>密碼</label>
-          <input type="text" id="inputActivation" autocomplete="off" maxlength="7">
-        </div>
-        <div class="field-group">
-          <label>驗證碼</label>
-          <div class="captcha-row">
-            <input type="text" id="inputCaptcha" autocomplete="off" maxlength="4" inputmode="numeric">
-            <div class="captcha-box" id="captchaDisplay" onclick="refreshCaptcha()"></div>
+
+        <!-- Step 1：輸入 id + 檢查 -->
+        <div id="stepId">
+          <div class="field-group" style="margin-bottom:.75rem">
+            <label>員工編號</label>
+            <input type="text" id="inputCode" autocomplete="off" inputmode="numeric">
           </div>
-          <div class="captcha-hint">點擊數字可刷新</div>
+          <p class="auth-err" id="errId"></p>
+          <button class="btn-primary" onclick="checkId()">檢查</button>
+          <button class="btn-secondary" onclick="closeOverlay()">取消</button>
         </div>
-        <p class="auth-err" id="authErr">驗證失敗，請重新輸入</p>
-        <button class="btn-primary" onclick="doLogin()">登入</button>
-        <button class="btn-secondary" onclick="closeOverlay()">取消</button>
+
+        <!-- Step 2：需要啟動碼 -->
+        <div id="stepAct" style="display:none">
+          <p style="font-size:13px;color:var(--muted);margin-bottom:1rem">
+            員工編號 <strong id="showId" style="color:var(--text)"></strong>，請輸入啟動碼完成驗證
+          </p>
+          <div class="field-group" style="margin-bottom:.75rem">
+            <label>啟動碼</label>
+            <input type="text" id="inputActivation" autocomplete="off" maxlength="11" placeholder="xxx-xxx-xxx">
+          </div>
+          <div class="field-group" style="margin-bottom:.75rem">
+            <label>驗證碼</label>
+            <div class="captcha-row">
+              <input type="text" id="inputCaptcha" autocomplete="off" maxlength="4" inputmode="numeric">
+              <div class="captcha-box" id="captchaDisplay" onclick="refreshCaptcha()"></div>
+            </div>
+            <div class="captcha-hint">點擊數字可刷新</div>
+          </div>
+          <p class="auth-err" id="errAct"></p>
+          <button class="btn-primary" onclick="doActivate()">驗證</button>
+          <button class="btn-secondary" onclick="backToId()">返回</button>
+        </div>
+
       </div>
     </div>
 
@@ -202,26 +217,34 @@ input:focus{border-color:var(--accent)}
     <div id="panelAdmin" style="display:none">
       <div class="sheet-title">⚙️ 管理設定</div>
 
+      <!-- WiFi 資訊 -->
       <div class="admin-section">
-        <div class="admin-section-title">基本資訊</div>
+        <div class="admin-section-title">WiFi 資訊</div>
         <div class="admin-fields">
           <div class="field-group">
             <label>公司名稱</label>
-            <input type="text" id="set-company">
+            <input type="text" id="set-company" readonly>
           </div>
           <div class="field-group">
             <label>WiFi 名稱</label>
-            <input type="text" id="set-ssid">
+            <input type="text" id="set-ssid" readonly>
           </div>
           <div class="field-group">
             <label>WiFi 密碼</label>
-            <input type="text" id="set-pwd">
+            <input type="text" id="set-pwd" readonly>
           </div>
         </div>
-        <button class="btn-primary" onclick="saveSettings()">儲存</button>
+        <div id="editRow" style="display:none">
+          <button class="btn-secondary" id="editBtn" onclick="enterEdit()">編輯</button>
+          <button class="btn-primary" id="saveBtn" onclick="saveSettings()" style="display:none;margin-top:.5rem">儲存</button>
+          <button class="btn-secondary" id="cancelBtn" onclick="cancelEdit()" style="display:none;margin-top:.5rem">取消</button>
+          <p id="editHint" style="display:none;font-size:12px;color:var(--err);margin-top:.6rem;line-height:1.5">⚠️ 需先完成連線認證，才能同步至主機</p>
+        </div>
+        <p id="noEditHint" style="display:none;font-size:12px;color:var(--muted);margin-top:.5rem">一般員工無編輯權限</p>
       </div>
 
-      <div class="admin-section" id="sectionGenCode">
+      <!-- 換算啟動碼（管理員專屬） -->
+      <div class="admin-section" id="sectionGenCode" style="display:none">
         <div class="admin-section-title">換算啟動碼</div>
         <div class="admin-fields">
           <div class="field-group">
@@ -229,8 +252,26 @@ input:focus{border-color:var(--accent)}
             <input type="text" id="gen-code" inputmode="numeric">
           </div>
         </div>
-        <button class="btn-primary" onclick="genActivation()">產生啟動碼</button>
-        <div class="code-result" id="codeResult"></div>
+        <button class="btn-primary" onclick="genActivation()">產生</button>
+        <div id="codeResult" style="display:none;margin-top:.75rem;flex-direction:row;align-items:center;gap:.6rem;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:.65rem .9rem">
+          <span id="codeText" style="font-size:18px;font-weight:700;letter-spacing:.12em;color:var(--accent-dark);flex:1"></span>
+          <button onclick="copyCode()" id="copyCodeBtn" style="background:var(--accent);border:none;border-radius:8px;padding:.35rem .75rem;color:#fff;font-size:12px;font-weight:600;cursor:pointer">複製</button>
+        </div>
+      </div>
+
+      <!-- 權限資訊 -->
+      <div style="border:1px solid var(--border);border-radius:14px;padding:1rem;margin-bottom:1rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+          <span style="font-size:12px;color:var(--muted)">資料存取權限：<strong id="connStatus" style="color:var(--text)">本機存取</strong></span>
+          <button onclick="clickConn()" style="background:var(--accent);border:none;border-radius:8px;padding:.3rem .75rem;color:#fff;font-size:11px;font-weight:600;cursor:pointer">連線認證</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;color:var(--muted)">身份：<strong id="roleLabel" style="color:var(--text)">一般員工</strong></span>
+          <button onclick="clickApplySup()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:.3rem .75rem;color:var(--muted);font-size:11px;cursor:pointer">申請主管</button>
+        </div>
+        <p id="pendingHint" style="display:none;font-size:12px;color:var(--err);margin-top:.75rem;line-height:1.6">
+          🚧 本網頁功能建構中<br>如需認證請至<strong>薪資系統</strong>的設定頁最下方進行
+        </p>
       </div>
 
       <button class="logout-btn" onclick="doLogout()">登出</button>
@@ -286,7 +327,28 @@ function render(){
   const q=`WIFI:T:WPA;S:${s.ssid};P:${s.pwd};;`;
   document.getElementById('qrImg').src=`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(q)}&size=300x300&color=000000&bgcolor=ffffff`;
 }
+
+// 啟動時從 GitHub 讀取 wifi.cfg
+async function fetchRemoteSettings(){
+  const gh=getGithubConfig();
+  if(!gh.owner||!gh.repo) return;
+  try{
+    const res=await fetch(`https://raw.githubusercontent.com/${gh.owner}/${gh.repo}/main/wifi.cfg?t=${Date.now()}`);
+    if(!res.ok) return;
+    const text=await res.text();
+    const s={};
+    text.split('\n').forEach(line=>{
+      const [k,...v]=line.split('=');
+      if(k&&v.length) s[k.trim()]=v.join('=').trim();
+    });
+    if(s.ssid||s.pwd||s.company){
+      saveToLS({company:s.company||'雲心閣養生會館',ssid:s.ssid||'Massage218',pwd:s.pwd||'23380193'});
+      render();
+    }
+  } catch(e){}
+}
 render();
+fetchRemoteSettings();
 
 // 複製
 function copyPwd(){
@@ -310,62 +372,234 @@ function showPanel(p){
   document.getElementById('panelAdmin').style.display = p==='admin' ? '' : 'none';
   if(p==='admin'){
     const s=loadSettings();
+    const id=currentUser();
+    const admin=id===ADMIN_ID;
+    const gh=getGithubConfig();
+    const hasConn=!!(gh&&gh.token);
+
+    // 填入欄位（唯讀）
+    setReadonly(true);
     document.getElementById('set-company').value=s.company;
     document.getElementById('set-ssid').value=s.ssid;
     document.getElementById('set-pwd').value=s.pwd;
-    document.getElementById('sectionGenCode').style.display=isAdmin()?'':'none';
+
+    // 未來職務判斷預留：目前 admin=管理員 其他=一般員工
+    // const role = await checkRole(id); → 'admin'|'supervisor'|'staff'
+    const canEdit = admin; // 未來改為 role==='admin'||role==='supervisor'
+
+    document.getElementById('editRow').style.display   = canEdit ? '' : 'none';
+    document.getElementById('noEditHint').style.display= canEdit ? 'none' : '';
+    document.getElementById('editBtn').style.display   = '';
+    document.getElementById('saveBtn').style.display   = 'none';
+    document.getElementById('cancelBtn').style.display = 'none';
+    document.getElementById('editHint').style.display  = 'none';
+    document.getElementById('sectionGenCode').style.display = admin ? '' : 'none';
+    document.getElementById('codeResult').style.display='none';
+
+    // 權限資訊
+    document.getElementById('connStatus').textContent = hasConn ? '雲端同步 ☁️' : '本機存取';
+    document.getElementById('roleLabel').textContent  = admin ? '管理員' : '一般員工'; // 未來帶入 role
+    document.getElementById('pendingHint').style.display='none';
   }
   if(p==='auth'){
-    document.getElementById('authErr').classList.remove('show');
+    document.getElementById('errId').classList.remove('show');
     document.getElementById('inputCode').value='';
-    document.getElementById('inputActivation').value='';
-    document.getElementById('inputCaptcha').value='';
+    document.getElementById('stepId').style.display='';
+    document.getElementById('stepAct').style.display='none';
     refreshCaptcha();
   }
 }
 
-// 登入
-function doLogin(){
-  const id  = document.getElementById('inputCode').value.trim();
-  const act = document.getElementById('inputActivation').value.trim();
-  const cap = document.getElementById('inputCaptcha').value.trim();
-  const err = document.getElementById('authErr');
-  if(!id||!act||!cap){ return; }
-  if(cap !== captchaVal){
-    err.textContent='驗證碼錯誤，請重新輸入';
-    err.classList.add('show');
-    refreshCaptcha();
+// 唯讀切換
+function setReadonly(on){
+  const ids=['set-company','set-ssid','set-pwd'];
+  const ro_style='background:var(--faint);color:var(--muted);cursor:default';
+  const rw_style='';
+  ids.forEach(id=>{
+    const el=document.getElementById(id);
+    el.readOnly=on;
+    el.style.cssText=on?ro_style:rw_style;
+  });
+}
+
+// 編輯模式
+function enterEdit(){
+  setReadonly(false);
+  document.getElementById('editBtn').style.display='none';
+  document.getElementById('saveBtn').style.display='';
+  document.getElementById('cancelBtn').style.display='';
+  const gh=getGithubConfig();
+  document.getElementById('editHint').style.display=gh.token?'none':'';
+}
+function cancelEdit(){
+  setReadonly(true);
+  const s=loadSettings();
+  document.getElementById('set-company').value=s.company;
+  document.getElementById('set-ssid').value=s.ssid;
+  document.getElementById('set-pwd').value=s.pwd;
+  document.getElementById('editBtn').style.display='';
+  document.getElementById('saveBtn').style.display='none';
+  document.getElementById('cancelBtn').style.display='none';
+  document.getElementById('editHint').style.display='none';
+}
+
+// 連線認證 / 申請主管（建構中）
+function clickConn(){
+  document.getElementById('pendingHint').style.display='';
+}
+function clickApplySup(){
+  document.getElementById('pendingHint').style.display='';
+}
+
+// ── 啟動碼演算（與薪資系統相同）──
+const ACT_SALT='MassagePay2026!SimpleAct';
+function genSimpleAct(id){
+  const S=ACT_SALT; let h=fnv(S+id+S);
+  for(let i=0;i<50;i++) h=fnv(String(h)+S+id);
+  const n=h%1000000000, s=String(n).padStart(9,'0');
+  return s.substring(0,3)+'-'+s.substring(3,6)+'-'+s.substring(6,9);
+}
+function verifyAct(id,input){ return input.replace(/-/g,'')=== genSimpleAct(id).replace(/-/g,''); }
+
+// ── 本機啟動狀態 ──
+function isActivated(id){ return !!localStorage.getItem(`activated-${id}`); }
+function setActivated(id){ localStorage.setItem(`activated-${id}`,JSON.stringify({ts:Date.now()})); }
+
+// ── staff 確認（有 github-config 才查）──
+async function checkStaffExists(id){
+  const gh=getGithubConfig();
+  if(!gh.token||!gh.owner||!gh.repo) return true;
+  try{
+    const res=await fetch(`https://raw.githubusercontent.com/${gh.owner}/${gh.repo}/main/staff.json?t=${Date.now()}`);
+    if(!res.ok) return true;
+    const list=await res.json();
+    return list.some(s=>s.code===id&&s.status==='active');
+  }catch{ return true; }
+}
+
+// ── Step 1：檢查 id ──
+async function checkId(){
+  const id=document.getElementById('inputCode').value.trim();
+  const err=document.getElementById('errId');
+  const btn=document.querySelector('#stepId .btn-primary');
+  if(!id) return;
+  err.classList.remove('show');
+  btn.textContent='檢查中…'; btn.disabled=true;
+  if(isActivated(id)){
+    const ok=await checkStaffExists(id);
+    btn.textContent='檢查'; btn.disabled=false;
+    if(ok){ setSession(id); showPanel('admin'); }
+    else{ err.textContent='此帳號已被停用，請聯絡管理員'; err.classList.add('show'); }
     return;
   }
-  if(verifyCode(id,act)){
-    setSession(id);
-    showPanel('admin');
+  btn.textContent='檢查'; btn.disabled=false;
+  document.getElementById('showId').textContent=id;
+  document.getElementById('stepId').style.display='none';
+  document.getElementById('stepAct').style.display='';
+  document.getElementById('errAct').classList.remove('show');
+  document.getElementById('inputActivation').value='';
+  refreshCaptcha();
+}
+
+// ── Step 2：驗證啟動碼 ──
+async function doActivate(){
+  const id=document.getElementById('inputCode').value.trim();
+  const act=document.getElementById('inputActivation').value.trim();
+  const cap=document.getElementById('inputCaptcha').value.trim();
+  const err=document.getElementById('errAct');
+  err.classList.remove('show');
+  if(cap!==captchaVal){
+    err.textContent='驗證碼錯誤，請重新輸入';
+    err.classList.add('show'); refreshCaptcha(); return;
+  }
+  if(verifyAct(id,act)){
+    setActivated(id); setSession(id); showPanel('admin');
   } else {
-    err.textContent='驗證失敗，請重新輸入';
-    err.classList.add('show');
-    refreshCaptcha();
+    err.textContent='啟動碼錯誤，請重新確認';
+    err.classList.add('show'); refreshCaptcha();
   }
 }
-document.getElementById('inputCaptcha').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
+
+function backToId(){
+  document.getElementById('stepAct').style.display='none';
+  document.getElementById('stepId').style.display='';
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){
+    if(document.getElementById('stepAct').style.display!=='none') doActivate();
+    else checkId();
+  }
+});
+
+// ── 換算啟動碼 ──
+function genActivation(){
+  const code=document.getElementById('gen-code').value.trim();
+  if(!code) return;
+  const c=genSimpleAct(code);
+  document.getElementById('codeText').textContent=c;
+  document.getElementById('codeResult').style.display='flex';
+}
+function copyCode(){
+  const txt=document.getElementById('codeText').textContent;
+  navigator.clipboard.writeText(txt).then(()=>{
+    const btn=document.getElementById('copyCodeBtn');
+    btn.textContent='✓'; setTimeout(()=>btn.textContent='複製',1500);
+  });
+}
+
+// ── 連線認證 / 申請主管（建構中）──
+function clickConn(){ document.getElementById('pendingHint').style.display=''; }
+function clickApplySup(){ document.getElementById('pendingHint').style.display=''; }
+
+// GitHub 設定（從薪資系統共用）
+function getGithubConfig(){
+  return JSON.parse(localStorage.getItem('github-config')||'{}');
+}
 
 // 儲存
-function saveSettings(){
+async function saveSettings(){
   const s={
     company:document.getElementById('set-company').value.trim()||'雲心閣養生會館',
     ssid:   document.getElementById('set-ssid').value.trim()   ||'Massage218',
     pwd:    document.getElementById('set-pwd').value.trim()    ||'23380193',
   };
-  saveToLS(s); render(); closeOverlay();
-}
+  saveToLS(s);
+  render();
 
-// 換算啟動碼
-function genActivation(){
-  const code=document.getElementById('gen-code').value.trim();
-  if(!code) return;
-  const c=makeCode(code);
-  const r=document.getElementById('codeResult');
-  r.textContent=`${c}　${c.replace('-','')}`;
-  r.classList.add('show');
+  // 嘗試寫入 GitHub
+  const gh = getGithubConfig();
+  const btn = document.getElementById('saveBtn');
+  if(gh.token && gh.owner && gh.repo){
+    btn.textContent='寫入中…';
+    btn.disabled=true;
+    try{
+      const content = `company=${s.company}\nssid=${s.ssid}\npwd=${s.pwd}\n`;
+      const b64 = btoa(unescape(encodeURIComponent(content)));
+      // 先取得現有檔案的 sha
+      const getRes = await fetch(`https://api.github.com/repos/${gh.owner}/${gh.repo}/contents/wifi.cfg`,{
+        headers:{'Authorization':`token ${gh.token}`,'Accept':'application/vnd.github.v3+json'}
+      });
+      const sha = getRes.ok ? (await getRes.json()).sha : undefined;
+      const putRes = await fetch(`https://api.github.com/repos/${gh.owner}/${gh.repo}/contents/wifi.cfg`,{
+        method:'PUT',
+        headers:{'Authorization':`token ${gh.token}`,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
+        body:JSON.stringify({message:'update wifi settings',content:b64, ...(sha?{sha}:{})})
+      });
+      if(putRes.ok){
+        btn.textContent='✓ 已儲存並同步';
+        setTimeout(()=>{ btn.textContent='儲存'; btn.disabled=false; closeOverlay(); },1500);
+      } else {
+        throw new Error('API 錯誤');
+      }
+    } catch(e){
+      btn.textContent='⚠️ 同步失敗（已存本機）';
+      setTimeout(()=>{ btn.textContent='儲存'; btn.disabled=false; closeOverlay(); },2000);
+    }
+  } else {
+    // 沒有 GitHub 設定，只存本機
+    closeOverlay();
+  }
 }
 
 // 登出
