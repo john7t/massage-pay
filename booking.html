@@ -29,7 +29,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 預約 v1.8-015</title>
+<title>薪資追蹤 · 預約 v1.8-016</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -175,7 +175,7 @@ input[type=number]{-moz-appearance:textfield}
 <style>@keyframes fbspin{to{transform:rotate(360deg)}}@keyframes fbpulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
 <script src="./common.js"></script>
 <script type="text/babel">
-const{LS,getDeviceId,buildDynamicKey,THEMES,T,getCustomers,saveCustomers,getBookings,saveBookings,uid,upsertCustomer,normPhone,searchCustomers,addBooking,updateBooking,deleteBooking,BOOK_TITLES,bookTitleName,bizParts,SERVICES,svcByCode,bookUnits,bookMinutes,bookLabel,bookRange,findConflicts,dayOffStatus,skName}=window.MP;
+const{LS,getDeviceId,buildDynamicKey,THEMES,T,getCustomers,saveCustomers,getBookings,saveBookings,uid,upsertCustomer,normPhone,searchCustomers,addBooking,updateBooking,deleteBooking,confirmBooking,BOOK_TITLES,bookTitleName,bizParts,SERVICES,svcByCode,bookUnits,bookMinutes,bookLabel,bookRange,findConflicts,dayOffStatus,skName}=window.MP;
 const{useState,useEffect,useMemo}=React;
 
 const goMain=()=>{location.href='./index.html'};
@@ -185,6 +185,7 @@ function fmtLogStr(s,args){return(args||[]).reduce((r,a,i)=>r.replace('{'+i+'}',
 function fmtDT(ts){if(!ts)return'';const d=new Date(ts);return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`}
 function fmtDateInput(ts){const d=ts?new Date(ts):new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`}
 function fmtTimeInput(ts){const d=ts?new Date(ts):new Date();return `${pad(d.getHours())}:${pad(d.getMinutes())}`}
+function nextHourTime(){const d=new Date();let h=d.getHours();if(d.getMinutes()>0)h+=1;if(h>23)h=23;return pad(h)+':00'}
 
 /* ══════════ 客戶選擇 / 新增 ══════════ */
 function CustomerPicker({code,t,selected,onSelect}){
@@ -192,12 +193,17 @@ function CustomerPicker({code,t,selected,onSelect}){
   const[adding,setAdding]=useState(false);
   const[form,setForm]=useState({name:'',phone:'',title:'sir',parts:'',note:''});
   const results=useMemo(()=>searchCustomers(code,q),[code,q,adding]);
+  const[editId,setEditId]=useState(null);
   const saveNew=()=>{
     if(!form.name.trim()&&!form.phone.trim()){return}
-    const id=upsertCustomer(code,{...form,name:form.name.trim(),phone:normPhone(form.phone)});
+    const payload={...form,name:form.name.trim(),phone:normPhone(form.phone)};
+    if(editId)payload.id=editId;
+    const id=upsertCustomer(code,payload);
     const cust=getCustomers(code).find(c=>c.id===id);
-    onSelect(cust);setAdding(false);setForm({name:'',phone:'',title:'sir',parts:'',note:''});
+    if(editId){setEditId(null);setAdding(false);setForm({name:'',phone:'',title:'sir',parts:'',note:''})}
+    else{onSelect(cust);setAdding(false);setForm({name:'',phone:'',title:'sir',parts:'',note:''})}
   };
+  const startEditCust=(c)=>{setForm({name:c.name||'',phone:c.phone||'',title:c.title||'sir',parts:c.parts||'',note:c.note||''});setEditId(c.id);setAdding(true)};
   if(selected){
     return(<div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 flex items-center justify-between">
       <div><p className="text-sm text-gray-100 font-semibold">{selected.name||'—'} <span className="text-xs text-amber-400">{bookTitleName(selected.title,t===T.zh?'zh':'vi')}</span></p>{selected.phone&&<p className="text-xs text-gray-500 font-mono">{selected.phone}</p>}</div>
@@ -207,18 +213,19 @@ function CustomerPicker({code,t,selected,onSelect}){
   return(<div className="space-y-2">
     <input value={q} onChange={e=>setQ(e.target.value)} placeholder={t.custSearch} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>
     {!adding&&results.length>0&&(<div className="space-y-1 max-h-52 overflow-y-auto no-sb">{results.map(c=>(
-      <button key={c.id} onClick={()=>onSelect(c)} className="w-full text-left bg-white/[0.03] hover:bg-white/[0.06] rounded-lg px-3 py-2 flex items-center justify-between">
-        <div><span className="text-sm text-gray-200">{c.name||'—'}</span> <span className="text-[11px] text-amber-400">{bookTitleName(c.title,t===T.zh?'zh':'vi')}</span>{c.phone&&<span className="text-[11px] text-gray-500 font-mono ml-2">{c.phone}</span>}</div>
-        {c.lastServedAt&&<span className="text-[10px] text-gray-600">{fmtDT(c.lastServedAt).slice(0,10)}</span>}
-      </button>))}</div>)}
+      <div key={c.id} className="w-full bg-white/[0.03] rounded-lg px-3 py-2 flex items-center justify-between gap-2">
+        <button onClick={()=>onSelect(c)} className="text-left flex-1 min-w-0"><span className="text-sm text-gray-200">{c.name||'—'}</span> <span className="text-[11px] text-amber-400">{bookTitleName(c.title,t===T.zh?'zh':'vi')}</span>{c.phone&&<span className="text-[11px] text-gray-500 font-mono ml-2">{c.phone}</span>}</button>
+        <button onClick={()=>startEditCust(c)} className="text-gray-500 px-1.5 py-1 flex-shrink-0"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+      </div>))}</div>)}
     {!adding&&q&&results.length===0&&<p className="text-xs text-gray-600 text-center py-2">{t.noMatch}</p>}
-    {!adding&&<button onClick={()=>{setAdding(true);setForm(f=>({...f,name:q&&!/^\d+$/.test(q)?q:'',phone:/^\d+$/.test(normPhone(q))?normPhone(q):''}))}} className="w-full py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] border-dashed text-amber-400 text-sm font-medium">+ {t.custNew}</button>}
+    {!adding&&<button onClick={()=>{setEditId(null);setAdding(true);setForm(f=>({...f,name:q&&!/^\d+$/.test(q)?q:'',phone:/^\d+$/.test(normPhone(q))?normPhone(q):''}))}} className="w-full py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] border-dashed text-amber-400 text-sm font-medium">+ {t.custNew}</button>}
     {adding&&(<div className="space-y-2 bg-white/[0.02] border border-white/[0.06] rounded-xl p-3 fi">
+      <p className="text-xs text-amber-400 font-medium">{editId?t.custEditTitle:t.custNew}</p>
       <div className="flex gap-2"><input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder={t.custName} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>
       <select value={form.title} onChange={e=>setForm({...form,title:e.target.value})} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-sm text-gray-200 focus:outline-none">{BOOK_TITLES.map(o=><option key={o.v} value={o.v}>{t===T.zh?o.zh:o.vi}</option>)}</select></div>
       <input value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} inputMode="numeric" placeholder={t.custPhone} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
       <input value={form.parts} onChange={e=>setForm({...form,parts:e.target.value})} placeholder={t.custParts} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>
-      <div className="flex gap-2"><button onClick={()=>setAdding(false)} className="flex-1 py-2 bg-white/[0.04] rounded-lg text-gray-400 text-sm">{t.bookCancel}</button><button onClick={saveNew} className="flex-1 py-2 bg-amber-600 rounded-lg text-white text-sm font-bold">{t.custNew}</button></div>
+      <div className="flex gap-2"><button onClick={()=>{setAdding(false);setEditId(null)}} className="flex-1 py-2 bg-white/[0.04] rounded-lg text-gray-400 text-sm">{t.bookCancel}</button><button onClick={saveNew} className="flex-1 py-2 bg-amber-600 rounded-lg text-white text-sm font-bold">{editId?t.custSave:t.custNew}</button></div>
     </div>)}
   </div>);
 }
@@ -229,7 +236,7 @@ function BookingForm({code,t,onDone,onCancel}){
   const lang=t===T.zh?'zh':'vi';
   const[cust,setCust]=useState(null);
   const[date,setDate]=useState(fmtDateInput());
-  const[time,setTime]=useState(settings.workStart||'06:00');
+  const[time,setTime]=useState(settings.workStart||nextHourTime());
   const[svc,setSvc]=useState('FB3');
   const[extra,setExtra]=useState(0);
   const[party,setParty]=useState(1);
@@ -254,12 +261,12 @@ function BookingForm({code,t,onDone,onCancel}){
   return(<div className="space-y-4 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4 fi">
     <h3 className="text-sm font-semibold text-amber-400">{t.bookingNew}</h3>
     <div><label className="text-xs text-gray-500 mb-1.5 block">{t.selectCustomer}</label><CustomerPicker code={code} t={t} selected={cust} onSelect={c=>{setCust(c);setErr('')}}/></div>
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid grid-cols-2 gap-4">
       <div><label className="text-xs text-gray-500 mb-1.5 block">{t.bookDate}</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>
       <div><label className="text-xs text-gray-500 mb-1.5 block">{t.bookTime}</label><input type="time" value={time} onChange={e=>setTime(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>
     </div>
     {dayOff>0&&<p className="text-xs text-red-400">⚠️ {fmtLogStr(t.dayOffWarn,[skName(dayOff,lang)])}</p>}
-    {conflicts.length>0&&conflicts.map(o=>{const oc=custMap[o.customerId]||{};return<p key={o.id} className="text-xs text-red-400">⚠️ {fmtLogStr(t.conflictWarn,[fmtHM(o.datetime),(oc.name||'')])}</p>})}
+    {conflicts.length>0&&conflicts.map(o=>{const oc=custMap[o.customerId]||{};return<p key={o.id} className="text-xs text-red-400">⚠️ {fmtLogStr(t.conflictWarn,[fmtHM(o.datetime),((oc.name||'')+' '+bookTitleName(oc.title,lang))])}</p>})}
     {overWork&&<p className="text-xs text-red-400">⚠️ {bookLabel(svc,extra)} → {fmtHM(endTs)}{settings.workEnd?'（'+t.workEnd+' '+settings.workEnd+'）':''}</p>}
     {!settings.workEnd&&<p className="text-[11px] text-gray-600">{t.noWorkEnd}</p>}
     <div className="grid grid-cols-2 gap-2">
@@ -278,27 +285,114 @@ function BookingForm({code,t,onDone,onCancel}){
   </div>);
 }
 
-/* ══════════ 自約清單 ══════════ */
-function BookingList({code,t,refresh}){
+/* ══════════ 自約清單（行事曆樣式） ══════════ */
+function BookingList({code,t,refresh,onOpen}){
   const bookings=useMemo(()=>{const list=getBookings(code).slice();return list.sort((a,b)=>(a.datetime||0)-(b.datetime||0))},[code,refresh]);
   const custs=useMemo(()=>{const m={};getCustomers(code).forEach(c=>m[c.id]=c);return m},[code,refresh]);
-  const[,force]=useState(0);
-  const del=(id)=>{if(confirm(t.bookDeleteConfirm)){deleteBooking(code,id);force(x=>x+1);refresh&&refresh()}};
   const lang=t===T.zh?'zh':'vi';
   if(bookings.length===0)return<p className="text-sm text-gray-600 text-center py-8">{t.bookingEmpty}</p>;
   const now=Date.now();
-  return(<div className="space-y-2">{bookings.map(b=>{const c=custs[b.customerId]||{};const past=b.datetime<now;return(
-    <div key={b.id} className={`rounded-xl p-3.5 border ${past?'bg-white/[0.01] border-white/[0.04]':'bg-white/[0.03] border-white/[0.08]'}`}>
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className={`text-sm font-bold ${past?'text-gray-500':'text-amber-400'}`}>{fmtDT(b.datetime)} {b.svc?<span className="text-emerald-400">{bookLabel(b.svc,b.extra)}</span>:''}</p>
-          <p className="text-sm text-gray-200 mt-1">{c.name||'—'} <span className="text-[11px] text-gray-500">{bookTitleName(c.title,lang)}</span>{c.phone&&<span className="text-[11px] text-gray-600 font-mono ml-2">{c.phone}</span>}{b.party>1?<span className="text-[11px] text-amber-400 ml-2">{b.party}{t.partyUnit}</span>:''}</p>
-          {c.parts&&<p className="text-[11px] text-gray-500 mt-0.5">{t.custParts}: {c.parts}</p>}
-          {b.note&&<p className="text-[11px] text-gray-500 mt-0.5">{b.note}</p>}
-        </div>
-        <button onClick={()=>del(b.id)} className="text-red-400/50 text-xs px-2 py-1">✕</button>
-      </div>
+  // 為每筆算是否與其他筆衝突
+  const conflictMap={};bookings.forEach(b=>{const[s1,e1]=bookRange(b);const hit=bookings.find(o=>o.id!==b.id&&(()=>{const[s2,e2]=bookRange(o);return s1<e2&&s2<e1})());if(hit)conflictMap[b.id]=hit});
+  const fmtDay=ts=>{const d=new Date(ts);return `${d.getMonth()+1}/${pad(d.getDate())}`};
+  const fmtHM=ts=>{const d=new Date(ts);return `${pad(d.getHours())}:${pad(d.getMinutes())}`};
+  // 依日期分組
+  const groups={};bookings.forEach(b=>{const d=new Date(b.datetime);const key=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;if(!groups[key])groups[key]=[];groups[key].push(b)});
+  return(<div className="space-y-4">{Object.keys(groups).sort().map(key=>{const items=groups[key];const d0=new Date(items[0].datetime);const wd=['日','一','二','三','四','五','六'][d0.getDay()];return(
+    <div key={key}>
+      <p className="text-xs text-gray-500 font-semibold mb-2">{d0.getFullYear()}/{pad(d0.getMonth()+1)}/{pad(d0.getDate())}（{lang==='zh'?wd:d0.getDay()}）</p>
+      <div className="space-y-1.5">{items.map(b=>{const c=custs[b.customerId]||{};const past=b.datetime<now;const conf=conflictMap[b.id];const oc=conf?(custs[conf.customerId]||{}):null;return(
+        <button key={b.id} onClick={()=>onOpen(b.id)} className={`w-full text-left flex gap-3 rounded-xl p-3 border ${past?'bg-white/[0.01] border-white/[0.04]':'bg-white/[0.03] border-white/[0.08]'} ${conf?'border-red-500/30':''} active:bg-white/[0.06]`}>
+          <div className="flex flex-col items-center justify-center min-w-[3.5rem] border-r border-white/[0.06] pr-3">
+            <span className={`text-base font-bold ${past?'text-gray-500':'text-amber-400'}`}>{fmtHM(b.datetime)}</span>
+            <span className="text-[10px] text-gray-600">{bookMinutes(b.svc,b.extra)}分</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-gray-100"><span className="text-emerald-400 font-bold">{bookLabel(b.svc,b.extra)}</span>　{c.name||'—'} <span className="text-[11px] text-gray-500">{bookTitleName(c.title,lang)}</span>{b.party>1?<span className="text-[11px] text-amber-400 ml-1">{b.party}{t.partyUnit}</span>:''}</p>
+            {b.confirmed?<span className="text-[10px] text-emerald-400">✓ {t.bookConfirmed2}</span>:<span className="text-[10px] text-gray-600">{t.bookStatus}: {t.bookConfirmed}</span>}
+            {conf&&<p className="text-[11px] text-red-400 mt-0.5">⚠️ {fmtLogStr(t.conflictWarn,[fmtHM(conf.datetime),((oc.name||'')+' '+bookTitleName(oc.title,lang))])}</p>}
+          </div>
+          <span className="text-gray-600 self-center">›</span>
+        </button>);})}</div>
     </div>);})}</div>);
+}
+
+/* ══════════ 自約詳情（編輯 + 櫃台確認狀態機 + log時間軸） ══════════ */
+function BookingDetail({code,t,bookId,onDone,onCancel}){
+  const lang=t===T.zh?'zh':'vi';
+  const bk=useMemo(()=>getBookings(code).find(b=>b.id===bookId),[code,bookId]);
+  const cust=useMemo(()=>bk?getCustomers(code).find(c=>c.id===bk.customerId):null,[code,bk]);
+  const[editing,setEditing]=useState(false);
+  const[date,setDate]=useState(bk?fmtDateInput(bk.datetime):fmtDateInput());
+  const[time,setTime]=useState(bk?fmtTimeInput(bk.datetime):'06:00');
+  const[svc,setSvc]=useState(bk?.svc||'FB3');
+  const[extra,setExtra]=useState(bk?.extra||0);
+  const[note,setNote]=useState(bk?.note||'');
+  const[,force]=useState(0);
+  if(!bk)return<p className="text-gray-500">—</p>;
+  const confirmed=bk.confirmed;
+  const fmtLogTime=ts=>{const d=new Date(ts);return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`};
+  const logMsg=(l)=>{if(l.type==='create')return t.logCreate;if(l.type==='confirm')return t.logConfirm;if(l.type==='change')return l.detail||t.logChange;if(l.type==='conflict')return t.logConflict;return l.msg||''};
+  const saveEdit=()=>{
+    const[y,m,d]=date.split('-').map(Number);const[hh,mm]=time.split(':').map(Number);
+    const newDt=new Date(y,m-1,d,hh,mm).getTime();
+    const changes=[];
+    if(newDt!==bk.datetime)changes.push(fmtLogStr(t.timeChanged,[fmtLogTime(bk.datetime).slice(-5),time]));
+    if(svc!==bk.svc||extra!==bk.extra)changes.push(fmtLogStr(t.svcChanged,[bookLabel(bk.svc,bk.extra),bookLabel(svc,extra)]));
+    const detail=changes.length?t.logChange+'：'+changes.join('、'):t.logChange;
+    updateBooking(code,bookId,{datetime:newDt,svc,extra,note:note.trim(),confirmed:false},{type:'change',detail});
+    setEditing(false);force(x=>x+1);
+  };
+  const doConfirm=()=>{confirmBooking(code,bookId);force(x=>x+1)};
+  const startEdit=()=>{if(confirmed){if(!confirm(t.bookEditWarn))return}setEditing(true)};
+  const ro=confirmed&&!editing;
+  return(<div className="space-y-4 fi">
+    <div className="flex items-center gap-3">
+      <button onClick={onCancel} className="text-gray-500"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg></button>
+      <h2 className="text-lg font-bold text-gray-100">{cust?.name||'—'} {bookTitleName(cust?.title,lang)}</h2>
+      {confirmed&&<span className="text-[11px] text-emerald-400 ml-auto">✓ {t.bookConfirmed2}</span>}
+    </div>
+    <div className={`space-y-4 rounded-2xl p-4 border ${ro?'bg-white/[0.01] border-white/[0.04]':'bg-white/[0.02] border-white/[0.06]'}`}>
+      <div className="grid grid-cols-2 gap-4">
+        <div><label className="text-xs text-gray-500 mb-1.5 block">{t.bookDate}</label><input type="date" disabled={ro} value={date} onChange={e=>setDate(e.target.value)} className={`w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 ${ro?'opacity-50':''}`}/></div>
+        <div><label className="text-xs text-gray-500 mb-1.5 block">{t.bookTime}</label><input type="time" disabled={ro} value={time} onChange={e=>setTime(e.target.value)} className={`w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 ${ro?'opacity-50':''}`}/></div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div><label className="text-xs text-gray-500 mb-1.5 block">{t.svcLabel}</label><select disabled={ro} value={svc} onChange={e=>setSvc(e.target.value)} className={`w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 ${ro?'opacity-50':''}`}>{SERVICES.map(s=><option key={s.code} value={s.code}>{s.code}（{s.min}{lang==='zh'?'分':'p'}）</option>)}</select></div>
+        <div><label className="text-xs text-gray-500 mb-1.5 block">{t.addHour}</label><select disabled={ro} value={extra} onChange={e=>setExtra(parseInt(e.target.value))} className={`w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 ${ro?'opacity-50':''}`}>{[0,1,2,3,4,5,6,7,8].map(n=><option key={n} value={n}>+{n}</option>)}</select></div>
+      </div>
+      <p className="text-xs text-gray-500">{bookLabel(svc,extra)} = {bookUnits(svc,extra)} {t.units} · {bookMinutes(svc,extra)}{lang==='zh'?'分':'p'}</p>
+      <div><label className="text-xs text-gray-500 mb-1.5 block">{t.custNote}</label><textarea disabled={ro} value={note} onChange={e=>setNote(e.target.value)} rows={2} className={`w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 resize-none ${ro?'opacity-50':''}`}/></div>
+    </div>
+    {/* 動作鈕 */}
+    {editing?(
+      <div className="flex gap-2"><button onClick={()=>setEditing(false)} className="flex-1 py-3 bg-white/[0.04] rounded-xl text-gray-400 font-medium">{t.bookCancel}</button><button onClick={saveEdit} className="flex-1 py-3 bg-amber-600 rounded-xl text-white font-bold">{t.bookSaveEdit}</button></div>
+    ):(
+      <div className="space-y-2">
+        {!confirmed&&<button onClick={doConfirm} className="w-full py-3.5 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 font-bold active:bg-emerald-600/30">{t.bookConfirmDesk}</button>}
+        <div className="flex gap-2">
+          <button onClick={startEdit} className="flex-1 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-gray-300 font-medium">{t.bookEdit}</button>
+          <button onClick={()=>{if(confirm(t.bookDeleteConfirm)){deleteBooking(code,bookId);onDone()}}} className="px-5 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 font-medium">{t.bookDelete}</button>
+        </div>
+        {confirmed&&<p className="text-[11px] text-amber-400 text-center">{t.bookEditWarn}</p>}
+      </div>
+    )}
+    {/* log 時間軸 */}
+    {bk.logs&&bk.logs.length>0&&(<div className="pt-2">
+      <h3 className="text-sm font-semibold text-gray-400 mb-3">{t.bookLogTitle}</h3>
+      <div className="space-y-0">{bk.logs.slice().reverse().map((l,i)=>(
+        <div key={i} className="flex gap-3 pb-3 relative">
+          <div className="flex flex-col items-center">
+            <div className="w-2 h-2 rounded-full bg-amber-400 mt-1.5 flex-shrink-0"></div>
+            {i<bk.logs.length-1&&<div className="w-px flex-1 bg-white/[0.1] my-1"></div>}
+          </div>
+          <div className="flex-1 -mt-0.5">
+            <p className="text-[11px] text-gray-500 font-mono">{fmtLogTime(l.ts)}</p>
+            <p className="text-sm text-gray-300">{logMsg(l)}</p>
+          </div>
+        </div>))}</div>
+    </div>)}
+  </div>);
 }
 
 /* ══════════ 根 ══════════ */
@@ -308,6 +402,7 @@ function BookingApp(){
   const bg=THEMES[theme]||THEMES.black;const isLight=theme==='white'||theme==='pink';
   const lang=settings.lang||'zh';const t=T[lang];
   const[mode,setMode]=useState('list');
+  const[openId,setOpenId]=useState(null);
   const[refresh,setRefresh]=useState(0);
   useEffect(()=>{document.body.style.backgroundColor=bg;buildDynamicKey()},[]);
 
@@ -328,9 +423,10 @@ function BookingApp(){
       </div>
       {mode==='list'&&(<>
         <button onClick={()=>setMode('new')} className="w-full py-3.5 rounded-xl bg-amber-600 text-white font-bold active:bg-amber-700">+ {t.bookingNew}</button>
-        <div><h2 className="text-sm font-semibold text-gray-400 mb-2">{t.bookingList}</h2><BookingList code={settings.code} t={t} refresh={refresh}/></div>
+        <div><h2 className="text-sm font-semibold text-gray-400 mb-2">{t.bookingList}</h2><BookingList code={settings.code} t={t} refresh={refresh} onOpen={id=>{setOpenId(id);setMode('detail')}}/></div>
       </>)}
       {mode==='new'&&<BookingForm code={settings.code} t={t} onDone={()=>{setMode('list');setRefresh(x=>x+1)}} onCancel={()=>setMode('list')}/>}
+      {mode==='detail'&&<BookingDetail code={settings.code} t={t} bookId={openId} onDone={()=>{setMode('list');setRefresh(x=>x+1)}} onCancel={()=>{setMode('list');setRefresh(x=>x+1)}}/>}
     </div>
   </div>);
 }
