@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<script>
+/* ── 錯誤兜底攔截器（最早執行） ── */
+(function(){
+  var PAGE="booking",PCODE="02";
+  window.__shownFallback=false;
+  window.__showFallback=function(src,detail){
+    if(window.__shownFallback)return;window.__shownFallback=true;
+    try{
+      var ver=(document.title.match(/v?(\d+\.\d+[-.]\d+)/)||[])[1]||"?";
+      var line=(detail&&detail.lineno)?detail.lineno:0;
+      var ecode=PCODE+String(src).padStart(2,"0")+String(line%10000).padStart(4,"0");
+      var el=document.getElementById("__fallback");
+      if(el){
+        var info=document.getElementById("__fbinfo");
+        if(info)info.textContent=PAGE+" 網頁 v"+ver+" 更新中　代碼 "+ecode;
+        el.style.display="flex";
+      }
+      var root=document.getElementById("root");if(root)root.style.display="none";
+    }catch(e){}
+  };
+  window.addEventListener("error",function(e){window.__showFallback(1,{lineno:e.lineno})},true);
+  window.addEventListener("unhandledrejection",function(e){window.__showFallback(2,{})});
+})();
+</script>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#030712">
+<title>薪資追蹤 · 預約 v1.8-015</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+*{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+body{margin:0;background:#030712;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none}
+.no-sb::-webkit-scrollbar{display:none}.no-sb{-ms-overflow-style:none;scrollbar-width:none}
+select option{background:#111827;color:#f3f4f6}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.fi{animation:fadeIn .2s ease-out}.su{animation:slideUp .25s ease-out}
+</style>
+<style>
+/* ── v1.8-006: Light theme (pink/white) — 文字改深色，降低對比刺眼感 ── */
+[data-light] select option { background:#f3e8f5;color:#2d1a35; }
+
+/* Borders */
+[data-light] [class*="border-white"] { border-color: rgba(80,40,100,0.15) !important; }
+
+/* Card/surface backgrounds */
+[data-light] [class*="bg-white/[0.0"]  { background-color: rgba(80,30,100,0.04) !important; }
+[data-light] [class*="bg-white/[0.02"] { background-color: rgba(80,30,100,0.03) !important; }
+[data-light] [class*="bg-white/[0.03"] { background-color: rgba(80,30,100,0.04) !important; }
+[data-light] [class*="bg-white/[0.04"] { background-color: rgba(80,30,100,0.05) !important; }
+[data-light] [class*="bg-white/[0.05"] { background-color: rgba(80,30,100,0.06) !important; }
+[data-light] [class*="bg-white/[0.06"] { background-color: rgba(80,30,100,0.07) !important; }
+[data-light] [class*="bg-white/[0.08"] { background-color: rgba(80,30,100,0.08) !important; }
+[data-light] [class*="bg-white/[0.1"]  { background-color: rgba(80,30,100,0.09) !important; }
+[data-light] [class*="bg-white/10"]    { background-color: rgba(80,30,100,0.10) !important; }
+[data-light] [class*="bg-gray-900"]    { background-color: #f7eefa !important; }
+[data-light] [class*="bg-gray-950"]    { background-color: #f3e8f6 !important; }
+[data-light] [class*="bg-black/80"]    { background-color: rgba(60,20,80,0.55) !important; }
+[data-light] [class*="bg-gray-800"]    { background-color: rgba(80,30,100,0.12) !important; }
+
+/* ── Text ── 比原本深很多，在粉紅底上清晰易讀 */
+[data-light] .text-gray-100 { color: #1a0d22 !important; }
+[data-light] .text-gray-200 { color: #2d1a38 !important; }
+[data-light] .text-gray-300 { color: #3d2450 !important; }
+[data-light] .text-gray-400 { color: #5b3a70 !important; }
+[data-light] .text-gray-500 { color: #7a5490 !important; }
+[data-light] .text-gray-600 { color: #9a74aa !important; }
+[data-light] .text-gray-700 { color: #b896c8 !important; }
+
+/* Inputs */
+[data-light] input, [data-light] textarea, [data-light] select {
+  color: #1a0d22 !important;
+  background-color: rgba(80,30,100,0.06) !important;
+}
+[data-light] input::placeholder, [data-light] textarea::placeholder { color: #9a74aa !important; }
+[data-light] input:disabled, [data-light] textarea:disabled {
+  color: #9a74aa !important;
+  background-color: rgba(80,30,100,0.03) !important;
+}
+
+/* ── Amber ── */
+[data-light] .text-amber-400  { color: #92400e !important; }
+[data-light] .text-amber-300  { color: #78350f !important; }
+[data-light] .text-amber-500  { color: #b45309 !important; }
+[data-light] [class*="bg-amber-600"]    { background-color: #b45309 !important; }
+[data-light] [class*="bg-amber-500/10"] { background-color: rgba(180,83,9,0.10) !important; }
+[data-light] [class*="bg-amber-500/20"] { background-color: rgba(180,83,9,0.14) !important; }
+[data-light] [class*="bg-amber-600/10"] { background-color: rgba(180,83,9,0.10) !important; }
+[data-light] [class*="bg-amber-600/15"] { background-color: rgba(180,83,9,0.12) !important; }
+[data-light] [class*="bg-amber-600/20"] { background-color: rgba(180,83,9,0.14) !important; }
+[data-light] [class*="bg-amber-600/\[0"] { background-color: rgba(180,83,9,0.06) !important; }
+[data-light] [class*="border-amber-500"]  { border-color: rgba(180,83,9,0.35) !important; }
+[data-light] [class*="border-amber-600"]  { border-color: rgba(180,83,9,0.30) !important; }
+
+/* ── Emerald ── */
+[data-light] .text-emerald-400  { color: #065f46 !important; }
+[data-light] .text-emerald-300  { color: #047857 !important; }
+[data-light] [class*="text-emerald-400"] { color: #065f46 !important; }
+[data-light] [class*="text-emerald-300"] { color: #047857 !important; }
+[data-light] [class*="bg-emerald-500/10"] { background-color: rgba(6,95,70,0.08) !important; }
+[data-light] [class*="bg-emerald-500/15"] { background-color: rgba(6,95,70,0.10) !important; }
+[data-light] [class*="bg-emerald-600/20"] { background-color: rgba(6,95,70,0.10) !important; }
+[data-light] [class*="bg-emerald-600"]    { background-color: #047857 !important; }
+[data-light] [class*="border-emerald-500"] { border-color: rgba(6,95,70,0.30) !important; }
+
+/* ── Orange ── */
+[data-light] .text-orange-400  { color: #9a3412 !important; }
+[data-light] [class*="text-orange-400"]  { color: #9a3412 !important; }
+[data-light] [class*="text-orange-400/80"] { color: rgba(154,52,18,0.80) !important; }
+[data-light] [class*="bg-orange-500/10"] { background-color: rgba(154,52,18,0.08) !important; }
+[data-light] [class*="bg-orange-500/15"] { background-color: rgba(154,52,18,0.10) !important; }
+[data-light] [class*="border-orange-500"] { border-color: rgba(154,52,18,0.25) !important; }
+
+/* ── Red ── */
+[data-light] [class*="text-red-400"]    { color: #991b1b !important; }
+[data-light] [class*="text-red-300"]    { color: #7f1d1d !important; }
+[data-light] [class*="bg-red-500/10"]   { background-color: rgba(153,27,27,0.08) !important; }
+[data-light] [class*="bg-red-500/15"]   { background-color: rgba(153,27,27,0.10) !important; }
+[data-light] [class*="bg-red-500/20"]   { background-color: rgba(153,27,27,0.12) !important; }
+[data-light] [class*="bg-red-500/30"]   { background-color: rgba(153,27,27,0.16) !important; }
+[data-light] [class*="border-red-500"]  { border-color: rgba(153,27,27,0.25) !important; }
+
+/* ── Status badge text ── */
+[data-light] .text-yellow-300 { color: #78350f !important; }
+[data-light] .text-blue-300   { color: #1e40af !important; }
+[data-light] .text-purple-300 { color: #5b21b6 !important; }
+[data-light] .text-orange-300 { color: #9a3412 !important; }
+[data-light] .bg-yellow-500\/20 { background-color: rgba(161,98,7,0.12) !important; }
+[data-light] .bg-blue-500\/20   { background-color: rgba(29,78,216,0.10) !important; }
+[data-light] .bg-purple-500\/20 { background-color: rgba(109,40,217,0.10) !important; }
+
+/* ── Skill colours ── */
+[data-light] .text-cyan-400   { color: #0e7490 !important; }
+[data-light] .text-violet-400 { color: #6d28d9 !important; }
+[data-light] .text-pink-400   { color: #be185d !important; }
+
+/* Nav */
+[data-light] nav { border-top-color: rgba(80,30,100,0.15) !important; }
+[data-light] .animate-pulse { opacity: 0.85; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="__fallback" style="display:none;position:fixed;inset:0;z-index:99999;min-height:100svh;flex-direction:column;align-items:center;justify-content:center;padding:3rem 1.5rem;text-align:center;background:#030712;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <div style="position:relative;width:72px;height:72px;margin-bottom:2rem">
+    <svg viewBox="0 0 72 72" width="72" height="72" style="position:absolute;top:0;left:0;animation:fbspin 1.8s linear infinite">
+      <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="3"/>
+      <circle cx="36" cy="36" r="30" fill="none" stroke="#BA7517" stroke-width="3" stroke-dasharray="60 130" stroke-linecap="round"/>
+    </svg>
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#BA7517" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+    </div>
+  </div>
+  <h1 style="font-size:22px;font-weight:500;color:#f3f4f6;margin:0 0 1rem;line-height:1.3">網站更新中</h1>
+  <p id="__fbinfo" style="font-size:12px;color:#6b7280;margin:0 0 2rem;font-family:monospace"></p>
+  <div style="display:flex;gap:6px;margin-bottom:3rem">
+    <span style="width:7px;height:7px;border-radius:50%;background:#BA7517;display:block;animation:fbpulse 1.4s ease-in-out infinite"></span>
+    <span style="width:7px;height:7px;border-radius:50%;background:#BA7517;display:block;animation:fbpulse 1.4s ease-in-out .2s infinite"></span>
+    <span style="width:7px;height:7px;border-radius:50%;background:#BA7517;display:block;animation:fbpulse 1.4s ease-in-out .4s infinite"></span>
+  </div>
+  <div style="border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:1rem 1.25rem;max-width:300px;text-align:left">
+    <p style="font-size:13px;color:#9ca3af;margin:0 0 .5rem;line-height:1.7">你所輸入的舊資料仍保存在你的手機暫存檔中。</p>
+    <p style="font-size:12px;color:#6b7280;margin:0;display:flex;align-items:flex-start;gap:6px"><span style="flex-shrink:0">⚠️</span><span>資料只存在本機，不會上傳雲端。</span></p>
+  </div>
+</div>
+<style>@keyframes fbspin{to{transform:rotate(360deg)}}@keyframes fbpulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
+<script src="./common.js"></script>
+<script type="text/babel">
+const{LS,getDeviceId,buildDynamicKey,THEMES,T,getCustomers,saveCustomers,getBookings,saveBookings,uid,upsertCustomer,normPhone,searchCustomers,addBooking,updateBooking,deleteBooking,BOOK_TITLES,bookTitleName,bizParts,SERVICES,svcByCode,bookUnits,bookMinutes,bookLabel,bookRange,findConflicts,dayOffStatus,skName}=window.MP;
+const{useState,useEffect,useMemo}=React;
+
+const goMain=()=>{location.href='./index.html'};
+
+function pad(n){return String(n).padStart(2,'0')}
+function fmtLogStr(s,args){return(args||[]).reduce((r,a,i)=>r.replace('{'+i+'}',a),s||'')}
+function fmtDT(ts){if(!ts)return'';const d=new Date(ts);return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`}
+function fmtDateInput(ts){const d=ts?new Date(ts):new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`}
+function fmtTimeInput(ts){const d=ts?new Date(ts):new Date();return `${pad(d.getHours())}:${pad(d.getMinutes())}`}
+
+/* ══════════ 客戶選擇 / 新增 ══════════ */
+function CustomerPicker({code,t,selected,onSelect}){
+  const[q,setQ]=useState('');
+  const[adding,setAdding]=useState(false);
+  const[form,setForm]=useState({name:'',phone:'',title:'sir',parts:'',note:''});
+  const results=useMemo(()=>searchCustomers(code,q),[code,q,adding]);
+  const saveNew=()=>{
+    if(!form.name.trim()&&!form.phone.trim()){return}
+    const id=upsertCustomer(code,{...form,name:form.name.trim(),phone:normPhone(form.phone)});
+    const cust=getCustomers(code).find(c=>c.id===id);
+    onSelect(cust);setAdding(false);setForm({name:'',phone:'',title:'sir',parts:'',note:''});
+  };
+  if(selected){
+    return(<div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 flex items-center justify-between">
+      <div><p className="text-sm text-gray-100 font-semibold">{selected.name||'—'} <span className="text-xs text-amber-400">{bookTitleName(selected.title,t===T.zh?'zh':'vi')}</span></p>{selected.phone&&<p className="text-xs text-gray-500 font-mono">{selected.phone}</p>}</div>
+      <button onClick={()=>onSelect(null)} className="text-xs text-gray-400 px-2 py-1 bg-white/10 rounded-lg">{t.bookCancel}</button>
+    </div>);
+  }
+  return(<div className="space-y-2">
+    <input value={q} onChange={e=>setQ(e.target.value)} placeholder={t.custSearch} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>
+    {!adding&&results.length>0&&(<div className="space-y-1 max-h-52 overflow-y-auto no-sb">{results.map(c=>(
+      <button key={c.id} onClick={()=>onSelect(c)} className="w-full text-left bg-white/[0.03] hover:bg-white/[0.06] rounded-lg px-3 py-2 flex items-center justify-between">
+        <div><span className="text-sm text-gray-200">{c.name||'—'}</span> <span className="text-[11px] text-amber-400">{bookTitleName(c.title,t===T.zh?'zh':'vi')}</span>{c.phone&&<span className="text-[11px] text-gray-500 font-mono ml-2">{c.phone}</span>}</div>
+        {c.lastServedAt&&<span className="text-[10px] text-gray-600">{fmtDT(c.lastServedAt).slice(0,10)}</span>}
+      </button>))}</div>)}
+    {!adding&&q&&results.length===0&&<p className="text-xs text-gray-600 text-center py-2">{t.noMatch}</p>}
+    {!adding&&<button onClick={()=>{setAdding(true);setForm(f=>({...f,name:q&&!/^\d+$/.test(q)?q:'',phone:/^\d+$/.test(normPhone(q))?normPhone(q):''}))}} className="w-full py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] border-dashed text-amber-400 text-sm font-medium">+ {t.custNew}</button>}
+    {adding&&(<div className="space-y-2 bg-white/[0.02] border border-white/[0.06] rounded-xl p-3 fi">
+      <div className="flex gap-2"><input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder={t.custName} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>
+      <select value={form.title} onChange={e=>setForm({...form,title:e.target.value})} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-sm text-gray-200 focus:outline-none">{BOOK_TITLES.map(o=><option key={o.v} value={o.v}>{t===T.zh?o.zh:o.vi}</option>)}</select></div>
+      <input value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} inputMode="numeric" placeholder={t.custPhone} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/>
+      <input value={form.parts} onChange={e=>setForm({...form,parts:e.target.value})} placeholder={t.custParts} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>
+      <div className="flex gap-2"><button onClick={()=>setAdding(false)} className="flex-1 py-2 bg-white/[0.04] rounded-lg text-gray-400 text-sm">{t.bookCancel}</button><button onClick={saveNew} className="flex-1 py-2 bg-amber-600 rounded-lg text-white text-sm font-bold">{t.custNew}</button></div>
+    </div>)}
+  </div>);
+}
+
+/* ══════════ 新增自約表單 ══════════ */
+function BookingForm({code,t,onDone,onCancel}){
+  const settings=LS.get('app-settings')||{};
+  const lang=t===T.zh?'zh':'vi';
+  const[cust,setCust]=useState(null);
+  const[date,setDate]=useState(fmtDateInput());
+  const[time,setTime]=useState(settings.workStart||'06:00');
+  const[svc,setSvc]=useState('FB3');
+  const[extra,setExtra]=useState(0);
+  const[party,setParty]=useState(1);
+  const[note,setNote]=useState('');
+  const[err,setErr]=useState('');
+  // 計算本次自約時間範圍
+  const dt=useMemo(()=>{const[y,m,d]=date.split('-').map(Number);const[hh,mm]=time.split(':').map(Number);return new Date(y,m-1,d,hh,mm).getTime()},[date,time]);
+  const endTs=dt+bookMinutes(svc,extra)*60000;
+  // 衝突偵測
+  const conflicts=useMemo(()=>findConflicts(code,{datetime:dt,svc,extra},null),[code,dt,svc,extra]);
+  const custMap=useMemo(()=>{const mm={};getCustomers(code).forEach(c=>mm[c.id]=c);return mm},[code]);
+  // 排休檢查
+  const dayOff=useMemo(()=>dayOffStatus(code,dt),[code,dt]);
+  // 下工超時(僅在有設下工時間時提醒)
+  const overWork=useMemo(()=>{if(!settings.workEnd)return false;const[eh,em]=settings.workEnd.split(':').map(Number);const d=new Date(dt);const weTs=new Date(d.getFullYear(),d.getMonth(),d.getDate(),eh,em).getTime();return endTs>weTs},[dt,endTs,settings.workEnd]);
+  const fmtHM=ts=>{const d=new Date(ts);return pad(d.getHours())+':'+pad(d.getMinutes())};
+  const save=()=>{
+    if(!cust){setErr(t.pickCustomerFirst);return}
+    addBooking(code,{customerId:cust.id,datetime:dt,svc,extra,party,store:settings.store||'',note:note.trim(),status:'confirmed'});
+    onDone();
+  };
+  return(<div className="space-y-4 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4 fi">
+    <h3 className="text-sm font-semibold text-amber-400">{t.bookingNew}</h3>
+    <div><label className="text-xs text-gray-500 mb-1.5 block">{t.selectCustomer}</label><CustomerPicker code={code} t={t} selected={cust} onSelect={c=>{setCust(c);setErr('')}}/></div>
+    <div className="grid grid-cols-2 gap-2">
+      <div><label className="text-xs text-gray-500 mb-1.5 block">{t.bookDate}</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>
+      <div><label className="text-xs text-gray-500 mb-1.5 block">{t.bookTime}</label><input type="time" value={time} onChange={e=>setTime(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>
+    </div>
+    {dayOff>0&&<p className="text-xs text-red-400">⚠️ {fmtLogStr(t.dayOffWarn,[skName(dayOff,lang)])}</p>}
+    {conflicts.length>0&&conflicts.map(o=>{const oc=custMap[o.customerId]||{};return<p key={o.id} className="text-xs text-red-400">⚠️ {fmtLogStr(t.conflictWarn,[fmtHM(o.datetime),(oc.name||'')])}</p>})}
+    {overWork&&<p className="text-xs text-red-400">⚠️ {bookLabel(svc,extra)} → {fmtHM(endTs)}{settings.workEnd?'（'+t.workEnd+' '+settings.workEnd+'）':''}</p>}
+    {!settings.workEnd&&<p className="text-[11px] text-gray-600">{t.noWorkEnd}</p>}
+    <div className="grid grid-cols-2 gap-2">
+      <div><label className="text-xs text-gray-500 mb-1.5 block">{t.svcLabel}</label><select value={svc} onChange={e=>setSvc(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500">{SERVICES.map(s=><option key={s.code} value={s.code}>{s.code}（{s.min}{lang==='zh'?'分':'p'}）</option>)}</select></div>
+      <div><label className="text-xs text-gray-500 mb-1.5 block">{t.addHour}</label><select value={extra} onChange={e=>setExtra(parseInt(e.target.value))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500">{[0,1,2,3,4,5,6,7,8].map(n=><option key={n} value={n}>+{n}</option>)}</select></div>
+    </div>
+    <div className="flex items-center justify-between bg-white/[0.02] rounded-xl px-3 py-2">
+      <span className="text-xs text-gray-500">{bookLabel(svc,extra)} = {bookUnits(svc,extra)} {t.units} · {bookMinutes(svc,extra)}{lang==='zh'?'分':'p'}</span>
+    </div>
+    <div><label className="text-xs text-gray-500 mb-1.5 block">{t.party}</label>
+      <div className="flex items-center gap-3"><button onClick={()=>setParty(Math.max(1,party-1))} className="w-11 h-11 rounded-xl bg-white/[0.04] text-gray-300 text-xl">−</button><span className="text-xl font-bold text-gray-100 flex-1 text-center">{party} {t.partyUnit}</span><button onClick={()=>setParty(party+1)} className="w-11 h-11 rounded-xl bg-white/[0.04] text-gray-300 text-xl">+</button></div>
+    </div>
+    <div><label className="text-xs text-gray-500 mb-1.5 block">{t.custNote}</label><textarea value={note} onChange={e=>setNote(e.target.value)} rows={2} placeholder={t.custNote} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 resize-none"/></div>
+    {err&&<p className="text-xs text-red-400">{err}</p>}
+    <div className="flex gap-2"><button onClick={onCancel} className="flex-1 py-3 bg-white/[0.04] rounded-xl text-gray-400 font-medium">{t.bookCancel}</button><button onClick={save} className="flex-1 py-3 bg-amber-600 rounded-xl text-white font-bold">{t.bookSave}</button></div>
+  </div>);
+}
+
+/* ══════════ 自約清單 ══════════ */
+function BookingList({code,t,refresh}){
+  const bookings=useMemo(()=>{const list=getBookings(code).slice();return list.sort((a,b)=>(a.datetime||0)-(b.datetime||0))},[code,refresh]);
+  const custs=useMemo(()=>{const m={};getCustomers(code).forEach(c=>m[c.id]=c);return m},[code,refresh]);
+  const[,force]=useState(0);
+  const del=(id)=>{if(confirm(t.bookDeleteConfirm)){deleteBooking(code,id);force(x=>x+1);refresh&&refresh()}};
+  const lang=t===T.zh?'zh':'vi';
+  if(bookings.length===0)return<p className="text-sm text-gray-600 text-center py-8">{t.bookingEmpty}</p>;
+  const now=Date.now();
+  return(<div className="space-y-2">{bookings.map(b=>{const c=custs[b.customerId]||{};const past=b.datetime<now;return(
+    <div key={b.id} className={`rounded-xl p-3.5 border ${past?'bg-white/[0.01] border-white/[0.04]':'bg-white/[0.03] border-white/[0.08]'}`}>
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <p className={`text-sm font-bold ${past?'text-gray-500':'text-amber-400'}`}>{fmtDT(b.datetime)} {b.svc?<span className="text-emerald-400">{bookLabel(b.svc,b.extra)}</span>:''}</p>
+          <p className="text-sm text-gray-200 mt-1">{c.name||'—'} <span className="text-[11px] text-gray-500">{bookTitleName(c.title,lang)}</span>{c.phone&&<span className="text-[11px] text-gray-600 font-mono ml-2">{c.phone}</span>}{b.party>1?<span className="text-[11px] text-amber-400 ml-2">{b.party}{t.partyUnit}</span>:''}</p>
+          {c.parts&&<p className="text-[11px] text-gray-500 mt-0.5">{t.custParts}: {c.parts}</p>}
+          {b.note&&<p className="text-[11px] text-gray-500 mt-0.5">{b.note}</p>}
+        </div>
+        <button onClick={()=>del(b.id)} className="text-red-400/50 text-xs px-2 py-1">✕</button>
+      </div>
+    </div>);})}</div>);
+}
+
+/* ══════════ 根 ══════════ */
+function BookingApp(){
+  const settings=LS.get('app-settings')||{};
+  const theme=localStorage.getItem('app-theme')||'black';
+  const bg=THEMES[theme]||THEMES.black;const isLight=theme==='white'||theme==='pink';
+  const lang=settings.lang||'zh';const t=T[lang];
+  const[mode,setMode]=useState('list');
+  const[refresh,setRefresh]=useState(0);
+  useEffect(()=>{document.body.style.backgroundColor=bg;buildDynamicKey()},[]);
+
+  // 驗本機是否有已啟用老師資料
+  if(!settings.code){
+    return(<div className="min-h-screen flex items-center justify-center p-8" style={{backgroundColor:bg}}>
+      <div className="text-center space-y-4 max-w-xs">
+        <p className="text-gray-300">{t.needActivate}</p>
+        <button onClick={goMain} className="px-6 py-3 bg-amber-600 rounded-xl text-white font-bold">{t.backToMain}</button>
+      </div></div>);
+  }
+  return(<div className={`min-h-screen ${isLight?'text-gray-900':'text-gray-100'}`} style={{backgroundColor:bg}} data-light={isLight||undefined}>
+    <div className="max-w-md mx-auto p-5 space-y-5 fi">
+      <div className="flex items-center gap-3">
+        <button onClick={goMain} className="text-gray-500"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg></button>
+        <h1 className="text-2xl font-bold text-gray-100">{t.booking}</h1>
+        <span className="text-xs text-gray-600 font-mono ml-auto">#{settings.code}</span>
+      </div>
+      {mode==='list'&&(<>
+        <button onClick={()=>setMode('new')} className="w-full py-3.5 rounded-xl bg-amber-600 text-white font-bold active:bg-amber-700">+ {t.bookingNew}</button>
+        <div><h2 className="text-sm font-semibold text-gray-400 mb-2">{t.bookingList}</h2><BookingList code={settings.code} t={t} refresh={refresh}/></div>
+      </>)}
+      {mode==='new'&&<BookingForm code={settings.code} t={t} onDone={()=>{setMode('list');setRefresh(x=>x+1)}} onCancel={()=>setMode('list')}/>}
+    </div>
+  </div>);
+}
+
+class __EB extends React.Component{constructor(p){super(p);this.state={e:false}}static getDerivedStateFromError(){return{e:true}}componentDidCatch(err){try{window.__showFallback(3,{lineno:0})}catch(e){}}render(){return this.state.e?null:this.props.children}}
+ReactDOM.createRoot(document.getElementById('root')).render(<__EB><BookingApp/></__EB>);
+</script>
+</body>
+</html>
