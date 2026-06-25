@@ -30,7 +30,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.8-017</title>
+<title>薪資追蹤 v1.8-018</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -323,9 +323,9 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
         <div className="flex items-center gap-3"><button onClick={()=>setForm({...form,year:form.year-1})} className="w-14 h-14 rounded-xl bg-white/[0.04] text-gray-300 text-2xl active:bg-white/[0.08]">−</button><span className="text-3xl font-bold text-gray-100 flex-1 text-center tabular-nums">{form.year}</span><button onClick={()=>setForm({...form,year:form.year+1})} className="w-14 h-14 rounded-xl bg-white/[0.04] text-gray-300 text-2xl active:bg-white/[0.08]">+</button></div>
       </div>
       <div className="text-[10px] text-gray-700 font-mono break-all">{t.deviceId}: {devId}</div>
-      <div className="grid grid-cols-2 gap-4">
-        <div><label className="text-sm text-gray-400 mb-1.5 block">{t.workStart}</label><input type="time" value={form.workStart||''} onChange={e=>{const ns={...form,workStart:e.target.value};setForm(ns);onUpdate(ns)}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>
-        <div><label className="text-sm text-gray-400 mb-1.5 block">{t.workEnd}</label><input type="time" value={form.workEnd||''} onChange={e=>{const ns={...form,workEnd:e.target.value};setForm(ns);onUpdate(ns)}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>
+      <div className="grid grid-cols-2 gap-6">
+        <div><label className="text-sm text-gray-400 mb-1.5 block">{t.workStart}</label><input type="time" step="600" value={form.workStart||''} onChange={e=>{const ns={...form,workStart:e.target.value};setForm(ns);onUpdate(ns)}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-2.5 text-sm text-center text-gray-100 focus:outline-none focus:border-amber-500"/></div>
+        <div><label className="text-sm text-gray-400 mb-1.5 block">{t.workEnd}</label><input type="time" step="600" value={form.workEnd||''} onChange={e=>{const ns={...form,workEnd:e.target.value};setForm(ns);onUpdate(ns)}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-2.5 text-sm text-center text-gray-100 focus:outline-none focus:border-amber-500"/></div>
       </div>
       {form.workStart&&!form.workEnd&&<p className="text-xs text-amber-400">{t.workEndNeed}</p>}
       <div>
