@@ -29,7 +29,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 預約 v1.8-024</title>
+<title>薪資追蹤 · 預約 v1.8-025</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -284,14 +284,21 @@ function BookingForm({code,t,onDone,onCancel}){
     <div><label className="text-xs text-gray-500 mb-1.5 block">{t.party}</label>
       <div className="flex items-center gap-3"><button onClick={()=>{const np=Math.max(0,party-1);setParty(np);setPartyDetails(d=>d.slice(0,np))}} className="w-11 h-11 rounded-xl bg-white/[0.04] text-gray-300 text-xl">−</button><span className="text-xl font-bold text-gray-100 flex-1 text-center">{party} {t.partyUnit}</span><button onClick={()=>{const np=party+1;setParty(np);setPartyDetails(d=>[...d,{svc:svc,teacher:'',note:''}])}} className="w-11 h-11 rounded-xl bg-white/[0.04] text-gray-300 text-xl">+</button></div>
     </div>
-    {party>0&&<div className="space-y-2">{Array.from({length:party},(_,i)=>{const pd=partyDetails[i]||{svc:svc,teacher:'',note:''};const setPd=(patch)=>{setPartyDetails(d=>{const nd=[...d];while(nd.length<party)nd.push({svc:svc,teacher:'',note:''});nd[i]={...nd[i],...patch};return nd})};return(
+    {party>0&&<div className="space-y-2">{Array.from({length:party},(_,i)=>{const pd=partyDetails[i]||{svc:svc,assignMode:'none',teacher:'',conds:{},oil:false,note:''};const setPd=(patch)=>{setPartyDetails(d=>{const nd=[...d];while(nd.length<party)nd.push({svc:svc,assignMode:'none',teacher:'',conds:{},oil:false,note:''});nd[i]={...nd[i],...patch};return nd})};const conds=pd.conds||{};const toggleCond=(k)=>setPd({conds:{...conds,[k]:!conds[k]}});return(
       <div key={i} className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-3 space-y-2">
         <p className="text-xs text-amber-400 font-semibold">{t.partyMember}{i+1}{t.partyUnit}</p>
-        <div className="grid grid-cols-2 gap-2">
-          <select value={pd.svc} onChange={e=>setPd({svc:e.target.value})} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-500">{Object.keys(SERVICES).map(k=><option key={k} value={k}>{k}（{SERVICES[k].min}分）</option>)}</select>
-          <input value={pd.teacher} onChange={e=>setPd({teacher:e.target.value})} placeholder={t.assignTeacher+'/'+t.noAssign} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-500"/>
-        </div>
-        <input value={pd.note} onChange={e=>setPd({note:e.target.value})} placeholder={t.svcNote} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-500"/>
+        <select value={pd.svc} onChange={e=>setPd({svc:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-500">{SERVICES.map(s=><option key={s.code} value={s.code}>{s.code}（{s.min}分）</option>)}</select>
+        <select value={pd.assignMode||'none'} onChange={e=>setPd({assignMode:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-500">
+          <option value="none">{t.noAssignTeacher}</option>
+          <option value="assign">{t.assignTeacherMode}</option>
+        </select>
+        {pd.assignMode==='assign'&&(<div className="space-y-2 fi">
+          {/* 指定方式互斥:填編號 or 勾條件 */}
+          <input value={pd.teacher||''} onChange={e=>setPd({teacher:e.target.value,conds:{}})} placeholder={t.assignByCode} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-500"/>
+          <div className="grid grid-cols-4 gap-1">{[['male',t.assignMale],['female',t.assignFemale],['tw',t.assignTW],['vn',t.assignVN]].map(([k,l])=>(<button key={k} onClick={()=>{setPd({teacher:''});toggleCond(k)}} className={`py-1.5 rounded-lg text-[11px] font-medium ${conds[k]?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div>
+        </div>)}
+        <button onClick={()=>setPd({oil:!pd.oil})} className={`w-full py-1.5 rounded-lg text-[11px] font-medium ${pd.oil?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t.assignOil}</button>
+        <input value={pd.note||''} onChange={e=>setPd({note:e.target.value})} placeholder={t.svcNote} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-500"/>
       </div>);
     })}</div>}
     <div><label className="text-xs text-gray-500 mb-1.5 block">{t.custNote}</label><textarea value={note} onChange={e=>setNote(e.target.value)} rows={2} placeholder={t.custNote} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 resize-none"/></div>
@@ -372,6 +379,9 @@ function BookingDetail({code,t,bookId,onDone,onCancel}){
     setEditing(false);force(x=>x+1);
   };
   const doConfirm=()=>{confirmBooking(code,bookId);force(x=>x+1)};
+  // 指定的老師編號清單(從 partyDetails)
+  const assignedTeachers=(bk&&bk.partyDetails?bk.partyDetails.filter(p=>p&&p.assignMode==='assign'&&p.teacher&&p.teacher.trim()).map(p=>p.teacher.trim()):[]);
+  const doConfirmAssigned=(tcode)=>{updateBooking(code,bookId,{},{type:'confirmAssigned',msg:fmtLogStr(t.logConfirmAssigned,[tcode])});force(x=>x+1)};
   const startEdit=()=>{setEditing(true)};
   const ro=!editing;
   return(<div className="space-y-4 fi">
@@ -381,7 +391,7 @@ function BookingDetail({code,t,bookId,onDone,onCancel}){
       {confirmed&&<span className="text-[11px] text-emerald-400 ml-auto">✓ {t.bookConfirmed2}</span>}
     </div>
     <div className={`space-y-4 rounded-2xl p-4 border ${ro?'bg-white/[0.01] border-white/[0.04]':'bg-white/[0.02] border-white/[0.06]'}`}>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-3">
         <div><label className="text-xs text-gray-500 mb-1.5 block">{t.bookDate}</label><input type="date" disabled={ro} value={date} onChange={e=>setDate(e.target.value)} className={`w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 ${ro?'opacity-50':''}`}/></div>
         <div><label className="text-xs text-gray-500 mb-1.5 block">{t.bookTime}</label><input type="time" step="600" disabled={ro} value={time} onChange={e=>setTime(e.target.value)} className={`w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 ${ro?'opacity-50':''}`}/></div>
       </div>
@@ -391,22 +401,48 @@ function BookingDetail({code,t,bookId,onDone,onCancel}){
       </div>
       <p className="text-xs text-gray-500">{bookLabel(svc,extra)} = {bookUnits(svc,extra)} {t.units} · {bookMinutes(svc,extra)}{lang==='zh'?'分':'p'}</p>
       <div><label className="text-xs text-gray-500 mb-1.5 block">{t.custNote}</label><textarea disabled={ro} value={note} onChange={e=>setNote(e.target.value)} rows={2} className={`w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 resize-none ${ro?'opacity-50':''}`}/></div>
+      {bk.party>0&&(<div className="space-y-2">
+        <p className="text-xs text-gray-500">{t.party}：{t.totalPeople}{bk.party+1}{t.peopleUnit}</p>
+        {(bk.partyDetails||[]).map((pd,i)=>{if(!pd)return null;const condList=[];if(pd.conds){if(pd.conds.male)condList.push(t.assignMale);if(pd.conds.female)condList.push(t.assignFemale);if(pd.conds.tw)condList.push(t.assignTW);if(pd.conds.vn)condList.push(t.assignVN)}return(
+          <div key={i} className="bg-white/[0.02] border border-white/[0.06] rounded-lg px-3 py-2 text-xs">
+            <span className="text-amber-400 font-semibold">{t.partyMember}{i+1}{t.partyUnit}</span>
+            <span className="text-emerald-400 ml-2 font-bold">{pd.svc}</span>
+            {pd.assignMode==='assign'&&pd.teacher&&<span className="text-amber-300 ml-2">{t.assignTeacher} {pd.teacher}</span>}
+            {condList.length>0&&<span className="text-amber-300 ml-2">{condList.join('/')}</span>}
+            {pd.oil&&<span className="text-purple-300 ml-2">{t.assignOil}</span>}
+            {pd.note&&<span className="text-gray-400 ml-2">· {pd.note}</span>}
+          </div>);})}
+      </div>)}
     </div>
     {/* 動作鈕 */}
     {editing?(
-      <div className="flex gap-2"><button onClick={()=>setEditing(false)} className="flex-1 py-3 bg-white/[0.04] rounded-xl text-gray-400 font-medium">{t.bookCancel}</button><button onClick={saveEdit} className="flex-1 py-3 bg-amber-600 rounded-xl text-white font-bold">{t.bookSaveEdit}</button></div>
+      <div className="flex gap-2"><button onClick={()=>setEditing(false)} className="flex-1 py-3 bg-white/[0.04] rounded-xl text-gray-400 font-medium">{t.bookCancel}</button><button onClick={saveEdit} className="flex-1 py-3 bg-amber-600 rounded-xl text-white font-bold">{t.saveChange}</button></div>
     ):(
       <div className="space-y-2">
-        <button onClick={doConfirm} className={`w-full py-3.5 rounded-xl font-bold border ${confirmed?'bg-emerald-600/10 border-emerald-500/20 text-emerald-400/70':'bg-emerald-600/20 border-emerald-500/30 text-emerald-400 active:bg-emerald-600/30'}`}>{confirmed?'✓ '+t.bookConfirmed2:t.bookConfirmDesk}</button>
-        <div className="flex gap-2">
-          <button onClick={startEdit} className="flex-1 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-gray-300 font-medium">{t.bookEdit}</button>
+        {/* (1)編輯 (2)跟櫃台確認 */}
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={startEdit} className="py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-gray-300 font-medium">{t.editBtn}</button>
+          <button onClick={doConfirm} className={`py-3 rounded-xl font-bold border ${confirmed?'bg-emerald-600/10 border-emerald-500/20 text-emerald-400/70':'bg-emerald-600/20 border-emerald-500/30 text-emerald-400 active:bg-emerald-600/30'}`}>{confirmed?'✓ '+t.confirmWithCounter:t.confirmWithCounter}</button>
+        </div>
+        {/* (3)跟指定老師確認:無指定灰,有指定每位一個編號鈕 */}
+        {assignedTeachers.length>0?(
+          <div className="space-y-1.5">
+            <p className="text-[11px] text-gray-500">{t.confirmWithAssigned}</p>
+            <div className="flex flex-wrap gap-2">{assignedTeachers.map((tc,idx)=>(
+              <button key={idx} onClick={()=>doConfirmAssigned(tc)} className="px-4 py-2.5 bg-amber-600/20 border border-amber-500/30 rounded-xl text-amber-400 text-sm font-bold active:bg-amber-600/30">{tc}</button>
+            ))}</div>
+          </div>
+        ):(
+          <button disabled className="w-full py-3 bg-white/[0.02] border border-white/[0.04] rounded-xl text-gray-700 font-medium cursor-not-allowed">{t.confirmWithAssigned}</button>
+        )}
+        {/* 刪除 */}
+        <div className="pt-1">
           {delConfirm?(
-            <button onClick={()=>{deleteBooking(code,bookId);onDone()}} className="px-5 py-3 bg-red-500 rounded-xl text-white font-bold">{t.bookDeleteConfirm2||'確定刪除'}</button>
+            <button onClick={()=>{deleteBooking(code,bookId);onDone()}} className="w-full py-3 bg-red-500 rounded-xl text-white font-bold">{t.bookDeleteConfirm2||'確定刪除'}</button>
           ):(
-            <button onClick={()=>{setDelConfirm(true);setTimeout(()=>setDelConfirm(false),3000)}} className="px-5 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 font-medium">{t.bookDelete}</button>
+            <button onClick={()=>{setDelConfirm(true);setTimeout(()=>setDelConfirm(false),3000)}} className="w-full py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 font-medium">{t.bookDelete}</button>
           )}
         </div>
-        {confirmed&&<p className="text-[11px] text-amber-400 text-center">{t.bookEditWarn}</p>}
       </div>
     )}
     {/* log 時間軸 */}
