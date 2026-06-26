@@ -30,7 +30,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.8-028</title>
+<title>薪資追蹤 v1.8-030</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -338,7 +338,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
           return(
           <button key={id} onClick={()=>{if(id==='manage'){location.href='./auth.html#lang='+(settings.lang||'zh');return}setSubTab(id)}} className={`relative w-full px-0.5 py-2.5 text-[11px] font-semibold text-center leading-tight ${subTab===id?'text-amber-400 border-r-2 border-amber-400 bg-amber-600/5':'text-gray-500'}`}>
             {label}
-            {showAlert&&<span className="absolute top-1 right-1 text-red-500 text-[10px]">❗</span>}
+            {showAlert&&<span className="absolute -top-0.5 right-0 text-red-500 text-[9px] leading-none">❗</span>}
             {noticeCount>0&&<span className="absolute top-0.5 right-0.5 bg-red-500 text-white text-[9px] rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5">{noticeCount}</span>}
           </button>);
         })}
@@ -555,7 +555,7 @@ function App(){
   const lang=settings.lang||'zh';const t=T[lang];
   const tabs=[{id:'home',label:t.home},{id:'monthly',label:t.monthly},{id:'yearly',label:t.yearly},{id:'settings',label:t.settings}];
   // 底部設定❗:基資或店資有未確認變動(主管除外)
-  const settingsAlert=(()=>{const gh=getGHConfig();if(gh&&gh.token)return false;const cp=settings.confirmedProfile,cs=settings.confirmedStore;const pf=['gender','nameZh','nameVi','address','school','major','permitDate','permitOrg'];const sf=['storeSel','shift','workStart','workEnd','workNote','unitPrice'];const chg=(snap,fs)=>{if(!snap)return fs.some(k=>{const v=settings[k];return v!==undefined&&v!==''&&v!==null});return fs.some(k=>(snap[k]||'')!==((settings[k]!==undefined?settings[k]:'')||''))};return chg(cp,pf)||chg(cs,sf)})();
+  const settingsAlert=(()=>{const permExp=(()=>{if(!settings.permitExpiry)return false;const days=(new Date(settings.permitExpiry)-new Date())/86400000;return days<=30})();const gh=getGHConfig();if(gh&&gh.token)return permExp;const cp=settings.confirmedProfile,cs=settings.confirmedStore;const pf=['gender','nameZh','nameVi','address','school','major','permitDate','permitOrg'];const sf=['storeSel','shift','workStart','workEnd','workNote','unitPrice'];const chg=(snap,fs)=>{if(!snap)return fs.some(k=>{const v=settings[k];return v!==undefined&&v!==''&&v!==null});return fs.some(k=>(snap[k]||'')!==((settings[k]!==undefined?settings[k]:'')||''))};return chg(cp,pf)||chg(cs,sf)||permExp})();
   return(<div className={`${isLight?'text-gray-900':'text-gray-100'} flex flex-col`} style={{backgroundColor:bgColor,height:'100dvh'}} data-light={isLight||undefined}>
     <div className="flex-1 overflow-y-auto">
       {tab==='home'&&<HomePage settings={settings} t={t} refreshKey={refreshKey}/>}
