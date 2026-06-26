@@ -30,7 +30,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.8-034</title>
+<title>薪資追蹤 v1.8-036</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -316,7 +316,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
   // 貼確認碼:驗證通過→更新本機快照(清未確認)+若確認碼大寫設已綁定
   const[confirmInput,setConfirmInput]=useState('');
   const[confirmMsg,setConfirmMsg]=useState('');
-  const applyConfirm=(cat,fields,snapKey)=>{const ok=verifyConfirmCode(confirmInput,cat,settings.code,fields);if(ok){const snap={...fields};if(cat==='store'){snap.storeSel=fields.store;}const ns={...settings,[snapKey]:snap};setSettings(ns);LS.set('app-settings',ns);if(confirmCodeIsBound(confirmInput)){try{localStorage.setItem('uuid-bound-'+settings.code,'1')}catch{}}setConfirmMsg('ok');setConfirmInput('');setTimeout(()=>setConfirmMsg(''),3000)}else{setConfirmMsg('fail');setTimeout(()=>setConfirmMsg(''),3000)}};
+  const applyConfirm=(cat,fields,snapKey)=>{const ok=verifyConfirmCode(confirmInput,cat,settings.code,fields);if(ok){const snap={...fields};if(cat==='store'){snap.storeSel=fields.store;}const ns={...settings,...form,[snapKey]:snap};onUpdate(ns);if(confirmCodeIsBound(confirmInput)){try{localStorage.setItem('uuid-bound-'+settings.code,'1')}catch{}}setConfirmMsg('ok');setConfirmInput('');setTimeout(()=>setConfirmMsg(''),3000)}else{setConfirmMsg('fail');setTimeout(()=>setConfirmMsg(''),3000)}};
   const onWorkStartChange=(v)=>{let patch={workStart:v};if(v&&!form.workEnd){const[h,m]=v.split(':').map(Number);let eh=(h+12)%24;const p=n=>String(n).padStart(2,'0');patch.workEnd=p(eh)+':'+p(m)}upd(patch)};
   // 前次主管確認值快照(只有確認過才有,新老師沒有→不顯示紅字)
   const confirmedP=settings.confirmedProfile||null;
