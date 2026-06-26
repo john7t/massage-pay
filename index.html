@@ -30,7 +30,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.8-021</title>
+<title>薪資追蹤 v1.8-022</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -307,12 +307,17 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
   useEffect(()=>{loadStores().then(setStores)},[]);
   const upd=(patch)=>{const ns={...form,...patch};setForm(ns);onUpdate(ns)};
   const goAuth=()=>{location.href='./auth.html#lang='+(settings.lang||'zh')};
-  const TABS=[['home',t.tabHome2],['basic',t.tabBasic],['store',t.tabStore],['book',t.tabBook2],['cust',t.tabCust],['notice',t.tabNotice],['suggest',t.tabSuggest],['backup',t.tabBackup],['manage',t.tabManage]];
+  const TABS=[['home',t.tabHome2],['basic',t.tabBasic],['store',t.tabStore],['book',t.tabBook2],['cust',t.tabCust],['notice',t.tabNotice],['suggest',t.tabSuggest],['backup',t.tabBackup],['violation',t.tabViolation],['manage',t.tabManage]];
   const fld=(label,key,opt)=>(<div><label className="text-xs text-gray-400 mb-1 block">{label}{opt&&<span className="text-[10px] text-gray-600 ml-1">({t.optional})</span>}</label><input value={form[key]||''} onChange={e=>upd({[key]:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>);
   const Construction=()=>(<div className="flex flex-col items-center justify-center py-20 text-center"><svg className="w-12 h-12 text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/></svg><p className="text-sm text-gray-500">{t.underConstruction}</p></div>);
   // 產生申請碼:把欄位加密,標記變動
   const genCode=(fields,setter)=>{const payload={code:settings.code,fields,changed:fields,ts:Date.now()};try{const enc=encWithKey(JSON.stringify(payload),actKey(settings.code,devId));setter(enc)}catch(e){setter('')}};
   const onWorkStartChange=(v)=>{let patch={workStart:v};if(v&&!form.workEnd){const[h,m]=v.split(':').map(Number);let eh=(h+12)%24;const p=n=>String(n).padStart(2,'0');patch.workEnd=p(eh)+':'+p(m)}upd(patch)};
+  // 前次主管確認值快照(只有確認過才有,新老師沒有→不顯示紅字)
+  const confirmedP=settings.confirmedProfile||null;
+  const confirmedS=settings.confirmedStore||null;
+  const prevHint=(snapshot,key,curVal)=>{if(!snapshot||!(key in snapshot))return null;const prev=snapshot[key];if((prev||'')===(curVal||''))return null;return<p className="text-[11px] text-red-400 mt-1">{t.prevConfirmed}：{prev||'—'}</p>};
+  const fldP=(label,key,opt,snapshot)=>(<div><label className="text-xs text-gray-400 mb-1 block">{label}{opt&&<span className="text-[10px] text-gray-600 ml-1">({t.optional})</span>}</label><input value={form[key]||''} onChange={e=>upd({[key]:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>{prevHint(snapshot,key,form[key])}</div>);
   return(
     <div className="flex h-full fi">
       <div className="flex-shrink-0 w-12 border-r border-white/[0.06] py-3 space-y-0.5 overflow-y-auto no-sb">
@@ -345,12 +350,12 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
         <div><label className="text-xs text-gray-400 mb-1 block">{t.language}</label>
           <div className="grid grid-cols-2 gap-2">{[['zh','中文'],['vi','Tiếng Việt']].map(([c,l])=>(<button key={c} onClick={()=>upd({lang:c})} className={`py-2.5 rounded-xl text-sm font-semibold ${form.lang===c?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div>
         </div>
-        {fld(t.nameZh,'nameZh',true)}
-        {fld(t.nameVi,'nameVi',true)}
-        {fld(t.address,'address',true)}
-        <div className="grid grid-cols-2 gap-2"><div>{fld(t.school,'school',true)}</div><div>{fld(t.major,'major',true)}</div></div>
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.permitDate}<span className="text-[10px] text-gray-600 ml-1">({t.optional})</span></label><input type="date" value={form.permitDate||''} onChange={e=>upd({permitDate:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>
-        {fld(t.permitOrg,'permitOrg',true)}
+        {fldP(t.nameZh,'nameZh',true,confirmedP)}
+        {fldP(t.nameVi,'nameVi',true,confirmedP)}
+        {fldP(t.address,'address',true,confirmedP)}
+        <div className="grid grid-cols-2 gap-2"><div>{fldP(t.school,'school',true,confirmedP)}</div><div>{fldP(t.major,'major',true,confirmedP)}</div></div>
+        <div><label className="text-xs text-gray-400 mb-1 block">{t.permitDate}<span className="text-[10px] text-gray-600 ml-1">({t.optional})</span></label><input type="date" value={form.permitDate||''} onChange={e=>upd({permitDate:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>{prevHint(confirmedP,'permitDate',form.permitDate)}</div>
+        {fldP(t.permitOrg,'permitOrg',true,confirmedP)}
         <div className="pt-2 space-y-2">
           <button onClick={()=>genCode({nameZh:form.nameZh,nameVi:form.nameVi,address:form.address,school:form.school,major:form.major,permitDate:form.permitDate,permitOrg:form.permitOrg,gender:form.gender},setBasicCode)} className="w-full py-3 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.genBasicCode}</button>
           {basicCode&&(<div className="space-y-2 fi">
@@ -375,7 +380,8 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
           <div className="col-span-2"><label className="text-xs text-gray-400 mb-1 block">{t.workStart}</label><input type="time" step="600" value={form.workStart||''} onChange={e=>onWorkStartChange(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-1 py-2.5 text-sm text-center text-gray-100 focus:outline-none focus:border-amber-500"/></div>
           <div className="col-span-2 col-start-4"><label className="text-xs text-gray-400 mb-1 block">{t.workEnd}</label><input type="time" step="600" value={form.workEnd||''} onChange={e=>upd({workEnd:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-1 py-2.5 text-sm text-center text-gray-100 focus:outline-none focus:border-amber-500"/></div>
         </div>
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.workNote}<span className="text-[10px] text-gray-600 ml-1">({t.optional})</span></label><textarea value={form.workNote||''} onChange={e=>upd({workNote:e.target.value})} rows={2} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 resize-none"/></div>
+        {confirmedS&&((confirmedS.workStart||'')!==(form.workStart||'')||(confirmedS.workEnd||'')!==(form.workEnd||''))&&<p className="text-[11px] text-red-400">{t.prevConfirmed}：{confirmedS.workStart||'—'} ~ {confirmedS.workEnd||'—'}</p>}
+        <div><label className="text-xs text-gray-400 mb-1 block">{t.workNote}<span className="text-[10px] text-gray-600 ml-1">({t.optional})</span></label><textarea value={form.workNote||''} onChange={e=>upd({workNote:e.target.value})} rows={2} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 resize-none"/>{prevHint(confirmedS,'workNote',form.workNote)}</div>
         <div><label className="text-xs text-gray-400 mb-1 block">{t.unitPrice}</label>
           <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
           <input type="number" inputMode="numeric" value={form.unitPrice} onChange={e=>upd({unitPrice:parseInt(e.target.value)||0})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl pl-8 pr-3 py-3 text-base text-gray-100 focus:outline-none focus:border-amber-500"/></div>
@@ -419,6 +425,26 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
       {subTab==='backup'&&(<div className="space-y-4 fi">
         <h2 className="text-lg font-bold text-gray-100">{t.backupCenter}</h2>
         <BackupSection settings={settings} t={t}/>
+      </div>)}
+
+      {subTab==='violation'&&(<div className="space-y-6 fi">
+        <div>
+          <h2 className="text-lg font-bold text-gray-100 mb-3">{t.violationTitle}</h2>
+          <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl px-4 py-6 text-center"><p className="text-sm text-gray-500">{t.noViolation}</p></div>
+        </div>
+        <div className="space-y-2">
+          <p className="text-sm text-gray-400 font-medium">{t.violationCode}</p>
+          <textarea rows={2} placeholder={t.connInput} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none"/>
+          <div className="flex gap-2">
+            <button className="flex-1 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-gray-400 text-sm flex items-center justify-center gap-1"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M12 4v12m0 0l-4-4m4 4l4-4"/></svg></button>
+            <button className="flex-1 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-gray-400 text-sm">{t.pasteBtn}</button>
+          </div>
+          <button className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.confirm}</button>
+        </div>
+        <div className="pt-4 border-t border-white/[0.06]">
+          <h2 className="text-lg font-bold text-gray-100 mb-3">{t.dutyTitle}</h2>
+          <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl px-4 py-6 text-center"><p className="text-sm text-gray-500">{t.noDuty}</p></div>
+        </div>
       </div>)}
 
       {subTab==='manage'&&(<div className="space-y-5 fi">
