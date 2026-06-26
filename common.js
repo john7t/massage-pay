@@ -1,6 +1,6 @@
 /* ════════════════════════════════════════════════════════════
    common.js — 薪資追蹤系統 共用工具
-   v1.8-034 / 修確認碼綠框看不見(emerald誤匹配)+修店資確認後❗不消(storeSel對齊)+基資比對欄位更新
+   v1.8-035 / 修確認碼兩端不一致(空值/型別正規化)→確認碼驗證終於對得上
    純 JS（不經 Babel）：加密、雜湊、GitHub API、i18n、儲存工具
    index.html 與 auth.html 共用，確保加密邏輯單一來源
    ════════════════════════════════════════════════════════════ */
@@ -71,7 +71,7 @@ function genReqCode(cat,code,devId,fields,bound){const payload=JSON.stringify({c
 function parseReqCode(reqCode){const s=(reqCode||'').trim();if(!s)return null;const c1=s[0];const up=c1.toUpperCase();const cat=up==='B'?'basic':up==='S'?'store':null;if(!cat)return null;const bound=(c1===up);return{cat,catChar:c1,bound,enc:s.slice(1)}}
 function decReqCode(reqCode){const p=parseReqCode(reqCode);if(!p)return null;try{const json=decodeURIComponent(xDec(p.enc));const d=JSON.parse(json);if(d.cat&&d.fields)return{cat:d.cat,code:d.code,uuid:d.uuid||'',fields:d.fields,ts:d.ts,boundClaim:p.bound};return null}catch{return null}}
 // 確認碼:類別小寫 + 6碼(由 code+cat+欄位值 算hash);老師端用相同算法驗證
-function genConfirmCode(cat,code,fields){const S='MPConfirm2026';const sortedKeys=Object.keys(fields||{}).sort();const norm=sortedKeys.map(k=>k+'='+JSON.stringify(fields[k])).join('&');const base=S+code+cat+norm+S;let h=fnv(base);for(let i=0;i<30;i++)h=fnv(String(h)+S);const n=h%1000000;const up=(REQ_CAT[cat]||'X');return up+String(n).padStart(6,'0')}
+function genConfirmCode(cat,code,fields){const S='MPConfirm2026';const f=fields||{};const sortedKeys=Object.keys(f).filter(k=>{const v=f[k];if(v===undefined||v===null||v==='')return false;if(Array.isArray(v)&&v.length===0)return false;return true}).sort();const norm=sortedKeys.map(k=>{let v=f[k];if(Array.isArray(v))v=v.slice().sort().join(',');return k+'='+String(v)}).join('&');const base=S+code+cat+norm+S;let h=fnv(base);for(let i=0;i<30;i++)h=fnv(String(h)+S);const n=h%1000000;const up=(REQ_CAT[cat]||'X');return up+String(n).padStart(6,'0')}
 function verifyConfirmCode(confirmCode,cat,code,fields){const s=(confirmCode||'').trim();if(!s)return false;const expect=genConfirmCode(cat,code,fields);return s.toUpperCase()===expect.toUpperCase()}
 function confirmCodeIsBound(confirmCode){const s=(confirmCode||'').trim();if(!s)return false;return s[0]===s[0].toUpperCase()}
 function genUUID(){return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&0x3|0x8)).toString(16)})}
