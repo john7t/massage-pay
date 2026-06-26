@@ -30,7 +30,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.8-022</title>
+<title>薪資追蹤 v1.8-023</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -316,14 +316,30 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
   // 前次主管確認值快照(只有確認過才有,新老師沒有→不顯示紅字)
   const confirmedP=settings.confirmedProfile||null;
   const confirmedS=settings.confirmedStore||null;
+  // 是否為主管(有連線能力):主管改了直接存,不需確認流程,不亮❗
+  const isSupervisor=useMemo(()=>{const gh=getGHConfig();return!!(gh&&gh.token)},[]);
+  // 基資/店資是否有未確認變動(主管除外)
+  const profileFields=['gender','nameZh','nameVi','address','school','major','permitDate','permitOrg'];
+  const storeFields=['storeSel','shift','workStart','workEnd','workNote','unitPrice'];
+  const hasChg=(snapshot,fields,src)=>{if(isSupervisor)return false;if(!snapshot)return fields.some(k=>{const v=src[k];return v!==undefined&&v!==''&&v!==null});return fields.some(k=>(snapshot[k]||'')!==((src[k]!==undefined?src[k]:'')||''))};
+  const basicChanged=hasChg(confirmedP,profileFields,form);
+  const storeChanged=hasChg(confirmedS,storeFields,form);
+  const anyChanged=basicChanged||storeChanged;
   const prevHint=(snapshot,key,curVal)=>{if(!snapshot||!(key in snapshot))return null;const prev=snapshot[key];if((prev||'')===(curVal||''))return null;return<p className="text-[11px] text-red-400 mt-1">{t.prevConfirmed}：{prev||'—'}</p>};
   const fldP=(label,key,opt,snapshot)=>(<div><label className="text-xs text-gray-400 mb-1 block">{label}{opt&&<span className="text-[10px] text-gray-600 ml-1">({t.optional})</span>}</label><input value={form[key]||''} onChange={e=>upd({[key]:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>{prevHint(snapshot,key,form[key])}</div>);
   return(
     <div className="flex h-full fi">
       <div className="flex-shrink-0 w-12 border-r border-white/[0.06] py-3 space-y-0.5 overflow-y-auto no-sb">
-        {TABS.map(([id,label])=>(
-          <button key={id} onClick={()=>setSubTab(id)} className={`w-full px-0.5 py-2.5 text-[11px] font-semibold text-center leading-tight ${subTab===id?'text-amber-400 border-r-2 border-amber-400 bg-amber-600/5':'text-gray-500'}`}>{label}</button>
-        ))}
+        {TABS.map(([id,label])=>{
+          const showAlert=(id==='basic'&&basicChanged)||(id==='store'&&storeChanged);
+          const noticeCount=id==='notice'?(0):0; // 公告未讀數框架,現為0不顯示
+          return(
+          <button key={id} onClick={()=>{if(id==='manage'){location.href='./auth.html#lang='+(settings.lang||'zh');return}setSubTab(id)}} className={`relative w-full px-0.5 py-2.5 text-[11px] font-semibold text-center leading-tight ${subTab===id?'text-amber-400 border-r-2 border-amber-400 bg-amber-600/5':'text-gray-500'}`}>
+            {label}
+            {showAlert&&<span className="absolute top-1 right-1 text-red-500 text-[10px]">❗</span>}
+            {noticeCount>0&&<span className="absolute top-0.5 right-0.5 bg-red-500 text-white text-[9px] rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5">{noticeCount}</span>}
+          </button>);
+        })}
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-5 min-w-0">
       {subTab==='home'&&(<div className="space-y-5 fi">
@@ -335,14 +351,28 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
           <div className="grid grid-cols-4 gap-2">{[['pink',t.themePink,'#fce4f6'],['black',t.themeBlack,'#030712'],['gray',t.themeGray,'#1f2937'],['white',t.themeWhite,'#f9fafb']].map(([k,l,c])=>(<button key={k} onClick={()=>setTheme(k)} className={`py-2.5 rounded-xl text-xs font-semibold border-2 ${theme===k?'border-amber-500':'border-transparent'}`} style={{backgroundColor:c,color:k==='black'||k==='gray'?'#ccc':'#333'}}>{l}</button>))}</div>
         </div>
         {(()=>{const ghLocal=getGHConfig();const hasConn=!!(ghLocal&&ghLocal.token);return(
-          <div><label className="text-xs text-gray-400 mb-1 block">{t.connection}</label>
+          <div className="space-y-2"><label className="text-xs text-gray-400 mb-1 block">{t.serviceStatus}</label>
             <div className="bg-white/[0.04] rounded-xl px-4 py-3 flex items-center justify-between"><span className="text-sm text-gray-400">{t.connection}</span><span className="text-sm">{hasConn?t.connOnline:t.connOffline}</span></div>
+            {!hasConn&&!connMode&&(<button onClick={()=>setConnMode('apply')} className="w-full py-2.5 rounded-xl bg-amber-600/20 border border-amber-500/30 text-amber-400 text-sm font-semibold active:bg-amber-600/30">{t.connApply}</button>)}
+            {connMode==='apply'&&(<div className="space-y-3 fi">
+              <div className="flex justify-center"><div className="bg-white p-2.5 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(settings.code+':'+devId)}`} alt="QR" className="w-40 h-40"/></div></div>
+              <p className="text-[10px] text-gray-600 text-center font-mono select-all break-all">{settings.code}:{devId}</p>
+              <div><label className="text-xs text-gray-500 mb-1 block">{t.connCode}</label><textarea value={connInput} onChange={e=>setConnInput(e.target.value)} rows={2} placeholder={t.connInput} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none"/></div>
+              <div className="flex gap-2"><button onClick={()=>{setConnMode(null);setConnInput('');setConnStatus('')}} className="flex-1 py-2.5 bg-white/[0.04] rounded-xl text-gray-500 text-sm">{t.cancel}</button><button onClick={()=>{const ghCfg=verifyActToken(connInput.trim(),settings.code,devId);if(ghCfg){saveGHConfigLocal(ghCfg);setConnStatus(t.connOk);setConnMode(null);setConnInput('')}else{setConnStatus(t.connFail)}}} className="flex-1 py-2.5 bg-amber-600 rounded-xl text-white text-sm font-bold">{t.confirm}</button></div>
+              {connStatus&&<p className={`text-xs text-center ${connStatus.includes('✓')?'text-emerald-400':'text-red-400'}`}>{connStatus}</p>}
+            </div>)}
           </div>
         )})()}
+        <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-3 space-y-2">
+          <p className="text-xs text-gray-400 font-semibold">{t.privacyTitle}</p>
+          <p className="text-[11px] text-gray-500 leading-relaxed">{t.privacyBody}</p>
+          <p className="text-[11px] text-red-400 leading-relaxed">{t.backupReminder}</p>
+        </div>
       </div>)}
 
       {subTab==='basic'&&(<div className="space-y-4 fi">
         <h2 className="text-lg font-bold text-gray-100">{t.secBasic}</h2>
+        {basicChanged&&<div className="bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5"><p className="text-xs text-red-400">❗ {t.needConfirm}</p></div>}
         <div><label className="text-xs text-gray-400 mb-1 block">{t.teacherCode}</label><div className="bg-white/[0.04] rounded-xl px-3 py-2.5 text-base text-gray-300 font-mono">{settings.code}</div></div>
         <div><label className="text-xs text-gray-400 mb-1 block">{t.gender}</label>
           <div className="grid grid-cols-2 gap-2">{[['M',t.genderM],['F',t.genderF]].map(([g,l])=>(<button key={g} onClick={()=>upd({gender:g})} className={`py-2.5 rounded-xl text-sm font-semibold ${form.gender===g?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div>
@@ -357,17 +387,19 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
         <div><label className="text-xs text-gray-400 mb-1 block">{t.permitDate}<span className="text-[10px] text-gray-600 ml-1">({t.optional})</span></label><input type="date" value={form.permitDate||''} onChange={e=>upd({permitDate:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>{prevHint(confirmedP,'permitDate',form.permitDate)}</div>
         {fldP(t.permitOrg,'permitOrg',true,confirmedP)}
         <div className="pt-2 space-y-2">
-          <button onClick={()=>genCode({nameZh:form.nameZh,nameVi:form.nameVi,address:form.address,school:form.school,major:form.major,permitDate:form.permitDate,permitOrg:form.permitOrg,gender:form.gender},setBasicCode)} className="w-full py-3 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.genBasicCode}</button>
+          <button onClick={()=>genCode({nameZh:form.nameZh,nameVi:form.nameVi,address:form.address,school:form.school,major:form.major,permitDate:form.permitDate,permitOrg:form.permitOrg,gender:form.gender},setBasicCode)} className="w-full py-3 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.basicUpdateCode}</button>
           {basicCode&&(<div className="space-y-2 fi">
             <div className="flex justify-center"><div className="bg-white p-2.5 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(basicCode)}`} alt="QR" className="w-44 h-44"/></div></div>
             <button onClick={()=>{navigator.clipboard.writeText(basicCode).catch(()=>{})}} className="w-full py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.08] text-gray-300 text-sm font-medium">{t.copyBtn}</button>
-            <div><label className="text-xs text-gray-500 mb-1 block">{t.confirmCode2}</label><input placeholder={t.confirmCode2} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/></div>
+            <div><label className="text-xs text-gray-500 mb-1 block">{t.basicConfirmCode}</label><input placeholder={t.basicConfirmCode} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/></div>
+            <button className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.confirm}</button>
           </div>)}
         </div>
       </div>)}
 
       {subTab==='store'&&(<div className="space-y-4 fi">
         <h2 className="text-lg font-bold text-gray-100">{t.secStore}</h2>
+        {storeChanged&&<div className="bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5"><p className="text-xs text-red-400">❗ {t.needConfirm}</p></div>}
         <div><label className="text-xs text-gray-400 mb-1 block">{t.teacherCode}</label><div className="bg-white/[0.04] rounded-xl px-3 py-2.5 text-base text-gray-300 font-mono">{settings.code}</div></div>
         <div><label className="text-xs text-gray-400 mb-1 block">{t.curStore}</label>
           <select value={form.storeSel||settings.store||''} onChange={e=>upd({storeSel:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"><option value="">—</option>{stores.map(s=><option key={s} value={s}>{s}</option>)}</select>
@@ -391,11 +423,12 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
           <div className="space-y-2">{[...SKILL_KEYS.map((k,i)=>({k,label:t[k],price:SKILL_PRICES[i]})),{k:'sk_pregnant',label:t.skPregnant,price:null},{k:'sk_oil',label:t.skOil,price:null}].map(({k,label,price})=>{const checked=form.skills?.[k]||false;return(<button key={k} onClick={()=>upd({skills:{...(form.skills||{}),[k]:!checked}})} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${checked?'bg-white/[0.06] border border-amber-500/30':'bg-white/[0.02] border border-white/[0.06]'}`}><div className={`w-5 h-5 rounded flex items-center justify-center text-xs ${checked?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-700'}`}>{checked?'✓':''}</div><span className={`text-sm ${checked?'text-gray-200':'text-gray-500'}`}>{label}</span>{price!=null&&<span className="text-xs text-gray-600 ml-auto">${price}</span>}</button>)})}</div>
         </div>
         <div className="pt-2 space-y-2">
-          <button onClick={()=>genCode({store:form.storeSel||settings.store,shift:form.shift,workStart:form.workStart,workEnd:form.workEnd,workNote:form.workNote,unitPrice:form.unitPrice,skills:form.skills},setStoreCode)} className="w-full py-3 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.genStoreCode}</button>
+          <button onClick={()=>genCode({store:form.storeSel||settings.store,shift:form.shift,workStart:form.workStart,workEnd:form.workEnd,workNote:form.workNote,unitPrice:form.unitPrice,skills:form.skills},setStoreCode)} className="w-full py-3 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.storeUpdateCode}</button>
           {storeCode&&(<div className="space-y-2 fi">
             <div className="flex justify-center"><div className="bg-white p-2.5 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(storeCode)}`} alt="QR" className="w-44 h-44"/></div></div>
             <button onClick={()=>{navigator.clipboard.writeText(storeCode).catch(()=>{})}} className="w-full py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.08] text-gray-300 text-sm font-medium">{t.copyBtn}</button>
-            <div><label className="text-xs text-gray-500 mb-1 block">{t.confirmCode2}</label><input placeholder={t.confirmCode2} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/></div>
+            <div><label className="text-xs text-gray-500 mb-1 block">{t.storeConfirmCode}</label><input placeholder={t.storeConfirmCode} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/></div>
+            <button className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.confirm}</button>
           </div>)}
         </div>
       </div>)}
@@ -500,6 +533,8 @@ function App(){
   if(!settings)return null;
   const lang=settings.lang||'zh';const t=T[lang];
   const tabs=[{id:'home',label:t.home},{id:'monthly',label:t.monthly},{id:'yearly',label:t.yearly},{id:'settings',label:t.settings}];
+  // 底部設定❗:基資或店資有未確認變動(主管除外)
+  const settingsAlert=(()=>{const gh=getGHConfig();if(gh&&gh.token)return false;const cp=settings.confirmedProfile,cs=settings.confirmedStore;const pf=['gender','nameZh','nameVi','address','school','major','permitDate','permitOrg'];const sf=['storeSel','shift','workStart','workEnd','workNote','unitPrice'];const chg=(snap,fs)=>{if(!snap)return fs.some(k=>{const v=settings[k];return v!==undefined&&v!==''&&v!==null});return fs.some(k=>(snap[k]||'')!==((settings[k]!==undefined?settings[k]:'')||''))};return chg(cp,pf)||chg(cs,sf)})();
   return(<div className={`${isLight?'text-gray-900':'text-gray-100'} flex flex-col`} style={{backgroundColor:bgColor,height:'100dvh'}} data-light={isLight||undefined}>
     <div className="flex-1 overflow-y-auto">
       {tab==='home'&&<HomePage settings={settings} t={t} refreshKey={refreshKey}/>}
@@ -508,7 +543,7 @@ function App(){
       {tab==='settings'&&<SettingsPage settings={settings} onUpdate={updateSettings} t={t} theme={theme} setTheme={setTheme}/>}
     </div>
     <nav className="flex-shrink-0 backdrop-blur-xl border-t border-white/[0.06] flex" style={{backgroundColor:bgColor+'ee',paddingBottom:'env(safe-area-inset-bottom)'}}>
-      {tabs.map(({id,label})=>(<button key={id} onClick={()=>handleTab(id)} className={`flex-1 flex flex-col items-center pt-2 pb-1.5 gap-0.5 transition-all ${tab===id?'text-amber-400':'text-gray-500 active:text-gray-400'}`}>{IC[id]}<span className="text-[10px] font-medium">{label}</span></button>))}
+      {tabs.map(({id,label})=>(<button key={id} onClick={()=>handleTab(id)} className={`relative flex-1 flex flex-col items-center pt-2 pb-1.5 gap-0.5 transition-all ${tab===id?'text-amber-400':'text-gray-500 active:text-gray-400'}`}>{IC[id]}<span className="text-[10px] font-medium">{label}</span>{id==='settings'&&settingsAlert&&<span className="absolute top-1 right-1/4 text-red-500 text-[10px]">❗</span>}</button>))}
     </nav>
   </div>)}
 
