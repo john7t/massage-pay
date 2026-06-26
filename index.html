@@ -30,7 +30,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.8-023</title>
+<title>薪資追蹤 v1.8-024</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -176,7 +176,7 @@ input[type=number]{-moz-appearance:textfield}
 <style>@keyframes fbspin{to{transform:rotate(360deg)}}@keyframes fbpulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
 <script src="./common.js"></script>
 <script type="text/babel">
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,T}=window.MP;
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,TW_REGIONS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 function NoticeBox({t}){return(<div className="mt-6 space-y-2 text-[11px] text-gray-600 leading-relaxed"><p>{t.notice1}</p><p>{t.notice2}</p><p>{t.notice3}</p></div>)}
@@ -325,13 +325,15 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
   const basicChanged=hasChg(confirmedP,profileFields,form);
   const storeChanged=hasChg(confirmedS,storeFields,form);
   const anyChanged=basicChanged||storeChanged;
+  // 工作證到期提醒:到期前30天內或已過期
+  const permitExpiring=(()=>{if(!form.permitExpiry)return false;const exp=new Date(form.permitExpiry);const now=new Date();const days=(exp-now)/86400000;return days<=30})();
   const prevHint=(snapshot,key,curVal)=>{if(!snapshot||!(key in snapshot))return null;const prev=snapshot[key];if((prev||'')===(curVal||''))return null;return<p className="text-[11px] text-red-400 mt-1">{t.prevConfirmed}：{prev||'—'}</p>};
   const fldP=(label,key,opt,snapshot)=>(<div><label className="text-xs text-gray-400 mb-1 block">{label}{opt&&<span className="text-[10px] text-gray-600 ml-1">({t.optional})</span>}</label><input value={form[key]||''} onChange={e=>upd({[key]:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>{prevHint(snapshot,key,form[key])}</div>);
   return(
     <div className="flex h-full fi">
       <div className="flex-shrink-0 w-12 border-r border-white/[0.06] py-3 space-y-0.5 overflow-y-auto no-sb">
         {TABS.map(([id,label])=>{
-          const showAlert=(id==='basic'&&basicChanged)||(id==='store'&&storeChanged);
+          const showAlert=(id==='basic'&&(basicChanged||permitExpiring))||(id==='store'&&storeChanged);
           const noticeCount=id==='notice'?(0):0; // 公告未讀數框架,現為0不顯示
           return(
           <button key={id} onClick={()=>{if(id==='manage'){location.href='./auth.html#lang='+(settings.lang||'zh');return}setSubTab(id)}} className={`relative w-full px-0.5 py-2.5 text-[11px] font-semibold text-center leading-tight ${subTab===id?'text-amber-400 border-r-2 border-amber-400 bg-amber-600/5':'text-gray-500'}`}>
@@ -341,7 +343,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
           </button>);
         })}
       </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-5 min-w-0">
+      <div className="flex-1 w-full overflow-y-auto p-4 pb-8 space-y-5 min-w-0">
       {subTab==='home'&&(<div className="space-y-5 fi">
         <h2 className="text-lg font-bold text-gray-100">{t.homeSettings}</h2>
         <div><label className="text-xs text-gray-400 mb-1 block">{t.year}</label>
@@ -364,15 +366,17 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
           </div>
         )})()}
         <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-3 space-y-2">
-          <p className="text-xs text-gray-400 font-semibold">{t.privacyTitle}</p>
-          <p className="text-[11px] text-gray-500 leading-relaxed">{t.privacyBody}</p>
-          <p className="text-[11px] text-red-400 leading-relaxed">{t.backupReminder}</p>
+          <p className="text-sm text-gray-300 font-semibold">{t.privacyTitle}</p>
+          <p className="text-[13px] text-gray-400 leading-relaxed">{t.privacyBody}</p>
+          <p className="text-[13px] text-gray-400 leading-relaxed">{t.myBookingNote}</p>
+          <p className="text-[13px] text-red-400 leading-relaxed">{t.backupReminder}</p>
         </div>
       </div>)}
 
       {subTab==='basic'&&(<div className="space-y-4 fi">
         <h2 className="text-lg font-bold text-gray-100">{t.secBasic}</h2>
         {basicChanged&&<div className="bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5"><p className="text-xs text-red-400">❗ {t.needConfirm}</p></div>}
+        {permitExpiring&&<div className="bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5"><p className="text-xs text-red-400">❗ {t.permitExpiringSoon}{form.permitExpiry?'：'+form.permitExpiry:''}</p></div>}
         <div><label className="text-xs text-gray-400 mb-1 block">{t.teacherCode}</label><div className="bg-white/[0.04] rounded-xl px-3 py-2.5 text-base text-gray-300 font-mono">{settings.code}</div></div>
         <div><label className="text-xs text-gray-400 mb-1 block">{t.gender}</label>
           <div className="grid grid-cols-2 gap-2">{[['M',t.genderM],['F',t.genderF]].map(([g,l])=>(<button key={g} onClick={()=>upd({gender:g})} className={`py-2.5 rounded-xl text-sm font-semibold ${form.gender===g?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div>
@@ -380,14 +384,26 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
         <div><label className="text-xs text-gray-400 mb-1 block">{t.language}</label>
           <div className="grid grid-cols-2 gap-2">{[['zh','中文'],['vi','Tiếng Việt']].map(([c,l])=>(<button key={c} onClick={()=>upd({lang:c})} className={`py-2.5 rounded-xl text-sm font-semibold ${form.lang===c?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div>
         </div>
-        {fldP(t.nameZh,'nameZh',true,confirmedP)}
-        {fldP(t.nameVi,'nameVi',true,confirmedP)}
-        {fldP(t.address,'address',true,confirmedP)}
-        <div className="grid grid-cols-2 gap-2"><div>{fldP(t.school,'school',true,confirmedP)}</div><div>{fldP(t.major,'major',true,confirmedP)}</div></div>
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.permitDate}<span className="text-[10px] text-gray-600 ml-1">({t.optional})</span></label><input type="date" value={form.permitDate||''} onChange={e=>upd({permitDate:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>{prevHint(confirmedP,'permitDate',form.permitDate)}</div>
-        {fldP(t.permitOrg,'permitOrg',true,confirmedP)}
+        {fldP(t.nameZh,'nameZh',false,confirmedP)}
+        {fldP(t.nameVi,'nameVi',false,confirmedP)}
+        <div><label className="text-xs text-gray-400 mb-1 block">{t.phone2}</label><input value={form.phone||''} onChange={e=>upd({phone:e.target.value})} inputMode="tel" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>{prevHint(confirmedP,'phone',form.phone)}</div>
+        <div><label className="text-xs text-gray-400 mb-1 block">{t.address}</label>
+          <div className="grid grid-cols-3 gap-2">
+            <div><span className="text-[10px] text-red-400 mb-0.5 block">{t.city}*</span><select value={form.addrCity||''} onChange={e=>upd({addrCity:e.target.value,addrDist:''})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-2.5 text-xs text-gray-100 focus:outline-none focus:border-amber-500"><option value="">{t.selectCity}</option>{Object.keys(TW_REGIONS).map(c=><option key={c} value={c}>{c}</option>)}</select></div>
+            <div><span className="text-[10px] text-red-400 mb-0.5 block">{t.district}*</span>{form.addrCity&&TW_REGIONS[form.addrCity]&&TW_REGIONS[form.addrCity].length>0?(<select value={form.addrDist||''} onChange={e=>upd({addrDist:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-2.5 text-xs text-gray-100 focus:outline-none focus:border-amber-500"><option value="">{t.selectDist}</option>{TW_REGIONS[form.addrCity].map(d=><option key={d} value={d}>{d}</option>)}</select>):(<input value={form.addrDist||''} onChange={e=>upd({addrDist:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-2.5 text-xs text-gray-100 focus:outline-none focus:border-amber-500"/>)}</div>
+            <div><span className="text-[10px] text-gray-500 mb-0.5 block">{t.addrDetail}</span><input value={form.addrDetail||''} onChange={e=>upd({addrDetail:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-2.5 text-xs text-gray-100 focus:outline-none focus:border-amber-500"/></div>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2"><div>{fldP(t.school,'school',false,confirmedP)}</div><div>{fldP(t.major,'major',false,confirmedP)}</div></div>
+        {fldP(t.permitNo,'permitNo',false,confirmedP)}
+        <div className="grid grid-cols-2 gap-2">
+          <div><label className="text-[11px] text-gray-400 mb-1 block">{t.permitDate}</label><input type="date" value={form.permitDate||''} onChange={e=>upd({permitDate:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-2.5 text-xs text-gray-100 focus:outline-none focus:border-amber-500"/></div>
+          <div><label className="text-[11px] text-gray-400 mb-1 block">{t.permitExpiry}</label><input type="date" value={form.permitExpiry||''} onChange={e=>upd({permitExpiry:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-2.5 text-xs text-gray-100 focus:outline-none focus:border-amber-500"/></div>
+        </div>
+        {prevHint(confirmedP,'permitDate',form.permitDate)}
+        <div><label className="text-xs text-gray-400 mb-1 block">{t.permitOrgOpt}</label><select value={form.permitOrg||''} onChange={e=>upd({permitOrg:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"><option value="">—</option><option value={t.orgWDA}>{t.orgWDA}</option><option value={t.orgNIA}>{t.orgNIA}</option><option value={t.orgOther}>{t.orgOther}</option></select>{prevHint(confirmedP,'permitOrg',form.permitOrg)}</div>
         <div className="pt-2 space-y-2">
-          <button onClick={()=>genCode({nameZh:form.nameZh,nameVi:form.nameVi,address:form.address,school:form.school,major:form.major,permitDate:form.permitDate,permitOrg:form.permitOrg,gender:form.gender},setBasicCode)} className="w-full py-3 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.basicUpdateCode}</button>
+          <button onClick={()=>genCode({nameZh:form.nameZh,nameVi:form.nameVi,phone:form.phone,addrCity:form.addrCity,addrDist:form.addrDist,addrDetail:form.addrDetail,school:form.school,major:form.major,permitNo:form.permitNo,permitDate:form.permitDate,permitExpiry:form.permitExpiry,permitOrg:form.permitOrg,gender:form.gender},setBasicCode)} className="w-full py-3 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.basicUpdateCode}</button>
           {basicCode&&(<div className="space-y-2 fi">
             <div className="flex justify-center"><div className="bg-white p-2.5 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(basicCode)}`} alt="QR" className="w-44 h-44"/></div></div>
             <button onClick={()=>{navigator.clipboard.writeText(basicCode).catch(()=>{})}} className="w-full py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.08] text-gray-300 text-sm font-medium">{t.copyBtn}</button>
@@ -405,12 +421,12 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
           <select value={form.storeSel||settings.store||''} onChange={e=>upd({storeSel:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"><option value="">—</option>{stores.map(s=><option key={s} value={s}>{s}</option>)}</select>
           {form.storeSel&&form.storeSel!==settings.store&&<p className="text-xs text-red-400 mt-1">{t.applyChange}：{form.storeSel}</p>}
         </div>
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.shift}</label>
+        <div><label className="text-xs text-gray-400 mb-1 block">{t.shift}<span className="text-red-400 ml-0.5">*</span></label>
           <div className="grid grid-cols-2 gap-2">{[['day',t.shiftDay],['night',t.shiftNight]].map(([s,l])=>(<button key={s} onClick={()=>upd({shift:s})} className={`py-2.5 rounded-xl text-sm font-semibold ${form.shift===s?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div>
         </div>
         <div className="grid grid-cols-5 gap-3">
-          <div className="col-span-2"><label className="text-xs text-gray-400 mb-1 block">{t.workStart}</label><input type="time" step="600" value={form.workStart||''} onChange={e=>onWorkStartChange(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-1 py-2.5 text-sm text-center text-gray-100 focus:outline-none focus:border-amber-500"/></div>
-          <div className="col-span-2 col-start-4"><label className="text-xs text-gray-400 mb-1 block">{t.workEnd}</label><input type="time" step="600" value={form.workEnd||''} onChange={e=>upd({workEnd:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-1 py-2.5 text-sm text-center text-gray-100 focus:outline-none focus:border-amber-500"/></div>
+          <div className="col-span-2"><label className="text-xs text-gray-400 mb-1 block">{t.workStart}<span className="text-red-400 ml-0.5">*</span></label><input type="time" step="600" value={form.workStart||''} onChange={e=>onWorkStartChange(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-1 py-2.5 text-sm text-center text-gray-100 focus:outline-none focus:border-amber-500"/></div>
+          <div className="col-span-2 col-start-4"><label className="text-xs text-gray-400 mb-1 block">{t.workEnd}<span className="text-red-400 ml-0.5">*</span></label><input type="time" step="600" value={form.workEnd||''} onChange={e=>upd({workEnd:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-1 py-2.5 text-sm text-center text-gray-100 focus:outline-none focus:border-amber-500"/></div>
         </div>
         {confirmedS&&((confirmedS.workStart||'')!==(form.workStart||'')||(confirmedS.workEnd||'')!==(form.workEnd||''))&&<p className="text-[11px] text-red-400">{t.prevConfirmed}：{confirmedS.workStart||'—'} ~ {confirmedS.workEnd||'—'}</p>}
         <div><label className="text-xs text-gray-400 mb-1 block">{t.workNote}<span className="text-[10px] text-gray-600 ml-1">({t.optional})</span></label><textarea value={form.workNote||''} onChange={e=>upd({workNote:e.target.value})} rows={2} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 resize-none"/>{prevHint(confirmedS,'workNote',form.workNote)}</div>
