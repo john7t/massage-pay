@@ -29,7 +29,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 預約 v1.8-018</title>
+<title>薪資追蹤 · 預約 v1.8-019</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -236,7 +236,7 @@ function BookingForm({code,t,onDone,onCancel}){
   const lang=t===T.zh?'zh':'vi';
   const[cust,setCust]=useState(null);
   const[date,setDate]=useState(fmtDateInput());
-  const[time,setTime]=useState(settings.workStart||nextHourTime());
+  const[time,setTime]=useState(nextHourTime());
   const[svc,setSvc]=useState('FB3');
   const[extra,setExtra]=useState(0);
   const[party,setParty]=useState(1);
@@ -251,7 +251,11 @@ function BookingForm({code,t,onDone,onCancel}){
   // 排休檢查
   const dayOff=useMemo(()=>dayOffStatus(code,dt),[code,dt]);
   // 下工超時(僅在有設下工時間時提醒)
-  const overWork=useMemo(()=>{if(!settings.workEnd)return false;const[eh,em]=settings.workEnd.split(':').map(Number);const d=new Date(dt);const weTs=new Date(d.getFullYear(),d.getMonth(),d.getDate(),eh,em).getTime();return endTs>weTs},[dt,endTs,settings.workEnd]);
+  const overWork=useMemo(()=>{if(!settings.workEnd)return false;const[eh,em]=settings.workEnd.split(':').map(Number);const d=new Date(dt);let weTs=new Date(d.getFullYear(),d.getMonth(),d.getDate(),eh,em).getTime();
+    // 跨夜班:下工時間<上工時間,下工算到隔天
+    if(settings.workStart){const[sh,sm]=settings.workStart.split(':').map(Number);const swMin=sh*60+sm,ewMin=eh*60+em;if(ewMin<=swMin)weTs+=86400000}
+    // 預約時間若在凌晨(早於上工),也視為跨夜的隔天時段,起訖一起+1天比較
+    return endTs>weTs},[dt,endTs,settings.workEnd,settings.workStart]);
   const fmtHM=ts=>{const d=new Date(ts);return pad(d.getHours())+':'+pad(d.getMinutes())};
   const save=()=>{
     if(!cust){setErr(t.pickCustomerFirst);return}
@@ -261,9 +265,9 @@ function BookingForm({code,t,onDone,onCancel}){
   return(<div className="space-y-4 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4 fi">
     <h3 className="text-sm font-semibold text-amber-400">{t.bookingNew}</h3>
     <div><label className="text-xs text-gray-500 mb-1.5 block">{t.selectCustomer}</label><CustomerPicker code={code} t={t} selected={cust} onSelect={c=>{setCust(c);setErr('')}}/></div>
-    <div className="grid grid-cols-2 gap-4">
-      <div><label className="text-xs text-gray-500 mb-1.5 block">{t.bookDate}</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>
-      <div><label className="text-xs text-gray-500 mb-1.5 block">{t.bookTime}</label><input type="time" step="600" value={time} onChange={e=>setTime(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>
+    <div className="grid grid-cols-5 gap-3">
+      <div className="col-span-3"><label className="text-xs text-gray-500 mb-1.5 block">{t.bookDate}</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>
+      <div className="col-span-2"><label className="text-xs text-gray-500 mb-1.5 block">{t.bookTime}</label><input type="time" step="600" value={time} onChange={e=>setTime(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-2.5 text-sm text-center text-gray-100 focus:outline-none focus:border-amber-500"/></div>
     </div>
     {dayOff>0&&<p className="text-xs text-red-400">⚠️ {fmtLogStr(t.dayOffWarn,[skName(dayOff,lang)])}</p>}
     {conflicts.length>0&&conflicts.map(o=>{const oc=custMap[o.customerId]||{};return<p key={o.id} className="text-xs text-red-400">⚠️ {fmtLogStr(t.conflictWarn,[fmtHM(o.datetime),((oc.name||'')+' '+bookTitleName(oc.title,lang))])}</p>})}
