@@ -30,7 +30,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.8-033</title>
+<title>薪資追蹤 v1.8-034</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -316,7 +316,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
   // 貼確認碼:驗證通過→更新本機快照(清未確認)+若確認碼大寫設已綁定
   const[confirmInput,setConfirmInput]=useState('');
   const[confirmMsg,setConfirmMsg]=useState('');
-  const applyConfirm=(cat,fields,snapKey)=>{const ok=verifyConfirmCode(confirmInput,cat,settings.code,fields);if(ok){const ns={...settings,[snapKey]:{...fields}};setSettings(ns);LS.set('app-settings',ns);if(confirmCodeIsBound(confirmInput)){try{localStorage.setItem('uuid-bound-'+settings.code,'1')}catch{}}setConfirmMsg('ok');setConfirmInput('');setTimeout(()=>setConfirmMsg(''),3000)}else{setConfirmMsg('fail');setTimeout(()=>setConfirmMsg(''),3000)}};
+  const applyConfirm=(cat,fields,snapKey)=>{const ok=verifyConfirmCode(confirmInput,cat,settings.code,fields);if(ok){const snap={...fields};if(cat==='store'){snap.storeSel=fields.store;}const ns={...settings,[snapKey]:snap};setSettings(ns);LS.set('app-settings',ns);if(confirmCodeIsBound(confirmInput)){try{localStorage.setItem('uuid-bound-'+settings.code,'1')}catch{}}setConfirmMsg('ok');setConfirmInput('');setTimeout(()=>setConfirmMsg(''),3000)}else{setConfirmMsg('fail');setTimeout(()=>setConfirmMsg(''),3000)}};
   const onWorkStartChange=(v)=>{let patch={workStart:v};if(v&&!form.workEnd){const[h,m]=v.split(':').map(Number);let eh=(h+12)%24;const p=n=>String(n).padStart(2,'0');patch.workEnd=p(eh)+':'+p(m)}upd(patch)};
   // 前次主管確認值快照(只有確認過才有,新老師沒有→不顯示紅字)
   const confirmedP=settings.confirmedProfile||null;
@@ -324,7 +324,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
   // 是否為主管(有連線能力):主管改了直接存,不需確認流程,不亮❗
   const isSupervisor=useMemo(()=>{const gh=getGHConfig();return!!(gh&&gh.token)},[]);
   // 基資/店資是否有未確認變動(主管除外)
-  const profileFields=['gender','nameZh','nameVi','address','school','major','permitDate','permitOrg'];
+  const profileFields=['gender','nameZh','nameVi','phone','addrCity','addrDist','addrDetail','school','major','schoolType','permitNo','permitDate','permitExpiry','permitOrg'];
   const storeFields=['storeSel','shift','workStart','workEnd','workNote','unitPrice'];
   const hasChg=(snapshot,fields,src)=>{if(isSupervisor)return false;if(!snapshot)return fields.some(k=>{const v=src[k];return v!==undefined&&v!==''&&v!==null});return fields.some(k=>(snapshot[k]||'')!==((src[k]!==undefined?src[k]:'')||''))};
   const basicChanged=hasChg(confirmedP,profileFields,form);
@@ -564,7 +564,7 @@ function App(){
   const lang=settings.lang||'zh';const t=T[lang];
   const tabs=[{id:'home',label:t.home},{id:'monthly',label:t.monthly},{id:'yearly',label:t.yearly},{id:'settings',label:t.settings}];
   // 底部設定❗:基資或店資有未確認變動(主管除外)
-  const settingsAlert=(()=>{const permExp=(()=>{if(!settings.permitExpiry)return false;const days=(new Date(settings.permitExpiry)-new Date())/86400000;return days<=30})();const gh=getGHConfig();if(gh&&gh.token)return permExp;const cp=settings.confirmedProfile,cs=settings.confirmedStore;const pf=['gender','nameZh','nameVi','address','school','major','permitDate','permitOrg'];const sf=['storeSel','shift','workStart','workEnd','workNote','unitPrice'];const chg=(snap,fs)=>{if(!snap)return fs.some(k=>{const v=settings[k];return v!==undefined&&v!==''&&v!==null});return fs.some(k=>(snap[k]||'')!==((settings[k]!==undefined?settings[k]:'')||''))};return chg(cp,pf)||chg(cs,sf)||permExp})();
+  const settingsAlert=(()=>{const permExp=(()=>{if(!settings.permitExpiry)return false;const days=(new Date(settings.permitExpiry)-new Date())/86400000;return days<=30})();const gh=getGHConfig();if(gh&&gh.token)return permExp;const cp=settings.confirmedProfile,cs=settings.confirmedStore;const pf=['gender','nameZh','nameVi','phone','addrCity','addrDist','addrDetail','school','major','schoolType','permitNo','permitDate','permitExpiry','permitOrg'];const sf=['storeSel','shift','workStart','workEnd','workNote','unitPrice'];const chg=(snap,fs)=>{if(!snap)return fs.some(k=>{const v=settings[k];return v!==undefined&&v!==''&&v!==null});return fs.some(k=>(snap[k]||'')!==((settings[k]!==undefined?settings[k]:'')||''))};return chg(cp,pf)||chg(cs,sf)||permExp})();
   return(<div className={`${isLight?'text-gray-900':'text-gray-100'} flex flex-col`} style={{backgroundColor:bgColor,height:'100dvh'}} data-light={isLight||undefined}>
     <div className="flex-1 overflow-y-auto">
       {tab==='home'&&<HomePage settings={settings} t={t} refreshKey={refreshKey}/>}

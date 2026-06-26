@@ -29,7 +29,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.8-033</title>
+<title>薪資追蹤 · 管理 v1.8-034</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -314,9 +314,9 @@ function ReqCodeProcessor({t,gh,staffList,setStaffList}){
         </div>
       ):(
         <div className="space-y-2 pt-1 fi">
-          <div className="bg-emerald-600/10 border border-emerald-500/20 rounded-xl p-3 text-center">
-            <p className="text-[11px] text-emerald-400 mb-1">{t.writeOk}</p>
-            <p className="text-2xl font-bold font-mono text-emerald-300 tracking-wider">{confirmCode}</p>
+          <div className="bg-emerald-500/15 border border-emerald-500/30 rounded-xl p-3 text-center">
+            <p className="text-[11px] text-emerald-500 mb-1">{t.writeOk}</p>
+            <p className="text-3xl font-bold font-mono text-emerald-500 tracking-wider" style={{letterSpacing:'0.15em'}}>{confirmCode}</p>
             <p className="text-[10px] text-gray-500 mt-1">{t.giveConfirmCode}</p>
           </div>
           <button onClick={()=>{navigator.clipboard.writeText(confirmCode).catch(()=>{});setCopied(true);setTimeout(()=>setCopied(false),2000)}} className="w-full py-2 rounded-xl bg-white/[0.06] border border-white/[0.08] text-gray-300 text-sm">{copied?'✓':t.copyBtn}</button>
