@@ -29,7 +29,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 預約 v1.8-027</title>
+<title>薪資追蹤 · 預約 v1.8-029</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -332,7 +332,7 @@ function BookingList({code,t,refresh,onOpen}){
       <div className="flex-1 min-w-0">
         <p className="text-sm text-gray-100"><span className="text-emerald-400 font-bold">{bookLabel(b.svc,b.extra)}</span>　{c.name||'—'} <span className="text-[11px] text-gray-500">{bookTitleName(c.title,lang)}</span>{b.party>0?<span className="text-[11px] text-amber-400 ml-1">{t.totalPeople}{b.party+1}{t.peopleUnit}</span>:''}</p>
         {b.party>0&&b.partyDetails&&b.partyDetails.some(p=>p&&p.teacher&&p.teacher!=='')&&<p className="text-[11px] text-amber-300 mt-0.5">{t.alsoAssign}：{b.partyDetails.filter(p=>p&&p.teacher).map(p=>p.teacher).join('、')}</p>}
-        {(()=>{const hasAssigned=b.logs&&b.logs.some(l=>l.type==='confirmAssigned');if(b.confirmed&&hasAssigned)return<span className="text-[10px] text-emerald-400">✓ {t.statusAssignedConfirmed}</span>;if(b.confirmed)return<span className="text-[10px] text-emerald-400">✓ {t.statusConfirmed}</span>;if(hasAssigned)return<span className="text-[10px] text-amber-400">{t.statusAssignedConfirmed}</span>;return<span className="text-[10px] text-gray-500">{t.statusUnconfirmed}</span>})()}
+        {(()=>{const totalAssign=(b.partyDetails||[]).filter(p=>p&&p.assignMode==='assign'&&p.teacher&&p.teacher.trim()).length;const confT=(b.confirmedTeachers||[]).length;if(b.confirmed)return<span className="text-[10px] text-emerald-400">✓ {t.statusConfirmed}</span>;if(b.needReconfirm)return<span className="text-[10px] text-red-400">{t.statusReconfirm}</span>;if(confT>0&&totalAssign>0)return<span className="text-[10px] text-amber-400">{fmtLogStr(t.statusTeacherProgress,[confT,totalAssign])}</span>;return<span className="text-[10px] text-gray-500">{t.statusUnconfirmed}</span>})()}
         {conf&&<p className="text-[11px] text-red-400 mt-0.5">⚠️ {fmtLogStr(t.conflictWarn,[fmtHM(conf.datetime),((oc.name||'')+' '+bookTitleName(oc.title,lang))])}</p>}
       </div>
       <span className="text-gray-600 self-center">›</span>
@@ -383,20 +383,20 @@ function BookingDetail({code,t,bookId,onDone,onCancel}){
     if(newDt!==bk.datetime)changes.push(fmtLogStr(t.timeChanged,[fmtLogTime(bk.datetime).slice(-5),time]));
     if(svc!==bk.svc||extra!==bk.extra)changes.push(fmtLogStr(t.svcChanged,[bookLabel(bk.svc,bk.extra),bookLabel(svc,extra)]));
     const detail=changes.length?t.logChange+'：'+changes.join('、'):t.logChange;
-    updateBooking(code,bookId,{datetime:newDt,svc,extra,note:note.trim(),partyDetails:editParty,confirmed:false},{type:'change',detail});
+    updateBooking(code,bookId,{datetime:newDt,svc,extra,note:note.trim(),partyDetails:editParty,confirmed:false,needReconfirm:true,confirmedTeachers:[]},{type:'change',detail});
     setEditing(false);force(x=>x+1);
   };
   const doConfirm=()=>{confirmBooking(code,bookId);setConfirmToast(t.confirmedCounterToast);setTimeout(()=>setConfirmToast(''),3000);force(x=>x+1)};
   // 指定的老師編號清單(從 partyDetails)
   const assignedTeachers=(bk&&bk.partyDetails?bk.partyDetails.filter(p=>p&&p.assignMode==='assign'&&p.teacher&&p.teacher.trim()).map(p=>p.teacher.trim()):[]);
-  const doConfirmAssigned=(tcode)=>{updateBooking(code,bookId,{},{type:'confirmAssigned',msg:fmtLogStr(t.logConfirmAssigned,[tcode])});setConfirmToast(fmtLogStr(t.confirmedAssignedToast,[tcode]));setTimeout(()=>setConfirmToast(''),3000);force(x=>x+1)};
+  const doConfirmAssigned=(tcode)=>{const cur=(bk.confirmedTeachers||[]).slice();if(!cur.includes(tcode))cur.push(tcode);const total=assignedTeachers.length;updateBooking(code,bookId,{confirmedTeachers:cur},{type:'confirmAssigned',msg:fmtLogStr(t.logConfirmAssigned,[tcode])});setConfirmToast(fmtLogStr(t.confirmedTeacherToast,[cur.length,total]));setTimeout(()=>setConfirmToast(''),3000);force(x=>x+1)};
   const startEdit=()=>{setEditing(true)};
   const ro=!editing;
   return(<div className="space-y-4 fi">
     <div className="flex items-center gap-3">
       <button onClick={onCancel} className="text-gray-500"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg></button>
       <h2 className="text-lg font-bold text-gray-100">{cust?.name||'—'} {bookTitleName(cust?.title,lang)}</h2>
-      {confirmed&&<span className="text-[11px] text-emerald-400 ml-auto">✓ {t.bookConfirmed2}</span>}
+      {(()=>{const totalAssign=(bk.partyDetails||[]).filter(p=>p&&p.assignMode==='assign'&&p.teacher&&p.teacher.trim()).length;const confT=(bk.confirmedTeachers||[]).length;if(bk.confirmed)return<span className="text-[11px] text-emerald-400 ml-auto">✓ {t.statusConfirmed}</span>;if(bk.needReconfirm)return<span className="text-[11px] text-red-400 ml-auto">{t.statusReconfirm}</span>;if(confT>0&&totalAssign>0)return<span className="text-[11px] text-amber-400 ml-auto">{fmtLogStr(t.statusTeacherProgress,[confT,totalAssign])}</span>;return<span className="text-[11px] text-gray-500 ml-auto">{t.statusUnconfirmed}</span>})()}
     </div>
     <div className={`space-y-4 rounded-2xl p-4 border ${ro?'bg-white/[0.01] border-white/[0.04]':'bg-white/[0.02] border-white/[0.06]'}`}>
       <div className="space-y-3">
