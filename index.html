@@ -30,7 +30,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.8-030</title>
+<title>薪資追蹤 v1.8-033</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -176,7 +176,7 @@ input[type=number]{-moz-appearance:textfield}
 <style>@keyframes fbspin{to{transform:rotate(360deg)}}@keyframes fbpulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
 <script src="./common.js"></script>
 <script type="text/babel">
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 function NoticeBox({t}){return(<div className="mt-6 space-y-2 text-[11px] text-gray-600 leading-relaxed"><p>{t.notice1}</p><p>{t.notice2}</p><p>{t.notice3}</p></div>)}
@@ -311,7 +311,12 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
   const fld=(label,key,opt)=>(<div><label className="text-xs text-gray-400 mb-1 block">{label}{opt&&<span className="text-[10px] text-gray-600 ml-1">({t.optional})</span>}</label><input value={form[key]||''} onChange={e=>upd({[key]:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>);
   const Construction=()=>(<div className="flex flex-col items-center justify-center py-20 text-center"><svg className="w-12 h-12 text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/></svg><p className="text-sm text-gray-500">{t.underConstruction}</p></div>);
   // 產生申請碼:把欄位加密,標記變動
-  const genCode=(fields,setter)=>{const payload={code:settings.code,fields,changed:fields,ts:Date.now()};try{const enc=encWithKey(JSON.stringify(payload),actKey(settings.code,devId));setter(enc)}catch(e){setter('')}};
+  const isBound=()=>{try{return localStorage.getItem('uuid-bound-'+settings.code)==='1'}catch{return false}};
+  const genCode=(cat,fields,setter)=>{try{const enc=genReqCode(cat,settings.code,devId,fields,isBound());setter(enc)}catch(e){setter('')}};
+  // 貼確認碼:驗證通過→更新本機快照(清未確認)+若確認碼大寫設已綁定
+  const[confirmInput,setConfirmInput]=useState('');
+  const[confirmMsg,setConfirmMsg]=useState('');
+  const applyConfirm=(cat,fields,snapKey)=>{const ok=verifyConfirmCode(confirmInput,cat,settings.code,fields);if(ok){const ns={...settings,[snapKey]:{...fields}};setSettings(ns);LS.set('app-settings',ns);if(confirmCodeIsBound(confirmInput)){try{localStorage.setItem('uuid-bound-'+settings.code,'1')}catch{}}setConfirmMsg('ok');setConfirmInput('');setTimeout(()=>setConfirmMsg(''),3000)}else{setConfirmMsg('fail');setTimeout(()=>setConfirmMsg(''),3000)}};
   const onWorkStartChange=(v)=>{let patch={workStart:v};if(v&&!form.workEnd){const[h,m]=v.split(':').map(Number);let eh=(h+12)%24;const p=n=>String(n).padStart(2,'0');patch.workEnd=p(eh)+':'+p(m)}upd(patch)};
   // 前次主管確認值快照(只有確認過才有,新老師沒有→不顯示紅字)
   const confirmedP=settings.confirmedProfile||null;
@@ -408,12 +413,14 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
           <div className="grid grid-cols-2 gap-2"><div>{fldP(t.school,'school',false,confirmedP)}</div><div>{fldP(t.major,'major',false,confirmedP)}</div></div>
         </div>
         <div className="pt-2 space-y-2">
-          <button onClick={()=>genCode({nameZh:form.nameZh,nameVi:form.nameVi,phone:form.phone,addrCity:form.addrCity,addrDist:form.addrDist,addrDetail:form.addrDetail,school:form.school,major:form.major,schoolType:form.schoolType,permitNo:form.permitNo,permitDate:form.permitDate,permitExpiry:form.permitExpiry,permitOrg:form.permitOrg,gender:form.gender},setBasicCode)} className="w-full py-3 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.basicUpdateCode}</button>
+          <button onClick={()=>genCode('basic',{nameZh:form.nameZh,nameVi:form.nameVi,phone:form.phone,addrCity:form.addrCity,addrDist:form.addrDist,addrDetail:form.addrDetail,school:form.school,major:form.major,schoolType:form.schoolType,permitNo:form.permitNo,permitDate:form.permitDate,permitExpiry:form.permitExpiry,permitOrg:form.permitOrg,gender:form.gender},setBasicCode)} className="w-full py-3 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.basicUpdateCode}</button>
           {basicCode&&(<div className="space-y-2 fi">
             <div className="flex justify-center"><div className="bg-white p-2.5 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(basicCode)}`} alt="QR" className="w-44 h-44"/></div></div>
             <button onClick={()=>{navigator.clipboard.writeText(basicCode).catch(()=>{})}} className="w-full py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.08] text-gray-300 text-sm font-medium">{t.copyBtn}</button>
-            <div><label className="text-xs text-gray-500 mb-1 block">{t.basicConfirmCode}</label><input placeholder={t.basicConfirmCode} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/></div>
-            <button className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.confirm}</button>
+            <div><label className="text-xs text-gray-500 mb-1 block">{t.basicConfirmCode}</label><input value={confirmInput} onChange={e=>setConfirmInput(e.target.value)} placeholder={t.basicConfirmCode} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/></div>
+            <button onClick={()=>applyConfirm('basic',{nameZh:form.nameZh,nameVi:form.nameVi,phone:form.phone,addrCity:form.addrCity,addrDist:form.addrDist,addrDetail:form.addrDetail,school:form.school,major:form.major,schoolType:form.schoolType,permitNo:form.permitNo,permitDate:form.permitDate,permitExpiry:form.permitExpiry,permitOrg:form.permitOrg,gender:form.gender},'confirmedProfile')} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.confirm}</button>
+            {confirmMsg==='ok'&&<p className="text-xs text-center text-emerald-400 fi">✓ {t.confirmSuccess}</p>}
+            {confirmMsg==='fail'&&<p className="text-xs text-center text-red-400 fi">{t.confirmFail}</p>}
           </div>)}
         </div>
       </div>)}
@@ -444,12 +451,14 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
           <div className="space-y-2">{[...SKILL_KEYS.map((k,i)=>({k,label:t[k],price:SKILL_PRICES[i]})),{k:'sk_pregnant',label:t.skPregnant,price:null},{k:'sk_oil',label:t.skOil,price:null}].map(({k,label,price})=>{const checked=form.skills?.[k]||false;return(<button key={k} onClick={()=>upd({skills:{...(form.skills||{}),[k]:!checked}})} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${checked?'bg-white/[0.06] border border-amber-500/30':'bg-white/[0.02] border border-white/[0.06]'}`}><div className={`w-5 h-5 rounded flex items-center justify-center text-xs ${checked?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-700'}`}>{checked?'✓':''}</div><span className={`text-sm ${checked?'text-gray-200':'text-gray-500'}`}>{label}</span>{price!=null&&<span className="text-xs text-gray-600 ml-auto">${price}</span>}</button>)})}</div>
         </div>
         <div className="pt-2 space-y-2">
-          <button onClick={()=>genCode({store:form.storeSel||settings.store,shift:form.shift,workStart:form.workStart,workEnd:form.workEnd,workNote:form.workNote,unitPrice:form.unitPrice,skills:form.skills},setStoreCode)} className="w-full py-3 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.storeUpdateCode}</button>
+          <button onClick={()=>genCode('store',{store:form.storeSel||settings.store,shift:form.shift,workStart:form.workStart,workEnd:form.workEnd,workNote:form.workNote,unitPrice:form.unitPrice,skills:form.skills},setStoreCode)} className="w-full py-3 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.storeUpdateCode}</button>
           {storeCode&&(<div className="space-y-2 fi">
             <div className="flex justify-center"><div className="bg-white p-2.5 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(storeCode)}`} alt="QR" className="w-44 h-44"/></div></div>
             <button onClick={()=>{navigator.clipboard.writeText(storeCode).catch(()=>{})}} className="w-full py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.08] text-gray-300 text-sm font-medium">{t.copyBtn}</button>
-            <div><label className="text-xs text-gray-500 mb-1 block">{t.storeConfirmCode}</label><input placeholder={t.storeConfirmCode} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/></div>
-            <button className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.confirm}</button>
+            <div><label className="text-xs text-gray-500 mb-1 block">{t.storeConfirmCode}</label><input value={confirmInput} onChange={e=>setConfirmInput(e.target.value)} placeholder={t.storeConfirmCode} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/></div>
+            <button onClick={()=>applyConfirm('store',{store:form.storeSel||settings.store,shift:form.shift,workStart:form.workStart,workEnd:form.workEnd,workNote:form.workNote,unitPrice:form.unitPrice,skills:form.skills},'confirmedStore')} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.confirm}</button>
+            {confirmMsg==='ok'&&<p className="text-xs text-center text-emerald-400 fi">✓ {t.confirmSuccess}</p>}
+            {confirmMsg==='fail'&&<p className="text-xs text-center text-red-400 fi">{t.confirmFail}</p>}
           </div>)}
         </div>
       </div>)}
