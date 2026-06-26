@@ -29,7 +29,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 預約 v1.8-026</title>
+<title>薪資追蹤 · 預約 v1.8-027</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -343,7 +343,7 @@ function BookingList({code,t,refresh,onOpen}){
       <button onClick={()=>setViewMode('cal')} className={`flex-1 py-1.5 rounded-md text-xs font-semibold ${viewMode==='cal'?'bg-amber-600 text-white':'text-gray-500'}`}>{t.calView}</button>
       <button onClick={()=>setViewMode('event')} className={`flex-1 py-1.5 rounded-md text-xs font-semibold ${viewMode==='event'?'bg-amber-600 text-white':'text-gray-500'}`}>{t.eventView}</button>
     </div>
-    <button onClick={()=>setHidePast(!hidePast)} className={`w-full py-1.5 rounded-md text-xs font-medium border ${hidePast?'bg-amber-600/20 border-amber-500/30 text-amber-400':'bg-white/[0.02] border-white/[0.06] text-gray-500'}`}>{hidePast?'☑':'☐'} {t.hidePast}</button>
+    <button onClick={()=>setHidePast(!hidePast)} className={`w-full py-1.5 rounded-md text-xs font-medium border ${hidePast?'bg-amber-600/20 border-amber-500/30 text-amber-400':'bg-white/[0.02] border-white/[0.06] text-gray-500'}`}>{hidePast?'✓ ':''}{t.hidePast}</button>
   </div>);
   if(viewMode==='event'){
     return(<div>{switcher}<div className="space-y-1.5">{visibleBookings.map(b=>card(b,true))}</div></div>);

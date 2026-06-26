@@ -30,7 +30,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.8-026</title>
+<title>薪資追蹤 v1.8-027</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -386,7 +386,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
         </div>
         {fldP(t.nameZh,'nameZh',false,confirmedP)}
         {fldP(t.nameVi,'nameVi',false,confirmedP)}
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.phone2}</label><input value={form.phone||''} onChange={e=>{let v=e.target.value.replace(/[^0-9]/g,'').slice(0,10);if(v.length>7)v=v.slice(0,4)+'-'+v.slice(4,7)+'-'+v.slice(7);else if(v.length>4)v=v.slice(0,4)+'-'+v.slice(4);upd({phone:v})}} inputMode="tel" placeholder="09xx-xxx-xxx" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>{prevHint(confirmedP,'phone',form.phone)}</div>
+        <div><label className="text-xs text-gray-400 mb-1 block">{t.phone2}</label><input value={form.phone||''} onChange={e=>{let v=e.target.value.split('').filter(ch=>ch>='0'&&ch<='9').join('').slice(0,10);if(v.length>7)v=v.slice(0,4)+'-'+v.slice(4,7)+'-'+v.slice(7);else if(v.length>4)v=v.slice(0,4)+'-'+v.slice(4);upd({phone:v})}} inputMode="tel" placeholder="09xx-xxx-xxx" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>{prevHint(confirmedP,'phone',form.phone)}</div>
         <div><label className="text-xs text-gray-400 mb-1 block">{t.address}</label>
           <div className="grid grid-cols-2 gap-2">
             <div><span className="text-[10px] text-gray-400 mb-0.5 block">{t.city}<span className="text-red-400">*</span></span><select value={form.addrCity||''} onChange={e=>upd({addrCity:e.target.value,addrDist:''})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-2.5 text-xs text-gray-100 focus:outline-none focus:border-amber-500"><option value="">{t.selectCity}</option>{Object.keys(TW_REGIONS).map(c=><option key={c} value={c}>{c}</option>)}</select></div>
@@ -405,10 +405,11 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
           {prevHint(confirmedP,'permitDate',form.permitDate)}
           <div><label className="text-xs text-gray-400 mb-1 block">{t.permitOrgOpt}</label><select value={form.permitOrg||''} onChange={e=>upd({permitOrg:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"><option value="">—</option><option value={t.orgWDA}>{t.orgWDA}</option><option value={t.orgNIA}>{t.orgNIA}</option><option value={t.orgOther}>{t.orgOther}</option></select>{prevHint(confirmedP,'permitOrg',form.permitOrg)}</div>
           <div className="grid grid-cols-2 gap-2"><div>{fldP(t.school,'school',false,confirmedP)}</div><div>{fldP(t.major,'major',false,confirmedP)}</div></div>
-          <div><label className="text-xs text-gray-400 mb-1 block">{t.langSchool}</label><select value={form.langSchool||''} onChange={e=>upd({langSchool:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"><option value="">{t.selectLangSchool}</option>{LANG_SCHOOLS.map(s=><option key={s} value={s}>{s}</option>)}<option value="other">{t.orgOther}</option></select>{form.langSchool==='other'&&<input value={form.langSchoolOther||''} onChange={e=>upd({langSchoolOther:e.target.value})} className="w-full mt-2 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>}</div>
+          <div><label className="text-xs text-gray-400 mb-1 block">{t.schoolType}</label><select value={form.schoolType||''} onChange={e=>upd({schoolType:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"><option value="">—</option><option value="lang">{t.schoolTypeLang}</option><option value="uni">{t.schoolTypeUni}</option><option value="master">{t.schoolTypeMaster}</option><option value="phd">{t.schoolTypePhd}</option></select></div>
+          {fldP(t.langSchool,'langSchool',false,confirmedP)}
         </div>
         <div className="pt-2 space-y-2">
-          <button onClick={()=>genCode({nameZh:form.nameZh,nameVi:form.nameVi,phone:form.phone,addrCity:form.addrCity,addrDist:form.addrDist,addrDetail:form.addrDetail,school:form.school,major:form.major,langSchool:form.langSchool,permitNo:form.permitNo,permitDate:form.permitDate,permitExpiry:form.permitExpiry,permitOrg:form.permitOrg,gender:form.gender},setBasicCode)} className="w-full py-3 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.basicUpdateCode}</button>
+          <button onClick={()=>genCode({nameZh:form.nameZh,nameVi:form.nameVi,phone:form.phone,addrCity:form.addrCity,addrDist:form.addrDist,addrDetail:form.addrDetail,school:form.school,major:form.major,schoolType:form.schoolType,langSchool:form.langSchool,permitNo:form.permitNo,permitDate:form.permitDate,permitExpiry:form.permitExpiry,permitOrg:form.permitOrg,gender:form.gender},setBasicCode)} className="w-full py-3 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.basicUpdateCode}</button>
           {basicCode&&(<div className="space-y-2 fi">
             <div className="flex justify-center"><div className="bg-white p-2.5 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(basicCode)}`} alt="QR" className="w-44 h-44"/></div></div>
             <button onClick={()=>{navigator.clipboard.writeText(basicCode).catch(()=>{})}} className="w-full py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.08] text-gray-300 text-sm font-medium">{t.copyBtn}</button>
