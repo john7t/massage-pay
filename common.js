@@ -1,6 +1,6 @@
 /* ════════════════════════════════════════════════════════════
    common.js — 薪資追蹤系統 共用工具
-   v1.8-050 / 試抽ChartPage到獨立settings.js(驗證跨檔共用全域可行性),index移除ChartPage改用window.__V
+   v1.8-051 / 設定頁獨立:SettingsPage+CustomerPage+BackupSection+ChartPage全搬到settings.js,index瘦身約一半
    純 JS（不經 Babel）：加密、雜湊、GitHub API、i18n、儲存工具
    index.html 與 auth.html 共用，確保加密邏輯單一來源
    ════════════════════════════════════════════════════════════ */
