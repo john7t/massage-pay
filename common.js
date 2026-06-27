@@ -1,6 +1,6 @@
 /* ════════════════════════════════════════════════════════════
    common.js — 薪資追蹤系統 共用工具
-   v1.8-047 / 修v046黑屏:slips state定義順序在使用之後(暫時死區)→移到使用前
+   v1.8-048 / 修黑屏:引導點A useEffect依賴[settings.code]在settings=null時崩→改[settings&&settings.code]
    純 JS（不經 Babel）：加密、雜湊、GitHub API、i18n、儲存工具
    index.html 與 auth.html 共用，確保加密邏輯單一來源
    ════════════════════════════════════════════════════════════ */

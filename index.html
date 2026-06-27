@@ -30,7 +30,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.8-047</title>
+<title>薪資追蹤 v1.8-048</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -645,7 +645,7 @@ function App(){
   const onOnboardComplete=(s)=>{setSettings(s);setNeedOnboard(false)};
   const updateSettings=(s)=>{setSettings(s);LS.set('app-settings',s)};
   // ===== 引導學習點A（7/1前，工作證到期日為空則填今日+3天，引導老師改成真的；7/1後此段可刪）=====
-  useEffect(()=>{if(!settings||!settings.code)return;const now=new Date();const deadline=new Date(now.getFullYear(),6,1);if(now>=deadline)return;if(!settings.permitExpiry){const d=new Date();d.setDate(d.getDate()+3);const ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const ns={...settings,permitExpiry:ds};setSettings(ns);LS.set('app-settings',ns)}},[settings.code]);
+  useEffect(()=>{if(!settings||!settings.code)return;const now=new Date();const deadline=new Date(now.getFullYear(),6,1);if(now>=deadline)return;if(!settings.permitExpiry){const d=new Date();d.setDate(d.getDate()+3);const ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const ns={...settings,permitExpiry:ds};setSettings(ns);LS.set('app-settings',ns)}},[settings&&settings.code]);
   // ===== 引導學習點A 結束 =====
   const handleTab=(id)=>{setTab(id);if(id==='home')setRefreshKey(k=>k+1)};
   if(!ready)return<div className="min-h-screen flex items-center justify-center" style={{backgroundColor:bgColor}}><div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/></div>;
