@@ -1,6 +1,6 @@
 /* ════════════════════════════════════════════════════════════
    common.js — 薪資追蹤系統 共用工具
-   v1.8-043 / hashtag改按Enter或+按鈕建立(空格分隔多組,不再打字途中自動建立)
+   v1.8-044 / 流水加服務項目+加鐘(顯示FB3+2),客管列表與摺疊列改顯示服務項目
    純 JS（不經 Babel）：加密、雜湊、GitHub API、i18n、儲存工具
    index.html 與 auth.html 共用，確保加密邏輯單一來源
    ════════════════════════════════════════════════════════════ */
@@ -142,7 +142,9 @@ const eDay=()=>({groups:[],total:0,laodian:0,status:0,skills:{guasha:0,baguang:0
 const stamp=(dd)=>{dd.did=getDeviceId();dd.ts=Date.now();return dd};
 /* ══════════ 流水記錄(客管明細,與計薪總數獨立) ══════════ */
 // 一筆流水:{id,units,createdAt,startAt(修正開始時間,空=用createdAt),tags[]}
-function newSlip(units){const now=Date.now();return{id:'S'+now+Math.floor(Math.random()*1000),units:units||1,createdAt:now,startAt:0,tags:[],custName:'',custTitle:'',custPhone:''}}
+function newSlip(units){const now=Date.now();return{id:'S'+now+Math.floor(Math.random()*1000),units:units||1,createdAt:now,startAt:0,tags:[],custName:'',custTitle:'',custPhone:'',svc:'',extra:0}}
+// 流水服務項目顯示:FB3+2 形式(無svc時退回支數+N)
+function slipSvcLabel(slip){if(slip&&slip.svc){return slip.svc+(slip.extra>0?'+'+slip.extra:'')}return '+'+((slip&&slip.units)||0)}
 // 取流水的有效開始時間(修正過優先)
 function slipStartTime(slip){return slip.startAt||slip.createdAt}
 // 全店歷史標籤(本機,跨日重用)
@@ -261,7 +263,7 @@ global.MP={
   // data helpers
   SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,
   toB36,fromB36,dim,dow,bizDate,bizParts,BIZ_CUTOFF_MIN,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,
-  newSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,
+  newSlip,slipSvcLabel,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,
   getCustomers,saveCustomers,getBookings,saveBookings,uid,upsertCustomer,normPhone,searchCustomers,addBooking,updateBooking,deleteBooking,confirmBooking,BOOK_TITLES,bookTitleName,
   SERVICES,svcByCode,bookUnits,bookMinutes,bookLabel,bookRange,findConflicts,dayOffStatus,bookLog,skName,
   TW_REGIONS,LANG_SCHOOLS,
