@@ -29,7 +29,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.8-034</title>
+<title>薪資追蹤 · 管理 v1.8-040</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -177,7 +177,7 @@ input[type=number]{-moz-appearance:textfield}
 <style>@keyframes fbspin{to{transform:rotate(360deg)}}@keyframes fbpulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
 <script src="./common.js"></script>
 <script type="text/babel">
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,genConfirmCode,verifyConfirmCode,genUUID,getDeviceId,SUP_LEVELS,supLevelName,effSupLevel,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,T}=window.MP;
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,genConfirmCode,verifyConfirmCode,genUUID,getDeviceId,SUP_LEVELS,supLevelName,effSupLevel,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,computeStats,publishStats,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 const goHome=()=>{location.href='./index.html'};
@@ -285,6 +285,43 @@ function QrScanButton({onScan,size}){
 
 
 
+/* ══════════ 上下工時間圖表(主管/管理):圖A上工分布 圖B各時段在線人數 ══════════ */
+function WorkHoursChart({t,staffList,myStore,gh}){
+  const[mode,setMode]=useState('online'); // online=圖B在線人數, start=圖A上工分布
+  const[storeFilter,setStoreFilter]=useState('');
+  const[publishMsg,setPublishMsg]=useState('');
+  const[publishing,setPublishing]=useState(false);
+  const[lastStats,setLastStats]=useState(undefined);
+  // 載入目前已發布的快照(顯示更新時間)
+  useEffect(()=>{let a=true;loadStats().then(s=>{if(a)setLastStats(s)});return()=>{a=false}},[]);
+  // 主管手動更新:重算 staff → 推 stats.json
+  const doPublish=async()=>{if(!gh||!gh.token){setPublishMsg('fail');setTimeout(()=>setPublishMsg(''),2500);return}setPublishing(true);const stats=computeStats(staffList,'');const ok=await publishStats(gh,stats);if(ok){setLastStats(stats);setPublishMsg('ok')}else{setPublishMsg('fail')}setPublishing(false);setTimeout(()=>setPublishMsg(''),2500)};
+  // 取有工時的老師(可選店篩選)
+  const rows=(staffList||[]).filter(s=>s.workStart&&(!storeFilter||s.store===storeFilter));
+  const stores=Array.from(new Set((staffList||[]).map(s=>s.store).filter(Boolean)));
+  const hourOf=(hhmm)=>{if(!hhmm)return null;const h=Number(String(hhmm).split(':')[0]);return isNaN(h)?null:h};
+  // 計算 0~23 每小時人數
+  const counts=Array.from({length:24},()=>0);
+  rows.forEach(s=>{const sh=hourOf(s.workStart);if(sh===null)return;if(mode==='start'){counts[sh]++}else{let eh=hourOf(s.workEnd);if(eh===null)eh=(sh+12)%24;let h=sh;for(let i=0;i<24;i++){counts[h]++;if(h===eh)break;h=(h+1)%24;if(h===sh)break}}});
+  const maxC=Math.max(1,...counts);
+  const W=320,H=160,padL=24,padB=20,padT=10,bw=(W-padL)/24;
+  return(<div className="space-y-3 bg-white/[0.03] border border-white/[0.08] rounded-2xl p-4">
+    <div className="flex items-center justify-between flex-wrap gap-2">
+      <div className="flex-1"><h3 className="text-sm font-semibold text-gray-200">{t.workChartTitle}</h3><p className="text-[10px] text-gray-500 mt-0.5">{t.chartUpdatedAt}：{lastStats&&lastStats.updatedAt?new Date(lastStats.updatedAt).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'—'}</p></div>
+      <button onClick={doPublish} disabled={publishing} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold ${publishing?'bg-gray-600 text-gray-400':publishMsg==='ok'?'bg-emerald-600 text-white':publishMsg==='fail'?'bg-red-600 text-white':'bg-amber-600 text-white active:bg-amber-700'}`}>{publishing?'...':publishMsg==='ok'?'✓ '+t.chartPublished:publishMsg==='fail'?'✗':t.chartUpdate}</button>
+      <div className="flex gap-1 bg-white/[0.04] rounded-lg p-0.5">
+        <button onClick={()=>setMode('online')} className={`px-2.5 py-1 rounded-md text-[11px] font-medium ${mode==='online'?'bg-amber-600 text-white':'text-gray-400'}`}>{t.workChartOnline}</button>
+        <button onClick={()=>setMode('start')} className={`px-2.5 py-1 rounded-md text-[11px] font-medium ${mode==='start'?'bg-amber-600 text-white':'text-gray-400'}`}>{t.workChartStart}</button>
+      </div>
+    </div>
+    {stores.length>1&&<select value={storeFilter} onChange={e=>setStoreFilter(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:outline-none"><option value="">{t.allStores||'全部店家'}</option>{stores.map(st=><option key={st} value={st}>{st}</option>)}</select>}
+    <p className="text-[11px] text-gray-500">{mode==='online'?t.workChartOnlineDesc:t.workChartStartDesc}（{rows.length} {t.peopleUnit}）</p>
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{maxHeight:'200px'}}>
+      {[0,0.25,0.5,0.75,1].map((r,i)=>{const y=padT+(H-padT-padB)*(1-r);const val=Math.round(maxC*r);return(<g key={i}><line x1={padL} y1={y} x2={W} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="1"/><text x={padL-4} y={y+3} textAnchor="end" fontSize="7" fill="rgba(255,255,255,0.4)">{val}</text></g>)})}
+      {counts.map((c,h)=>{const bh=(H-padT-padB)*(c/maxC);const x=padL+bw*h;const y=padT+(H-padT-padB)-bh;return(<g key={h}><rect x={x+1} y={y} width={bw-2} height={bh} rx="1" fill={c>0?'#D97706':'rgba(255,255,255,0.05)'}/>{h%3===0&&<text x={x+bw/2} y={H-padB+10} textAnchor="middle" fontSize="7" fill="rgba(255,255,255,0.4)">{h}</text>}{c>0&&bh>10&&<text x={x+bw/2} y={y-2} textAnchor="middle" fontSize="7" fill="rgba(255,255,255,0.6)">{c}</text>}</g>)})}
+    </svg>
+  </div>);
+}
 /* ══════════ 申請碼處理(主管/管理共用):刷碼→看內容→同意寫入→產生確認碼 ══════════ */
 function ReqCodeProcessor({t,gh,staffList,setStaffList}){
   const[input,setInput]=useState('');
@@ -368,6 +405,7 @@ function SupervisorPage({t,onBack}){
     <div className="flex items-center gap-3"><button onClick={onBack} className="text-gray-500"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg></button><h2 className="text-xl font-bold text-gray-100">{t.supervisorTitle}</h2></div>
     {(()=>{const ms=LS.get('app-settings')||{};const ml=staffList.find(s=>s.code===ms.code);return<StaffListSection t={t} staffList={staffList} sortMode={sortMode} setSortMode={setSortMode} onEdit={s=>{setSupEditStaff(s);setSupEditWS(s.workStart||'');setSupEditWE(s.workEnd||'');setSupEditStatus('')}} myCode={ms.code||''} myLevel={ml?.level||0} myStore={ml?.store||''}/>})()}
     <ReqCodeProcessor t={t} gh={gh} staffList={staffList} setStaffList={setStaffList}/>
+    <WorkHoursChart t={t} staffList={staffList} myStore={myStore} gh={gh}/>
     {supEditStaff&&(<div className="space-y-3 bg-white/[0.02] border border-amber-500/20 rounded-2xl p-4">
       <div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-amber-400">{t.editStaff}: {supEditStaff.code}</h3><button onClick={()=>setSupEditStaff(null)} className="text-gray-500 text-sm">✕</button></div>
       <p className="text-[10px] text-gray-500">{t.workTimeEdit}</p>
@@ -441,6 +479,7 @@ function AdminPage({t,onBack}){
     <div className="flex items-center gap-3"><button onClick={onBack} className="text-gray-500"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg></button><h2 className="text-xl font-bold text-gray-100">{t.adminTitle}</h2></div>
     <StaffListSection t={t} staffList={staffList} sortMode={sortMode} setSortMode={setSortMode} onEdit={s=>{setEditStaff(s);setConnDevInput('');setConnResult('');setEditStoreVal(s.store||'');setEditStatus('');setEditWS(s.workStart||'');setEditWE(s.workEnd||'')}} myCode={myCode} myLevel={myLevel} myStore={myStore}/>
     <ReqCodeProcessor t={t} gh={gh} staffList={staffList} setStaffList={setStaffList}/>
+    <WorkHoursChart t={t} staffList={staffList} myStore={myStore} gh={gh}/>
     {editStaff&&(<div className="space-y-3 bg-white/[0.02] border border-amber-500/20 rounded-2xl p-4"><div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-amber-400">{t.editStaff}: {editStaff.code}</h3><button onClick={()=>{setEditStaff(null);setConnDevInput('');setConnResult('');setEditStatus('')}} className="text-gray-500 text-sm">✕</button></div>
       <div className="flex items-center justify-between bg-white/[0.03] rounded-xl p-3"><div><p className="text-[10px] text-gray-600">{t.teacherActivation}</p><p className="text-lg font-bold text-emerald-400 font-mono">{genSimpleAct(editStaff.code)}</p></div><button onClick={async()=>{try{await navigator.clipboard.writeText(genSimpleAct(editStaff.code))}catch{}}} className="px-3 py-1.5 bg-emerald-600/20 rounded-lg text-emerald-400 text-xs">📋</button></div>
       <div className="space-y-2"><p className="text-[10px] text-gray-500">{t.editDevices}</p>{connDevInput&&connResult&&connResult!=='Error'?(<div className="space-y-2"><p className="text-[10px] text-emerald-400 font-mono break-all select-all bg-white/[0.03] rounded-lg p-2">{connResult}</p><div className="flex justify-center"><div className="bg-white p-2 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(connResult)}`} alt="QR" className="w-36 h-36"/></div></div><button onClick={async()=>{try{await navigator.clipboard.writeText(connResult)}catch{}}} className="w-full py-2 bg-emerald-600 rounded-xl text-white text-xs font-semibold">📋 Copy</button></div>):(<div className="flex gap-2"><input value={connDevInput} onChange={e=>setConnDevInput(e.target.value)} placeholder={t.genConnHint} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-gray-100 font-mono focus:outline-none focus:border-amber-500"/><QrScanButton onScan={v=>setConnDevInput(v)} size="w-8 h-8"/><PasteButton onPaste={v=>setConnDevInput(v)} size="w-8 h-8"/><button onClick={()=>{const parts=connDevInput.trim().split(':');if(parts.length<2||parts[0]!==editStaff.code){setConnResult('Error');return}setConnResult(genActWithToken(parts[0],parts.slice(1).join(':'),gh))}} className="px-4 py-2 bg-amber-600 rounded-xl text-white text-xs font-bold">{t.genConn}</button></div>)}{connResult==='Error'&&<p className="text-xs text-red-400">code 不符或格式錯誤</p>}{editStaff.hasToken&&(<button onClick={async()=>{setEditStatus('...');const updated=staffList.map(x=>x.code===editStaff.code?{...x,hasToken:false}:x);const ok=await writeStaff(gh,updated);if(ok){setStaffList(updated);setEditStaff({...editStaff,hasToken:false})}setEditStatus(ok?'✓':'✗');setTimeout(()=>setEditStatus(''),2000)}} className="w-full py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-medium">{t.editRevokeConn}</button>)}</div>
