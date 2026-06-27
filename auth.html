@@ -29,7 +29,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.8-040</title>
+<title>薪資追蹤 · 管理 v1.8-049</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -292,6 +292,7 @@ function WorkHoursChart({t,staffList,myStore,gh}){
   const[publishMsg,setPublishMsg]=useState('');
   const[publishing,setPublishing]=useState(false);
   const[lastStats,setLastStats]=useState(undefined);
+  const[pickHour,setPickHour]=useState(null);
   // 載入目前已發布的快照(顯示更新時間)
   useEffect(()=>{let a=true;loadStats().then(s=>{if(a)setLastStats(s)});return()=>{a=false}},[]);
   // 主管手動更新:重算 staff → 推 stats.json
@@ -304,22 +305,24 @@ function WorkHoursChart({t,staffList,myStore,gh}){
   const counts=Array.from({length:24},()=>0);
   rows.forEach(s=>{const sh=hourOf(s.workStart);if(sh===null)return;if(mode==='start'){counts[sh]++}else{let eh=hourOf(s.workEnd);if(eh===null)eh=(sh+12)%24;let h=sh;for(let i=0;i<24;i++){counts[h]++;if(h===eh)break;h=(h+1)%24;if(h===sh)break}}});
   const maxC=Math.max(1,...counts);
-  const W=320,H=160,padL=24,padB=20,padT=10,bw=(W-padL)/24;
+  // 時段順序:早7→隔天早6
+  const HOURS=Array.from({length:24},(_,i)=>(i+7)%24);
+  // 點某時段，列出該時段的老師（編號:上工時間）
+  const hourDetail=(h)=>{if(mode==='start'){return rows.filter(s=>hourOf(s.workStart)===h).map(s=>({code:s.code,ws:s.workStart}))}else{return rows.filter(s=>{const sh=hourOf(s.workStart);if(sh===null)return false;let eh=hourOf(s.workEnd);if(eh===null)eh=(sh+12)%24;let hh=sh;for(let i=0;i<24;i++){if(hh===h)return true;if(hh===eh)break;hh=(hh+1)%24;if(hh===sh)break}return false}).map(s=>({code:s.code,ws:s.workStart,we:s.workEnd}))}};
+  const detail=pickHour!==null?hourDetail(pickHour):[];
   return(<div className="space-y-3 bg-white/[0.03] border border-white/[0.08] rounded-2xl p-4">
     <div className="flex items-center justify-between flex-wrap gap-2">
       <div className="flex-1"><h3 className="text-sm font-semibold text-gray-200">{t.workChartTitle}</h3><p className="text-[10px] text-gray-500 mt-0.5">{t.chartUpdatedAt}：{lastStats&&lastStats.updatedAt?new Date(lastStats.updatedAt).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'—'}</p></div>
       <button onClick={doPublish} disabled={publishing} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold ${publishing?'bg-gray-600 text-gray-400':publishMsg==='ok'?'bg-emerald-600 text-white':publishMsg==='fail'?'bg-red-600 text-white':'bg-amber-600 text-white active:bg-amber-700'}`}>{publishing?'...':publishMsg==='ok'?'✓ '+t.chartPublished:publishMsg==='fail'?'✗':t.chartUpdate}</button>
       <div className="flex gap-1 bg-white/[0.04] rounded-lg p-0.5">
-        <button onClick={()=>setMode('online')} className={`px-2.5 py-1 rounded-md text-[11px] font-medium ${mode==='online'?'bg-amber-600 text-white':'text-gray-400'}`}>{t.workChartOnline}</button>
-        <button onClick={()=>setMode('start')} className={`px-2.5 py-1 rounded-md text-[11px] font-medium ${mode==='start'?'bg-amber-600 text-white':'text-gray-400'}`}>{t.workChartStart}</button>
+        <button onClick={()=>{setMode('online');setPickHour(null)}} className={`px-2.5 py-1 rounded-md text-[11px] font-medium ${mode==='online'?'bg-amber-600 text-white':'text-gray-400'}`}>{t.workChartOnline}</button>
+        <button onClick={()=>{setMode('start');setPickHour(null)}} className={`px-2.5 py-1 rounded-md text-[11px] font-medium ${mode==='start'?'bg-amber-600 text-white':'text-gray-400'}`}>{t.workChartStart}</button>
       </div>
     </div>
-    {stores.length>1&&<select value={storeFilter} onChange={e=>setStoreFilter(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:outline-none"><option value="">{t.allStores||'全部店家'}</option>{stores.map(st=><option key={st} value={st}>{st}</option>)}</select>}
+    {stores.length>1&&<select value={storeFilter} onChange={e=>{setStoreFilter(e.target.value);setPickHour(null)}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:outline-none"><option value="">{t.allStores||'全部店家'}</option>{stores.map(st=><option key={st} value={st}>{st}</option>)}</select>}
     <p className="text-[11px] text-gray-500">{mode==='online'?t.workChartOnlineDesc:t.workChartStartDesc}（{rows.length} {t.peopleUnit}）</p>
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{maxHeight:'200px'}}>
-      {[0,0.25,0.5,0.75,1].map((r,i)=>{const y=padT+(H-padT-padB)*(1-r);const val=Math.round(maxC*r);return(<g key={i}><line x1={padL} y1={y} x2={W} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="1"/><text x={padL-4} y={y+3} textAnchor="end" fontSize="7" fill="rgba(255,255,255,0.4)">{val}</text></g>)})}
-      {counts.map((c,h)=>{const bh=(H-padT-padB)*(c/maxC);const x=padL+bw*h;const y=padT+(H-padT-padB)-bh;return(<g key={h}><rect x={x+1} y={y} width={bw-2} height={bh} rx="1" fill={c>0?'#D97706':'rgba(255,255,255,0.05)'}/>{h%3===0&&<text x={x+bw/2} y={H-padB+10} textAnchor="middle" fontSize="7" fill="rgba(255,255,255,0.4)">{h}</text>}{c>0&&bh>10&&<text x={x+bw/2} y={y-2} textAnchor="middle" fontSize="7" fill="rgba(255,255,255,0.6)">{c}</text>}</g>)})}
-    </svg>
+    <div className="space-y-1">{HOURS.map(h=>{const c=counts[h]||0;const on=pickHour===h;return(<div key={h} onClick={()=>setPickHour(on?null:h)} className="flex items-center gap-2 active:opacity-70 cursor-pointer"><span className={`text-[10px] tabular-nums w-7 text-right ${on?'text-amber-300 font-bold':'text-gray-500'}`}>{String(h).padStart(2,'0')}</span><div className="flex-1 h-4 bg-white/[0.03] rounded-sm overflow-hidden"><div className="h-full rounded-sm transition-all" style={{width:(c/maxC*100)+'%',background:on?'#fbbf24':'#D97706'}}></div></div><span className={`text-[10px] tabular-nums w-5 ${on?'text-amber-300 font-bold':'text-gray-500'}`}>{c||''}</span></div>)})}</div>
+    {pickHour!==null&&(<div className="bg-amber-600/10 border border-amber-500/25 rounded-xl px-3 py-2.5 fi"><p className="text-xs text-amber-300 font-semibold mb-1.5">{String(pickHour).padStart(2,'0')}:00 — {detail.length} {t.peopleUnit}</p>{detail.length===0?<p className="text-[11px] text-gray-500">{t.noData}</p>:<div className="space-y-1">{detail.map((d,i)=>(<div key={i} className="flex items-center gap-2 text-[11px]"><span className="font-mono text-gray-300 w-12">#{d.code}</span><span className="text-gray-400">{d.ws}{d.we?'～'+d.we:''}</span></div>))}</div>}</div>)}
   </div>);
 }
 /* ══════════ 申請碼處理(主管/管理共用):刷碼→看內容→同意寫入→產生確認碼 ══════════ */
@@ -402,7 +405,7 @@ function SupervisorPage({t,onBack}){
   const genCode=()=>{try{const dec=xDec(encInput.trim());const idx=dec.indexOf(':');if(idx<1){setActResult('Error');setDecodedInfo('');return}const code=dec.substring(0,idx);setDecodedInfo(code);setActResult(genSimpleAct(code));addLog(fmtLog(t.logGenUser,[code]),'supervisor')}catch{setActResult('Error');setDecodedInfo('')}};
   const parseSup=()=>{try{const dec=xDec(supInput.trim());const parts=dec.split(':');if(parts.length<2){setSupInfo(null);setSupResult('Error');return}const code=parts[0],uuid=parts[1],devName=parts.slice(2).join(':')||'unknown';setSupInfo({code,uuid:uuid.substring(0,8)+'...',devName});setSupResult(genAdminAct(code,uuid));addApproved(code,devName);addLog(fmtLog(t.logGenSup,[code,devName]),'supervisor')}catch{setSupInfo(null);setSupResult('Error')}};
   return(<div className="p-5 max-w-md mx-auto fi space-y-6">
-    <div className="flex items-center gap-3"><button onClick={onBack} className="text-gray-500"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg></button><h2 className="text-xl font-bold text-gray-100">{t.supervisorTitle}</h2></div>
+    <div className="flex items-center gap-3"><button onClick={onBack} className="text-gray-500"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg></button><h2 className="text-xl font-bold text-gray-100">{t.supervisorTitle}</h2></div>
     {(()=>{const ms=LS.get('app-settings')||{};const ml=staffList.find(s=>s.code===ms.code);return<StaffListSection t={t} staffList={staffList} sortMode={sortMode} setSortMode={setSortMode} onEdit={s=>{setSupEditStaff(s);setSupEditWS(s.workStart||'');setSupEditWE(s.workEnd||'');setSupEditStatus('')}} myCode={ms.code||''} myLevel={ml?.level||0} myStore={ml?.store||''}/>})()}
     <ReqCodeProcessor t={t} gh={gh} staffList={staffList} setStaffList={setStaffList}/>
     <WorkHoursChart t={t} staffList={staffList} myStore={myStore} gh={gh}/>
@@ -476,7 +479,7 @@ function AdminPage({t,onBack}){
   const saveKeyRules=()=>{saveKeyConfig({rules:keyRules});buildDynamicKey();setKeySaveStatus(t.keySaved);setTimeout(()=>setKeySaveStatus(''),2000)};
 
   return(<div className="p-5 max-w-md mx-auto fi space-y-6">
-    <div className="flex items-center gap-3"><button onClick={onBack} className="text-gray-500"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg></button><h2 className="text-xl font-bold text-gray-100">{t.adminTitle}</h2></div>
+    <div className="flex items-center gap-3"><button onClick={onBack} className="text-gray-500"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg></button><h2 className="text-xl font-bold text-gray-100">{t.adminTitle}</h2></div>
     <StaffListSection t={t} staffList={staffList} sortMode={sortMode} setSortMode={setSortMode} onEdit={s=>{setEditStaff(s);setConnDevInput('');setConnResult('');setEditStoreVal(s.store||'');setEditStatus('');setEditWS(s.workStart||'');setEditWE(s.workEnd||'')}} myCode={myCode} myLevel={myLevel} myStore={myStore}/>
     <ReqCodeProcessor t={t} gh={gh} staffList={staffList} setStaffList={setStaffList}/>
     <WorkHoursChart t={t} staffList={staffList} myStore={myStore} gh={gh}/>
@@ -531,8 +534,8 @@ function AuthGate({t}){
   const checkSupOnline=async()=>{setSupCheckStatus(t.checking);const gh=getGHConfig();if(gh.token){try{const staff=await readStaff(gh);const me=staff.find(s=>s.code===settings.code);if(me&&me.role==='supervisor'&&me.status==='active'){const data={...supStatus,status:'approved',approvedAt:Date.now(),level:me.level||0};LS.set(supKey,data);setSupStatus(data);setSupCheckStatus(t.approved);addLog(fmtLog(t.logTeacherActivate,[settings.code,supStatus?.deviceName||'']),'teacher');return}}catch{}}try{const result=await checkApproved('s',supApproveHash(settings.code));if(result){const data={...supStatus,status:'approved',approvedAt:Date.now(),level:result.level||0};LS.set(supKey,data);setSupStatus(data);setSupCheckStatus(t.approved);addLog(fmtLog(t.logTeacherActivate,[settings.code,supStatus?.deviceName||'']),'teacher');return}}catch{}setSupCheckStatus('');setSupErr(t.waitHint)};
   const copyAppCode=async()=>{if(supStatus?.appCode){try{await navigator.clipboard.writeText(supStatus.appCode)}catch{}}setAppCopied(true);setTimeout(()=>setAppCopied(false),2000)};
 
-  if(showAdmin)return<AdminPage t={t} onBack={()=>setShowAdmin(false)}/>;
-  if(showSupervisor)return<SupervisorPage t={t} onBack={()=>{setShowSupervisor(false);setSupStatus(LS.get(supKey)||null)}}/>;
+  if(showAdmin)return<AdminPage t={t} onBack={goHome}/>;
+  if(showSupervisor)return<SupervisorPage t={t} onBack={goHome}/>;
 
   const checkBtnClass={idle:'bg-white/[0.03] border border-white/[0.06] text-gray-400 active:bg-white/[0.06]',checking:'bg-white/[0.03] border border-white/[0.06] text-gray-600',ok:'bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 active:bg-emerald-600/30',denied:'bg-gray-800/50 border border-gray-700/30 text-gray-600 cursor-not-allowed'}[checkState];
   const checkLabel={idle:t.adminCheck,checking:'...',ok:t.adminEnter,denied:t.adminFail}[checkState];
