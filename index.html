@@ -30,7 +30,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.8-046</title>
+<title>薪資追蹤 v1.8-047</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -256,7 +256,9 @@ function SlipTags({slip,t,code,onAdd,onDel}){
   </div>);
 }
 function DayEditor({day,d,y,m,t,up,sk,onSave,onCancel,code:editorCode}){
-  const[groups,setGroups]=useState(day.groups.length>0?[...day.groups]:[]);const[lo,setLo]=useState(day.laodian);const[st,setSt]=useState(day.status);const[skCounts,setSkCounts]=useState(()=>{const s=day.skills||{};return{guasha:s.guasha||0,baguang:s.baguang||0,xiujiao:s.xiujiao||0}});
+  const[groups,setGroups]=useState((day.groups&&day.groups.length>0)?[...day.groups]:[]);const[lo,setLo]=useState(day.laodian);const[st,setSt]=useState(day.status);const[skCounts,setSkCounts]=useState(()=>{const s=day.skills||{};return{guasha:s.guasha||0,baguang:s.baguang||0,xiujiao:s.xiujiao||0}});
+  const[slips,setSlips]=useState(()=>day.slips?JSON.parse(JSON.stringify(day.slips)):[]);
+  const[editSlipId,setEditSlipId]=useState(null);
   const dw=dow(y,m,d);const slipTotal=slips.reduce((a,s)=>a+(s.units||0),0);const oldGroupTotal=groups.reduce((a,b)=>a+(parseInt(b)||0),0);const ct=(!canWork[st])?0:(slipTotal+oldGroupTotal);const sw=canWork[st];const previewSal=ct*up+SKILL_KEYS.reduce((a,k,i)=>a+(sk?.[k]?(skCounts[k]||0)*SKILL_PRICES[i]:0),0);
   const save=()=>{const nr=!canWork[st];onSave(d,{groups:nr?[]:groups,total:nr?0:ct,laodian:nr?0:(parseInt(lo)||0),status:st,skills:nr?{guasha:0,baguang:0,xiujiao:0}:skCounts,slips:nr?[]:(slips||[]),did:getDeviceId(),ts:Date.now()})};
   const clearAll=()=>{setLo(0);setSt(0);setGroups([]);setSlips([]);setSkCounts({guasha:0,baguang:0,xiujiao:0})};
@@ -264,9 +266,6 @@ function DayEditor({day,d,y,m,t,up,sk,onSave,onCancel,code:editorCode}){
   const[eOtherMode,setEOtherMode]=useState(false);const[eOtherVal,setEOtherVal]=useState('');
   // 編輯畫面 +N：新增一筆流水(與首頁一致)
   const addSlipN=(n)=>{if(n>0){setSlips(prev=>[...prev,newSlip(n)]);}setEOtherMode(false);setEOtherVal('')};
-  // 流水編輯
-  const[slips,setSlips]=useState(()=>day.slips?JSON.parse(JSON.stringify(day.slips)):[]);
-  const[editSlipId,setEditSlipId]=useState(null);
   const fmtTime=(ms)=>{const dt=new Date(ms);return String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0')};
   const updSlip=(id,patch)=>setSlips(slips.map(s=>s.id===id?{...s,...patch}:s));
   const delSlip=(id)=>setSlips(slips.filter(s=>s.id!==id));
