@@ -1,6 +1,6 @@
 /* ════════════════════════════════════════════════════════════
    common.js — 薪資追蹤系統 共用工具
-   v1.8-051 / 設定頁獨立:SettingsPage+CustomerPage+BackupSection+ChartPage全搬到settings.js,index瘦身約一半
+   v1.8-052 / SERVICES加F1(40分)/B1(35分)在最前;流水摺疊列改顯示「N支 服務 姓名 稱謂 電話 時間」
    純 JS（不經 Babel）：加密、雜湊、GitHub API、i18n、儲存工具
    index.html 與 auth.html 共用，確保加密邏輯單一來源
    ════════════════════════════════════════════════════════════ */
@@ -185,7 +185,7 @@ function deleteBooking(code,id){saveBookings(code,getBookings(code).filter(b=>b.
 const BOOK_TITLES=[{v:'sir',zh:'先生',vi:'Anh'},{v:'ms',zh:'小姐',vi:'Cô'},{v:'couple',zh:'情侶',vi:'Cặp đôi'},{v:'group',zh:'團客',vi:'Nhóm'}];
 function bookTitleName(v,lang){const o=BOOK_TITLES.find(x=>x.v===v);return o?(o[lang]||o.zh):(v||'')}
 /* 服務項目：code=顯示, base=基礎支數, min=時長(分) */
-const SERVICES=[{code:'F2',base:2,min:70},{code:'B2',base:2,min:70},{code:'FB2',base:2,min:70},{code:'F3',base:3,min:110},{code:'B3',base:3,min:110},{code:'FB3',base:3,min:120}];
+const SERVICES=[{code:'F1',base:1,min:40},{code:'B1',base:1,min:35},{code:'F2',base:2,min:70},{code:'B2',base:2,min:70},{code:'FB2',base:2,min:70},{code:'F3',base:3,min:110},{code:'B3',base:3,min:110},{code:'FB3',base:3,min:120}];
 function svcByCode(code){return SERVICES.find(s=>s.code===code)||SERVICES[5]}
 /* 加鐘 extra：每 +1 = +30分 +1支 */
 function bookUnits(svcCode,extra){const s=svcByCode(svcCode);return s.base+(extra||0)}
