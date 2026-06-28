@@ -29,7 +29,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.8-067</title>
+<title>薪資追蹤 · 管理 v1.8-068</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -381,7 +381,7 @@ function ReqCodeProcessor({t,gh,staffList,setStaffList}){
             <p className="text-3xl font-bold font-mono text-emerald-500 tracking-wider" style={{letterSpacing:'0.15em'}}>{confirmCode}</p>
             <p className="text-[10px] text-gray-500 mt-1">{t.giveConfirmCode}</p>
           </div>
-          <button onClick={()=>{navigator.clipboard.writeText(confirmCode).catch(()=>{});setCopied(true);setTimeout(()=>setCopied(false),2000)}} className="w-full py-2 rounded-xl bg-white/[0.06] border border-white/[0.08] text-gray-300 text-sm">{copied?'✓':t.copyBtn}</button>
+          <div className="grid grid-cols-2 gap-2"><button onClick={()=>{navigator.clipboard.writeText(confirmCode).catch(()=>{});setCopied(true);setTimeout(()=>setCopied(false),2000)}} className="py-2 rounded-xl bg-white/[0.06] border border-white/[0.08] text-gray-300 text-sm">{copied?'✓':t.copyBtn}</button><button onClick={()=>{location.href='https://line.me/R/share?text='+encodeURIComponent(t.lineConfirmPrefix+'\n'+confirmCode)}} className="py-2 rounded-xl text-white text-sm font-bold bg-[#06C755] active:bg-[#05b34c]">{t.sendViaLine}</button></div>
           <button onClick={()=>{setParsed(null);setInput('');setConfirmCode('')}} className="w-full py-2 rounded-xl bg-white/[0.04] text-gray-400 text-sm">{t.closeThis}</button>
         </div>
       )}
