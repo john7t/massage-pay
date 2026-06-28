@@ -82,7 +82,7 @@ function CustomerPage({t,settings}){
 function SettingsPage({settings,onUpdate,t,theme,setTheme}){
   const[form,setForm]=useState({...settings});
   const[saved,setSaved]=useState(false);
-  const[subTab,setSubTab]=useState('home');
+  const[subTab,setSubTab]=useState('home');const[navLock,setNavLock]=useState(false);
   const devId=getDeviceId();
   const[connMode,setConnMode]=useState(null);
   const[connInput,setConnInput]=useState('');
@@ -133,8 +133,8 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
           const showAlert=(id==='basic'&&(basicChanged||permitExpiring))||(id==='store'&&storeChanged);
           const noticeCount=id==='notice'?(0):0; // 公告未讀數框架,現為0不顯示
           return(
-          <button key={id} onClick={()=>{if(id==='manage'){location.href='./auth.html#lang='+(settings.lang||'zh');return}setSubTab(id)}} className={`relative w-full px-0.5 py-2.5 text-[11px] font-semibold text-center leading-tight ${subTab===id?'text-amber-400 border-r-2 border-amber-400 bg-amber-600/5':'text-gray-500'}`}>
-            {label}
+          <button key={id} disabled={navLock&&id==='manage'} onClick={()=>{if(id==='manage'){if(navLock)return;setSubTab('manage');setNavLock(true);setTimeout(()=>{location.href='./auth.html#lang='+(settings.lang||'zh')},150);return}setSubTab(id)}} className={`relative w-full px-0.5 py-2.5 text-[11px] font-semibold text-center leading-tight ${subTab===id?'text-amber-400 border-r-2 border-amber-400 bg-amber-600/5':'text-gray-500'} ${navLock&&id==='manage'?'opacity-50':''}`}>
+            {id==='manage'&&navLock?'...':label}
             {showAlert&&<span className="absolute -top-0.5 right-0 text-red-500 text-[9px] leading-none">❗</span>}
             {noticeCount>0&&<span className="absolute top-0.5 right-0.5 bg-red-500 text-white text-[9px] rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5">{noticeCount}</span>}
           </button>);
@@ -155,7 +155,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
             {!hasConn&&!connMode&&(<button onClick={()=>setConnMode('apply')} className="w-full py-2.5 rounded-xl bg-amber-600/20 border border-amber-500/30 text-amber-400 text-sm font-semibold active:bg-amber-600/30">{t.connApply}</button>)}
             {connMode==='apply'&&(<div className="space-y-3 fi">
               <div className="flex justify-center"><div className="bg-white p-2.5 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(settings.code+':'+devId)}`} alt="QR" className="w-40 h-40"/></div></div>
-              <p className="text-[10px] text-gray-600 text-center font-mono select-all break-all">{settings.code}:{devId}</p>
+              <p className="text-[10px] text-gray-600 text-center font-mono select-all break-all">{settings.code}:{devId}</p><button onClick={()=>{location.href='https://line.me/R/share?text='+encodeURIComponent(t.lineConnReqPrefix+'\n'+settings.code+':'+devId)}} className="w-full py-2.5 rounded-xl text-white text-sm font-bold bg-[#06C755] active:bg-[#05b34c]">{t.sendViaLine}</button>
               <div><label className="text-xs text-gray-500 mb-1 block">{t.connCode}</label><textarea value={connInput} onChange={e=>setConnInput(e.target.value)} rows={2} placeholder={t.connInput} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none"/></div>
               <div className="flex gap-2"><button onClick={()=>{setConnMode(null);setConnInput('');setConnStatus('')}} className="flex-1 py-2.5 bg-white/[0.04] rounded-xl text-gray-500 text-sm">{t.cancel}</button><button onClick={()=>{const ghCfg=verifyActToken(connInput.trim(),settings.code,devId);if(ghCfg){saveGHConfigLocal(ghCfg);setConnStatus(t.connOk);setConnMode(null);setConnInput('')}else{setConnStatus(t.connFail)}}} className="flex-1 py-2.5 bg-amber-600 rounded-xl text-white text-sm font-bold">{t.confirm}</button></div>
               {connStatus&&<p className={`text-xs text-center ${connStatus.includes('✓')?'text-emerald-400':'text-red-400'}`}>{connStatus}</p>}
@@ -211,7 +211,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
           {reqErr&&<p className="text-xs text-red-400 text-center fi">{reqErr}</p>}
           {basicCode&&(<div className="space-y-2 fi">
             <div className="flex justify-center"><div className="bg-white p-2.5 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(basicCode)}`} alt="QR" className="w-44 h-44"/></div></div>
-            <button onClick={()=>{navigator.clipboard.writeText(basicCode).catch(()=>{})}} className="w-full py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.08] text-gray-300 text-sm font-medium">{t.copyBtn}</button>
+            <div className="grid grid-cols-2 gap-2"><button onClick={()=>{navigator.clipboard.writeText(basicCode).catch(()=>{})}} className="py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.08] text-gray-300 text-sm font-medium">{t.copyBtn}</button><button onClick={()=>{location.href='https://line.me/R/share?text='+encodeURIComponent(t.lineReqPrefix+'\n'+basicCode)}} className="py-2.5 rounded-xl text-white text-sm font-bold bg-[#06C755] active:bg-[#05b34c]">{t.sendViaLine}</button></div>
             <div><label className="text-xs text-gray-500 mb-1 block">{t.basicConfirmCode}</label><input value={confirmInput} onChange={e=>setConfirmInput(e.target.value)} placeholder={t.basicConfirmCode} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/></div>
             <button onClick={()=>applyConfirm('basic',{nameZh:form.nameZh,nameVi:form.nameVi,phone:form.phone,email:form.email,addrCity:form.addrCity,addrDist:form.addrDist,addrDetail:form.addrDetail,school:form.school,major:form.major,schoolType:form.schoolType,permitNo:form.permitNo,permitDate:form.permitDate,permitExpiry:form.permitExpiry,permitOrg:form.permitOrg,gender:form.gender},'confirmedProfile')} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.confirm}</button>
             {confirmMsg==='ok'&&<p className="text-xs text-center text-emerald-400 fi">✓ {t.confirmSuccess}</p>}
@@ -254,7 +254,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
           {reqErr&&<p className="text-xs text-red-400 text-center fi">{reqErr}</p>}
           {storeCode&&(<div className="space-y-2 fi">
             <div className="flex justify-center"><div className="bg-white p-2.5 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(storeCode)}`} alt="QR" className="w-44 h-44"/></div></div>
-            <button onClick={()=>{navigator.clipboard.writeText(storeCode).catch(()=>{})}} className="w-full py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.08] text-gray-300 text-sm font-medium">{t.copyBtn}</button>
+            <div className="grid grid-cols-2 gap-2"><button onClick={()=>{navigator.clipboard.writeText(storeCode).catch(()=>{})}} className="py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.08] text-gray-300 text-sm font-medium">{t.copyBtn}</button><button onClick={()=>{location.href='https://line.me/R/share?text='+encodeURIComponent(t.lineReqPrefix+'\n'+storeCode)}} className="py-2.5 rounded-xl text-white text-sm font-bold bg-[#06C755] active:bg-[#05b34c]">{t.sendViaLine}</button></div>
             <div><label className="text-xs text-gray-500 mb-1 block">{t.storeConfirmCode}</label><input value={confirmInput} onChange={e=>setConfirmInput(e.target.value)} placeholder={t.storeConfirmCode} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/></div>
             <button onClick={()=>applyConfirm('store',{store:form.storeSel||settings.store,shift:form.shift,workStart:form.workStart,workEnd:form.workEnd,workNote:form.workNote,unitPrice:form.unitPrice,skills:form.skills,preg:form.preg,oil:form.oil,techMentor:form.techMentor,lockerNo:form.lockerNo},'confirmedStore')} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.confirm}</button>
             {confirmMsg==='ok'&&<p className="text-xs text-center text-emerald-400 fi">✓ {t.confirmSuccess}</p>}
@@ -319,7 +319,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
             {!hasConn&&!connMode&&(<button onClick={()=>setConnMode('apply')} className="w-full py-3 rounded-xl bg-amber-600/20 border border-amber-500/30 text-amber-400 text-sm font-semibold active:bg-amber-600/30">{t.connApply}</button>)}
             {connMode==='apply'&&(<div className="space-y-3 fi">
               <div className="flex justify-center"><div className="bg-white p-2.5 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(settings.code+':'+devId)}`} alt="QR" className="w-40 h-40"/></div></div>
-              <p className="text-[10px] text-gray-600 text-center font-mono select-all break-all">{settings.code}:{devId}</p>
+              <p className="text-[10px] text-gray-600 text-center font-mono select-all break-all">{settings.code}:{devId}</p><button onClick={()=>{location.href='https://line.me/R/share?text='+encodeURIComponent(t.lineConnReqPrefix+'\n'+settings.code+':'+devId)}} className="w-full py-2.5 rounded-xl text-white text-sm font-bold bg-[#06C755] active:bg-[#05b34c]">{t.sendViaLine}</button>
               <div><label className="text-xs text-gray-500 mb-1 block">{t.connCode}</label><textarea value={connInput} onChange={e=>setConnInput(e.target.value)} rows={2} placeholder={t.connInput} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none"/></div>
               <div className="flex gap-2"><button onClick={()=>{setConnMode(null);setConnInput('');setConnStatus('')}} className="flex-1 py-2.5 bg-white/[0.04] rounded-xl text-gray-500 text-sm">{t.cancel}</button><button onClick={()=>{const ghCfg=verifyActToken(connInput.trim(),settings.code,devId);if(ghCfg){saveGHConfigLocal(ghCfg);setConnStatus(t.connOk);setConnMode(null);setConnInput('')}else{setConnStatus(t.connFail)}}} className="flex-1 py-2.5 bg-amber-600 rounded-xl text-white text-sm font-bold">{t.confirm}</button></div>
               {connStatus&&<p className={`text-xs text-center ${connStatus.includes('✓')?'text-emerald-400':'text-red-400'}`}>{connStatus}</p>}
