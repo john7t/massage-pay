@@ -93,7 +93,14 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
   const lang=t===T.zh?'zh':'vi';
   useEffect(()=>{loadStores().then(setStores)},[]);
   const upd=(patch)=>{const ns={...form,...patch};setForm(ns);onUpdate(ns)};
-  const goAuth=()=>{location.href='./auth.html#lang='+(settings.lang||'zh')};
+  const[goAuthChecking,setGoAuthChecking]=useState(false);
+  const goAuth=async()=>{
+    if(goAuthChecking)return;setGoAuthChecking(true);
+    let hasPerm=false;
+    try{const sup=LS.get('supervisor-'+settings.code);if(sup&&sup.status==='approved')hasPerm=true}catch{}
+    if(!hasPerm){try{const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),4000);const res=await fetch('./admin.cfg',{cache:'no-store',signal:ctrl.signal});clearTimeout(timer);if(res.ok){const text=(await res.text()).trim();const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));const myHash=adminHash(settings.code);hasPerm=lines.some(l=>{const parts=l.split(':');const h=parts.length>=2?parts[parts.length-1]:parts[0];return h===myHash})}}catch{}}
+    location.href='./auth.html#lang='+(settings.lang||'zh')+(hasPerm?'&auto=1':'');
+  };
   const TABS=[['home',t.tabHome2],['basic',t.tabBasic],['store',t.tabStore],['book',t.tabBook2],['cust',t.tabCust],['notice',t.tabNotice],['chart',t.tabChart],['suggest',t.tabSuggest],['backup',t.tabBackup],['violation',t.tabViolation],['manage',t.tabManage]];
   const fld=(label,key,opt)=>(<div><label className="text-xs text-gray-400 mb-1 block">{label}{opt&&<span className="text-[10px] text-gray-600 ml-1">({t.optional})</span>}</label><input value={form[key]||''} onChange={e=>upd({[key]:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>);
   const Construction=()=>(<div className="flex flex-col items-center justify-center py-20 text-center"><svg className="w-12 h-12 text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/></svg><p className="text-sm text-gray-500">{t.underConstruction}</p></div>);
@@ -327,9 +334,9 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
           </div>
         )})()}
         <div className="pt-4 border-t border-white/[0.06] space-y-2">
-          <button onClick={goAuth} className="w-full py-3.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-gray-300 text-sm font-semibold active:bg-white/[0.08] flex items-center justify-center gap-2">
+          <button onClick={goAuth} disabled={goAuthChecking} className="w-full py-3.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-gray-300 text-sm font-semibold active:bg-white/[0.08] flex items-center justify-center gap-2 disabled:opacity-60">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-            {t.admin} / {t.supervisor}
+            {goAuthChecking?t.checking||'檢查中…':t.admin+' / '+t.supervisor}
           </button>
         </div>
         <div className="text-[10px] text-gray-700 font-mono break-all">{t.deviceId}: {devId}</div>
