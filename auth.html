@@ -29,7 +29,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.8-065</title>
+<title>薪資追蹤 · 管理 v1.8-067</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -154,14 +154,14 @@ input[type=number]{-moz-appearance:textfield}
 <div id="boot-screen" style="position:fixed;inset:0;z-index:9999;background:#0b0b12;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:-apple-system,'PingFang TC',sans-serif;transition:opacity .4s">
   <div style="width:48px;height:48px;border:3px solid rgba(217,119,6,.2);border-top-color:#d97706;border-radius:50%;animation:boot-spin .8s linear infinite"></div>
   <p style="margin-top:24px;font-size:15px;color:#e5e7eb;font-weight:600">管理後台</p>
-  <p id="boot-msg" style="margin-top:8px;font-size:12px;color:#6b7280;font-family:monospace;min-height:16px;transition:opacity .2s">　</p>
+  <p id="boot-msg" style="margin-top:8px;font-size:12px;color:#6b7280;font-family:monospace;min-height:16px;transition:opacity .35s ease,transform .35s ease">　</p>
   <style>@keyframes boot-spin{to{transform:rotate(360deg)}}</style>
 </div>
 <script>
 (function(){
   var msgs=['正在驗證身分…','檢查管理權限…','載入加密金鑰…','同步雲端設定…','準備就緒'];
   var i=0,el=document.getElementById('boot-msg');
-  function step(){if(!el)return;el.style.opacity='0';setTimeout(function(){el.textContent=msgs[i]||'';el.style.opacity='1'},150);i++;if(i<msgs.length)setTimeout(step,500)}
+  function step(){if(!el)return;el.style.opacity='0';el.style.transform='translateY(8px)';setTimeout(function(){el.textContent=msgs[i]||'';el.style.transition='none';el.style.transform='translateY(-8px)';el.offsetHeight;el.style.transition='opacity .35s ease,transform .35s ease';el.style.opacity='1';el.style.transform='translateY(0)'},350);i++;if(i<msgs.length)setTimeout(step,650)}
   step();
   window.__bootStart=Date.now();
   window.__hideBootScreen=function(){
@@ -198,7 +198,7 @@ input[type=number]{-moz-appearance:textfield}
 <style>@keyframes fbspin{to{transform:rotate(360deg)}}@keyframes fbpulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
 <script src="./common.js"></script>
 <script type="text/babel">
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,genUUID,getDeviceId,SUP_LEVELS,supLevelName,effSupLevel,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,computeStats,publishStats,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,T}=window.MP;
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,genUUID,getDeviceId,SUP_LEVELS,supLevelName,effSupLevel,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,computeStats,publishStats,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 const goHome=()=>{location.href='./index.html'};
@@ -562,13 +562,13 @@ function AuthGate({t}){
   const copyAppCode=async()=>{if(supStatus?.appCode){try{await navigator.clipboard.writeText(supStatus.appCode)}catch{}}setAppCopied(true);setTimeout(()=>setAppCopied(false),2000)};
 
   const[reqLinkInfo,setReqLinkInfo]=useState(false);
-  // 連結帶 #req=<申請碼> 進來 → 暫存,進管理/主管頁後自動填入對應框
+  // 連結帶 req 申請碼 可能多段 req/req2/req3 進來 → 接回完整碼,暫存
   useEffect(()=>{
     try{
       const hash=window.location.hash||'';
-      const m=hash.match(/req=([^&]+)/);
-      if(!m)return;
-      const raw=decodeURIComponent(m[1]);const id=identifyReqCode(raw);
+      const raw=parseReqHash(hash);
+      if(!raw)return;
+      const id=identifyReqCode(raw);
       if(id){sessionStorage.setItem('__reqFromLink',raw);setReqLinkInfo(true)}
     }catch(e){}
   },[]);

@@ -1,6 +1,6 @@
 /* ════════════════════════════════════════════════════════════
    common.js — 薪資追蹤系統 共用工具
-   v1.8-065 / 主管(SupervisorPage)人員編輯小畫面改為完整版(啟動碼/連線/改門店/任命主管/刪除,暫時全給);admin編輯小畫面也移到人員列表下方(與主管一致)
+   v1.8-067 / LINE連結自動分段(buildReqLink每段500字切req/req2/req3,parseReqHash接回;解決LINE單段約600字辨識上限;基資店資連線全套用,短碼仍1段)
    純 JS（不經 Babel）：加密、雜湊、GitHub API、i18n、儲存工具
    index.html 與 auth.html 共用，確保加密邏輯單一來源
    ════════════════════════════════════════════════════════════ */
@@ -69,6 +69,10 @@ function verifyActToken(actCode,code,devId){try{const json=decWithKey(actCode.tr
 const REQ_CAT={basic:'B',store:'S',conn:'C',supapply:'A'};
 // 統一識別申請碼類型(看第一字元)→ {cat,bound} 或 null
 function identifyReqCode(s){const x=(s||'').trim();if(!x)return null;const c1=x[0];const up=c1.toUpperCase();const map={B:'basic',S:'store',C:'conn',A:'supapply'};const cat=map[up];if(!cat)return null;return{cat,catChar:c1,bound:c1===up,body:x.slice(1)}}
+// 把長碼切成多段參數連結:req=...&req2=...&req3=...（每段預設500字，避開LINE單段約600字辨識上限）
+function buildReqLink(base,code,seg){const S=seg||500;const parts=[];for(let i=0;i<code.length;i+=S)parts.push(code.slice(i,i+S));let url=base+'#req='+encodeURIComponent(parts[0]);for(let i=1;i<parts.length;i++)url+='&req'+(i+1)+'='+encodeURIComponent(parts[i]);return url}
+// 從 hash 還原完整碼：依序接回 req,req2,req3...
+function parseReqHash(hash){const h=(hash||'').replace(/^#/,'');if(!h)return null;const params={};h.split('&').forEach(kv=>{const idx=kv.indexOf('=');if(idx>0){const k=kv.slice(0,idx);const v=kv.slice(idx+1);params[k]=v}});if(params.req===undefined)return null;let code='';try{code=decodeURIComponent(params.req)}catch{code=params.req}let n=2;while(params['req'+n]!==undefined){try{code+=decodeURIComponent(params['req'+n])}catch{code+=params['req'+n]}n++}return code}
 // 連線申請碼:C + code:uuid(老師→主管,主管產生連線碼用)
 function genConnReq(code,devId){return 'C'+code+':'+devId}
 function parseConnReq(s){const id=identifyReqCode(s);if(!id||id.cat!=='conn')return null;const parts=id.body.split(':');if(parts.length<2)return null;return{code:parts[0],uuid:parts.slice(1).join(':')}}
@@ -295,7 +299,7 @@ global.MP={
   getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,
   adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,
   encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genUUID,getDeviceId,
-  genReqCode,parseReqCode,decReqCode,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,REQ_CAT,identifyReqCode,genConnReq,parseConnReq,genSupReq,parseSupReq,
+  genReqCode,parseReqCode,decReqCode,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,REQ_CAT,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,
   // sup levels
   SUP_LEVELS,supLevelName,effSupLevel,
   // github
