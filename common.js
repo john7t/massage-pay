@@ -1,6 +1,6 @@
 /* ════════════════════════════════════════════════════════════
    common.js — 薪資追蹤系統 共用工具
-   v1.8-063 / 修S22U主題背景不變(html+body同時設背景+100vh fallback);auth req提示改預存state避免render崩潰;強化auto/req的try-catch
+   v1.8-064 / 修主管進auth崩潰01030000(SupervisorPage的WorkHoursChart引用未定義myStore,移動人員編輯小畫面時造成);S22U背景再加強
    純 JS（不經 Babel）：加密、雜湊、GitHub API、i18n、儲存工具
    index.html 與 auth.html 共用，確保加密邏輯單一來源
    ════════════════════════════════════════════════════════════ */
