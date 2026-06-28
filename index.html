@@ -310,7 +310,7 @@ function YearlyPage({settings,t}){
 function App(){
   const[settings,setSettings]=useState(null);const[tab,setTab]=useState('home');const[curM,setCurM]=useState(bizParts().m);const[ready,setReady]=useState(false);const[needOnboard,setNeedOnboard]=useState(false);const[refreshKey,setRefreshKey]=useState(0);const[theme,setTheme]=useState(()=>localStorage.getItem('app-theme')||'pink');
   const bgColor=THEMES[theme]||THEMES.black;const isLight=theme==='white'||theme==='pink';
-  useEffect(()=>{document.body.style.backgroundColor=bgColor},[bgColor]);
+  useEffect(()=>{document.body.style.backgroundColor=bgColor;document.documentElement.style.backgroundColor=bgColor},[bgColor]);
   useEffect(()=>{localStorage.setItem('app-theme',theme)},[theme]);
   useEffect(()=>{buildDynamicKey()},[]);
   useEffect(()=>{if(!settings||!settings.code)return;const gh=getGHConfig();if(!gh.token)return;const lastCheck=localStorage.getItem('conn-check-date');const _bd=bizDate();const today=_bd.getFullYear()+'-'+String(_bd.getMonth()+1).padStart(2,'0')+'-'+String(_bd.getDate()).padStart(2,'0');if(lastCheck===today)return;(async()=>{try{const staff=await readStaff(gh);const me=staff.find(s=>s.code===settings.code);if(me&&me.hasToken===false){saveGHConfigLocal({});localStorage.removeItem('conn-check-date')}else{localStorage.setItem('conn-check-date',today)}}catch{}})()},[settings]);
@@ -328,7 +328,7 @@ function App(){
   const tabs=[{id:'home',label:t.home},{id:'monthly',label:t.monthly},{id:'yearly',label:t.yearly},{id:'settings',label:t.settings}];
   // 底部設定❗:基資或店資有未確認變動(主管除外)
   const settingsAlert=(()=>{const permExp=(()=>{if(!settings.permitExpiry)return false;const days=(new Date(settings.permitExpiry)-new Date())/86400000;return days<=30})();const gh=getGHConfig();if(gh&&gh.token)return permExp;const cp=settings.confirmedProfile,cs=settings.confirmedStore;const pf=['gender','nameZh','nameVi','phone','email','addrCity','addrDist','addrDetail','school','major','schoolType','permitNo','permitDate','permitExpiry','permitOrg'];const sf=['storeSel','shift','workStart','workEnd','workNote','unitPrice','preg','oil','techMentor','lockerNo'];const chg=(snap,fs)=>{if(!snap)return fs.some(k=>{const v=settings[k];return v!==undefined&&v!==''&&v!==null});return fs.some(k=>(snap[k]||'')!==((settings[k]!==undefined?settings[k]:'')||''))};return chg(cp,pf)||chg(cs,sf)||permExp})();
-  return(<div className={`${isLight?'text-gray-900':'text-gray-100'} flex flex-col`} style={{backgroundColor:bgColor,height:'100dvh'}} data-light={isLight||undefined}>
+  return(<div className={`${isLight?'text-gray-900':'text-gray-100'} flex flex-col`} style={{backgroundColor:bgColor,minHeight:'100vh',height:'100dvh'}} data-light={isLight||undefined}>
     <div className="flex-1 overflow-y-auto">
       {tab==='home'&&<HomePage settings={settings} t={t} refreshKey={refreshKey}/>}
       {tab==='monthly'&&<MonthlyPage settings={settings} curM={curM} setCurM={setCurM} t={t}/>}
