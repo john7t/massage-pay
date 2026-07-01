@@ -83,6 +83,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
   const[form,setForm]=useState({...settings});
   const[saved,setSaved]=useState(false);
   const[subTab,setSubTab]=useState('home');const[navLock,setNavLock]=useState(false);
+  useEffect(()=>{try{const s=sessionStorage.getItem('__settingsSub');if(s){setSubTab(s);sessionStorage.removeItem('__settingsSub')}}catch(e){}},[]);
   const devId=getDeviceId();
   const[connMode,setConnMode]=useState(null);
   const[connInput,setConnInput]=useState('');
