@@ -104,7 +104,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
   const[storeCode,setStoreCode]=useState('');
   const lang=t===T.zh?'zh':'vi';
   useEffect(()=>{loadStores().then(setStores)},[]);
-  const upd=(patch)=>{const ns={...form,...patch};setForm(ns);onUpdate(ns)};
+  const upd=(patch)=>{const ns={...form,...patch};setForm(ns);onUpdate({...ns,lastSyncBasic:settings.lastSyncBasic,lastSyncStore:settings.lastSyncStore})};
   const[goAuthChecking,setGoAuthChecking]=useState(false);
   const goAuth=async()=>{
     if(goAuthChecking)return;setGoAuthChecking(true);
@@ -128,7 +128,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
   const applyConfirm=async(cat,fields,snapKey)=>{const ok=verifyConfirmCode(confirmInput,cat,settings.code,fields);if(ok){const snap={...fields};if(cat==='store'){snap.storeSel=form.storeSel||'';}const nowIso=new Date().toISOString();const syncKey=cat==='store'?'lastSyncStore':'lastSyncBasic';let ns={...settings,...form,[snapKey]:snap,[syncKey]:nowIso};
     // #9:確認碼通過後,主動讀 staff.json 找自己編號,把雲端有的欄位寫回本機(以雲端為準)
     try{const staff=await readStaff({});if(Array.isArray(staff)&&staff.length){const me=staff.find(s=>String(s.code)===String(settings.code));if(me){const merge={};['nameZh','nameVi','phone','email','storeSel','shift','permitNo','permitExpiry','permitDate','permitOrg'].forEach(k=>{if(me[k]!==undefined&&me[k]!==''&&me[k]!==null)merge[k]=me[k]});ns={...ns,...merge}}}}catch(_e){}
-    onUpdate(ns);if(confirmCodeIsBound(confirmInput)){try{localStorage.setItem('uuid-bound-'+settings.code,'1')}catch(_e){}}setConfirmMsg('ok');setConfirmInput('');setTimeout(()=>setConfirmMsg(''),3000)}else{setConfirmMsg('fail');setTimeout(()=>setConfirmMsg(''),3000)}};
+    onUpdate(ns);setForm(f=>({...f,lastSyncBasic:ns.lastSyncBasic,lastSyncStore:ns.lastSyncStore}));if(confirmCodeIsBound(confirmInput)){try{localStorage.setItem('uuid-bound-'+settings.code,'1')}catch(_e){}}setConfirmMsg('ok');setConfirmInput('');setTimeout(()=>setConfirmMsg(''),3000)}else{setConfirmMsg('fail');setTimeout(()=>setConfirmMsg(''),3000)}};
   const onWorkStartChange=(hh)=>{let patch={workStart:hh};if(hh!==''){const h=Number(hh);const eh=(h+12)%24;patch.workEnd=String(eh).padStart(2,'0')+':00';}upd(patch)};
   // 上工預設現在小時(僅未設過時)
   useEffect(()=>{if(!form.workStart&&!settings.workStart){const nowH=new Date().getHours();const eh=(nowH+12)%24;upd({workStart:String(nowH).padStart(2,'0')+':00',workEnd:String(eh).padStart(2,'0')+':00'})}},[]);
