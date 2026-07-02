@@ -36,7 +36,7 @@ function BackupSection({settings,t}){
   const[input,setInput]=useState('');const[result,setResult]=useState(null);const[expCode,setExpCode]=useState('');const[expRange,setExpRange]=useState(null);
   const[jsonMsg,setJsonMsg]=useState(null);const[pendingImport,setPendingImport]=useState(null);const fileRef=React.useRef(null);
   const doExport=()=>{const range=dataMonthRange(settings.code,settings.year);if(!range){setExpCode('');setResult(t.noData);setTimeout(()=>setResult(null),2000);return}const code=encRange(settings.code,settings.year);setExpCode(code);setExpRange(range)};
-  const doCopy=async()=>{try{await navigator.clipboard.writeText(expCode)}catch(_e){};setResult(t.copyDone);setTimeout(()=>setResult(null),2000)};
+  const doCopy=async()=>{try{await navigator.clipboard.writeText(expCode).catch(()=>{})}catch(_e){};setResult(t.copyDone);setTimeout(()=>setResult(null),2000)};
   const doImport=()=>{const list=decRange(input);if(list.length){list.forEach(p=>LS.set(dk(p.code,p.year,p.month),p.data));const ms=list.map(p=>p.month);setResult(`${t.importOk} → ${list[0].code} ${list[0].year} (${Math.min(...ms)}~${Math.max(...ms)}月)`);setInput('')}else{setResult(t.importFail)};setTimeout(()=>setResult(null),3000)};
   // JSON 完整備份匯出
   const doJsonExport=()=>{try{const obj=makePersonalBackup(settings.code,settings.year);const blob=new Blob([JSON.stringify(obj)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`massage-${settings.code}-${settings.year}-backup.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);doExport();setJsonMsg({ok:true,text:t.jsonAndCodeDone})}catch(e){setJsonMsg({ok:false,text:t.jsonExportFail})}setTimeout(()=>setJsonMsg(null),5000)};
