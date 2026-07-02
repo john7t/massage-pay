@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.9-018</title>
+<title>薪資追蹤 · 管理 v1.9-019</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -212,8 +212,8 @@ function ManualCodeEntry({t,gh,staffList,setStaffList}){
   const[copied,setCopied]=useState(false);
   const[wrote,setWrote]=useState('');
   const gen=async()=>{const c=code.trim();if(!c){setResult('');return}setResult(genSimpleAct(c));
-    // 同步寫進 staff(若有 token)
-    if(gh&&gh.token&&setStaffList){try{const existing=(staffList||[]).find(s=>s.code===c);if(!existing){const entry={code:c,role:'teacher',store:'',lang:'zh',skills:[],status:'active',approvedAt:Date.now()};const updated=[...(staffList||[]),entry];await writeStaff(gh,updated);setStaffList(updated);setWrote('✓ '+(t.syncedStaff||'已寫入名單'))}else{setWrote('')}}catch(e){setWrote('⚠️ '+(t.syncFailStaff||'名單寫入失敗'))}setTimeout(()=>setWrote(''),3000)}
+    // 同步寫進 staff(若有 token)。新員工店家預設=發碼者所屬店家
+    if(gh&&gh.token&&setStaffList){try{const existing=(staffList||[]).find(s=>s.code===c);if(!existing){const _ms=LS.get('app-settings')||{};const _issuer=(staffList||[]).find(s=>s.code===_ms.code);const _store=_issuer?.store||'';const entry={code:c,role:'teacher',store:_store,lang:'zh',skills:[],status:'active',approvedAt:Date.now()};const updated=[...(staffList||[]),entry];await writeStaff(gh,updated);setStaffList(updated);setWrote('✓ '+(t.syncedStaff||'已寫入名單')+(_store?(' · '+_store):''))}else{setWrote('')}}catch(e){setWrote('⚠️ '+(t.syncFailStaff||'名單寫入失敗'))}setTimeout(()=>setWrote(''),3000)}
   };
   return(
     <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
@@ -486,7 +486,7 @@ function AdminPage({t,onBack}){
       const hash=approveHash(teacherDecoded.code,teacherDecoded.devId);
       const r1=await writeApproval(gh,'t',hash);
       if(!r1||!r1.ok){setSyncStatus('fail:approved.cfg '+(r1?.reason||''));return}
-      const newStaff={code:teacherDecoded.code,store:teacherDecoded.store||'',lang:teacherDecoded.lang,skills:[],role:'teacher',level:0,status:'active',approvedAt:Date.now()};
+      const newStaff={code:teacherDecoded.code,store:teacherDecoded.store||myStore||'',lang:teacherDecoded.lang,skills:[],role:'teacher',level:0,status:'active',approvedAt:Date.now()};
       const updated=[...staffList.filter(s=>s.code!==teacherDecoded.code),newStaff];
       const r2=await writeStaff(gh,updated);
       if(!r2){setSyncStatus('fail:staff.json');return}
