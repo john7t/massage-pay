@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.9-023</title>
+<title>薪資追蹤 · 管理 v1.9-023.1</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -47,6 +47,11 @@ input[type=number]{-moz-appearance:textfield}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .fi{animation:fadeIn .2s ease-out}.su{animation:slideUp .25s ease-out}
+.sticky-hdr{position:sticky;top:0;z-index:30;background:rgba(3,7,18,0.85);backdrop-filter:blur(12px);transition:all .2s;padding:12px 0;margin:-12px 0 0}
+.sticky-hdr.shrink{padding:6px 0}
+.sticky-hdr.shrink .hdr-title{font-size:1rem}
+.sticky-hdr.shrink .hdr-close{transform:scale(0.65);transform-origin:left center}
+.sticky-hdr .hdr-title,.sticky-hdr .hdr-close{transition:all .2s}
 </style>
 <style>
 /* ── v1.8-006: Light theme (pink/white) — 文字改深色，降低對比刺眼感 ── */
@@ -329,7 +334,7 @@ function WorkHoursChart({t,staffList,myStore,gh}){
   rows.forEach(s=>{const sh=hourOf(s.workStart);if(sh===null)return;if(mode==='start'){counts[sh]++}else{let eh=hourOf(s.workEnd);if(eh===null)eh=(sh+12)%24;let h=sh;for(let i=0;i<24;i++){counts[h]++;if(h===eh)break;h=(h+1)%24;if(h===sh)break}}});
   const maxC=Math.max(1,...counts);
   // 時段順序:早7→隔天早6
-  const HOURS=Array.from({length:24},(_,i)=>(i+6)%24);
+  const HOURS=Array.from({length:24},(_,i)=>(i+7)%24);
   // 點某時段，列出該時段的老師（編號:上工時間）
   const hourDetail=(h)=>{if(mode==='start'){return rows.filter(s=>hourOf(s.workStart)===h).map(s=>({code:s.code,ws:s.workStart}))}else{return rows.filter(s=>{const sh=hourOf(s.workStart);if(sh===null)return false;let eh=hourOf(s.workEnd);if(eh===null)eh=(sh+12)%24;let hh=sh;for(let i=0;i<24;i++){if(hh===h)return true;if(hh===eh)break;hh=(hh+1)%24;if(hh===sh)break}return false}).map(s=>({code:s.code,ws:s.workStart,we:s.workEnd}))}};
   const detail=pickHour!==null?hourDetail(pickHour):[];
@@ -436,7 +441,7 @@ function SupervisorPage({t,onBack}){
   const approveSupOnline=async()=>{const gh=getGHConfig();if(!supInfo){setSupApproveStatus(t.approveFail);return}if(!gh.token){setSupApproveStatus(t.approveFail+': no GitHub Token');return}setSupApproveStatus(t.approving);const hash=supApproveHash(supInfo.code);const r1=await writeApproval(gh,'s',hash,supLevel);if(!r1||!r1.ok){setSupApproveStatus(t.approveFail+': approved.cfg '+(r1?.reason||'unknown'));return}try{await ghRemoveLine(gh,'revoked.cfg',revokeHash(supInfo.code),'unrevoke '+supInfo.code)}catch(_e){}const existing=staffList.find(s=>s.code===supInfo.code);const entry={...(existing||{code:supInfo.code,store:'',lang:'zh',skills:[]}),role:'supervisor',level:supLevel,status:'active',approvedAt:Date.now()};const updated=[...staffList.filter(s=>s.code!==supInfo.code),entry];await writeStaff(gh,updated);setStaffList(updated);const lvName=supLevelName(supLevel,t===T.zh?'zh':'vi');addLog(fmtLog(t.logApproveSupervisor,[supInfo.code,supInfo.devName||'',lvName]),'supervisor');setSupApproveStatus(t.approveOk);try{await navigator.clipboard.writeText(t.approveMsg).catch(()=>{})}catch(_e){}setMsgCopied('sup');setTimeout(()=>setMsgCopied(''),3000)};
   const _myRow=staffList.find(s=>s.code===_ms.code);const myCode=_ms.code||'';const myLevel=_myRow?.level||0;const myStore=_myRow?.store||'';
   return(<div className="p-5 max-w-md mx-auto fi space-y-6">
-    <div className="flex items-center gap-3"><CloseBtn onBack={onBack} t={t}/><h2 className="text-xl font-bold text-gray-100">{t.supervisorTitle}</h2></div>
+    <div className="sticky-hdr flex items-center gap-3"><span className="hdr-close"><CloseBtn onBack={onBack} t={t}/></span><h2 className="hdr-title text-xl font-bold text-gray-100">{t.supervisorTitle}</h2></div>
     {(()=>{const ms=LS.get('app-settings')||{};const ml=staffList.find(s=>s.code===ms.code);return<StaffListSection t={t} staffList={staffList} sortMode={sortMode} setSortMode={setSortMode} onEdit={s=>{setSupEditStaff(s);setSupEditWS(s.workStart||'');setSupEditWE(s.workEnd||'');setSupEditStatus('')}} myCode={ms.code||''} myLevel={ml?.level||0} myStore={ml?.store||''}/>})()}
     {supEditStaff&&(<div className="space-y-3 bg-white/[0.02] border border-amber-500/20 rounded-2xl p-4"><div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-amber-400">{t.supEditStaff}: {supEditStaff.code}</h3><button onClick={()=>{setSupEditStaff(null);setSupConnDevInput('');setSupConnResult('');setSupEditStatus('')}} className="text-gray-500 text-sm">✕</button></div>
       <div className="flex items-center justify-between bg-white/[0.03] rounded-xl p-3"><div><p className="text-[10px] text-gray-600">{t.teacherActivation}</p><p className="text-lg font-bold text-emerald-400 font-mono">{genSimpleAct(supEditStaff.code)}</p></div><button onClick={async()=>{try{await navigator.clipboard.writeText(genSimpleAct(supEditStaff.code)).catch(()=>{})}catch(_e){}}} className="px-3 py-1.5 bg-emerald-600/20 rounded-lg text-emerald-400 text-xs">📋</button></div>
@@ -519,7 +524,7 @@ function AdminPage({t,onBack}){
   const saveKeyRules=()=>{saveKeyConfig({rules:keyRules});buildDynamicKey();setKeySaveStatus(t.keySaved);setTimeout(()=>setKeySaveStatus(''),2000)};
 
   return(<div className="p-5 max-w-md mx-auto fi space-y-6">
-    <div className="flex items-center gap-3"><CloseBtn onBack={onBack} t={t}/><h2 className="text-xl font-bold text-gray-100">{t.adminTitle}</h2></div>
+    <div className="sticky-hdr flex items-center gap-3"><span className="hdr-close"><CloseBtn onBack={onBack} t={t}/></span><h2 className="hdr-title text-xl font-bold text-gray-100">{t.adminTitle}</h2></div>
     <StaffListSection t={t} staffList={staffList} sortMode={sortMode} setSortMode={setSortMode} onEdit={s=>{setEditStaff(s);setConnDevInput('');setConnResult('');setEditStoreVal(s.store||'');setEditStatus('');setEditWS(s.workStart||'');setEditWE(s.workEnd||'');setEditFull({nameZh:s.nameZh||'',nameVi:s.nameVi||'',phone:s.phone||'',email:s.email||'',gender:s.gender||'',addrCity:s.addrCity||'',addrDist:s.addrDist||'',addrDetail:s.addrDetail||'',school:s.school||'',major:s.major||'',schoolType:s.schoolType||'',permitNo:s.permitNo||'',permitDate:s.permitDate||'',permitExpiry:s.permitExpiry||'',permitOrg:s.permitOrg||'',shift:s.shift||'',workStart:s.workStart||'',workEnd:s.workEnd||'',workNote:s.workNote||'',unitPrice:s.unitPrice||'',techMentor:s.techMentor||'',lockerNo:s.lockerNo||'',preg:s.preg||'',oil:s.oil||''});setFullOpen(false);setStoreFullOpen(false);setFullStatus('');setStoreFullStatus('')}} myCode={myCode} myLevel={myLevel} myStore={myStore}/>
     {editStaff&&(<div className="space-y-3 bg-white/[0.02] border border-amber-500/20 rounded-2xl p-4"><div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-amber-400">{t.editStaff}: {editStaff.code}</h3><button onClick={()=>{setEditStaff(null);setConnDevInput('');setConnResult('');setEditStatus('')}} className="text-gray-500 text-sm">✕</button></div>
       <div className="border border-white/[0.06] rounded-xl overflow-hidden"><button onClick={()=>setFullOpen(o=>!o)} className="w-full flex items-center justify-between px-3 py-2.5 bg-white/[0.02] active:bg-white/[0.04]"><span className="text-xs font-semibold text-gray-300">{t.fullBasicData||'基資完整資料'}</span><svg className={`w-4 h-4 text-gray-500 transition-transform ${fullOpen?'rotate-90':''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg></button>{fullOpen&&editFull&&(<div className="p-3 space-y-2 fi"><div className="grid grid-cols-2 gap-2">{FULL_FIELDS.map(([k,lbl])=>(<div key={k}><label className="text-[10px] text-gray-600 block mb-0.5">{lbl}</label><input value={editFull[k]||''} onChange={e=>setEditFull(f=>({...f,[k]:e.target.value}))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-gray-100 focus:outline-none focus:border-amber-500"/></div>))}</div><button onClick={saveFullStaff} disabled={fullStatus==='...'} className={`w-full py-2.5 rounded-xl text-sm font-bold ${fullStatus==='...'?'bg-gray-600 text-gray-400':'bg-amber-600 text-white active:bg-amber-700'}`}>{fullStatus==='✓'?'✓ '+(t.saved||'已存回'):fullStatus==='✗'?'✗ '+(t.saveFailStaff||'存檔失敗'):(t.saveToStaff||'存回 staff')}</button></div>)}</div>
@@ -623,6 +628,7 @@ function AuthGate({t}){
 /* ══════════ Auth App root ══════════ */
 function AuthApp(){
   const[theme]=useState(()=>localStorage.getItem('app-theme')||'black');
+  useEffect(()=>{const onScroll=(e)=>{const st=(e.target&&e.target.scrollTop)||window.scrollY||0;const hdrs=document.querySelectorAll('.sticky-hdr');hdrs.forEach(h=>{if(st>20)h.classList.add('shrink');else h.classList.remove('shrink')})};document.addEventListener('scroll',onScroll,true);window.addEventListener('scroll',onScroll);return()=>{document.removeEventListener('scroll',onScroll,true);window.removeEventListener('scroll',onScroll)}},[]);
   const bgColor=THEMES[theme]||THEMES.black;const isLight=theme==='white'||theme==='pink';
   const settings=LS.get('app-settings')||{};const lang=settings.lang||'zh';const t=T[lang];
   useEffect(()=>{document.body.style.backgroundColor=bgColor;buildDynamicKey();try{if((window.location.hash||'').indexOf('auto=1')===-1){if(window.__hideBootScreen)window.__hideBootScreen()}}catch(e){}},[]);
