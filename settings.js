@@ -12,7 +12,7 @@ function ChartPage({t,settings}){
   useEffect(()=>{let alive=true;loadStats().then(s=>{if(alive)setStats(s)});return()=>{alive=false}},[]);
   const SUBS=[['shift',t.chartShiftRatio],['gender',t.chartGenderRatio],['a1',t.chartWorkStart],['a2',t.chartOnline]];
   // 時段順序:早上7點 → 隔天早上6點(跨夜連續)
-  const HOURS=Array.from({length:24},(_,i)=>(i+7)%24);
+  const HOURS=Array.from({length:24},(_,i)=>(i+6)%24);
   // 橫向長條圖:arr=24長度人數陣列,點長條設pickHour
   const hbar=(arr,desc)=>{const max=Math.max(1,...arr);const totalP=arr.reduce((a,b)=>a+b,0);if(totalP===0)return<p className="text-sm text-gray-500 text-center py-8">{t.chartNoData}</p>;return(<div className="space-y-2"><p className="text-xs text-gray-500">{desc}</p><div className="space-y-1">{HOURS.map(h=>{const v=arr[h]||0;const on=pickHour===h;return(<div key={h} onClick={()=>setPickHour(on?null:h)} className="flex items-center gap-2 active:opacity-70"><span className={`text-[10px] tabular-nums w-7 text-right ${on?'text-amber-300 font-bold':'text-gray-500'}`}>{String(h).padStart(2,'0')}</span><div className="flex-1 h-4 bg-white/[0.03] rounded-sm overflow-hidden"><div className="h-full rounded-sm transition-all" style={{width:(v/max*100)+'%',background:on?'#fbbf24':'#D97706'}}></div></div><span className={`text-[10px] tabular-nums w-5 ${on?'text-amber-300 font-bold':'text-gray-500'}`}>{v||''}</span></div>)})}</div></div>)};
   // 圓餅圖(SVG)
