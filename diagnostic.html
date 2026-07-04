@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>診斷工具 v1</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0b0f1a;color:#e5e7eb;margin:0;padding:1rem;line-height:1.5}
+  h1{font-size:1.1rem;color:#fbbf24}
+  .card{background:#111827;border:1px solid #1f2937;border-radius:12px;padding:12px;margin:10px 0}
+  .ok{color:#34d399}
+  .fail{color:#f87171;font-weight:bold}
+  .msg{background:#1e1b1b;border:1px solid #7f1d1d;border-radius:8px;padding:10px;margin-top:8px;font-family:monospace;font-size:12px;color:#fca5a5;white-space:pre-wrap;word-break:break-all}
+  .info{color:#9ca3af;font-size:12px}
+  button{background:#d97706;color:#fff;border:none;border-radius:10px;padding:12px 18px;font-size:15px;font-weight:bold;width:100%;margin-top:10px}
+  .step{font-weight:600;margin-bottom:4px}
+</style>
+</head>
+<body>
+<h1>薪資系統 診斷工具</h1>
+<p class="info">此頁會逐一載入同資料夾下的 common.js、settings.js、index.html，用同源方式執行/編譯，繞過「Script error.」的遮蔽，顯示真正的錯誤訊息與行號。</p>
+<p class="info">用法：把此檔（diagnostic.html）放到跟 common.js、settings.js、index.html 同一個資料夾（同一個 GitHub Pages 目錄），然後開啟它，按下方按鈕。</p>
+<button onclick="runDiag()">開始診斷</button>
+<div id="out"></div>
+
+<script>
+var out=document.getElementById('out');
+function card(title){var d=document.createElement('div');d.className='card';d.innerHTML='<div class="step">'+title+'</div>';out.appendChild(d);return d;}
+function ok(d,t){var s=document.createElement('div');s.className='ok';s.textContent='✓ '+t;d.appendChild(s);}
+function fail(d,t,msg){var s=document.createElement('div');s.className='fail';s.textContent='✗ '+t;d.appendChild(s);if(msg){var m=document.createElement('div');m.className='msg';m.textContent=msg;d.appendChild(m);}}
+function info(d,t){var s=document.createElement('div');s.className='info';s.textContent=t;d.appendChild(s);}
+
+async function fetchText(url){
+  var res=await fetch(url,{cache:'no-store'});
+  if(!res.ok)throw new Error('HTTP '+res.status+' 抓不到 '+url);
+  return await res.text();
+}
+
+async function runDiag(){
+  out.innerHTML='';
+
+  // ===== 1. common.js =====
+  var d1=card('1. common.js（共用底層）');
+  var commonCode=null;
+  try{
+    commonCode=await fetchText('./common.js');
+    ok(d1,'抓到 common.js（'+commonCode.length+' 字元）');
+  }catch(e){fail(d1,'抓不到 common.js',e.message);return;}
+  try{
+    // 用 Function 執行，錯誤同源可見
+    (function(){
+      var window=self; // 讓 common.js 的 window.MP 能掛
+      eval(commonCode);
+    })();
+    if(window.MP){ok(d1,'common.js 執行成功，window.MP 已建立');
+      info(d1,'MP 函式數：'+Object.keys(window.MP).length);
+    }else{fail(d1,'common.js 執行了但沒有建立 window.MP');}
+  }catch(e){
+    fail(d1,'common.js 執行出錯',(e.stack||e.message||String(e)));
+    return;
+  }
+
+  // ===== 2. settings.js（Babel 編譯）=====
+  var d2=card('2. settings.js（Babel 編譯測試）');
+  var settingsCode=null;
+  try{
+    settingsCode=await fetchText('./settings.js');
+    ok(d2,'抓到 settings.js（'+settingsCode.length+' 字元）');
+  }catch(e){fail(d2,'抓不到 settings.js',e.message);}
+  if(settingsCode){
+    try{
+      Babel.transform(settingsCode,{presets:['react']});
+      ok(d2,'settings.js Babel 編譯成功（JSX 沒問題）');
+    }catch(e){
+      fail(d2,'settings.js Babel 編譯失敗 ← 很可能是這裡',e.message);
+    }
+  }
+
+  // ===== 3. index.html 的 babel script =====
+  var d3=card('3. index.html（內嵌 babel script 編譯測試）');
+  var indexHtml=null;
+  try{
+    indexHtml=await fetchText('./index.html');
+    ok(d3,'抓到 index.html（'+indexHtml.length+' 字元）');
+  }catch(e){fail(d3,'抓不到 index.html',e.message);}
+  if(indexHtml){
+    var m=indexHtml.match(/<script type="text\/babel">([\s\S]*?)<\/script>/);
+    if(!m){info(d3,'（index.html 沒有內嵌 text/babel script，可能用外部檔，略過）');}
+    else{
+      try{
+        Babel.transform(m[1],{presets:['react']});
+        ok(d3,'index.html 的 babel script 編譯成功');
+      }catch(e){
+        fail(d3,'index.html babel script 編譯失敗 ← 可能是這裡',e.message);
+      }
+    }
+  }
+
+  var d4=card('診斷完成');
+  info(d4,'把上面紅色（✗）的區塊截圖給開發者，特別是「Babel 編譯失敗」那段的錯誤訊息，會直接指出檔案、行號與原因。');
+}
+</script>
+</body>
+</html>
