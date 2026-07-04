@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.9-023.1</title>
+<title>薪資追蹤 · 管理 v1.9-023.2</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -47,7 +47,7 @@ input[type=number]{-moz-appearance:textfield}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .fi{animation:fadeIn .2s ease-out}.su{animation:slideUp .25s ease-out}
-.sticky-hdr{position:sticky;top:0;z-index:30;background:rgba(3,7,18,0.85);backdrop-filter:blur(12px);transition:all .2s;padding:12px 0;margin:-12px 0 0}
+.sticky-hdr{position:sticky;top:0;z-index:30;background:var(--bg,#030712);opacity:0.98;backdrop-filter:blur(12px);transition:all .2s;padding:12px 0;margin:-12px 0 0}
 .sticky-hdr.shrink{padding:6px 0}
 .sticky-hdr.shrink .hdr-title{font-size:1rem}
 .sticky-hdr.shrink .hdr-close{transform:scale(0.65);transform-origin:left center}
@@ -630,6 +630,7 @@ function AuthApp(){
   const[theme]=useState(()=>localStorage.getItem('app-theme')||'black');
   useEffect(()=>{const onScroll=(e)=>{const st=(e.target&&e.target.scrollTop)||window.scrollY||0;const hdrs=document.querySelectorAll('.sticky-hdr');hdrs.forEach(h=>{if(st>20)h.classList.add('shrink');else h.classList.remove('shrink')})};document.addEventListener('scroll',onScroll,true);window.addEventListener('scroll',onScroll);return()=>{document.removeEventListener('scroll',onScroll,true);window.removeEventListener('scroll',onScroll)}},[]);
   const bgColor=THEMES[theme]||THEMES.black;const isLight=theme==='white'||theme==='pink';
+  useEffect(()=>{try{document.documentElement.style.setProperty('--bg',bgColor)}catch(_e){}},[bgColor]);
   const settings=LS.get('app-settings')||{};const lang=settings.lang||'zh';const t=T[lang];
   useEffect(()=>{document.body.style.backgroundColor=bgColor;buildDynamicKey();try{if((window.location.hash||'').indexOf('auto=1')===-1){if(window.__hideBootScreen)window.__hideBootScreen()}}catch(e){}},[]);
   return(<div className={`min-h-screen ${isLight?'text-gray-900':'text-gray-100'}`} style={{backgroundColor:bgColor}} data-light={isLight||undefined}><AuthGate t={t}/></div>);

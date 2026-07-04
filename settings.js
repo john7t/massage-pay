@@ -12,7 +12,7 @@ function ChartPage({t,settings}){
   useEffect(()=>{let alive=true;loadStats().then(s=>{if(alive)setStats(s)});return()=>{alive=false}},[]);
   const SUBS=[['shift',t.chartShiftRatio],['gender',t.chartGenderRatio],['a1',t.chartWorkStart],['a2',t.chartOnline]];
   // 時段順序:早上7點 → 隔天早上6點(跨夜連續)
-  const HOURS=Array.from({length:24},(_,i)=>(i+6)%24);
+  const HOURS=Array.from({length:24},(_,i)=>(i+7)%24);
   // 橫向長條圖:arr=24長度人數陣列,點長條設pickHour
   const hbar=(arr,desc)=>{const max=Math.max(1,...arr);const totalP=arr.reduce((a,b)=>a+b,0);if(totalP===0)return<p className="text-sm text-gray-500 text-center py-8">{t.chartNoData}</p>;return(<div className="space-y-2"><p className="text-xs text-gray-500">{desc}</p><div className="space-y-1">{HOURS.map(h=>{const v=arr[h]||0;const on=pickHour===h;return(<div key={h} onClick={()=>setPickHour(on?null:h)} className="flex items-center gap-2 active:opacity-70"><span className={`text-[10px] tabular-nums w-7 text-right ${on?'text-amber-300 font-bold':'text-gray-500'}`}>{String(h).padStart(2,'0')}</span><div className="flex-1 h-4 bg-white/[0.03] rounded-sm overflow-hidden"><div className="h-full rounded-sm transition-all" style={{width:(v/max*100)+'%',background:on?'#fbbf24':'#D97706'}}></div></div><span className={`text-[10px] tabular-nums w-5 ${on?'text-amber-300 font-bold':'text-gray-500'}`}>{v||''}</span></div>)})}</div></div>)};
   // 圓餅圖(SVG)
@@ -179,7 +179,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
         <div><label className="text-xs text-gray-400 mb-1 block">{t.theme}</label>
           <div className="grid grid-cols-4 gap-2">{[['pink',t.themePink,'#fce4f6'],['black',t.themeBlack,'#030712'],['gray',t.themeGray,'#1f2937'],['white',t.themeWhite,'#f9fafb']].map(([k,l,c])=>(<button key={k} onClick={()=>setTheme(k)} className={`py-2.5 rounded-xl text-xs font-semibold border-2 ${theme===k?'border-amber-500':'border-transparent'}`} style={{backgroundColor:c,color:k==='black'||k==='gray'?'#ccc':'#333'}}>{l}</button>))}</div>
         </div>
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.bizCutoffLabel}</label><input type="time" value={form.bizCutoff||'06:30'} onChange={e=>upd({bizCutoff:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3.5 text-lg text-center text-gray-100 focus:outline-none focus:border-amber-500" style={{minHeight:'52px'}}/><p className="text-[11px] text-gray-500 mt-1">{t.bizCutoffHint}</p></div>
+        <div><label className="text-xs text-gray-400 mb-1 block">{t.bizCutoffLabel}</label><input type="time" value={form.bizCutoff||'06:30'} onChange={e=>upd({bizCutoff:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/><p className="text-[11px] text-gray-500 mt-1">{t.bizCutoffHint}</p></div>
         {(()=>{const ghLocal=getGHConfig();const hasConn=!!(ghLocal&&ghLocal.token);return(
           <div className="space-y-2"><label className="text-xs text-gray-400 mb-1 block">{t.serviceStatus}</label>
             <div className="bg-white/[0.04] rounded-xl px-4 py-3 flex items-center justify-between"><span className="text-sm text-gray-400">{t.connection}</span><span className="text-sm">{hasConn?t.connOnline:t.connOffline}</span></div>
