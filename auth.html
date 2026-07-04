@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.9-022</title>
+<title>薪資追蹤 · 管理 v1.9-023</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -329,7 +329,7 @@ function WorkHoursChart({t,staffList,myStore,gh}){
   rows.forEach(s=>{const sh=hourOf(s.workStart);if(sh===null)return;if(mode==='start'){counts[sh]++}else{let eh=hourOf(s.workEnd);if(eh===null)eh=(sh+12)%24;let h=sh;for(let i=0;i<24;i++){counts[h]++;if(h===eh)break;h=(h+1)%24;if(h===sh)break}}});
   const maxC=Math.max(1,...counts);
   // 時段順序:早7→隔天早6
-  const HOURS=Array.from({length:24},(_,i)=>(i+7)%24);
+  const HOURS=Array.from({length:24},(_,i)=>(i+6)%24);
   // 點某時段，列出該時段的老師（編號:上工時間）
   const hourDetail=(h)=>{if(mode==='start'){return rows.filter(s=>hourOf(s.workStart)===h).map(s=>({code:s.code,ws:s.workStart}))}else{return rows.filter(s=>{const sh=hourOf(s.workStart);if(sh===null)return false;let eh=hourOf(s.workEnd);if(eh===null)eh=(sh+12)%24;let hh=sh;for(let i=0;i<24;i++){if(hh===h)return true;if(hh===eh)break;hh=(hh+1)%24;if(hh===sh)break}return false}).map(s=>({code:s.code,ws:s.workStart,we:s.workEnd}))}};
   const detail=pickHour!==null?hourDetail(pickHour):[];
