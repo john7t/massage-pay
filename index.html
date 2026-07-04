@@ -17,17 +17,16 @@
       var ver=(document.title.match(/v?(\d+\.\d+[-.]\d+(?:\.\d+)?)/)||[])[1]||"?";
       var line=(detail&&detail.lineno)?detail.lineno:0;
       var ecode=PCODE+String(src).padStart(2,"0")+String(line%10000).padStart(4,"0");
-      window.__fbData={page:PAGE,ver:ver,code:ecode,msg:(detail&&detail.msg)?String(detail.msg).slice(0,200):''};
+      window.__fbData={page:PAGE,ver:ver,code:ecode};
       var el=document.getElementById("__fallback");
       if(el){
         window.__fbApply();
-        try{var md=document.getElementById("__fbmsg");if(md&&window.__fbData.msg)md.textContent=window.__fbData.msg;}catch(e){}
         el.style.display="flex";
       }
       var root=document.getElementById("root");if(root)root.style.display="none";
     }catch(e){}
   };
-  window.addEventListener("error",function(e){window.__showFallback(1,{lineno:e.lineno,msg:(e&&e.message)||((e&&e.error)&&e.error.message)||''})},true);
+  window.addEventListener("error",function(e){window.__showFallback(1,{lineno:e.lineno})},true);
   window.addEventListener("unhandledrejection",function(e){try{console.warn('unhandledrejection:',e&&e.reason)}catch(_e){}try{if(e&&e.preventDefault)e.preventDefault()}catch(_e){}});
 })();
 </script>
@@ -35,7 +34,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.9-023.1</title>
+<title>薪資追蹤 v1.9-023b</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -180,7 +179,6 @@ input[type=number]{-moz-appearance:textfield}
   </div>
   <h1 id="__fbtitle" style="font-size:22px;font-weight:500;color:#f3f4f6;margin:0 0 1rem;line-height:1.3">網站更新中</h1>
   <p id="__fbinfo" style="font-size:12px;color:#6b7280;margin:0 0 2rem;font-family:monospace"></p>
-  <p id="__fbmsg" style="font-size:11px;color:#b91c1c;margin:-1.5rem 0 2rem;font-family:monospace;word-break:break-all;max-width:90%"></p>
   <div style="display:flex;gap:6px;margin-bottom:3rem">
     <span style="width:7px;height:7px;border-radius:50%;background:#BA7517;display:block;animation:fbpulse 1.4s ease-in-out infinite"></span>
     <span style="width:7px;height:7px;border-radius:50%;background:#BA7517;display:block;animation:fbpulse 1.4s ease-in-out .2s infinite"></span>
@@ -269,7 +267,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile}){
 /* ══════════ Shared components ══════════ */
 function SummaryTable({prev,next,month,t}){const Row=({label,data,bold})=>(<div className={`flex items-center py-2.5 ${bold?'':'border-b border-white/[0.04]'}`}><div className={`w-16 text-sm font-semibold ${bold?'text-amber-300':'text-gray-400'}`}>{label}</div><div className={`flex-1 text-right text-lg font-bold tabular-nums ${bold?'text-emerald-400':'text-emerald-400/80'}`}>${data.salary.toLocaleString()}</div><div className="w-14 text-right text-sm text-gray-400 tabular-nums">{data.units}</div><div className="w-10 text-right text-sm text-orange-400 tabular-nums">{data.laodian}</div></div>);return(<div className="bg-white/[0.02] border border-white/[0.06] rounded-xl px-3 py-1"><div className="flex items-center pt-1.5 pb-1 text-[10px] text-gray-600"><div className="w-16"></div><div className="flex-1 text-right">{t.salary}</div><div className="w-14 text-right">{t.units}</div><div className="w-10 text-right">{t.laodian}</div></div><Row label={t.prevPeriod} data={prev}/><Row label={t.nextPeriod} data={next}/><div className="border-t border-amber-500/30 mt-0.5 pt-0.5"><Row label={t.monthTotal} data={month} bold/></div></div>)}
 
-function DayRow({day,d,y,m,t,up,sk,onEdit,isToday}){const dw=dow(y,m,d),we=dw===0||dw===6,nw=!canWork[day.status];const sal=calcSal(day,up,sk);return(<div data-today-row={isToday?'1':undefined} onClick={()=>onEdit(d)} className={`flex items-center px-3 py-2.5 border-b active:bg-white/[0.06] cursor-pointer ${isToday?'border-emerald-500/40 bg-emerald-500/[0.06]':'border-white/[0.04]'} ${nw?'opacity-50':''}`}><div className="w-14 flex-shrink-0"><span className={`text-sm font-semibold ${isToday?'text-emerald-400':'text-gray-200'}`}>{d}</span><span className={`text-[11px] ml-1 ${we?'text-amber-500':'text-gray-600'}`}>{t.dn[dw]}</span></div><div className="flex-1 flex items-center gap-2 min-w-0">{nw?(<span className={`text-xs px-2 py-0.5 rounded-full ${SBG[day.status]} ${STC[day.status]}`}>{t[SK[day.status]]}</span>):(<><span className="text-sm text-gray-200 w-8 text-right tabular-nums font-medium">{day.total||''}</span><span className="text-sm text-emerald-400/80 w-16 text-right tabular-nums">{sal>0?'$'+sal.toLocaleString():''}</span><span className="text-sm text-orange-400/80 w-5 text-center tabular-nums">{day.laodian||''}</span>{(day.status===2||day.status===5)&&<span className={`text-[10px] px-1.5 py-0.5 rounded-full ${SBG[day.status]} ${STC[day.status]}`}>{t[SK[day.status]]}</span>}{day.skills&&SKILL_KEYS.map((k,i)=>(sk?.[k]&&day.skills[k]>0)?<span key={k} className={`text-[10px] ${SKILL_COLORS[i]}`}>{t[SKILL_SHORT[i]]}{day.skills[k]}</span>:null)}{(day.groups||[]).length>1&&<span className="text-[10px] text-gray-600 truncate">{(day.groups||[]).join('+')}</span>}</>)}</div><svg className="w-3.5 h-3.5 text-gray-700 flex-shrink-0 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg></div>)}
+function DayRow({day,d,y,m,t,up,sk,onEdit,isToday}){const dw=dow(y,m,d),we=dw===0||dw===6,nw=!canWork[day.status];const sal=calcSal(day,up,sk);return(<div data-today-row={isToday?'1':undefined} onClick={()=>onEdit(d)} className={`flex items-center px-3 py-2.5 border-b active:bg-white/[0.06] cursor-pointer ${isToday?'border-emerald-500/40 bg-emerald-500/[0.06]':'border-white/[0.04]'} ${nw?'opacity-50':''}`}><div className="w-14 flex-shrink-0"><span className="text-sm font-semibold text-gray-200">{d}</span><span className={`text-[11px] ml-1 ${we?'text-amber-500':'text-gray-600'}`}>{t.dn[dw]}</span></div><div className="flex-1 flex items-center gap-2 min-w-0">{nw?(<span className={`text-xs px-2 py-0.5 rounded-full ${SBG[day.status]} ${STC[day.status]}`}>{t[SK[day.status]]}</span>):(<><span className="text-sm text-gray-200 w-8 text-right tabular-nums font-medium">{day.total||''}</span><span className="text-sm text-emerald-400/80 w-16 text-right tabular-nums">{sal>0?'$'+sal.toLocaleString():''}</span><span className="text-sm text-orange-400/80 w-5 text-center tabular-nums">{day.laodian||''}</span>{(day.status===2||day.status===5)&&<span className={`text-[10px] px-1.5 py-0.5 rounded-full ${SBG[day.status]} ${STC[day.status]}`}>{t[SK[day.status]]}</span>}{day.skills&&SKILL_KEYS.map((k,i)=>(sk?.[k]&&day.skills[k]>0)?<span key={k} className={`text-[10px] ${SKILL_COLORS[i]}`}>{t[SKILL_SHORT[i]]}{day.skills[k]}</span>:null)}{(day.groups||[]).length>1&&<span className="text-[10px] text-gray-600 truncate">{(day.groups||[]).join('+')}</span>}</>)}</div><svg className="w-3.5 h-3.5 text-gray-700 flex-shrink-0 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg></div>)}
 
 function SlipTags({slip,t,code,onAdd,onDel}){
   const[input,setInput]=useState('');
