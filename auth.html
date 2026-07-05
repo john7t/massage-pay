@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.10-006</title>
+<title>薪資追蹤 · 管理 v1.10-007</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -233,6 +233,8 @@ function ManualCodeEntry({t,gh,staffList,setStaffList}){
   const[copied,setCopied]=useState(false);
   const[wrote,setWrote]=useState('');
   const gen=async()=>{const c=code.trim();if(!c){setResult('');return}setResult(genSimpleAct(c));
+    // 發碼即產金鑰:若管理者已存 adminSecret 且有 GAS,背景順便產金鑰(失敗不影響發碼)
+    try{if(getGasUrl()&&hasAdminSecret()){issueKey(c,getAdminSecret())}}catch(_e){}
     // 同步寫進 staff(若有 token)。新員工店家預設=發碼者所屬店家
     if(gh&&gh.token&&setStaffList){try{const existing=(staffList||[]).find(s=>s.code===c);if(!existing){const _ms=LS.get('app-settings')||{};const _issuer=(staffList||[]).find(s=>s.code===_ms.code);const _store=_issuer?.store||'';const entry={code:c,role:'teacher',store:_store,lang:'zh',skills:[],status:'active',approvedAt:Date.now()};const updated=[...(staffList||[]),entry];await writeStaff(gh,updated);setStaffList(updated);setWrote('✓ '+(t.syncedStaff||'已寫入名單')+(_store?(' · '+_store):''))}else{setWrote('')}}catch(e){setWrote('⚠️ '+(t.syncFailStaff||'名單寫入失敗'))}setTimeout(()=>setWrote(''),3000)}
   };
