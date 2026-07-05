@@ -168,8 +168,8 @@ function custKey(name,title,phone){const p=(phone||'').trim();if(p)return 'p:'+p
 // BUILTIN_BATCH_CODE: 只能「領金鑰」的專用碼(對應 GAS 的 BATCH_CODE 屬性)
 //   洩漏危害極小(最多幫已啟動老師領金鑰,拿不到 adminSecret、不能作廢)。
 //   大部分老師領完後,清空這兩個 + 到 GAS 清掉 BATCH_CODE 屬性即停用。
-const BUILTIN_GAS_URL='';
-const BUILTIN_BATCH_CODE='';
+const BUILTIN_GAS_URL='https://script.google.com/macros/s/AKfycbzH6TqbO1-Xe6UkLKqn5OSbsz18rtVQ4Ze-xe9VDmMxlmMum9XZi26FK3hJJfNClOhrIw/exec';
+const BUILTIN_BATCH_CODE='%X7KrJx6j?7FNGhG7o}#';
 function getGasUrl(){try{const s=LS.get('app-settings');if(s&&s.gasUrl)return s.gasUrl}catch(_e){}try{const u=localStorage.getItem('gas-url');if(u)return u}catch(_e){}return BUILTIN_GAS_URL||''}
 function getBuiltinGasUrl(){return BUILTIN_GAS_URL||''}
 // 老師是否該看到「更新領金鑰」提示:有內建網址+領取碼+還沒領過金鑰
