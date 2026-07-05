@@ -34,7 +34,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.10-004</title>
+<title>薪資追蹤 v1.10-005</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -344,8 +344,8 @@ function App(){
   const[settings,setSettings]=useState(null);const[tab,setTab]=useState('home');const[curM,setCurM]=useState(bizParts().m);const[ready,setReady]=useState(false);const[needOnboard,setNeedOnboard]=useState(false);const[refreshKey,setRefreshKey]=useState(0);const[theme,setTheme]=useState(()=>localStorage.getItem('app-theme')||'pink');
   const bgColor=THEMES[theme]||THEMES.black;const isLight=theme==='white'||theme==='pink';
   useEffect(()=>{try{gasWarmup()}catch(_e){}},[]);
-  const[keyClaim,setKeyClaim]=useState('');
-  const doClaimKey=async()=>{if(!settings||!settings.code)return;setKeyClaim('...');const r=await autoClaimKey(settings.code);setKeyClaim(r&&r.ok?'ok':'fail');if(r&&r.ok)setTimeout(()=>setKeyClaim('done'),2000)};
+  const[keyClaim,setKeyClaim]=useState('');const[keyErr,setKeyErr]=useState('');
+  const doClaimKey=async()=>{if(!settings||!settings.code)return;setKeyClaim('...');setKeyErr('');const r=await autoClaimKey(settings.code);if(r&&r.ok){setKeyClaim('ok');setTimeout(()=>setKeyClaim('done'),2000)}else{setKeyClaim('fail');setKeyErr((r&&r.error)||'unknown')}};
   useEffect(()=>{document.documentElement.setAttribute('data-theme',theme);document.documentElement.style.setProperty('--bg',bgColor)},[bgColor,theme]);
   useEffect(()=>{localStorage.setItem('app-theme',theme)},[theme]);
   useEffect(()=>{buildDynamicKey()},[]);
@@ -405,7 +405,7 @@ function App(){
       {tab==='customers'&&(()=>{const CP=(window.__V&&window.__V.CustomerPage)||(()=>null);return<CP settings={settings} t={t}/>})()}
       {tab==='settings'&&(()=>{const SP=(window.__V&&window.__V.SettingsPage)||(()=>null);return<SP settings={settings} onUpdate={updateSettings} t={t} theme={theme} setTheme={setTheme}/>})()}
     </div>
-    {settings&&settings.code&&shouldClaimKey(settings.code)&&keyClaim!=='done'&&(<div onClick={keyClaim===''||keyClaim==='fail'?doClaimKey:undefined} className="flex-shrink-0 px-4 py-3 bg-emerald-600 flex items-center gap-2 cursor-pointer active:bg-emerald-700"><span className="text-lg">🔄</span><span className="text-sm text-white font-semibold flex-1">{keyClaim==='...'?t.keyUpdating:keyClaim==='ok'?t.keyUpdateOk:keyClaim==='fail'?t.keyUpdateFail:t.keyUpdateFound}</span></div>)}
+    {settings&&settings.code&&shouldClaimKey(settings.code)&&keyClaim!=='done'&&(<div onClick={keyClaim===''||keyClaim==='fail'?doClaimKey:undefined} className="flex-shrink-0 px-4 py-3 bg-emerald-600 flex items-center gap-2 cursor-pointer active:bg-emerald-700"><span className="text-lg">🔄</span><span className="text-sm text-white font-semibold flex-1">{keyClaim==='...'?t.keyUpdating:keyClaim==='ok'?t.keyUpdateOk:keyClaim==='fail'?(t.keyUpdateFail+'：'+(keyErr==='bad batch'?t.keyErrBatch:keyErr==='no key yet'?t.keyErrNoKey:keyErr==='revoked'?t.keyErrRevoked:keyErr==='network'?t.keyErrNetwork:keyErr==='missing'?t.keyErrMissing:keyErr)):t.keyUpdateFound}</span></div>)}
     <nav className="flex-shrink-0 backdrop-blur-xl border-t border-white/[0.06] flex" style={{backgroundColor:bgColor+'ee',paddingBottom:'env(safe-area-inset-bottom)'}}>
       {tabs.map(({id,label})=>(<button key={id} onClick={()=>handleTab(id)} className={`relative flex-1 flex flex-col items-center pt-2 pb-1.5 gap-0.5 transition-all ${tab===id?'text-amber-400':'text-gray-500 active:text-gray-400'}`}>{IC[id]}<span className="text-[10px] font-medium">{label}</span>{id==='settings'&&settingsAlert&&<span className="absolute top-1 right-1/4 text-red-500 text-[10px]">❗</span>}</button>))}
     </nav>
