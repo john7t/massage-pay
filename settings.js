@@ -1,7 +1,7 @@
 // settings.js — 設定頁相關元件(從 index.html 抽離,降低 index 體積)
 // 注意:此檔為 type="text/babel",獨立作用域,需自行宣告 hooks 與 bridge
 const{useState,useEffect,useCallback,useMemo}=React;
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,getGasUrl,setGasUrl,gasCall,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 function fmtSyncTime(iso){try{const d=new Date(iso);const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"/"+p(d.getMonth()+1)+"/"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes())}catch(_e){return ""}}
 
 function ChartPage({t,settings}){
@@ -91,7 +91,7 @@ function CustomerPage({t,settings}){
 }
 // 圖表分頁(老師端:讀stats.json快照顯示班別比/性別比)
 function SettingsPage({settings,onUpdate,t,theme,setTheme}){
-  const[form,setForm]=useState({...settings});
+  const[form,setForm]=useState({...settings});const[gasTest,setGasTest]=useState('');
   const[saved,setSaved]=useState(false);
   const[subTab,setSubTab]=useState('home');const[navLock,setNavLock]=useState(false);
   useEffect(()=>{try{const s=sessionStorage.getItem('__settingsSub');if(s){setSubTab(s);sessionStorage.removeItem('__settingsSub')}}catch(e){}},[]);
@@ -193,6 +193,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
             </div>)}
           </div>
         )})()}
+        {(()=>{const gh=getGHConfig();if(!(gh&&gh.token))return null;return(<div className="space-y-2 bg-white/[0.02] border border-emerald-500/20 rounded-xl p-3"><label className="text-xs text-emerald-400 font-semibold mb-1 block">{t.gasSettingTitle}</label><input value={form.gasUrl||''} onChange={e=>upd({gasUrl:e.target.value})} placeholder="https://script.google.com/.../exec" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-xs text-gray-100 focus:outline-none focus:border-emerald-500" style={{boxSizing:'border-box',maxWidth:'90%'}}/><button onClick={async()=>{if(form.gasUrl)setGasUrl(form.gasUrl);setGasTest('...');try{const r=await gasCall('ping',{});setGasTest(r&&r.ok?'ok':'fail')}catch(_e){setGasTest('fail')}setTimeout(()=>setGasTest(''),3000)}} className="w-full py-2 rounded-lg bg-emerald-600/20 text-emerald-400 text-xs font-medium">{gasTest==='...'?t.gasTesting:gasTest==='ok'?'✓ '+t.gasTestOk:gasTest==='fail'?'✗ '+t.gasTestFail:t.gasTestBtn}</button><p className="text-[11px] text-gray-500">{t.gasSettingHint}</p></div>)})()}
         <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-3 space-y-2">
           <p className="text-sm text-gray-300 font-semibold">{t.privacyTitle}</p>
           <p className="text-[13px] text-gray-400 leading-relaxed">{t.privacyBody}</p>
