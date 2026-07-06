@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.10-007</title>
+<title>薪資追蹤 · 管理 v1.10-011</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -205,7 +205,7 @@ input[type=number]{-moz-appearance:textfield}
 <style>@keyframes fbspin{to{transform:rotate(360deg)}}@keyframes fbpulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
 <script src="./common.js"></script>
 <script type="text/babel">
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,getGasUrl,issueKey,getMyKey,setMyKey,hasMyKey,getAdminSecret,setAdminSecret,hasAdminSecret,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,genUUID,getDeviceId,SUP_LEVELS,supLevelName,effSupLevel,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,computeStats,publishStats,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,T}=window.MP;
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,getGasUrl,issueKey,publishNotices,getMyKey,setMyKey,hasMyKey,getAdminSecret,setAdminSecret,hasAdminSecret,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,genUUID,getDeviceId,SUP_LEVELS,supLevelName,effSupLevel,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,computeStats,publishStats,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 const goHome=()=>{location.href='./index.html'};
@@ -225,6 +225,17 @@ function KeyGenBlock({t,presetCode}){
     {!presetCode&&<input value={code} onChange={e=>setCode(e.target.value)} placeholder={t.keyGenCodePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-xs text-gray-100 focus:outline-none focus:border-emerald-500"/>}
     <button onClick={gen} className="w-full py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold active:bg-emerald-700">{result&&result.loading?t.gasTesting:t.keyGenBtn}{presetCode?' ('+presetCode+')':''}</button>
     {result&&!result.loading&&(result.ok?(<p className="text-[11px] text-emerald-400">✓ {result.existed?t.keyGenExisted:t.keyGenDone}</p>):(<p className="text-[11px] text-red-400">✗ {result.error||t.gasTestFail}</p>))}
+  </div>);
+}
+// 更新公告(管理者):去GAS抓最新2筆→寫notices.json到GitHub
+function NoticePublishBlock({t,gh}){
+  const[st,setSt]=React.useState('');
+  if(!gh||!gh.token||!getGasUrl())return null;
+  const pub=async()=>{setSt('...');const r=await publishNotices(gh,2);setSt(r&&r.ok?'ok':'fail');setTimeout(()=>setSt(''),3000)};
+  return(<div className="space-y-2 bg-white/[0.02] border border-sky-500/20 rounded-xl p-3">
+    <label className="text-xs text-sky-400 font-semibold block">{t.noticePubTitle||'公告更新'}</label>
+    <button onClick={pub} className="w-full py-2 rounded-lg bg-sky-600 text-white text-xs font-semibold active:bg-sky-700">{st==='...'?(t.noticePubbing||'更新中…'):st==='ok'?'✓ '+(t.noticePubOk||'已更新公告'):st==='fail'?'✗ '+(t.noticePubFail||'更新失敗'):(t.noticePubBtn||'從GAS抓最新2筆存GitHub')}</button>
+    <p className="text-[11px] text-gray-500">{t.noticePubHint||'按此把GAS最新2筆公告發布到GitHub,所有老師即可看到。'}</p>
   </div>);
 }
 function ManualCodeEntry({t,gh,staffList,setStaffList}){
@@ -253,6 +264,7 @@ function ManualCodeEntry({t,gh,staffList,setStaffList}){
         <button onClick={async()=>{try{await navigator.clipboard.writeText(result).catch(()=>{})}catch(_e){};setCopied(true);setTimeout(()=>setCopied(false),2000)}} className="w-full py-2 bg-emerald-600 rounded-xl text-white text-sm font-semibold">{copied?'✓ '+t.copyDone:'📋 Copy'}</button>
       </div>)}
       <KeyGenBlock t={t}/>
+      <NoticePublishBlock t={t} gh={gh}/>
     </div>
   );
 }
