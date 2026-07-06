@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.10-011</title>
+<title>薪資追蹤 · 管理 v1.10-018</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -205,7 +205,7 @@ input[type=number]{-moz-appearance:textfield}
 <style>@keyframes fbspin{to{transform:rotate(360deg)}}@keyframes fbpulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
 <script src="./common.js"></script>
 <script type="text/babel">
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,getGasUrl,issueKey,publishNotices,getMyKey,setMyKey,hasMyKey,getAdminSecret,setAdminSecret,hasAdminSecret,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,genUUID,getDeviceId,SUP_LEVELS,supLevelName,effSupLevel,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,computeStats,publishStats,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,T}=window.MP;
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,getGasUrl,issueKey,publishNotices,diagClaimKey,getMyKey,setMyKey,hasMyKey,getAdminSecret,setAdminSecret,hasAdminSecret,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,genUUID,getDeviceId,SUP_LEVELS,supLevelName,effSupLevel,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,computeStats,publishStats,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 const goHome=()=>{location.href='./index.html'};
@@ -228,13 +228,37 @@ function KeyGenBlock({t,presetCode}){
   </div>);
 }
 // 更新公告(管理者):去GAS抓最新2筆→寫notices.json到GitHub
+// 金鑰領取診斷(管理者):輸入編號模擬領取,顯示完整過程
+function KeyDiagBlock({t}){
+  const[code,setCode]=React.useState('');
+  const[result,setResult]=React.useState(null);
+  const[loading,setLoading]=React.useState(false);
+  const run=async()=>{if(!code.trim())return;setLoading(true);setResult(null);const r=await diagClaimKey(code.trim());setResult(r);setLoading(false)};
+  return(<div className="space-y-2 bg-white/[0.02] border border-purple-500/20 rounded-xl p-3">
+    <label className="text-xs text-purple-400 font-semibold block">{t.keyDiagTitle||'金鑰領取診斷'}</label>
+    <div className="flex gap-2"><input value={code} onChange={e=>setCode(e.target.value)} placeholder={t.keyDiagPh||'輸入編號(如998)'} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-purple-500"/><button onClick={run} className="px-4 py-2 rounded-lg bg-purple-600 text-white text-xs font-semibold active:bg-purple-700">{loading?'…':(t.keyDiagBtn||'測試領取')}</button></div>
+    {result&&<div className={`rounded-lg p-2.5 text-[11px] font-mono space-y-1 ${result.result==='ok'?'bg-emerald-500/10':'bg-red-500/10'}`}>
+      <p className={result.result==='ok'?'text-emerald-400 font-bold':'text-red-400 font-bold'}>{result.result==='ok'?'✓ 成功':'✗ 失敗'}: {result.reason}</p>
+      <p className="text-gray-500">內建網址: {result.hasBuiltinUrl?result.builtinUrlPreview:'✗ 空(未填)'}</p>
+      <p className="text-gray-500">內建領取碼: {result.hasBuiltinBatch?'✓ 有填':'✗ 空(未填)'}</p>
+      <p className="text-gray-500">本機已有金鑰: {result.alreadyHasKey?'是':'否'} · 該顯示banner: {result.shouldClaim?'是':'否'}</p>
+      {result.httpStatus!==undefined&&<p className="text-gray-500">HTTP: {result.httpStatus}</p>}
+      {result.gasResponse&&<p className="text-gray-500 break-all">GAS回應: {result.gasResponse}</p>}
+    </div>}
+    <p className="text-[11px] text-gray-500">{t.keyDiagHint||'輸入老師編號模擬領取,看成功或卡在哪。'}</p>
+  </div>);
+}
 function NoticePublishBlock({t,gh}){
   const[st,setSt]=React.useState('');
+  const[step,setStep]=React.useState('');
+  const[errMsg,setErrMsg]=React.useState('');
   if(!gh||!gh.token||!getGasUrl())return null;
-  const pub=async()=>{setSt('...');const r=await publishNotices(gh,2);setSt(r&&r.ok?'ok':'fail');setTimeout(()=>setSt(''),3000)};
+  const pub=async()=>{setSt('...');setErrMsg('');setStep('');const r=await publishNotices(gh,2,(s)=>setStep(s));if(r&&r.ok){setSt('ok');setStep('');setTimeout(()=>setSt(''),4000)}else{setSt('fail');setErrMsg('['+((r&&r.step)||'?')+'] '+((r&&r.error)||'未知錯誤'))}};
   return(<div className="space-y-2 bg-white/[0.02] border border-sky-500/20 rounded-xl p-3">
     <label className="text-xs text-sky-400 font-semibold block">{t.noticePubTitle||'公告更新'}</label>
-    <button onClick={pub} className="w-full py-2 rounded-lg bg-sky-600 text-white text-xs font-semibold active:bg-sky-700">{st==='...'?(t.noticePubbing||'更新中…'):st==='ok'?'✓ '+(t.noticePubOk||'已更新公告'):st==='fail'?'✗ '+(t.noticePubFail||'更新失敗'):(t.noticePubBtn||'從GAS抓最新2筆存GitHub')}</button>
+    <button onClick={pub} className="w-full py-2 rounded-lg bg-sky-600 text-white text-xs font-semibold active:bg-sky-700">{st==='...'?(step||(t.noticePubbing||'更新中…')):st==='ok'?'✓ '+(t.noticePubOk||'已更新公告'):st==='fail'?'✗ '+(t.noticePubFail||'更新失敗'):(t.noticePubBtn||'從GAS抓最新2筆存GitHub')}</button>
+    {st==='...'&&step&&<p className="text-[11px] text-sky-400">⏳ {step}</p>}
+    {errMsg&&<p className="text-[11px] text-red-400 break-all">{errMsg}</p>}
     <p className="text-[11px] text-gray-500">{t.noticePubHint||'按此把GAS最新2筆公告發布到GitHub,所有老師即可看到。'}</p>
   </div>);
 }
@@ -265,6 +289,7 @@ function ManualCodeEntry({t,gh,staffList,setStaffList}){
       </div>)}
       <KeyGenBlock t={t}/>
       <NoticePublishBlock t={t} gh={gh}/>
+      <KeyDiagBlock t={t}/>
     </div>
   );
 }
