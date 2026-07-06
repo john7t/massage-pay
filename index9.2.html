@@ -35,7 +35,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.10-009.2</title>
+<title>薪資追蹤 v1.10-009.3</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -239,7 +239,7 @@ function Onboarding({onComplete}){
   </div></div>)}
 
 /* ══════════ Home Page ══════════ */
-function HomePage({settings,t,refreshKey,onGotoProfile}){
+function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices}){
   const now=bizDate();const bp=bizParts();const ty=settings.year||bp.y,tm=bp.m,td=bp.d;
   const[data,setData]=useState(null);const[prev,setPrev]=useState(null);const[otherMode,setOtherMode]=useState(false);const[otherVal,setOtherVal]=useState('');const[editPrev,setEditPrev]=useState(false);const[editToday,setEditToday]=useState(false);
   const load=()=>{const md=LS.get(dk(settings.code,ty,tm));if(md&&migrateMonthGroups(md)){LS.set(dk(settings.code,ty,tm),md)}setData(md);let found=false;if(md?.days){for(let d=td-1;d>=1;d--){const day=md.days[d];if(day&&(day.total>0||day.status>0)){setPrev({day:d,month:tm,year:ty,...day});found=true;break}}}if(!found){for(let pm=tm-1;pm>=1;pm--){const pmd=LS.get(dk(settings.code,ty,pm));if(!pmd)continue;for(let d=dim(ty,pm);d>=1;d--){const day=pmd.days?.[d];if(day&&(day.total>0||day.status>0)){setPrev({day:d,month:pm,year:ty,...day});found=true;break}}if(found)break}}if(!found)setPrev(null)};
