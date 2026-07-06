@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<script>
+/* ── 錯誤兜底攔截器（最早執行） ── */
+(function(){
+  var PAGE="index",PCODE="00";
+  window.__shownFallback=false;
+  var __fbL={zh:{title:"網站更新中",info:function(p,v,c){return p+" 網頁 v"+v+" 更新中　代碼 "+c},keep:"你所輸入的舊資料仍保存在你的手機暫存檔中。",warn:"資料只存在本機，不會上傳雲端。"},vi:{title:"Đang cập nhật",info:function(p,v,c){return p+" v"+v+" đang cập nhật　Mã "+c},keep:"Dữ liệu bạn nhập vẫn được lưu trong bộ nhớ tạm của điện thoại.",warn:"Dữ liệu chỉ lưu trên máy, không tải lên đám mây."}};
+  window.__fbLang=(function(){try{var s=localStorage.getItem('app-settings');if(s){var o=JSON.parse(s);if(o&&o.lang)return o.lang}}catch(e){}return 'zh'})();
+  window.__fbApply=function(){var L=__fbL[window.__fbLang]||__fbL.zh;var t=document.getElementById('__fbtitle');if(t)t.textContent=L.title;var k=document.getElementById('__fbkeep');if(k)k.textContent=L.keep;var w=document.getElementById('__fbwarn');if(w)w.textContent=L.warn;var b1=document.getElementById('__fblang_zh'),b2=document.getElementById('__fblang_vi');if(b1)b1.style.color=window.__fbLang==='zh'?'#f3f4f6':'#4b5563';if(b2)b2.style.color=window.__fbLang==='vi'?'#f3f4f6':'#4b5563';if(window.__fbData){var L2=__fbL[window.__fbLang]||__fbL.zh;var info=document.getElementById("__fbinfo");if(info)info.textContent=L2.info(window.__fbData.page,window.__fbData.ver,window.__fbData.code)}};
+  window.__fbSetLang=function(lang){window.__fbLang=lang;try{}catch(e){}window.__fbApply()};
+  window.__showFallback=function(src,detail){
+    if(window.__shownFallback)return;window.__shownFallback=true;
+    try{
+      var ver=(document.title.match(/v?(\d+\.\d+[-.]\d+(?:\.\d+)?)/)||[])[1]||"?";
+      var line=(detail&&detail.lineno)?detail.lineno:0;
+      var ecode=PCODE+String(src).padStart(2,"0")+String(line%10000).padStart(4,"0");
+      window.__fbData={page:PAGE,ver:ver,code:ecode,msg:(detail&&detail.msg)||''};
+      var el=document.getElementById("__fallback");
+      if(el){
+        window.__fbApply();
+        try{var md=document.getElementById("__fbmsg");if(md&&window.__fbData.msg){md.textContent=window.__fbData.msg;md.style.display="block";}}catch(_e){}
+        el.style.display="flex";
+      }
+      var root=document.getElementById("root");if(root)root.style.display="none";
+    }catch(e){}
+  };
+  window.addEventListener("error",function(e){window.__showFallback(1,{lineno:e.lineno})},true);
+  window.addEventListener("unhandledrejection",function(e){try{console.warn('unhandledrejection:',e&&e.reason)}catch(_e){}try{if(e&&e.preventDefault)e.preventDefault()}catch(_e){}});
+})();
+</script>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#030712">
+<title>薪資追蹤 v1.10-009.2</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+*{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+html{background:var(--bg,#030712)}body{margin:0;background:var(--bg,#030712);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none;min-height:100vh}
+/* v1.9-012 #11 S22U修正:各主題背景改純CSS靜態定義(不靠JS動態改色,Samsung Internet才會確實重繪) */
+html[data-theme="black"],html[data-theme="black"] body{background:#030712 !important}
+html[data-theme="pink"],html[data-theme="pink"] body{background:#fce4f6 !important}
+html[data-theme="white"],html[data-theme="white"] body{background:#f9fafb !important}
+html[data-theme="gray"],html[data-theme="gray"] body{background:#1f2937 !important}
+.no-sb::-webkit-scrollbar{display:none}.no-sb{-ms-overflow-style:none;scrollbar-width:none}
+select option{background:#111827;color:#f3f4f6}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes ledGreen{0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,.5),0 0 4px 1px rgba(16,185,129,.7)}50%{box-shadow:0 0 0 4px rgba(16,185,129,0),0 0 8px 2px rgba(16,185,129,.9)}}
+@keyframes ledGray{0%,100%{box-shadow:0 0 0 0 rgba(156,163,175,.35),0 0 3px 1px rgba(156,163,175,.4)}50%{box-shadow:0 0 0 4px rgba(156,163,175,0),0 0 5px 1px rgba(156,163,175,.55)}}
+@keyframes arrowBlink{0%,100%{opacity:1}50%{opacity:.25}}
+.led-green{background:#10b981;animation:ledGreen 1.6s ease-in-out infinite}
+.led-gray{background:#9ca3af;animation:ledGray 2s ease-in-out infinite}
+.arrow-blink{animation:arrowBlink 1s ease-in-out infinite}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.fi{animation:fadeIn .2s ease-out}.su{animation:slideUp .25s ease-out}
+</style>
+<style>
+/* ── v1.8-006: Light theme (pink/white) — 文字改深色，降低對比刺眼感 ── */
+[data-light] select option { background:#f3e8f5;color:#2d1a35; }
+
+/* Borders */
+[data-light] [class*="border-white"] { border-color: rgba(80,40,100,0.15) !important; }
+
+/* Card/surface backgrounds */
+[data-light] [class*="bg-white/[0.0"]  { background-color: rgba(80,30,100,0.04) !important; }
+[data-light] [class*="bg-white/[0.02"] { background-color: rgba(80,30,100,0.03) !important; }
+[data-light] [class*="bg-white/[0.03"] { background-color: rgba(80,30,100,0.04) !important; }
+[data-light] [class*="bg-white/[0.04"] { background-color: rgba(80,30,100,0.05) !important; }
+[data-light] [class*="bg-white/[0.05"] { background-color: rgba(80,30,100,0.06) !important; }
+[data-light] [class*="bg-white/[0.06"] { background-color: rgba(80,30,100,0.07) !important; }
+[data-light] [class*="bg-white/[0.08"] { background-color: rgba(80,30,100,0.08) !important; }
+[data-light] [class*="bg-white/[0.1"]  { background-color: rgba(80,30,100,0.09) !important; }
+[data-light] [class*="bg-white/10"]    { background-color: rgba(80,30,100,0.10) !important; }
+[data-light] [class*="bg-gray-900"]    { background-color: #f7eefa !important; }
+[data-light] [class*="bg-gray-950"]    { background-color: #f3e8f6 !important; }
+[data-light] [class*="bg-black/80"]    { background-color: rgba(60,20,80,0.55) !important; }
+[data-light] [class*="bg-gray-800"]    { background-color: rgba(80,30,100,0.12) !important; }
+
+/* ── Text ── 比原本深很多，在粉紅底上清晰易讀 */
+[data-light] .text-gray-100 { color: #1a0d22 !important; }
+[data-light] .text-gray-200 { color: #2d1a38 !important; }
+[data-light] .text-gray-300 { color: #3d2450 !important; }
+[data-light] .text-gray-400 { color: #5b3a70 !important; }
+[data-light] .text-gray-500 { color: #7a5490 !important; }
+[data-light] .text-gray-600 { color: #9a74aa !important; }
+[data-light] .text-gray-700 { color: #b896c8 !important; }
+
+/* Inputs */
+[data-light] input, [data-light] textarea, [data-light] select {
+  color: #1a0d22 !important;
+  background-color: rgba(80,30,100,0.06) !important;
+}
+[data-light] input::placeholder, [data-light] textarea::placeholder { color: #9a74aa !important; }
+[data-light] input:disabled, [data-light] textarea:disabled {
+  color: #9a74aa !important;
+  background-color: rgba(80,30,100,0.03) !important;
+}
+
+/* ── Amber ── */
+[data-light] .text-amber-400  { color: #92400e !important; }
+[data-light] .text-amber-300  { color: #78350f !important; }
+[data-light] .text-amber-500  { color: #b45309 !important; }
+[data-light] [class*="bg-amber-600"]    { background-color: #b45309 !important; }
+[data-light] [class*="bg-amber-500/10"] { background-color: rgba(180,83,9,0.10) !important; }
+[data-light] [class*="bg-amber-500/20"] { background-color: rgba(180,83,9,0.14) !important; }
+[data-light] [class*="bg-amber-600/10"] { background-color: rgba(180,83,9,0.10) !important; }
+[data-light] [class*="bg-amber-600/15"] { background-color: rgba(180,83,9,0.12) !important; }
+[data-light] [class*="bg-amber-600/20"] { background-color: rgba(180,83,9,0.14) !important; }
+[data-light] [class*="bg-amber-600/\[0"] { background-color: rgba(180,83,9,0.06) !important; }
+[data-light] [class*="border-amber-500"]  { border-color: rgba(180,83,9,0.35) !important; }
+[data-light] [class*="border-amber-600"]  { border-color: rgba(180,83,9,0.30) !important; }
+
+/* ── Emerald ── */
+[data-light] .text-emerald-400  { color: #065f46 !important; }
+[data-light] .text-emerald-300  { color: #047857 !important; }
+[data-light] [class*="text-emerald-400"] { color: #065f46 !important; }
+[data-light] [class*="text-emerald-300"] { color: #047857 !important; }
+[data-light] [class*="bg-emerald-500/10"] { background-color: rgba(6,95,70,0.08) !important; }
+[data-light] [class*="bg-emerald-500/15"] { background-color: rgba(6,95,70,0.10) !important; }
+[data-light] [class*="bg-emerald-600/20"] { background-color: rgba(6,95,70,0.10) !important; }
+[data-light] [class*="bg-emerald-600"]    { background-color: #047857 !important; }
+[data-light] [class*="border-emerald-500"] { border-color: rgba(6,95,70,0.30) !important; }
+
+/* ── Orange ── */
+[data-light] .text-orange-400  { color: #9a3412 !important; }
+[data-light] [class*="text-orange-400"]  { color: #9a3412 !important; }
+[data-light] [class*="text-orange-400/80"] { color: rgba(154,52,18,0.80) !important; }
+[data-light] [class*="bg-orange-500/10"] { background-color: rgba(154,52,18,0.08) !important; }
+[data-light] [class*="bg-orange-500/15"] { background-color: rgba(154,52,18,0.10) !important; }
+[data-light] [class*="border-orange-500"] { border-color: rgba(154,52,18,0.25) !important; }
+
+/* ── Red ── */
+[data-light] [class*="text-red-400"]    { color: #991b1b !important; }
+[data-light] [class*="text-red-300"]    { color: #7f1d1d !important; }
+[data-light] [class*="bg-red-500/10"]   { background-color: rgba(153,27,27,0.08) !important; }
+[data-light] [class*="bg-red-500/15"]   { background-color: rgba(153,27,27,0.10) !important; }
+[data-light] [class*="bg-red-500/20"]   { background-color: rgba(153,27,27,0.12) !important; }
+[data-light] [class*="bg-red-500/30"]   { background-color: rgba(153,27,27,0.16) !important; }
+[data-light] [class*="border-red-500"]  { border-color: rgba(153,27,27,0.25) !important; }
+
+/* ── Status badge text ── */
+[data-light] .text-yellow-300 { color: #78350f !important; }
+[data-light] .text-blue-300   { color: #1e40af !important; }
+[data-light] .text-purple-300 { color: #5b21b6 !important; }
+[data-light] .text-orange-300 { color: #9a3412 !important; }
+[data-light] .bg-yellow-500\/20 { background-color: rgba(161,98,7,0.12) !important; }
+[data-light] .bg-blue-500\/20   { background-color: rgba(29,78,216,0.10) !important; }
+[data-light] .bg-purple-500\/20 { background-color: rgba(109,40,217,0.10) !important; }
+
+/* ── Skill colours ── */
+[data-light] .text-cyan-400   { color: #0e7490 !important; }
+[data-light] .text-violet-400 { color: #6d28d9 !important; }
+[data-light] .text-pink-400   { color: #be185d !important; }
+
+/* Nav */
+[data-light] nav { border-top-color: rgba(80,30,100,0.15) !important; }
+[data-light] .animate-pulse { opacity: 0.85; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="__fallback" style="display:none;position:fixed;inset:0;z-index:99999;min-height:100svh;flex-direction:column;align-items:center;justify-content:center;padding:3rem 1.5rem;text-align:center;background:#030712;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <div style="position:absolute;top:1rem;right:1rem;display:flex;gap:2px;font-size:13px;font-family:monospace"><span id="__fblang_zh" onclick="window.__fbSetLang('zh')" style="color:#f3f4f6;cursor:pointer;padding:4px 8px">中</span><span style="color:#374151;padding:4px 0">/</span><span id="__fblang_vi" onclick="window.__fbSetLang('vi')" style="color:#4b5563;cursor:pointer;padding:4px 8px">VI</span></div>
+  <div style="position:relative;width:72px;height:72px;margin-bottom:2rem">
+    <svg viewBox="0 0 72 72" width="72" height="72" style="position:absolute;top:0;left:0;animation:fbspin 1.8s linear infinite">
+      <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="3"/>
+      <circle cx="36" cy="36" r="30" fill="none" stroke="#BA7517" stroke-width="3" stroke-dasharray="60 130" stroke-linecap="round"/>
+    </svg>
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#BA7517" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+    </div>
+  </div>
+  <h1 id="__fbtitle" style="font-size:22px;font-weight:500;color:#f3f4f6;margin:0 0 1rem;line-height:1.3">網站更新中</h1>
+  <p id="__fbinfo" style="font-size:12px;color:#6b7280;margin:0 0 2rem;font-family:monospace"></p>
+  <div style="display:flex;gap:6px;margin-bottom:3rem">
+    <span style="width:7px;height:7px;border-radius:50%;background:#BA7517;display:block;animation:fbpulse 1.4s ease-in-out infinite"></span>
+    <span style="width:7px;height:7px;border-radius:50%;background:#BA7517;display:block;animation:fbpulse 1.4s ease-in-out .2s infinite"></span>
+    <span style="width:7px;height:7px;border-radius:50%;background:#BA7517;display:block;animation:fbpulse 1.4s ease-in-out .4s infinite"></span>
+  </div>
+  <div style="border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:1rem 1.25rem;max-width:300px;text-align:left">
+    <p id="__fbkeep" style="font-size:13px;color:#9ca3af;margin:0 0 .5rem;line-height:1.7">你所輸入的舊資料仍保存在你的手機暫存檔中。</p>
+    <p style="font-size:12px;color:#6b7280;margin:0;display:flex;align-items:flex-start;gap:6px"><span style="flex-shrink:0">⚠️</span><span id="__fbwarn">資料只存在本機，不會上傳雲端。</span></p>
+  <div id="__fbmsg" style="display:none;margin-top:1rem;padding:10px 12px;background:#1e1b1b;border:1px solid #7f1d1d;border-radius:8px;font-family:monospace;font-size:11px;color:#fca5a5;max-width:90%;word-break:break-all;white-space:pre-wrap"></div>
+  </div>
+</div>
+<style>@keyframes fbspin{to{transform:rotate(360deg)}}@keyframes fbpulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
+<script src="./common.js"></script>
+<script type="text/babel" src="./settings.js"></script>
+<script type="text/babel">
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,noticeBody,getGasUrl,shouldClaimKey,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{useState,useEffect,useCallback,useMemo}=React;
+
+function NoticeBox({t,agreed,setAgreed}){return(<div className="mt-6 space-y-2"><button onClick={()=>setAgreed(!agreed)} className="flex items-center gap-2 w-full text-left"><span className={`w-5 h-5 rounded flex items-center justify-center text-xs flex-shrink-0 ${agreed?'bg-amber-600 text-white':'bg-white/[0.06] border border-white/[0.12] text-transparent'}`}>✓</span><span className="text-[13px] text-gray-300 font-semibold">{t.readConfirm}</span></button><div className="space-y-1.5 text-[11px] text-gray-500 leading-relaxed pl-7"><p>{t.privacyBody}</p><p>{t.browserNote}</p><p>{t.myBookingNote}</p><p className="text-red-400/80">{t.backupReminder}</p></div></div>)}
+
+/* ══════════ StaffListSection ══════════ */
+function Onboarding({onComplete}){
+  const[step,setStep]=useState(1);const[lang,setLang]=useState('zh');const[code,setCode]=useState('');const[actInput,setActInput]=useState('');const[err,setErr]=useState('');const[checking,setChecking]=useState(false);const[copied,setCopied]=useState(false);const[devId]=useState(()=>getDeviceId());const[stores,setStores]=useState(['龍山寺店']);const[store,setStore]=useState('龍山寺店');const[waitStatus,setWaitStatus]=useState('');const[agreed,setAgreed]=useState(false);const[agreeErr,setAgreeErr]=useState(false);
+  const t=T[lang];
+  useEffect(()=>{loadStores().then(s=>{setStores(s);setStore(s[0]||'龍山寺店')})},[]);
+  const encReg=code?xEnc(`${code}:${devId}:${lang}:${encodeURIComponent(store)}`):'';
+  const qrUrl=encReg?`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(encReg)}&bgcolor=030712&color=f3f4f6`:'';
+  const doActivate=(settings)=>{LS.set('app-settings',settings);LS.set(`activated-${code}`,{deviceId:devId,ts:Date.now()});try{if(shouldClaimKey(code)){autoClaimKey(code)}}catch(_e){}onComplete(settings)};
+  const goStep2=async()=>{
+    if(!code.trim())return;if(!agreed){setAgreeErr(true);return}setAgreeErr(false);setChecking(true);
+    try{const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),5000);const res=await fetch('./admin.cfg',{cache:'no-store',signal:ctrl.signal});clearTimeout(timer);if(res.ok){const text=(await res.text()).trim();const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));const myHash=adminHash(code);const match=lines.some(l=>{const parts=l.split(':');const h=parts.length>=2?parts[parts.length-1]:parts[0];return h===myHash});if(match){doActivate({code,unitPrice:250,lang,store,year:bizParts().y,deviceId:devId});return}}}catch(_e){}
+    try{const result=await checkApproved('t',approveHash(code,devId));if(result){doActivate({code,unitPrice:250,lang,store,year:bizParts().y,deviceId:devId});return}}catch(_e){}
+    setChecking(false);setStep(2);setErr('');
+    const enc=xEnc(`${code}:${devId}:${lang}:${encodeURIComponent(store)}`);try{navigator.clipboard.writeText(enc).catch(()=>{})}catch(_e){}
+    setCopied(true);setTimeout(()=>setCopied(false),2000);
+  };
+  const verify=()=>{const raw=actInput.trim();
+    // 先試連線碼(含 GitHub token 的加密碼)
+    if(raw.length>20){try{const tk=verifyActToken(raw,code,devId);if(tk){saveGHConfigLocal({owner:tk.owner,repo:tk.repo,token:tk.token});doActivate({code,unitPrice:250,lang,store,year:bizParts().y,deviceId:devId});return}}catch(_e){}}
+    // 再試離線啟動碼
+    const input=raw.replace(/[\s-]/g,'');const correct=genSimpleAct(code).replace(/-/g,'');if(input===correct){doActivate({code,unitPrice:250,lang,store,year:bizParts().y,deviceId:devId})}else{setErr(t.activationFail)}};
+  return(<div className="min-h-screen flex items-center justify-center p-6 bg-gray-950"><div className="w-full max-w-sm fi">
+    {step===1&&(<div className="space-y-6"><div className="text-center"><div className="w-16 h-16 bg-amber-600/20 rounded-2xl flex items-center justify-center mx-auto mb-4"><svg className="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg></div><h1 className="text-xl font-bold text-gray-100 mb-1">{t.welcome}</h1></div>
+    <div><label className="text-sm text-gray-400 mb-1.5 block">{t.language}</label><div className="grid grid-cols-2 gap-2">{[['zh','中文'],['vi','Tiếng Việt']].map(([c,l])=>(<button key={c} onClick={()=>setLang(c)} className={`py-3 rounded-xl text-sm font-semibold transition-all ${lang===c?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div></div>
+    <div><label className="text-sm text-gray-400 mb-1.5 block">{t.store}</label><select value={store} onChange={e=>setStore(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3.5 text-lg text-gray-100 focus:outline-none focus:border-amber-500 appearance-none">{stores.map(s=><option key={s} value={s}>{s}</option>)}</select></div>
+    <div><label className="text-sm text-gray-400 mb-1.5 block">{t.teacherCode}</label><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3.5 text-xl text-center text-gray-100 tracking-widest focus:outline-none focus:border-amber-500" placeholder={t.teacherCodePlaceholder}/></div>
+    <button onClick={goStep2} disabled={!code.trim()||checking} className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${code.trim()&&!checking?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{checking?t.adminWelcome:t.submitActivation}</button>
+    {agreeErr&&<p className="text-xs text-red-400 text-center -mt-3">{t.mustReadFirst}</p>}
+    <NoticeBox t={t} agreed={agreed} setAgreed={v=>{setAgreed(v);if(v)setAgreeErr(false)}}/></div>)}
+    {step===2&&(<div className="space-y-5">
+      <div className="flex justify-center"><div className="bg-white p-2.5 rounded-xl"><img src={qrUrl} alt="QR" className="w-44 h-44"/></div></div>
+      <p className="text-sm text-amber-400 text-center font-medium">{t.showQR}</p>
+      <div className="bg-white/[0.03] rounded-xl p-3 text-center"><p className="text-[10px] text-gray-600 break-all font-mono select-all mb-2">{encReg}</p><button onClick={()=>{const url='https://line.me/R/share?text='+encodeURIComponent(t.lineActivatePrefix.replace('{code}',code)+'\n'+encReg);location.href=url}} className="w-full px-3 py-2.5 rounded-lg text-sm font-bold bg-[#06C755] text-white active:bg-[#05b34c]">{t.sendViaLine}</button></div>
+      <div><label className="text-sm text-gray-400 mb-1.5 block">{t.enterActivation}</label><div className="bg-amber-600/10 border border-amber-500/20 rounded-lg px-3 py-1.5 mb-2 text-center"><span className="text-xs text-gray-400">{t.teacherCode}：</span><span className="text-sm font-bold text-amber-300">{code}</span></div><input value={actInput} onChange={e=>setActInput(e.target.value)} placeholder="xxx-xxx-xxx" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3.5 text-xl text-center text-gray-100 font-mono tracking-widest focus:outline-none focus:border-amber-500"/></div>
+      {err&&<p className="text-red-400 text-sm text-center fi">{err}</p>}
+      <div className="flex gap-2"><button onClick={()=>{setStep(1);setErr('')}} className="flex-1 py-4 rounded-xl bg-white/[0.05] text-gray-400 font-semibold">{t.cancel}</button><button onClick={verify} className="flex-1 py-4 rounded-xl bg-amber-600 text-white font-bold text-lg">{t.confirm}</button></div></div>)}
+  </div></div>)}
+
+/* ══════════ Home Page ══════════ */
+function HomePage({settings,t,refreshKey,onGotoProfile}){
+  const now=bizDate();const bp=bizParts();const ty=settings.year||bp.y,tm=bp.m,td=bp.d;
+  const[data,setData]=useState(null);const[prev,setPrev]=useState(null);const[otherMode,setOtherMode]=useState(false);const[otherVal,setOtherVal]=useState('');const[editPrev,setEditPrev]=useState(false);const[editToday,setEditToday]=useState(false);
+  const load=()=>{const md=LS.get(dk(settings.code,ty,tm));if(md&&migrateMonthGroups(md)){LS.set(dk(settings.code,ty,tm),md)}setData(md);let found=false;if(md?.days){for(let d=td-1;d>=1;d--){const day=md.days[d];if(day&&(day.total>0||day.status>0)){setPrev({day:d,month:tm,year:ty,...day});found=true;break}}}if(!found){for(let pm=tm-1;pm>=1;pm--){const pmd=LS.get(dk(settings.code,ty,pm));if(!pmd)continue;for(let d=dim(ty,pm);d>=1;d--){const day=pmd.days?.[d];if(day&&(day.total>0||day.status>0)){setPrev({day:d,month:pm,year:ty,...day});found=true;break}}if(found)break}}if(!found)setPrev(null)};
+  useEffect(load,[settings.code,refreshKey]);
+  const[notices,setNotices]=useState(()=>{try{return typeof getNoticesLocal==='function'?getNoticesLocal():[]}catch(_e){return []}});const[noticeView,setNoticeView]=useState(null);
+  useEffect(()=>{try{if(typeof fetchNotices==='function')fetchNotices().then(list=>{if(Array.isArray(list))setNotices(list)}).catch(()=>{})}catch(_e){}},[]);
+  const latestNotices=(Array.isArray(notices)?notices:[]).slice().reverse().slice(0,3);
+  const todayData=data?.days?.[td]||eDay();const hasToday=todayData.total>0||todayData.status>0||(todayData.skills&&Object.values(todayData.skills).some(v=>v>0));const sal=calcSal(todayData,settings.unitPrice,settings.skills);
+  const addUnits=(n)=>{const md=data?JSON.parse(JSON.stringify(data)):eMon();const dd=md.days[td]||eDay();if(!dd.slips)dd.slips=[];dd.slips=[...dd.slips,newSlip(n)];dd.groups=[];dd.total=slipUnitsTotal(dd.slips);dd.laodian=slipLaodianTotal(dd.slips);stamp(dd);md.days[td]=dd;setData({...md});LS.set(dk(settings.code,ty,tm),md);setOtherMode(false);setOtherVal('')};
+  const addLaodian=(n)=>{const md=data?JSON.parse(JSON.stringify(data)):eMon();const dd=md.days[td]||eDay();dd.laodian+=n;stamp(dd);md.days[td]=dd;setData({...md});LS.set(dk(settings.code,ty,tm),md)};
+  const setTodayStatus=(s)=>{const md=data?JSON.parse(JSON.stringify(data)):eMon();const dd=md.days[td]||eDay();dd.status=s;if(!canWork[s]){dd.total=0;dd.laodian=0;dd.groups=[];dd.skills={guasha:0,baguang:0,xiujiao:0}}stamp(dd);md.days[td]=dd;setData({...md});LS.set(dk(settings.code,ty,tm),md)};
+  const addSkill=(key)=>{const md=data?JSON.parse(JSON.stringify(data)):eMon();const dd=md.days[td]||eDay();if(!dd.skills)dd.skills={guasha:0,baguang:0,xiujiao:0};dd.skills[key]=(dd.skills[key]||0)+1;stamp(dd);md.days[td]=dd;setData({...md});LS.set(dk(settings.code,ty,tm),md)};
+  const savePrevDay=(d,dd)=>{if(!prev)return;const key=dk(settings.code,prev.year,prev.month);const md=JSON.parse(JSON.stringify(LS.get(key)||eMon()));md.days[d]=dd;LS.set(key,md);setPrev({...prev,...dd});if(prev.month===tm)setData(md);setEditPrev(false)};
+  const saveTodayDay=(d,dd)=>{const md=data?JSON.parse(JSON.stringify(data)):eMon();md.days[d]=dd;LS.set(dk(settings.code,ty,tm),md);setData({...md});setEditToday(false)};
+  const prevDow=prev?dow(prev.year,prev.month,prev.day):0;
+  return(<div className="p-5 max-w-md mx-auto fi">
+    <div className="flex items-center justify-between mb-2 px-1"><div/><button onClick={()=>onGotoProfile&&onGotoProfile()} className="text-sm text-gray-500 font-mono active:text-gray-300 px-2 py-1 -mr-1">#{settings.code}</button></div>
+    {latestNotices.length>0&&(<div className="mb-4"><div className="flex items-center justify-between mb-2 px-1"><span className="text-xs font-semibold text-amber-400">📢 {t.latestNotices||'最新公告'}</span>{onGotoNotices&&<button onClick={()=>onGotoNotices()} className="text-[11px] text-gray-500 active:text-gray-300">{t.viewAll||'看全部'} ›</button>}</div><div className="space-y-1.5">{latestNotices.map(n=>(<div key={n.id} onClick={()=>setNoticeView(n)} className="bg-white/[0.03] border border-white/[0.05] rounded-xl px-3 py-2.5 active:bg-white/[0.06] cursor-pointer"><div className="flex items-center gap-2 mb-0.5"><span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 flex-shrink-0">{n.cat}</span><span className="text-xs text-gray-600 flex-shrink-0">{n.date}</span></div><p className="text-sm text-gray-200 font-medium truncate">{n.title}</p>{n.summary&&<p className="text-[11px] text-gray-500 truncate">{n.summary}</p>}</div>))}</div></div>)}
+    {prev&&(<div onClick={()=>setEditPrev(true)} className="bg-white/[0.03] border border-white/[0.05] rounded-2xl p-4 mb-4 active:bg-white/[0.06] cursor-pointer"><div className="flex items-center justify-between"><div><span className="text-lg font-bold text-gray-400">{prev.month}/{prev.day}</span><span className="text-sm text-gray-600 ml-1">({t.dn[prevDow]})</span></div><div className="text-right">{canWork[prev.status||0]?(<span className="text-xl font-bold text-gray-400 tabular-nums">${calcSal(prev,settings.unitPrice,settings.skills).toLocaleString()}</span>):(<span className={`text-sm px-2 py-0.5 rounded-full ${SBG[prev.status]} ${STC[prev.status]}`}>{t[SK[prev.status]]}</span>)}</div></div>{canWork[prev.status||0]&&(<div className="flex items-center justify-between mt-0.5"><span className="text-xs text-gray-600">{prev.total}{t.units}{prev.laodian>0?` · ${prev.laodian}${t.laodian}`:''}</span><svg className="w-3.5 h-3.5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg></div>)}</div>)}
+    <div onClick={()=>setEditToday(true)} className="bg-emerald-500/10 border border-emerald-500/25 rounded-2xl p-4 mb-4 active:bg-emerald-500/15 cursor-pointer"><div className="flex items-center justify-between"><div className="flex items-center gap-2"><span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${(canWork[todayData.status||0]&&todayData.total>0)?'led-green':'led-gray'}`}/><span className="text-lg font-bold text-gray-100">{tm}/{td}</span><span className="text-sm text-gray-500 ml-0.5">({t.dn[now.getDay()]})</span></div><div className="text-right">{canWork[todayData.status||0]?(<span className="text-xl font-bold text-emerald-400 tabular-nums">${sal.toLocaleString()}</span>):(<span className={`text-sm px-2 py-0.5 rounded-full ${SBG[todayData.status]} ${STC[todayData.status]}`}>{t[SK[todayData.status]]}</span>)}</div></div>{canWork[todayData.status||0]&&(<div className="flex items-center justify-between mt-0.5"><span className="text-xs text-gray-500">{todayData.total}{t.units}{todayData.laodian>0?` · ${todayData.laodian}${t.laodian}`:''}</span><svg className={`w-3.5 h-3.5 ${todayData.total>0?'text-red-500 arrow-blink':'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg></div>)}</div>
+    {false&&hasToday&&(<div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 mb-5"><div className="flex items-center justify-between"><span className="text-sm text-emerald-400 font-medium">{t.todayDone}</span><div className="flex items-baseline gap-2"><span className="text-emerald-300 font-bold text-lg">{todayData.total}{t.units}</span><span className="text-emerald-400 font-bold text-lg">${sal.toLocaleString()}</span></div></div>{todayData.laodian>0&&<div className="mt-1 text-sm text-orange-400">{t.laodian}: {todayData.laodian}</div>}{(todayData.groups||[]).length>1&&<div className="mt-1 text-xs text-gray-600">{(todayData.groups||[]).join(' + ')} = {todayData.total}</div>}{todayData.skills&&SKILL_KEYS.map((k,i)=>(settings.skills?.[k]&&todayData.skills[k]>0)?<span key={k} className={`inline-block mt-1 mr-2 text-xs ${SKILL_COLORS[i]}`}>{t[SKILL_SHORT[i]]}×{todayData.skills[k]}</span>:null)}</div>)}
+    <div className="mb-6"><p className="text-sm text-gray-400 mb-3">{hasToday?t.continueAdd:t.startAdd}</p><div className="grid grid-cols-5 gap-2">{[1,2,3].map(n=>(<button key={n} onClick={()=>addUnits(n)} className="py-4 rounded-xl bg-amber-600/15 border border-amber-600/20 text-amber-300 text-lg font-bold active:bg-amber-600/30 transition-all">+{n}</button>))}{!otherMode?(<button onClick={()=>setOtherMode(true)} className="col-span-2 py-4 rounded-xl bg-white/[0.04] border border-white/[0.06] text-gray-500 text-sm font-medium active:bg-white/[0.08]">{t.other}</button>):(<><input type="number" inputMode="numeric" value={otherVal} onChange={e=>setOtherVal(e.target.value)} autoFocus className="bg-white/[0.06] border border-amber-500/50 rounded-xl px-1 py-2 text-center text-lg text-gray-100 font-bold focus:outline-none" placeholder="?"/><button onClick={()=>{const v=parseInt(otherVal);if(v>0)addUnits(v)}} className="rounded-xl bg-amber-600 text-white font-bold">OK</button></>)}</div></div>
+    {false&&<div className="mb-6"><p className="text-sm text-gray-400 mb-3">{t.addLaodian}</p><div className="grid grid-cols-6 gap-2">{[1,2,3,4,5,6].map(n=>(<button key={n} onClick={()=>addLaodian(n)} className="py-3.5 rounded-xl bg-orange-500/10 border border-orange-500/15 text-orange-400 font-bold active:bg-orange-500/25 transition-all">+{n}</button>))}</div></div>}
+    {SKILL_KEYS.some(k=>settings.skills?.[k])&&(<div className="mb-6"><p className="text-sm text-gray-400 mb-3">{t.skills}</p><div className="grid grid-cols-3 gap-2">{SKILL_KEYS.map((k,i)=>settings.skills?.[k]?(<button key={k} onClick={()=>addSkill(k)} className="py-3 rounded-xl bg-white/[0.04] border border-white/[0.06] active:bg-white/[0.08] transition-all text-center"><div className={`text-sm font-bold ${SKILL_COLORS[i]}`}>{t[SKILL_SHORT[i]]}{(todayData.skills?.[k]||0)>0?` ×${todayData.skills[k]}`:''}</div><div className="text-[10px] text-gray-600">{t[k]} ${SKILL_PRICES[i]}</div></button>):null)}</div></div>)}
+    {/* 今日流水列表已移除,改由點今日標題開編輯器 */}
+    <div><p className="text-sm text-gray-400 mb-3">{t.status}</p><div className="grid grid-cols-3 gap-2">{[0,3,4,1,2,5].map(s=>(<button key={s} onClick={()=>setTodayStatus(s)} className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${todayData.status===s?(s===0?'bg-gray-600 text-white ring-2 ring-gray-500':`${SBG[s].replace('/20','/30')} ${STC[s]} ring-2 ring-current`):'bg-white/[0.04] text-gray-600'}`}>{t[SK[s]]}</button>))}</div></div>
+    {editPrev&&prev&&(<DayEditor day={{groups:prev.groups||[],total:prev.total,laodian:prev.laodian,status:prev.status,skills:prev.skills||{},slips:prev.slips||[]}} d={prev.day} y={prev.year} m={prev.month} t={t} up={settings.unitPrice} sk={settings.skills} code={settings.code} onSave={savePrevDay} onCancel={()=>setEditPrev(false)}/>)}
+    {editToday&&(<DayEditor day={{groups:todayData.groups||[],total:todayData.total,laodian:todayData.laodian,status:todayData.status,skills:todayData.skills||{},slips:todayData.slips||[]}} d={td} y={ty} m={tm} t={t} up={settings.unitPrice} sk={settings.skills} code={settings.code} onSave={saveTodayDay} onCancel={()=>setEditToday(false)}/>)}
+    {noticeView&&(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={()=>setNoticeView(null)}><div className="bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-y-auto" onClick={e=>e.stopPropagation()}><div className="p-4 border-b border-white/[0.06] flex items-start justify-between gap-2 sticky top-0 bg-gray-900"><div className="flex-1"><div className="flex items-center gap-2 mb-1"><span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400">{noticeView.cat}</span>{noticeView.subcat&&<span className="text-[10px] text-gray-500">{noticeView.subcat}</span>}<span className="text-[10px] text-gray-600">{noticeView.date}</span></div><h3 className="text-base font-bold text-gray-100">{noticeView.title}</h3></div><button onClick={()=>setNoticeView(null)} className="text-gray-500 text-sm flex-shrink-0">✕</button></div><div className="p-4"><p className="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed">{typeof noticeBody==='function'?noticeBody(noticeView,settings.lang):(noticeView.body||'')}</p>{noticeView.tags&&<div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-white/[0.06]">{String(noticeView.tags).split(/[,、\s]+/).filter(Boolean).map((tg,i)=>(<span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.05] text-gray-400">#{tg}</span>))}</div>}</div></div></div>)}
+  </div>)}
+
+/* ══════════ Shared components ══════════ */
+function SummaryTable({prev,next,month,t}){const Row=({label,data,bold})=>(<div className={`flex items-center py-2.5 ${bold?'':'border-b border-white/[0.04]'}`}><div className={`w-16 text-sm font-semibold ${bold?'text-amber-300':'text-gray-400'}`}>{label}</div><div className={`flex-1 text-right text-lg font-bold tabular-nums ${bold?'text-emerald-400':'text-emerald-400/80'}`}>${data.salary.toLocaleString()}</div><div className="w-14 text-right text-sm text-gray-400 tabular-nums">{data.units}</div><div className="w-10 text-right text-sm text-orange-400 tabular-nums">{data.laodian}</div></div>);return(<div className="bg-white/[0.02] border border-white/[0.06] rounded-xl px-3 py-1"><div className="flex items-center pt-1.5 pb-1 text-[10px] text-gray-600"><div className="w-16"></div><div className="flex-1 text-right">{t.salary}</div><div className="w-14 text-right">{t.units}</div><div className="w-10 text-right">{t.laodian}</div></div><Row label={t.prevPeriod} data={prev}/><Row label={t.nextPeriod} data={next}/><div className="border-t border-amber-500/30 mt-0.5 pt-0.5"><Row label={t.monthTotal} data={month} bold/></div></div>)}
+
+function DayRow({day,d,y,m,t,up,sk,onEdit,isToday}){const dw=dow(y,m,d),we=dw===0||dw===6,nw=!canWork[day.status];const sal=calcSal(day,up,sk);return(<div data-today-row={isToday?'1':undefined} onClick={()=>onEdit(d)} className={`flex items-center px-3 py-2.5 border-b active:bg-white/[0.06] cursor-pointer ${isToday?'border-emerald-500 border-l-4 bg-emerald-500/20':'border-white/[0.04]'} ${nw?'opacity-50':''}`}><div className="w-14 flex-shrink-0"><span className="text-sm font-semibold text-gray-200">{d}</span><span className={`text-[11px] ml-1 ${we?'text-amber-500':'text-gray-600'}`}>{t.dn[dw]}</span></div><div className="flex-1 flex items-center gap-2 min-w-0">{nw?(<span className={`text-xs px-2 py-0.5 rounded-full ${SBG[day.status]} ${STC[day.status]}`}>{t[SK[day.status]]}</span>):(<><span className="text-sm text-gray-200 w-8 text-right tabular-nums font-medium">{day.total||''}</span><span className="text-sm text-emerald-400/80 w-16 text-right tabular-nums">{sal>0?'$'+sal.toLocaleString():''}</span><span className="text-sm text-orange-400/80 w-5 text-center tabular-nums">{day.laodian||''}</span>{(day.status===2||day.status===5)&&<span className={`text-[10px] px-1.5 py-0.5 rounded-full ${SBG[day.status]} ${STC[day.status]}`}>{t[SK[day.status]]}</span>}{day.skills&&SKILL_KEYS.map((k,i)=>(sk?.[k]&&day.skills[k]>0)?<span key={k} className={`text-[10px] ${SKILL_COLORS[i]}`}>{t[SKILL_SHORT[i]]}{day.skills[k]}</span>:null)}{(day.groups||[]).length>1&&<span className="text-[10px] text-gray-600 truncate">{(day.groups||[]).join('+')}</span>}</>)}</div><svg className="w-3.5 h-3.5 text-gray-700 flex-shrink-0 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg></div>)}
+
+function SlipTags({slip,t,code,onAdd,onDel}){
+  const[input,setInput]=useState('');
+  const hist=loadTagHistory(code).filter(h=>!(slip.tags||[]).includes(h)).slice(0,12);
+  const submit=(val)=>{const parts=(val||input).split(/[\s,，]+/).filter(Boolean);parts.forEach(p=>onAdd(slip.id,p));setInput('')};
+  return(<div className="space-y-1.5">
+    <label className="text-xs text-gray-500 block">{t.slipTags}</label>
+    <div className="flex gap-2"><input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();submit()}}} placeholder={t.slipTagsPlaceholder} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/><button onClick={()=>submit()} disabled={!input.trim()} className={`px-3 py-1.5 rounded-lg text-sm font-bold ${input.trim()?'bg-amber-600 text-white active:bg-amber-700':'bg-white/[0.05] text-gray-600'}`}>＋</button></div>
+    {slip.tags&&slip.tags.length>0&&<div className="flex flex-wrap gap-1.5">{slip.tags.map(tag=>(<span key={tag} className="inline-flex items-center gap-1 bg-amber-600/15 text-amber-300 rounded-full pl-2 pr-1 py-0.5 text-xs">#{tag}<button onClick={()=>onDel(slip.id,tag)} className="w-4 h-4 flex items-center justify-center rounded-full bg-amber-600/30 text-amber-200 text-[10px]">×</button></span>))}</div>}
+    {hist.length>0&&<div className="flex flex-wrap gap-1"><span className="text-[10px] text-gray-600 w-full">{t.slipTagHistory}</span>{hist.map(h=>(<button key={h} onClick={()=>onAdd(slip.id,h)} className="bg-white/[0.05] text-gray-400 rounded-full px-2 py-0.5 text-[11px] active:bg-white/[0.1]">#{h}</button>))}</div>}
+  </div>);
+}
+function DayEditor({day,d,y,m,t,up,sk,onSave,onCancel,code:editorCode}){
+  const[groups,setGroups]=useState((day.groups&&(day.groups||[]).length>0)?[...day.groups]:[]);const[lo,setLo]=useState(day.laodian);const[st,setSt]=useState(day.status);const[skCounts,setSkCounts]=useState(()=>{const s=day.skills||{};return{guasha:s.guasha||0,baguang:s.baguang||0,xiujiao:s.xiujiao||0}});
+  const[slips,setSlips]=useState(()=>day.slips?JSON.parse(JSON.stringify(day.slips)):[]);
+  const[editSlipId,setEditSlipId]=useState(null);
+  const dw=dow(y,m,d);const slipTotal=slipUnitsTotal(slips);const oldGroupTotal=groups.reduce((a,b)=>a+(parseInt(b)||0),0);const ct=(!canWork[st])?0:slipTotal;const laodianTotal=slipLaodianTotal(slips);const sw=canWork[st];const previewSal=ct*up+SKILL_KEYS.reduce((a,k,i)=>a+(sk?.[k]?(skCounts[k]||0)*SKILL_PRICES[i]:0),0);
+  const save=()=>{const nr=!canWork[st];if(!nr){(slips||[]).forEach(s=>{if((s.laodian||0)>=1&&(s.custName||'').trim()&&(s.custTitle||'').trim()){if(!s.tags)s.tags=[];if(!s.tags.includes('老點'))s.tags.push('老點')}});if(editorCode){(slips||[]).forEach(s=>{if((s.custName||'').trim()||(s.custPhone||'').trim()){try{upsertCust(editorCode,s)}catch(e){}}})}}onSave(d,{groups:[],total:nr?0:ct,laodian:nr?0:laodianTotal,status:st,skills:nr?{guasha:0,baguang:0,xiujiao:0}:skCounts,slips:nr?[]:(slips||[]),did:getDeviceId(),ts:Date.now()})};
+  const clearAll=()=>{setLo(0);setSt(0);setGroups([]);setSlips([]);setSkCounts({guasha:0,baguang:0,xiujiao:0})};
+  const skAdj=(k,delta)=>setSkCounts(p=>({...p,[k]:Math.max(0,(p[k]||0)+delta)}));
+  const[eOtherMode,setEOtherMode]=useState(false);const[eOtherVal,setEOtherVal]=useState('');
+  // 編輯畫面 +N：新增一筆流水(與首頁一致)
+  const addSlipN=(n)=>{if(n>0){setSlips(prev=>[...prev,newSlip(n)]);}setEOtherMode(false);setEOtherVal('')};
+  const fmtTime=(ms)=>{const dt=new Date(ms);return String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0')};
+  const updSlip=(id,patch)=>setSlips(slips.map(s=>s.id===id?{...s,...patch}:s));
+  const[custQuery,setCustQuery]=useState({});
+  const applyCust=(id,c)=>{updSlip(id,{custName:c.custName||'',custTitle:c.custTitle||'',custPhone:c.custPhone||'',pressBody:c.pressBody||'',pressFoot:c.pressFoot||'',parts:c.parts||[]});setCustQuery(q=>({...q,[id]:''}))};
+  const toggleArr=(id,field,val)=>{const s=slips.find(x=>x.id===id);const arr=s[field]||[];updSlip(id,{[field]:arr.includes(val)?arr.filter(x=>x!==val):[...arr,val]})};
+  const delSlip=(id)=>setSlips(slips.filter(s=>s.id!==id));
+  const setSlipStart=(id,hhmm)=>{if(!hhmm){updSlip(id,{startAt:0});return}const s=slips.find(x=>x.id===id);const base=new Date(s.createdAt);const[h,mi]=hhmm.split(':').map(Number);base.setHours(h,mi,0,0);updSlip(id,{startAt:base.getTime()})};
+  const addSlipTag=(id,tag)=>{tag=(tag||'').trim();if(!tag)return;const s=slips.find(x=>x.id===id);if(s.tags&&s.tags.includes(tag))return;updSlip(id,{tags:[...(s.tags||[]),tag]});if(editorCode)addTagHistory(editorCode,tag)};
+  const delSlipTag=(id,tag)=>{const s=slips.find(x=>x.id===id);updSlip(id,{tags:(s.tags||[]).filter(x=>x!==tag)})};
+  return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onCancel}><div className="su bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+    <div className="p-4 border-b border-white/[0.06] flex items-center justify-between"><h3 className="text-lg font-bold text-gray-100">{m}/{d} <span className="text-gray-500 font-normal">({t.dn[dw]})</span></h3><div className="text-right"><div className="text-xs text-gray-500 mb-0.5">{ct}{t.units}{laodianTotal>0?` · ${laodianTotal}${t.laodian}`:''}</div><div className="text-emerald-400 text-xl font-bold tabular-nums">${previewSal.toLocaleString()}</div></div></div>
+    <div className="p-4 space-y-5">
+      {sw&&(<><div><p className="text-xs text-gray-500 mb-2">{t.addUnitTitle}</p><div className="grid grid-cols-5 gap-2">{[1,2,3].map(n=>(<button key={n} onClick={()=>addSlipN(n)} className="py-4 rounded-xl bg-amber-600/15 border border-amber-600/20 text-amber-300 text-lg font-bold active:bg-amber-600/30 transition-all">+{n}</button>))}{!eOtherMode?(<button onClick={()=>setEOtherMode(true)} className="col-span-2 py-4 rounded-xl bg-white/[0.04] border border-white/[0.06] text-gray-500 text-sm font-medium active:bg-white/[0.08]">{t.other}</button>):(<><input type="number" inputMode="numeric" value={eOtherVal} onChange={e=>setEOtherVal(e.target.value)} autoFocus className="bg-white/[0.06] border border-amber-500/50 rounded-xl px-1 py-2 text-center text-lg text-gray-100 font-bold focus:outline-none" placeholder="?"/><button onClick={()=>{const v=parseInt(eOtherVal);if(v>0)addSlipN(v)}} className="rounded-xl bg-amber-600 text-white font-bold">OK</button></>)}</div></div>
+      {oldGroupTotal>0&&<div className="bg-white/[0.02] border border-white/[0.06] rounded-xl px-3 py-2"><span className="text-[11px] text-gray-500">{t.oldGroupData}：{groups.join('+')} = {oldGroupTotal}{t.units}</span></div>}
+      {false&&laodianTotal>0&&<div><label className="text-xs text-gray-500 mb-2 block">{t.laodian}</label><div className="w-full bg-orange-500/5 border border-orange-500/15 rounded-xl px-4 py-3 text-xl text-center text-orange-300 font-semibold">{laodianTotal}</div></div>}
+      {SKILL_KEYS.some(k=>sk?.[k])&&(<div><label className="text-xs text-gray-500 mb-2 block">{t.skills}</label><div className="space-y-2">{SKILL_KEYS.map((k,i)=>sk?.[k]?(<div key={k} className="flex items-center gap-2"><span className={`text-sm flex-1 ${SKILL_COLORS[i]}`}>{t[k]} <span className="text-xs text-gray-600">${SKILL_PRICES[i]}</span></span><button onClick={()=>skAdj(k,-1)} className="w-10 h-10 rounded-xl bg-white/[0.06] text-gray-400 text-lg font-bold active:bg-white/[0.1]">−</button><span className={`w-8 text-center text-lg font-bold ${SKILL_COLORS[i]}`}>{skCounts[k]||0}</span><button onClick={()=>skAdj(k,1)} className="w-10 h-10 rounded-xl bg-white/[0.06] text-gray-400 text-lg font-bold active:bg-white/[0.1]">+</button></div>):null)}</div></div>)}</>)}
+      {slips.length>0&&(<div className="pt-3 mt-3 border-t border-white/[0.06]"><label className="text-xs text-gray-500 mb-2 block">{t.slipList}（{slips.length}）</label><div className="space-y-1.5">{slips.map(s=>{const open=editSlipId===s.id;const startMs=s.startAt||s.createdAt;return(<div key={s.id} className="bg-white/[0.03] border border-white/[0.06] rounded-xl overflow-hidden"><div className="flex items-center gap-2 px-3 py-2 active:bg-white/[0.04]" onClick={()=>setEditSlipId(open?null:s.id)}><span className="text-sm font-bold text-amber-300 tabular-nums whitespace-nowrap">{s.units}{t===T.zh?'支':''} {slipSvcLabel(s,t===T.zh?"zh":"vi")}</span>{(s.laodian||0)>0&&<span className="text-xs font-semibold text-orange-400 whitespace-nowrap">{t.laodian}:{s.laodian}</span>}<span className="text-xs text-gray-300 truncate">{s.custName||''}{s.custTitle?bookTitleName(s.custTitle,t===T.zh?'zh':'vi'):''}{s.custPhone?' '+s.custPhone:''}</span><span className="text-xs text-gray-500 tabular-nums ml-auto whitespace-nowrap">{fmtTime(startMs)}</span><svg className={`w-3.5 h-3.5 text-gray-600 transition-transform ${open?'rotate-90':''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg></div>{open&&(<div className="px-3 pb-3 pt-1 space-y-2 fi border-t border-white/[0.04]"><div className="flex items-center gap-2"><label className="text-xs text-gray-500 w-16">{t.slipStartTime}</label><input type="time" value={fmtTime(startMs)} onChange={e=>setSlipStart(s.id,e.target.value)} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div><div className="grid grid-cols-2 gap-2"><div><label className="text-[10px] text-gray-600 mb-0.5 block">{t.svcLabel}</label><select value={s.svc||''} onChange={e=>updSlip(s.id,{svc:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-amber-500"><option value="">--</option>{SERVICES.map(o=><option key={o.code} value={o.code}>{o.code}（{o.min}{t===T.zh?'分':'p'}）</option>)}</select></div><div><label className="text-[10px] text-gray-600 mb-0.5 block">{t.addHour}</label><select value={s.extra||0} onChange={e=>updSlip(s.id,{extra:parseInt(e.target.value)||0})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-amber-500">{[0,1,2,3,4,5,6,7,8].map(n=><option key={n} value={n}>+{n}</option>)}</select></div></div><div className="grid grid-cols-2 gap-2"><div><label className="text-[10px] text-gray-600 mb-0.5 block">{t.slipUnits}</label><select value={s.units||1} onChange={e=>{const nu=parseInt(e.target.value)||1;const patch={units:nu};if((s.laodian||0)>nu)patch.laodian=nu;updSlip(s.id,patch)}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-amber-500">{[1,2,3,4,5,6,7,8,9,10].map(n=><option key={n} value={n}>{n}{t===T.zh?'支':''}</option>)}</select></div><div><label className="text-[10px] text-gray-600 mb-0.5 block flex items-center gap-1.5"><input type="checkbox" checked={(s.laodian||0)>0} onChange={e=>updSlip(s.id,{laodian:e.target.checked?1:0})} className="accent-orange-500"/>{t.laodian}</label><select value={s.laodian||0} disabled={(s.laodian||0)===0} onChange={e=>updSlip(s.id,{laodian:parseInt(e.target.value)||0})} className={`w-full border rounded-lg px-2 py-1.5 text-sm focus:outline-none ${(s.laodian||0)>0?'bg-white/[0.06] border-white/[0.08] text-orange-300 focus:border-orange-500':'bg-white/[0.02] border-white/[0.04] text-gray-600'}`}>{Array.from({length:(s.units||1)+1},(_,i)=>i).map(n=><option key={n} value={n}>{n}</option>)}</select></div></div><div className="relative"><input value={custQuery[s.id]||''} onChange={e=>setCustQuery(q=>({...q,[s.id]:e.target.value}))} placeholder={t.custSearchHint} className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>{(custQuery[s.id]||'').trim()&&(()=>{const res=searchCustDB(editorCode,custQuery[s.id]);return res.length>0?(<div className="mt-1 bg-gray-800 border border-white/[0.08] rounded-lg overflow-hidden">{res.map((c,i)=>(<div key={i} onClick={()=>applyCust(s.id,c)} className="px-2 py-1.5 text-xs text-gray-200 active:bg-white/[0.06] border-b border-white/[0.04] last:border-0">{c.custName}{c.custTitle?' '+bookTitleName(c.custTitle,t===T.zh?'zh':'vi'):''} {c.custPhone||''}</div>))}</div>):(<p className="mt-1 text-[10px] text-amber-500/70">{t.custNewHint}</p>)})()}</div><div className="grid grid-cols-2 gap-2"><input value={s.custName||''} onChange={e=>updSlip(s.id,{custName:e.target.value})} placeholder={t.custName} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/><select value={s.custTitle||''} onChange={e=>updSlip(s.id,{custTitle:e.target.value})} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-amber-500"><option value="">{t.custTitle}</option>{BOOK_TITLES.map(o=><option key={o.v} value={o.v}>{o[t===T.zh?'zh':'vi']}</option>)}</select></div><input value={s.custPhone||''} onChange={e=>updSlip(s.id,{custPhone:e.target.value})} inputMode="numeric" placeholder={t.custPhone} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/><SlipTags slip={s} t={t} code={editorCode} onAdd={addSlipTag} onDel={delSlipTag}/><div className="pt-2 mt-1 border-t border-white/[0.04] space-y-2">
+<div className="grid grid-cols-2 gap-2"><div><label className="text-[10px] text-gray-600 block mb-0.5">{t.pressBody}</label><div className="flex gap-1">{PRESS_LEVELS.map(pl=>(<button key={pl} onClick={()=>updSlip(s.id,{pressBody:s.pressBody===pl?'':pl})} className={`flex-1 py-1 rounded text-[11px] ${s.pressBody===pl?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t['press'+pl.charAt(0).toUpperCase()+pl.slice(1)]}</button>))}</div></div><div><label className="text-[10px] text-gray-600 block mb-0.5">{t.pressFoot}</label><div className="flex gap-1">{PRESS_LEVELS.map(pl=>(<button key={pl} onClick={()=>updSlip(s.id,{pressFoot:s.pressFoot===pl?'':pl})} className={`flex-1 py-1 rounded text-[11px] ${s.pressFoot===pl?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t['press'+pl.charAt(0).toUpperCase()+pl.slice(1)]}</button>))}</div></div></div>
+<div><label className="text-[10px] text-gray-600 block mb-0.5">{t.strengthParts}</label><div className="flex flex-wrap gap-1">{BODY_PARTS.map(bp=>(<button key={bp} onClick={()=>toggleArr(s.id,'parts',bp)} className={`px-2 py-1 rounded text-[11px] ${(s.parts||[]).includes(bp)?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t['part'+bp.charAt(0).toUpperCase()+bp.slice(1)]}</button>))}</div></div>
+<div><label className="text-[10px] text-gray-600 block mb-0.5">{t.clientReq}</label><div className="flex flex-wrap gap-1">{CLIENT_REQS.map(cr=>(<button key={cr} onClick={()=>toggleArr(s.id,'reqs',cr)} className={`px-2 py-1 rounded text-[11px] ${(s.reqs||[]).includes(cr)?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t['req'+cr.charAt(0).toUpperCase()+cr.slice(1)]}</button>))}</div></div>
+<div className="grid grid-cols-2 gap-2"><div><label className="text-[10px] text-gray-600 block mb-0.5">{t.laodianOut}</label><input value={s.laodianOut||''} onChange={e=>updSlip(s.id,{laodianOut:e.target.value})} placeholder={t.teacherNoPlaceholder} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div><div><label className="text-[10px] text-gray-600 block mb-0.5">{t.shiftOut}</label><input value={s.shiftOut||''} onChange={e=>updSlip(s.id,{shiftOut:e.target.value})} placeholder={t.teacherNoPlaceholder} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div></div>
+</div><button onClick={()=>{delSlip(s.id);setEditSlipId(null)}} className="w-full py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs">{t.slipDelete}</button></div>)}</div>)})}</div></div>)}
+      <div><label className="text-xs text-gray-500 mb-2 block font-medium">{t.status}</label><div className="grid grid-cols-3 gap-2">{[0,3,4,1,2,5].map(s=>(<button key={s} onClick={()=>setSt(s)} className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${st===s?(s===0?'bg-gray-600 text-white ring-2 ring-gray-500':`${SBG[s].replace('/20','/30')} ${STC[s]} ring-2 ring-current`):'bg-white/[0.04] text-gray-600'}`}>{t[SK[s]]}</button>))}</div></div>
+    </div>
+    <div className="p-4 border-t border-white/[0.06] space-y-2"><div className="flex gap-3"><button onClick={onCancel} className="flex-1 py-3.5 rounded-xl bg-white/[0.05] text-gray-400 font-semibold">{t.cancel}</button><button onClick={save} className="flex-1 py-3.5 rounded-xl bg-amber-600 text-white font-bold">{t.done}</button></div><button onClick={clearAll} className="w-full py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium active:bg-red-500/20">🗑 {t.clearAll}</button></div>
+  </div></div>)}
+
+/* ══════════ Monthly ══════════ */
+function MonthlyPage({settings,curM,setCurM,t,onGotoYear}){
+  const[data,setData]=useState(null);const[editDay,setEditDay]=useState(null);const y=settings.year||bizParts().y;
+  useEffect(()=>{setData(LS.get(dk(settings.code,y,curM))||eMon())},[settings.code,y,curM]);
+  useEffect(()=>{if(data&&curM===bizParts().m&&y===bizParts().y){const el=document.querySelector('[data-today-row]');if(el)setTimeout(()=>{try{el.scrollIntoView({block:'center',behavior:'smooth'})}catch(_e){}},150)}},[data,curM,y]);
+  const saveDay=(d,dd)=>{const nd={...data,days:{...data.days,[d]:dd}};setData(nd);setEditDay(null);LS.set(dk(settings.code,y,curM),nd)};
+  const dm=dim(y,curM);
+  const calc=useMemo(()=>{if(!data)return{prev:{units:0,salary:0,laodian:0},next:{units:0,salary:0,laodian:0},month:{units:0,salary:0,laodian:0}};let pu=0,ps=0,pl=0,nu=0,ns=0,nl=0;for(let d=1;d<=dm;d++){const day=data.days[d]||eDay();const u=day.total||0,lo=day.laodian||0,s=calcSal(day,settings.unitPrice,settings.skills);if(d<=15){pu+=u;ps+=s;pl+=lo}else{nu+=u;ns+=s;nl+=lo}}return{prev:{units:pu,salary:ps,laodian:pl},next:{units:nu,salary:ns,laodian:nl},month:{units:pu+nu,salary:ps+ns,laodian:pl+nl}}},[data,dm,settings.unitPrice,settings.skills]);
+  return(<div className="max-w-lg mx-auto fi"><div className="sticky top-0 z-10 bg-gray-950 pb-1"><div className="px-2 py-2 flex gap-1 overflow-x-auto no-sb"><button onClick={()=>onGotoYear&&onGotoYear()} className="px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 bg-emerald-600 text-white">{t.yearly}</button>{Array.from({length:12},(_,i)=>i+1).map(m=>(<button key={m} onClick={()=>setCurM(m)} className={`px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 ${m===curM?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-600'}`}>{t.months[m-1]}</button>))}<button onClick={()=>onGotoYear&&onGotoYear()} className="px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 bg-emerald-600 text-white">{t.yearly}</button></div><div className="px-3 py-2"><SummaryTable prev={calc.prev} next={calc.next} month={calc.month} t={t}/></div></div>
+  <div className="px-3 py-1.5 bg-amber-600/[0.06] border-b border-amber-500/10"><span className="text-[11px] text-amber-500/80 font-semibold">{t.p1}</span></div>
+  {Array.from({length:Math.min(15,dm)},(_,i)=>i+1).map(d=>(<DayRow key={d} d={d} day={data?.days[d]||eDay()} y={y} m={curM} t={t} up={settings.unitPrice} sk={settings.skills} onEdit={setEditDay} isToday={curM===bizParts().m&&y===bizParts().y&&d===bizParts().d}/>))}
+  {dm>15&&(<><div className="px-3 py-1.5 bg-amber-600/[0.06] border-b border-amber-500/10 mt-0.5"><span className="text-[11px] text-amber-500/80 font-semibold">{t.p2}</span></div>{Array.from({length:dm-15},(_,i)=>i+16).map(d=>(<DayRow key={d} d={d} day={data?.days[d]||eDay()} y={y} m={curM} t={t} up={settings.unitPrice} sk={settings.skills} onEdit={setEditDay} isToday={curM===bizParts().m&&y===bizParts().y&&d===bizParts().d}/>))}</>)}
+  {editDay&&data&&<DayEditor day={data.days[editDay]||eDay()} d={editDay} y={y} m={curM} t={t} up={settings.unitPrice} sk={settings.skills} code={settings.code} onSave={saveDay} onCancel={()=>setEditDay(null)}/>}
+  </div>)}
+
+/* ══════════ Yearly ══════════ */
+function YearlyPage({settings,t,onBack}){
+  const y=settings.year||bizParts().y;
+  const rows=useMemo(()=>{const r=[];for(let m=1;m<=12;m++){const d=LS.get(dk(settings.code,y,m));let u=0,lo=0,sal=0;if(d?.days){for(let i=1;i<=dim(y,m);i++){const day=d.days[i];if(day){u+=day.total||0;lo+=day.laodian||0;sal+=calcSal(day,settings.unitPrice,settings.skills)}}}r.push({month:m,units:u,salary:sal,laodian:lo})}return r},[settings.code,y,settings.unitPrice]);
+  const tot=rows.reduce((a,r)=>({u:a.u+r.units,s:a.s+r.salary,l:a.l+r.laodian}),{u:0,s:0,l:0});
+  return(<div className="max-w-lg mx-auto fi"><div className="px-4 py-3 flex items-baseline justify-between"><h2 className="text-xl font-bold text-gray-100"><button onClick={()=>onBack&&onBack()} className="mr-2 text-gray-500 active:text-gray-300 align-middle"><svg className="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg></button>{y} {t.yearly}</h2><span className="text-xs text-gray-600 font-mono">#{settings.code}</span></div><div className="flex px-3 py-2 border-b border-white/[0.06] text-[11px] text-gray-600 font-medium"><div className="w-12"></div><div className="flex-1 text-right">{t.units}</div><div className="flex-1 text-right">{t.salary}</div><div className="w-12 text-right">{t.laodian}</div><div className="flex-1 text-right">{t.subtotal}</div></div>{rows.map(r=>(<div key={r.month} className={`flex items-center px-3 py-3 border-b border-white/[0.03] ${r.units>0?'':'opacity-30'}`}><div className="w-12 text-sm font-medium text-gray-300">{t.months[r.month-1]}</div><div className="flex-1 text-right text-sm text-gray-400 tabular-nums">{r.units}</div><div className="flex-1 text-right text-sm text-emerald-400/80 tabular-nums">{r.salary.toLocaleString()}</div><div className="w-12 text-right text-sm text-orange-400/80 tabular-nums">{r.laodian}</div><div className="flex-1 text-right text-sm text-emerald-400 font-semibold tabular-nums">{r.salary.toLocaleString()}</div></div>))}<div className="flex items-center px-3 py-3.5 bg-amber-600/10 border-t-2 border-amber-500/40"><div className="w-12 text-sm font-bold text-amber-400">{t.total}</div><div className="flex-1 text-right text-sm text-amber-300 font-bold tabular-nums">{tot.u}</div><div className="flex-1 text-right text-sm text-emerald-400 font-bold tabular-nums">{tot.s.toLocaleString()}</div><div className="w-12 text-right text-sm text-orange-400 font-bold tabular-nums">{tot.l}</div><div className="flex-1 text-right text-sm text-emerald-400 font-bold tabular-nums">{tot.s.toLocaleString()}</div></div></div>)}
+
+function App(){
+  const[settings,setSettings]=useState(null);const[tab,setTab]=useState('home');const[curM,setCurM]=useState(bizParts().m);const[ready,setReady]=useState(false);const[needOnboard,setNeedOnboard]=useState(false);const[refreshKey,setRefreshKey]=useState(0);const[theme,setTheme]=useState(()=>localStorage.getItem('app-theme')||'pink');
+  const bgColor=THEMES[theme]||THEMES.black;const isLight=theme==='white'||theme==='pink';
+  useEffect(()=>{try{gasWarmup()}catch(_e){}},[]);
+  const[keyClaim,setKeyClaim]=useState('');const[keyErr,setKeyErr]=useState('');
+  const doClaimKey=async()=>{if(!settings||!settings.code)return;setKeyClaim('...');setKeyErr('');const r=await autoClaimKey(settings.code);if(r&&r.ok){setKeyClaim('ok');setTimeout(()=>setKeyClaim('done'),2000)}else{setKeyClaim('fail');setKeyErr((r&&r.error)||'unknown')}};
+  useEffect(()=>{document.documentElement.setAttribute('data-theme',theme);document.documentElement.style.setProperty('--bg',bgColor)},[bgColor,theme]);
+  useEffect(()=>{localStorage.setItem('app-theme',theme)},[theme]);
+  useEffect(()=>{buildDynamicKey()},[]);
+  useEffect(()=>{if(!settings||!settings.code)return;const _bd=bizDate();const today=_bd.getFullYear()+'-'+String(_bd.getMonth()+1).padStart(2,'0')+'-'+String(_bd.getDate()).padStart(2,'0');const lastCheck=localStorage.getItem('staff-sync-date');(async()=>{
+    try{const staff=await readStaff({});const me=Array.isArray(staff)?staff.find(s=>String(s.code)===String(settings.code)):null;
+      if(me){
+        // token綁定檢查(原邏輯)
+        const gh=getGHConfig();if(gh.token&&me.hasToken===false){saveGHConfigLocal({})}
+        // 每日同步基資/店資:老師沒改過的欄位跟staff一致;改過且不一致的保留本機值(UI下方紅字顯示staff值)
+        const SYNC_FIELDS=['nameZh','nameVi','phone','email','store','storeSel','shift','permitNo','permitExpiry','permitDate','permitOrg','gender','school','major','schoolType','workStart','workEnd'];
+        const confP=settings.confirmedProfile||{};const confS=settings.confirmedStore||{};
+        const ns={...settings};const staffVals={};let changed=false;
+        SYNC_FIELDS.forEach(k=>{
+          if(me[k]===undefined||me[k]===null)return;
+          staffVals[k]=me[k];
+          const confVal=(confP[k]!==undefined?confP[k]:confS[k]);
+          const localVal=settings[k];
+          // 老師沒改過(本機值=上次確認值),用staff覆蓋
+          if(localVal===undefined||localVal===''||localVal===confVal){
+            if(ns[k]!==me[k]){ns[k]=me[k];changed=true}
+          }
+          // 否則保留本機(老師改過未送出)→ 紅字由staffVals提供
+        });
+        ns.staffValues=staffVals;
+        localStorage.setItem('staff-sync-date',today);
+        setSettings(ns);LS.set('app-settings',ns);
+      }
+    }catch(_e){}
+  })()},[settings&&settings.code]);
+  useEffect(()=>{const s=LS.get('app-settings');if(s&&s.code){const act=LS.get(`activated-${s.code}`);if(act){setSettings(s);setReady(true);return}}
+    const hash=window.location.hash;
+    // #conn=編號:連線碼(或分段 &conn2= ...) → 自動連線啟用(含token)
+    if(hash&&hash.indexOf('conn=')>=0){try{const reassembled=parseReqHash(hash,'conn');const raw=reassembled||decodeURIComponent(hash.replace(/^#/,'').split('conn=')[1]||'');const ci=raw.indexOf(':');if(ci>0){const c=raw.slice(0,ci);const actCode=raw.slice(ci+1);const did=getDeviceId();const tk=verifyActToken(actCode,c,did);if(tk){saveGHConfigLocal({owner:tk.owner,repo:tk.repo,token:tk.token});const ns={code:c,unitPrice:250,lang:'zh',store:'龍山寺店',year:bizParts().y,deviceId:did};LS.set('app-settings',ns);LS.set(`activated-${c}`,{deviceId:did,ts:Date.now()});setSettings(ns);setReady(true);history.replaceState(null,'',location.pathname);return}}}catch(_e){}}
+    if(hash&&hash.length>5&&hash.indexOf('conn=')<0){const p=decBackup(hash.slice(1));if(p){LS.set(dk(p.code,p.year,p.month),p.data);const ns={code:p.code,unitPrice:250,lang:'zh',year:p.year,deviceId:getDeviceId()};LS.set('app-settings',ns);LS.set(`activated-${p.code}`,{deviceId:getDeviceId(),ts:Date.now()});setSettings(ns);setCurM(p.month);setTab('monthly');setReady(true);history.replaceState(null,'',location.pathname);return}}setNeedOnboard(true);setReady(true)},[]);
+  const onOnboardComplete=(s)=>{setSettings(s);setNeedOnboard(false)};
+  const updateSettings=(s)=>{setSettings(s);LS.set('app-settings',s)};
+  // ===== 引導學習點A 已移除(7/1後):不再自動填工作證到期日,尊重使用者留空 =====
+  const handleTab=(id)=>{setTab(id);if(id==='home')setRefreshKey(k=>k+1)};
+  if(!ready)return<div className="min-h-screen flex items-center justify-center" style={{backgroundColor:bgColor}}><div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/></div>;
+  if(needOnboard)return<Onboarding onComplete={onOnboardComplete}/>;
+  if(!settings)return null;
+  const lang=settings.lang||'zh';const t=T[lang];
+  const tabs=[{id:'home',label:t.home},{id:'monthly',label:t.monthly},{id:'customers',label:t.custManage},{id:'settings',label:t.settings}];
+  const IC={
+    home:(<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 12l9-9 9 9M5 10v10h14V10"/></svg>),
+    monthly:(<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2" strokeWidth={1.8}/><path strokeLinecap="round" strokeWidth={1.8} d="M3 9h18M8 2v4M16 2v4"/></svg>),
+    customers:(<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM3 21v-1a6 6 0 0112 0v1"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 11a3 3 0 003-3M19 21v-1a5 5 0 00-3-4.6"/></svg>),
+    settings:(<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" strokeWidth={1.8}/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-2.82 1.17V21a2 2 0 01-4 0v-.09A1.65 1.65 0 006.6 19.4l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 8.6l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 6.6a1.65 1.65 0 001-1.51V5a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>)
+  };
+  // 底部設定❗:基資或店資有未確認變動(主管除外)
+  const settingsAlert=(()=>{const permExp=(()=>{if(!settings.permitExpiry)return false;const days=(new Date(settings.permitExpiry)-new Date())/86400000;return days<=30})();const gh=getGHConfig();if(gh&&gh.token)return permExp;const cp=settings.confirmedProfile,cs=settings.confirmedStore;const pf=['gender','nameZh','nameVi','phone','email','addrCity','addrDist','addrDetail','school','major','schoolType','permitNo','permitDate','permitExpiry','permitOrg'];const sf=['storeSel','shift','workStart','workEnd','workNote','unitPrice','preg','oil','techMentor','lockerNo'];const chg=(snap,fs)=>{if(!snap)return fs.some(k=>{const v=settings[k];return v!==undefined&&v!==''&&v!==null});return fs.some(k=>(snap[k]||'')!==((settings[k]!==undefined?settings[k]:'')||''))};return chg(cp,pf)||chg(cs,sf)||permExp})();
+  return(<div className={`${isLight?'text-gray-900':'text-gray-100'} flex flex-col`} style={{backgroundColor:bgColor,height:'100vh',maxHeight:'100dvh'}} data-light={isLight||undefined}>
+    <div className="flex-1 overflow-y-auto">
+      {tab==='home'&&<HomePage settings={settings} t={t} refreshKey={refreshKey} onGotoProfile={()=>{try{sessionStorage.setItem('__settingsSub','basic')}catch(e){}handleTab('settings')}}/>}
+      {tab==='monthly'&&<MonthlyPage settings={settings} curM={curM} setCurM={setCurM} t={t} onGotoYear={()=>handleTab('yearly')}/>}
+      {tab==='yearly'&&<YearlyPage settings={settings} t={t} onBack={()=>handleTab('monthly')}/>}
+      {tab==='customers'&&(()=>{const CP=(window.__V&&window.__V.CustomerPage)||(()=>null);return<CP settings={settings} t={t}/>})()}
+      {tab==='settings'&&(()=>{const SP=(window.__V&&window.__V.SettingsPage)||(()=>null);return<SP settings={settings} onUpdate={updateSettings} t={t} theme={theme} setTheme={setTheme}/>})()}
+    </div>
+    {settings&&settings.code&&shouldClaimKey(settings.code)&&keyClaim!=='done'&&(<div onClick={keyClaim===''||keyClaim==='fail'?doClaimKey:undefined} className="flex-shrink-0 px-4 py-3 bg-emerald-600 flex items-center gap-2 cursor-pointer active:bg-emerald-700"><span className="text-lg">🔄</span><span className="text-sm text-white font-semibold flex-1">{keyClaim==='...'?t.keyUpdating:keyClaim==='ok'?t.keyUpdateOk:keyClaim==='fail'?(t.keyUpdateFail+'：'+(keyErr==='bad batch'?t.keyErrBatch:keyErr==='no key yet'?t.keyErrNoKey:keyErr==='revoked'?t.keyErrRevoked:keyErr==='network'?t.keyErrNetwork:keyErr==='missing'?t.keyErrMissing:keyErr)):t.keyUpdateFound}</span></div>)}
+    <nav className="flex-shrink-0 backdrop-blur-xl border-t border-white/[0.06] flex" style={{backgroundColor:bgColor+'ee',paddingBottom:'env(safe-area-inset-bottom)'}}>
+      {tabs.map(({id,label})=>(<button key={id} onClick={()=>handleTab(id)} className={`relative flex-1 flex flex-col items-center pt-2 pb-1.5 gap-0.5 transition-all ${tab===id?'text-amber-400':'text-gray-500 active:text-gray-400'}`}>{IC[id]}<span className="text-[10px] font-medium">{label}</span>{id==='settings'&&settingsAlert&&<span className="absolute top-1 right-1/4 text-red-500 text-[10px]">❗</span>}</button>))}
+    </nav>
+  </div>)}
+
+class __EB extends React.Component{constructor(p){super(p);this.state={e:false}}static getDerivedStateFromError(){return{e:true}}componentDidCatch(err){try{window.__showFallback(3,{lineno:0,msg:(err&&err.message)||String(err)})}catch(e){}}render(){return this.state.e?null:this.props.children}}
+ReactDOM.createRoot(document.getElementById('root')).render(<__EB><App/></__EB>);
+</script>
+</body>
+</html>
