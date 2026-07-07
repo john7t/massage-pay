@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.10-022</title>
+<title>薪資追蹤 · 管理 v1.10-026</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -252,11 +252,14 @@ function NoticePublishBlock({t,gh}){
   const[st,setSt]=React.useState('');
   const[step,setStep]=React.useState('');
   const[errMsg,setErrMsg]=React.useState('');
+  const[homeN,setHomeN]=React.useState('2');
+  const[listN,setListN]=React.useState('10');
   if(!gh||!gh.token||!getGasUrl())return null;
-  const pub=async()=>{setSt('...');setErrMsg('');setStep('');const r=await publishNotices(gh,2,(s)=>setStep(s));if(r&&r.ok){setSt('ok');setStep('');setTimeout(()=>setSt(''),4000)}else{setSt('fail');setErrMsg('['+((r&&r.step)||'?')+'] '+((r&&r.error)||'未知錯誤'))}};
+  const pub=async()=>{setSt('...');setErrMsg('');setStep('');const hc=homeN.trim()===''?0:parseInt(homeN,10)||0;const lc=listN.trim()===''?0:parseInt(listN,10)||0;const r=await publishNotices(hc,lc,(s)=>setStep(s));if(r&&r.ok){setSt('ok');setStep('');setTimeout(()=>setSt(''),4000)}else{setSt('fail');setErrMsg('['+((r&&r.step)||'?')+'] '+((r&&r.error)||'未知錯誤'))}};
   return(<div className="space-y-2 bg-white/[0.02] border border-sky-500/20 rounded-xl p-3">
     <label className="text-xs text-sky-400 font-semibold block">{t.noticePubTitle||'公告更新'}</label>
-    <button onClick={pub} className="w-full py-2 rounded-lg bg-sky-600 text-white text-xs font-semibold active:bg-sky-700">{st==='...'?(step||(t.noticePubbing||'更新中…')):st==='ok'?'✓ '+(t.noticePubOk||'已更新公告'):st==='fail'?'✗ '+(t.noticePubFail||'更新失敗'):(t.noticePubBtn||'從GAS抓最新2筆存GitHub')}</button>
+    <div className="flex gap-2"><div className="flex-1"><label className="text-[10px] text-gray-500 block mb-0.5">{t.noticeHomeN||'首頁筆數'}</label><input value={homeN} onChange={e=>setHomeN(e.target.value)} inputMode="numeric" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 text-center focus:outline-none focus:border-sky-500" style={{boxSizing:'border-box'}}/></div><div className="flex-1"><label className="text-[10px] text-gray-500 block mb-0.5">{t.noticeListN||'公告頁筆數'}</label><input value={listN} onChange={e=>setListN(e.target.value)} inputMode="numeric" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 text-center focus:outline-none focus:border-sky-500" style={{boxSizing:'border-box'}}/></div></div>
+    <button onClick={pub} className="w-full py-2 rounded-lg bg-sky-600 text-white text-xs font-semibold active:bg-sky-700">{st==='...'?(step||(t.noticePubbing||'更新中…')):st==='ok'?'✓ '+(t.noticePubOk||'已更新公告'):st==='fail'?'✗ '+(t.noticePubFail||'更新失敗'):(t.noticePubBtn||'從GAS抓公告存GitHub')}</button>
     {st==='...'&&step&&<p className="text-[11px] text-sky-400">⏳ {step}</p>}
     {errMsg&&<p className="text-[11px] text-red-400 break-all">{errMsg}</p>}
     <p className="text-[11px] text-gray-500">{t.noticePubHint||'按此把GAS最新2筆公告發布到GitHub,所有老師即可看到。'}</p>

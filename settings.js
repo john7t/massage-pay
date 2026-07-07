@@ -1,7 +1,7 @@
 // settings.js — 設定頁相關元件(從 index.html 抽離,降低 index 體積)
 // 注意:此檔為 type="text/babel",獨立作用域,需自行宣告 hooks 與 bridge
 const{useState,useEffect,useCallback,useMemo}=React;
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,getGasUrl,setGasUrl,gasCall,hasMyKey,issueKey,claimMyKey,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{getNoticesLocal,fetchNotices,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,getGasUrl,setGasUrl,gasCall,hasMyKey,issueKey,claimMyKey,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 function fmtSyncTime(iso){try{const d=new Date(iso);const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"/"+p(d.getMonth()+1)+"/"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes())}catch(_e){return ""}}
 
 function ChartPage({t,settings}){
@@ -90,17 +90,49 @@ function CustomerPage({t,settings}){
   </div>);
 }
 // 圖表分頁(老師端:讀stats.json快照顯示班別比/性別比)
+function SuggestPage({t,settings}){
+  const[showAdd,setShowAdd]=React.useState(false);
+  const[title,setTitle]=React.useState('');
+  const[body,setBody]=React.useState('');
+  const[anon,setAnon]=React.useState(false);
+  const[status,setStatus]=React.useState('');
+  // 假資料範例(之後接GAS/Sheet)
+  const demo=[
+    {id:1,title:'休息室可以加個飲水機嗎',body:'四樓休息室夏天很熱，希望能加個飲水機，大家輪班時比較方便。',author:'251',anon:false,time:'07-05 14:20'},
+    {id:2,title:'排班表希望能提早一週公布',body:'現在有時候前兩天才知道班表，比較難安排自己的事情，希望能提早一點。',author:'',anon:true,time:'07-04 22:10'},
+    {id:3,title:'建議增加毛巾數量',body:'尖峰時段毛巾常常不夠用，要等洗好，會影響服務速度。',author:'308',anon:false,time:'07-03 19:45'}
+  ];
+  const closeAdd=()=>{setShowAdd(false);setTitle('');setBody('');setAnon(false);setStatus('')};
+  const submit=()=>{setStatus('wip')}; // 先不功能
+  return(<div className="fi">
+    <div className="flex items-center justify-between mb-3"><h2 className="text-lg font-bold text-gray-100">{t.suggestBox||'建議'}</h2><button onClick={()=>setShowAdd(true)} className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold active:bg-amber-700">+ {t.suggestAdd||'新建議'}</button></div>
+    <div className="space-y-2">{demo.map(s=>(<div key={s.id} className="bg-white/[0.03] border border-white/[0.05] rounded-xl px-3 py-2.5"><div className="flex items-center justify-between gap-2"><p className="text-sm text-gray-200 font-medium truncate flex-1">{s.title}</p><span className="text-[10px] text-gray-500 flex-shrink-0">{s.anon?(t.suggestAnon||'發布人：隱藏'):('發布人：'+s.author)}</span></div><div className="flex items-center justify-between gap-2 mt-1"><p className="text-[11px] text-gray-500 truncate flex-1">{s.body}</p><span className="text-[10px] text-gray-600 flex-shrink-0">{s.time}</span></div></div>))}</div>
+    {showAdd&&(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={closeAdd}><div className="bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[88vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+      <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{t.suggestAdd||'新建議'}</h3><button onClick={closeAdd} className="text-gray-500 text-sm">✕</button></div>
+      <div className="p-4 space-y-4">
+        <div><label className="text-xs text-gray-400 mb-1 block">{t.suggestTitle||'標題'}</label><input value={title} onChange={e=>setTitle(e.target.value)} placeholder={t.suggestTitlePh||'一句話說明你的建議'} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500" style={{boxSizing:'border-box'}}/></div>
+        <div><label className="text-xs text-gray-400 mb-1 block">{t.suggestContent||'內容'}</label><textarea value={body} onChange={e=>setBody(e.target.value)} rows={5} placeholder={t.suggestContentPh||'詳細說明你的想法…'} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 resize-none" style={{boxSizing:'border-box'}}/></div>
+        <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={anon} onChange={e=>setAnon(e.target.checked)} className="w-4 h-4 rounded accent-amber-500"/><span className="text-sm text-gray-300">{t.suggestAnonOpt||'匿名發布（不顯示我的編號）'}</span></label>
+        {status==='wip'&&<p className="text-[11px] text-amber-500 text-center">{t.noticeFeatureWip||'功能建置中，敬請期待'}</p>}
+        <button onClick={submit} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold active:bg-emerald-700">{t.suggestSubmit||'送出建議'}</button>
+      </div>
+    </div></div>)}
+  </div>);
+}
 function NoticeManagePage({t,settings}){
   const[showAdd,setShowAdd]=React.useState(false);
   const[content,setContent]=React.useState('');
-  const[aiResult,setAiResult]=React.useState(null); // AI產生的結果(分類/標籤/標題/摘要/越文),先留位
+  const[aiResult,setAiResult]=React.useState(null);
   const[aiStatus,setAiStatus]=React.useState('');
+  const[list,setList]=React.useState(()=>{try{return getNoticesLocal()}catch(_e){return []}});
+  React.useEffect(()=>{fetchNotices().then(l=>{if(Array.isArray(l))setList(l)}).catch(()=>{})},[]);
   const closeAdd=()=>{setShowAdd(false);setContent('');setAiResult(null);setAiStatus('')};
   const runAI=()=>{setAiStatus('wip')}; // 先不功能
   const publish=()=>{setAiStatus('wip')}; // 先不功能
   return(<div className="fi">
     <div className="flex items-center justify-between mb-3"><h2 className="text-lg font-bold text-gray-100">{t.noticeCenter||'公告'}</h2><button onClick={()=>setShowAdd(true)} className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold active:bg-amber-700">+ {t.noticeAdd||'新增公告'}</button></div>
     <p className="text-xs text-gray-500">{t.noticeManageHint||'點右上新增公告,只要打內容,AI 會自動分類、產標題摘要並翻譯越南文。'}</p>
+    <div className="space-y-2 mt-3">{list.length===0?<p className="text-xs text-gray-600 text-center py-6">{t.noticeEmpty||'目前沒有公告'}</p>:list.slice().reverse().map(n=>(<div key={n.id} className="bg-white/[0.03] border border-white/[0.05] rounded-xl px-3 py-2.5"><div className="flex items-center justify-between gap-2"><p className="text-sm text-gray-200 font-medium truncate flex-1">{n.title}</p><span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 flex-shrink-0">{n.cat}</span></div><div className="flex items-center justify-between gap-2 mt-1"><span className="text-[10px] text-gray-500 truncate">👤 {n.author||''} · {n.date}</span><span className="text-[10px] text-gray-600 flex-shrink-0">👁 {typeof n.readCount==='number'?n.readCount:0}</span></div></div>))}</div>
     {showAdd&&(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={closeAdd}><div className="bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[88vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
       <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{t.noticeAdd||'新增公告'}</h3><button onClick={closeAdd} className="text-gray-500 text-sm">✕</button></div>
       <div className="p-4 space-y-4">
@@ -346,7 +378,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
       {subTab==='cust'&&<CustomerPage t={t} settings={settings}/>}
       {subTab==='notice'&&<NoticeManagePage t={t} settings={settings}/>}
       {subTab==='chart'&&<ChartPage t={t} settings={settings}/>}
-      {subTab==='suggest'&&(<div className="fi"><h2 className="text-lg font-bold text-gray-100 mb-2">{t.suggestBox}</h2><Construction/></div>)}
+      {subTab==='suggest'&&<SuggestPage t={t} settings={settings}/>}
 
       {subTab==='backup'&&(<div className="space-y-4 fi">
         <h2 className="text-lg font-bold text-gray-100">{t.backupCenter}</h2>
