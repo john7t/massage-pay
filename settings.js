@@ -90,6 +90,31 @@ function CustomerPage({t,settings}){
   </div>);
 }
 // 圖表分頁(老師端:讀stats.json快照顯示班別比/性別比)
+function NoticeManagePage({t,settings}){
+  const[showAdd,setShowAdd]=React.useState(false);
+  const[content,setContent]=React.useState('');
+  const[aiResult,setAiResult]=React.useState(null); // AI產生的結果(分類/標籤/標題/摘要/越文),先留位
+  const[aiStatus,setAiStatus]=React.useState('');
+  const closeAdd=()=>{setShowAdd(false);setContent('');setAiResult(null);setAiStatus('')};
+  const runAI=()=>{setAiStatus('wip')}; // 先不功能
+  const publish=()=>{setAiStatus('wip')}; // 先不功能
+  return(<div className="fi">
+    <div className="flex items-center justify-between mb-3"><h2 className="text-lg font-bold text-gray-100">{t.noticeCenter||'公告'}</h2><button onClick={()=>setShowAdd(true)} className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold active:bg-amber-700">+ {t.noticeAdd||'新增公告'}</button></div>
+    <p className="text-xs text-gray-500">{t.noticeManageHint||'點右上新增公告,只要打內容,AI 會自動分類、產標題摘要並翻譯越南文。'}</p>
+    {showAdd&&(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={closeAdd}><div className="bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[88vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+      <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{t.noticeAdd||'新增公告'}</h3><button onClick={closeAdd} className="text-gray-500 text-sm">✕</button></div>
+      <div className="p-4 space-y-4">
+        <div><label className="text-xs text-gray-400 mb-1 block">{t.noticeContentLabel||'公告內容（中文）'}</label><textarea value={content} onChange={e=>setContent(e.target.value)} rows={6} placeholder={t.noticeContentPh||'直接貼上或輸入公告內容，其他交給 AI…'} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 resize-none" style={{boxSizing:'border-box'}}/></div>
+        <button onClick={runAI} className="w-full py-2.5 rounded-xl bg-sky-600 text-white text-sm font-semibold active:bg-sky-700">✨ {t.noticeAIGen||'AI 產生（分類/標題/摘要/越南文）'}</button>
+        {aiStatus==='wip'&&<p className="text-[11px] text-amber-500 text-center">{t.noticeFeatureWip||'功能建置中，敬請期待'}</p>}
+        {aiResult&&(<div className="space-y-2 bg-white/[0.03] rounded-xl p-3">
+          <p className="text-[11px] text-gray-500">{t.noticeAIPreview||'AI 產生結果（可修改）'}</p>
+        </div>)}
+        <div className="pt-2 border-t border-white/[0.06]"><button onClick={publish} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold active:bg-emerald-700">{t.noticePublishBtn||'發布公告'}</button></div>
+      </div>
+    </div></div>)}
+  </div>);
+}
 function SettingsPage({settings,onUpdate,t,theme,setTheme}){
   const[form,setForm]=useState({...settings});const[gasTest,setGasTest]=useState('');const[keyAdminSec,setKeyAdminSec]=useState('');const[keyGenCode,setKeyGenCode]=useState('');const[keyGenResult,setKeyGenResult]=useState(null);const[claimInput,setClaimInput]=useState('');const[claimMsg,setClaimMsg]=useState('');
   const[saved,setSaved]=useState(false);
@@ -183,6 +208,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
         {(()=>{const ghLocal=getGHConfig();const hasConn=!!(ghLocal&&ghLocal.token);return(
           <div className="space-y-2"><label className="text-xs text-gray-400 mb-1 block">{t.serviceStatus}</label>
             <div className="bg-white/[0.04] rounded-xl px-4 py-3 flex items-center justify-between"><span className="text-sm text-gray-400">{t.connection}</span><span className="text-sm">{hasConn?t.connOnline:t.connOffline}</span></div>
+            <div className="bg-white/[0.04] rounded-xl px-4 py-3 flex items-center justify-between"><span className="text-sm text-gray-400">{t.teacherCert||'老師專屬憑證'}</span><span className={`text-sm font-semibold ${hasMyKey(settings.code)?'text-emerald-400':'text-gray-500'}`}>{hasMyKey(settings.code)?('✓ '+(t.certGot||'本機已領')):(t.certNone||'未領')}</span></div>
             {!hasConn&&!connMode&&(<button onClick={()=>setConnMode('apply')} className="w-full py-2.5 rounded-xl bg-amber-600/20 border border-amber-500/30 text-amber-400 text-sm font-semibold active:bg-amber-600/30">{t.connApply}</button>)}
             {connMode==='apply'&&(<div className="space-y-3 fi">
               <div className="flex justify-center"><div className="bg-white p-2.5 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(settings.code+':'+devId)}`} alt="QR" className="w-40 h-40"/></div></div>
@@ -318,7 +344,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
       </div>)}
 
       {subTab==='cust'&&<CustomerPage t={t} settings={settings}/>}
-      {subTab==='notice'&&(<div className="fi"><h2 className="text-lg font-bold text-gray-100 mb-2">{t.noticeCenter}</h2><Construction/></div>)}
+      {subTab==='notice'&&<NoticeManagePage t={t} settings={settings}/>}
       {subTab==='chart'&&<ChartPage t={t} settings={settings}/>}
       {subTab==='suggest'&&(<div className="fi"><h2 className="text-lg font-bold text-gray-100 mb-2">{t.suggestBox}</h2><Construction/></div>)}
 
