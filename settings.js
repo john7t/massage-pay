@@ -1,7 +1,7 @@
 // settings.js — 設定頁相關元件(從 index.html 抽離,降低 index 體積)
 // 注意:此檔為 type="text/babel",獨立作用域,需自行宣告 hooks 與 bridge
 const{useState,useEffect,useCallback,useMemo}=React;
-const{noticeSummary,getNoticeReadCount,getNoticesLocal,fetchNotices,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,getGasUrl,setGasUrl,gasCall,hasMyKey,issueKey,claimMyKey,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{gasAnalyze,gasAddNotice,noticeSummary,getNoticeReadCount,getNoticesLocal,fetchNotices,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,getGasUrl,setGasUrl,gasCall,hasMyKey,issueKey,claimMyKey,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 function fmtSyncTime(iso){try{const d=new Date(iso);const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"/"+p(d.getMonth()+1)+"/"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes())}catch(_e){return ""}}
 
 function ChartPage({t,settings}){
@@ -129,8 +129,26 @@ function NoticeManagePage({t,settings}){
   const openNotice=(n)=>{try{if(getNoticeReadCount)getNoticeReadCount(n.id)}catch(_e){}setNoticeView(n)};
   React.useEffect(()=>{fetchNotices().then(l=>{if(Array.isArray(l))setList(l)}).catch(()=>{})},[]);
   const closeAdd=()=>{setShowAdd(false);setContent('');setAiResult(null);setAiStatus('')};
-  const runAI=()=>{setAiStatus('wip')}; // 先不功能
-  const publish=()=>{setAiStatus('wip')}; // 先不功能
+  const myCode=(()=>{try{return (settings&&settings.code)||''}catch(_e){return ''}})();
+  const runAI=async()=>{
+    if(!content.trim()){setAiStatus('請先輸入公告內容');return;}
+    setAiStatus('processing');setAiResult(null);
+    try{
+      const r=await gasAnalyze(content,myCode,'新增公告');
+      if(r&&r.ok){setAiResult(Object.assign({body:content},r.result));setAiStatus('');}
+      else{setAiStatus('AI 失敗：'+((r&&r.error)||'?'));}
+    }catch(e){setAiStatus('錯誤：'+e);}
+  };
+  const publish=async()=>{
+    if(!aiResult){setAiStatus('請先產生 AI 結果');return;}
+    setAiStatus('publishing');
+    try{
+      const r=await gasAddNotice({cat:aiResult.cat,subcat:aiResult.subcat,title:aiResult.title,summary:aiResult.summary,body:aiResult.body||content,bodyVi:aiResult.bodyVi,tags:aiResult.tags,titleVi:aiResult.titleVi,summaryVi:aiResult.summaryVi,author:myCode,code:myCode});
+      if(r&&r.ok){setAiStatus('done:'+r.id);setTimeout(()=>closeAdd(),3500);}
+      else{setAiStatus('發布失敗：'+((r&&r.error)||'?'));}
+    }catch(e){setAiStatus('錯誤：'+e);}
+  };
+  const upd=(k,v)=>setAiResult(p=>Object.assign({},p,{[k]:v}));
   return(<div className="fi">
     <div className="flex items-center justify-between mb-3"><h2 className="text-lg font-bold text-gray-100">{t.noticeCenter||'公告'}</h2><button onClick={()=>setShowAdd(true)} className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold active:bg-amber-700">+ {t.noticeAdd||'新增公告'}</button></div>
     <p className="text-xs text-gray-500">{t.noticeManageHint||'點右上新增公告,只要打內容,AI 會自動分類、產標題摘要並翻譯越南文。'}</p>
@@ -140,12 +158,19 @@ function NoticeManagePage({t,settings}){
       <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{t.noticeAdd||'新增公告'}</h3><button onClick={closeAdd} className="text-gray-500 text-sm">✕</button></div>
       <div className="p-4 space-y-4">
         <div><label className="text-xs text-gray-400 mb-1 block">{t.noticeContentLabel||'公告內容（中文）'}</label><textarea value={content} onChange={e=>setContent(e.target.value)} rows={6} placeholder={t.noticeContentPh||'直接貼上或輸入公告內容，其他交給 AI…'} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 resize-none" style={{boxSizing:'border-box'}}/></div>
-        <button onClick={runAI} className="w-full py-2.5 rounded-xl bg-sky-600 text-white text-sm font-semibold active:bg-sky-700">✨ {t.noticeAIGen||'AI 產生（分類/標題/摘要/越南文）'}</button>
-        {aiStatus==='wip'&&<p className="text-[11px] text-amber-500 text-center">{t.noticeFeatureWip||'功能建置中，敬請期待'}</p>}
+        <button onClick={runAI} disabled={aiStatus==='processing'||aiStatus==='publishing'} className="w-full py-2.5 rounded-xl bg-sky-600 text-white text-sm font-semibold active:bg-sky-700 disabled:opacity-50">{aiStatus==='processing'?'AI 處理中…（免費空間較慢）':('✨ '+(t.noticeAIGen||'AI 產生'))}</button>
+        {aiStatus&&aiStatus!=='processing'&&aiStatus!=='publishing'&&!aiStatus.startsWith('done:')&&<p className="text-[11px] text-amber-500 text-center">{aiStatus}</p>}
         {aiResult&&(<div className="space-y-2 bg-white/[0.03] rounded-xl p-3">
-          <p className="text-[11px] text-gray-500">{t.noticeAIPreview||'AI 產生結果（可修改）'}</p>
+          <p className="text-[11px] text-gray-500">{t.noticeAIPreview||'AI 產生結果（可修改後發布）'}</p>
+          <div className="grid grid-cols-2 gap-2"><div><label className="text-[10px] text-gray-500">主分類</label><input value={aiResult.cat||''} onChange={e=>upd('cat',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div><div><label className="text-[10px] text-gray-500">子分類</label><input value={aiResult.subcat||''} onChange={e=>upd('subcat',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div></div>
+          <div><label className="text-[10px] text-gray-500">標題</label><input value={aiResult.title||''} onChange={e=>upd('title',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div>
+          <div><label className="text-[10px] text-gray-500">摘要</label><input value={aiResult.summary||''} onChange={e=>upd('summary',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div>
+          <div><label className="text-[10px] text-gray-500">標籤</label><input value={aiResult.tags||''} onChange={e=>upd('tags',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div>
+          <div><label className="text-[10px] text-emerald-600">越南文標題</label><input value={aiResult.titleVi||''} onChange={e=>upd('titleVi',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-emerald-500" style={{boxSizing:'border-box'}}/></div>
+          <div><label className="text-[10px] text-emerald-600">越南文內容</label><textarea value={aiResult.bodyVi||''} onChange={e=>upd('bodyVi',e.target.value)} rows={3} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-emerald-500 resize-none" style={{boxSizing:'border-box'}}/></div>
         </div>)}
-        <div className="pt-2 border-t border-white/[0.06]"><button onClick={publish} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold active:bg-emerald-700">{t.noticePublishBtn||'發布公告'}</button></div>
+        {aiStatus&&aiStatus.startsWith('done:')&&<p className="text-[11px] text-emerald-500 text-center font-semibold">✓ 已發布（{aiStatus.slice(5)}號）。公告頁是快取，需等下次更新才會顯示，當下沒變是正常的。</p>}
+        <div className="pt-2 border-t border-white/[0.06]"><button onClick={publish} disabled={!aiResult||aiStatus==='publishing'} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold active:bg-emerald-700 disabled:opacity-50">{aiStatus==='publishing'?'發布中…':(t.noticePublishBtn||'發布公告')}</button></div>
       </div>
     </div></div>)}
   </div>);
