@@ -1,7 +1,8 @@
 // settings.js — 設定頁相關元件(從 index.html 抽離,降低 index 體積)
+// v1.10-034 / 公告線上編輯:NoticeManagePage加編輯功能(主管/管理者限定,讀staff.json判斷role);列表每則加✏️編輯鈕→Modal預填現有中文欄位(主分類/子分類/標題/摘要/內文/標籤)→存(gasEditNotice)→GAS背景自動翻越南文,前端只需等回應;+新增公告按鈕也一併限主管以上才顯示(補齊先前待辦的權限限制) | 前: 新增公告完整流程接功能(033)
 // 注意:此檔為 type="text/babel",獨立作用域,需自行宣告 hooks 與 bridge
 const{useState,useEffect,useCallback,useMemo}=React;
-const{gasAnalyze,gasAddNotice,noticeSummary,getNoticeReadCount,getNoticesLocal,fetchNotices,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,getGasUrl,setGasUrl,gasCall,hasMyKey,issueKey,claimMyKey,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{gasAnalyze,gasAddNotice,gasEditNotice,noticeSummary,getNoticeReadCount,getNoticesLocal,fetchNotices,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,getGasUrl,setGasUrl,gasCall,hasMyKey,issueKey,claimMyKey,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 function fmtSyncTime(iso){try{const d=new Date(iso);const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"/"+p(d.getMonth()+1)+"/"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes())}catch(_e){return ""}}
 
 function ChartPage({t,settings}){
@@ -126,10 +127,31 @@ function NoticeManagePage({t,settings}){
   const[aiStatus,setAiStatus]=React.useState('');
   const[list,setList]=React.useState(()=>{try{return getNoticesLocal()}catch(_e){return []}});
   const[noticeView,setNoticeView]=React.useState(null);
+  const[canManage,setCanManage]=React.useState(false); // 主管/管理者才能新增+編輯公告
+  const[editing,setEditing]=React.useState(null); // 正在編輯的公告(原始資料)
+  const[editForm,setEditForm]=React.useState(null); // {cat,subcat,title,summary,body,tags}
+  const[editStatus,setEditStatus]=React.useState('');
   const openNotice=(n)=>{try{if(getNoticeReadCount)getNoticeReadCount(n.id)}catch(_e){}setNoticeView(n)};
   React.useEffect(()=>{fetchNotices().then(l=>{if(Array.isArray(l))setList(l)}).catch(()=>{})},[]);
+  React.useEffect(()=>{let alive=true;(async()=>{try{const code=(settings&&settings.code)||'';if(!code)return;const staff=await readStaff();const me=(staff||[]).find(s=>String(s.code)===String(code));if(alive&&me&&(me.role==='supervisor'||me.role==='admin'))setCanManage(true);}catch(_e){}})();return()=>{alive=false}},[settings&&settings.code]);
   const closeAdd=()=>{setShowAdd(false);setContent('');setAiResult(null);setAiStatus('')};
   const myCode=(()=>{try{return (settings&&settings.code)||''}catch(_e){return ''}})();
+  const openEdit=(n,ev)=>{try{if(ev)ev.stopPropagation()}catch(_e){}setEditing(n);setEditForm({cat:n.cat||'',subcat:n.subcat||'',title:n.title||'',summary:n.summary||'',body:n.body||'',tags:n.tags||''});setEditStatus('')};
+  const closeEdit=()=>{setEditing(null);setEditForm(null);setEditStatus('')};
+  const updEdit=(k,v)=>setEditForm(p=>Object.assign({},p,{[k]:v}));
+  const submitEdit=async()=>{
+    if(!editing||!editForm)return;
+    setEditStatus('saving');
+    try{
+      const r=await gasEditNotice({id:editing.id,cat:editForm.cat,subcat:editForm.subcat,title:editForm.title,summary:editForm.summary,body:editForm.body,tags:editForm.tags,code:myCode});
+      if(r&&r.ok){
+        // 本機列表先同步中文欄位,方便主管馬上看到自己改的結果(老師端要等下次publishNotices才會更新)
+        setList(prev=>prev.map(x=>x.id===editing.id?Object.assign({},x,editForm):x));
+        setEditStatus(r.viOk===false?'savedNoVi':'saved');
+        setTimeout(()=>closeEdit(),3500);
+      }else{setEditStatus('失敗：'+((r&&r.error)||'?'));}
+    }catch(e){setEditStatus('錯誤：'+e);}
+  };
   const runAI=async()=>{
     if(!content.trim()){setAiStatus('請先輸入公告內容');return;}
     setAiStatus('processing');setAiResult(null);
@@ -150,10 +172,26 @@ function NoticeManagePage({t,settings}){
   };
   const upd=(k,v)=>setAiResult(p=>Object.assign({},p,{[k]:v}));
   return(<div className="fi">
-    <div className="flex items-center justify-between mb-3"><h2 className="text-lg font-bold text-gray-100">{t.noticeCenter||'公告'}</h2><button onClick={()=>setShowAdd(true)} className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold active:bg-amber-700">+ {t.noticeAdd||'新增公告'}</button></div>
-    <p className="text-xs text-gray-500">{t.noticeManageHint||'點右上新增公告,只要打內容,AI 會自動分類、產標題摘要並翻譯越南文。'}</p>
-    <div className="space-y-2 mt-3">{list.length===0?<p className="text-xs text-gray-600 text-center py-6">{t.noticeEmpty||'目前沒有公告'}</p>:list.slice().reverse().map(n=>(<div key={n.id} onClick={()=>openNotice(n)} className="bg-white/[0.03] border border-white/[0.05] rounded-xl px-3 py-2.5 active:bg-white/[0.06] cursor-pointer"><div className="flex items-center justify-between gap-2"><p className="text-sm text-gray-200 font-medium truncate flex-1">{(noticeSummary?noticeSummary(n,settings.lang):(n.summary||n.title))||n.title}</p><span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 flex-shrink-0">{n.cat}</span></div><div className="flex items-center justify-between gap-2 mt-1"><span className="text-[10px] text-gray-500 truncate">👤 {n.author||''} · {n.date}</span><span className="text-[10px] text-gray-600 flex-shrink-0">👁 {typeof n.readCount==='number'?n.readCount:0}</span></div></div>))}</div>
+    <div className="flex items-center justify-between mb-3"><h2 className="text-lg font-bold text-gray-100">{t.noticeCenter||'公告'}</h2>{canManage&&<button onClick={()=>setShowAdd(true)} className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold active:bg-amber-700">+ {t.noticeAdd||'新增公告'}</button>}</div>
+    <p className="text-xs text-gray-500">{canManage?(t.noticeManageHint||'點右上新增公告,只要打內容,AI 會自動分類、產標題摘要並翻譯越南文。點✏️可編輯既有公告。'):(t.noticeViewHint||'公告中心')}</p>
+    <div className="space-y-2 mt-3">{list.length===0?<p className="text-xs text-gray-600 text-center py-6">{t.noticeEmpty||'目前沒有公告'}</p>:list.slice().reverse().map(n=>(<div key={n.id} onClick={()=>openNotice(n)} className="bg-white/[0.03] border border-white/[0.05] rounded-xl px-3 py-2.5 active:bg-white/[0.06] cursor-pointer"><div className="flex items-center justify-between gap-2"><p className="text-sm text-gray-200 font-medium truncate flex-1">{(noticeSummary?noticeSummary(n,settings.lang):(n.summary||n.title))||n.title}</p><div className="flex items-center gap-1 flex-shrink-0">{canManage&&<button onClick={(ev)=>openEdit(n,ev)} className="text-[11px] px-1.5 py-0.5 rounded-full bg-white/[0.08] text-gray-300 active:bg-white/[0.15]">✏️</button>}<span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400">{n.cat}</span></div></div><div className="flex items-center justify-between gap-2 mt-1"><span className="text-[10px] text-gray-500 truncate">👤 {n.author||''} · {n.date}</span><span className="text-[10px] text-gray-600 flex-shrink-0">👁 {typeof n.readCount==='number'?n.readCount:0}</span></div></div>))}</div>
     {noticeView&&window.NoticeDetailModal&&(()=>{const NDM=window.NoticeDetailModal;return <NDM notice={noticeView} settings={settings} t={t} onClose={()=>setNoticeView(null)} onMore={()=>setNoticeView(null)}/>;})()}
+    {editing&&editForm&&(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={closeEdit}><div className="bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[88vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+      <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{t.noticeEdit||'編輯公告'} #{editing.id}</h3><button onClick={closeEdit} className="text-gray-500 text-sm">✕</button></div>
+      <div className="p-4 space-y-3">
+        <p className="text-[11px] text-gray-500">{t.noticeEditHint||'只需改中文,存檔後系統會在背景自動更新越南文翻譯。'}</p>
+        <div className="grid grid-cols-2 gap-2"><div><label className="text-[10px] text-gray-500">主分類</label><input value={editForm.cat} onChange={e=>updEdit('cat',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div><div><label className="text-[10px] text-gray-500">子分類</label><input value={editForm.subcat} onChange={e=>updEdit('subcat',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div></div>
+        <div><label className="text-[10px] text-gray-500">標題</label><input value={editForm.title} onChange={e=>updEdit('title',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div>
+        <div><label className="text-[10px] text-gray-500">摘要</label><input value={editForm.summary} onChange={e=>updEdit('summary',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div>
+        <div><label className="text-[10px] text-gray-500">內文</label><textarea value={editForm.body} onChange={e=>updEdit('body',e.target.value)} rows={5} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100 resize-none" style={{boxSizing:'border-box'}}/></div>
+        <div><label className="text-[10px] text-gray-500">標籤</label><input value={editForm.tags} onChange={e=>updEdit('tags',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div>
+        {editStatus==='saving'&&<p className="text-[11px] text-amber-500 text-center">存檔中…（背景翻譯，免費空間較慢）</p>}
+        {editStatus==='saved'&&<p className="text-[11px] text-emerald-500 text-center font-semibold">✓ 已存檔，越南文已同步更新。公告頁是快取，需等下次更新才會顯示，當下沒變是正常的。</p>}
+        {editStatus==='savedNoVi'&&<p className="text-[11px] text-amber-500 text-center font-semibold">✓ 中文已存檔，越南文翻譯暫時失敗待補（不影響中文內容）。</p>}
+        {editStatus&&editStatus!=='saving'&&editStatus!=='saved'&&editStatus!=='savedNoVi'&&<p className="text-[11px] text-red-400 text-center">{editStatus}</p>}
+        <div className="pt-2 border-t border-white/[0.06]"><button onClick={submitEdit} disabled={editStatus==='saving'} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold active:bg-emerald-700 disabled:opacity-50">{editStatus==='saving'?'存檔中…':(t.noticeSaveBtn||'儲存變更')}</button></div>
+      </div>
+    </div></div>)}
     {showAdd&&(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={closeAdd}><div className="bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[88vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
       <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{t.noticeAdd||'新增公告'}</h3><button onClick={closeAdd} className="text-gray-500 text-sm">✕</button></div>
       <div className="p-4 space-y-4">
