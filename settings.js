@@ -1,5 +1,5 @@
 // settings.js — 設定頁相關元件(從 index.html 抽離,降低 index 體積)
-// v1.10-034 / 公告線上編輯:NoticeManagePage加編輯功能(主管/管理者限定,讀staff.json判斷role);列表每則加✏️編輯鈕→Modal預填現有中文欄位(主分類/子分類/標題/摘要/內文/標籤)→存(gasEditNotice)→GAS背景自動翻越南文,前端只需等回應;+新增公告按鈕也一併限主管以上才顯示(補齊先前待辦的權限限制) | 前: 新增公告完整流程接功能(033)
+// v1.10-034.1 / hotfix:公告編輯權限判斷修正:admin身分不是存在staff.json的role欄位,而是要查admin.cfg雜湊比對(比照auth.html AuthGate的tryCheck邏輯),原本只查staff.json role漏掉admin,導致管理者編號看不到編輯/新增公告鈕 | 前: 新增公告完整流程接功能(033)
 // 注意:此檔為 type="text/babel",獨立作用域,需自行宣告 hooks 與 bridge
 const{useState,useEffect,useCallback,useMemo}=React;
 const{gasAnalyze,gasAddNotice,gasEditNotice,noticeSummary,getNoticeReadCount,getNoticesLocal,fetchNotices,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,getGasUrl,setGasUrl,gasCall,hasMyKey,issueKey,claimMyKey,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
@@ -133,7 +133,27 @@ function NoticeManagePage({t,settings}){
   const[editStatus,setEditStatus]=React.useState('');
   const openNotice=(n)=>{try{if(getNoticeReadCount)getNoticeReadCount(n.id)}catch(_e){}setNoticeView(n)};
   React.useEffect(()=>{fetchNotices().then(l=>{if(Array.isArray(l))setList(l)}).catch(()=>{})},[]);
-  React.useEffect(()=>{let alive=true;(async()=>{try{const code=(settings&&settings.code)||'';if(!code)return;const staff=await readStaff();const me=(staff||[]).find(s=>String(s.code)===String(code));if(alive&&me&&(me.role==='supervisor'||me.role==='admin'))setCanManage(true);}catch(_e){}})();return()=>{alive=false}},[settings&&settings.code]);
+  React.useEffect(()=>{let alive=true;(async()=>{
+    const code=(settings&&settings.code)||'';
+    if(!code)return;
+    // 先查staff.json role(主管的權威判斷方式)
+    try{
+      const staff=await readStaff();
+      const me=(staff||[]).find(s=>String(s.code)===String(code));
+      if(me&&(me.role==='supervisor'||me.role==='admin')){if(alive)setCanManage(true);return;}
+    }catch(_e){}
+    // 管理者不一定寫進staff.json role,權威判斷方式是admin.cfg雜湊比對(比照auth.html tryCheck邏輯)
+    try{
+      const res=await fetch('./admin.cfg',{cache:'no-store'});
+      if(res.ok){
+        const text=(await res.text()).trim();
+        const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
+        const myHash=adminHash(code);
+        const match=lines.some(l=>{const parts=l.split(':');const h=parts.length>=2?parts[parts.length-1]:parts[0];return h===myHash});
+        if(match&&alive)setCanManage(true);
+      }
+    }catch(_e){}
+  })();return()=>{alive=false}},[settings&&settings.code]);
   const closeAdd=()=>{setShowAdd(false);setContent('');setAiResult(null);setAiStatus('')};
   const myCode=(()=>{try{return (settings&&settings.code)||''}catch(_e){return ''}})();
   const openEdit=(n,ev)=>{try{if(ev)ev.stopPropagation()}catch(_e){}setEditing(n);setEditForm({cat:n.cat||'',subcat:n.subcat||'',title:n.title||'',summary:n.summary||'',body:n.body||'',tags:n.tags||''});setEditStatus('')};
