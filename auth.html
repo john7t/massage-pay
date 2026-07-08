@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.10-026</title>
+<title>薪資追蹤 · 管理 v1.10-030</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -205,7 +205,7 @@ input[type=number]{-moz-appearance:textfield}
 <style>@keyframes fbspin{to{transform:rotate(360deg)}}@keyframes fbpulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
 <script src="./common.js"></script>
 <script type="text/babel">
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,getGasUrl,issueKey,publishNotices,diagClaimKey,getMyKey,setMyKey,hasMyKey,getAdminSecret,setAdminSecret,hasAdminSecret,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,genUUID,getDeviceId,SUP_LEVELS,supLevelName,effSupLevel,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,computeStats,publishStats,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,T}=window.MP;
+const{gasTranslate,gasAnalyze,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,getGasUrl,issueKey,publishNotices,diagClaimKey,getMyKey,setMyKey,hasMyKey,getAdminSecret,setAdminSecret,hasAdminSecret,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,genUUID,getDeviceId,SUP_LEVELS,supLevelName,effSupLevel,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,computeStats,publishStats,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 const goHome=()=>{location.href='./index.html'};
@@ -254,15 +254,39 @@ function NoticePublishBlock({t,gh}){
   const[errMsg,setErrMsg]=React.useState('');
   const[homeN,setHomeN]=React.useState('2');
   const[listN,setListN]=React.useState('10');
+  const[shCat,setShCat]=React.useState(false);const[shSub,setShSub]=React.useState(false);const[shTags,setShTags]=React.useState(false);
   if(!gh||!gh.token||!getGasUrl())return null;
-  const pub=async()=>{setSt('...');setErrMsg('');setStep('');const hc=homeN.trim()===''?0:parseInt(homeN,10)||0;const lc=listN.trim()===''?0:parseInt(listN,10)||0;const r=await publishNotices(hc,lc,(s)=>setStep(s));if(r&&r.ok){setSt('ok');setStep('');setTimeout(()=>setSt(''),4000)}else{setSt('fail');setErrMsg('['+((r&&r.step)||'?')+'] '+((r&&r.error)||'未知錯誤'))}};
+  const pub=async()=>{setSt('...');setErrMsg('');setStep('');const hc=homeN.trim()===''?0:parseInt(homeN,10)||0;const lc=listN.trim()===''?0:parseInt(listN,10)||0;const r=await publishNotices(hc,lc,{cat:shCat,subcat:shSub,tags:shTags},(s)=>setStep(s));if(r&&r.ok){setSt('ok');setStep('');setTimeout(()=>setSt(''),4000)}else{setSt('fail');setErrMsg('['+((r&&r.step)||'?')+'] '+((r&&r.error)||'未知錯誤'))}};
   return(<div className="space-y-2 bg-white/[0.02] border border-sky-500/20 rounded-xl p-3">
     <label className="text-xs text-sky-400 font-semibold block">{t.noticePubTitle||'公告更新'}</label>
     <div className="flex gap-2"><div className="flex-1"><label className="text-[10px] text-gray-500 block mb-0.5">{t.noticeHomeN||'首頁筆數'}</label><input value={homeN} onChange={e=>setHomeN(e.target.value)} inputMode="numeric" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 text-center focus:outline-none focus:border-sky-500" style={{boxSizing:'border-box'}}/></div><div className="flex-1"><label className="text-[10px] text-gray-500 block mb-0.5">{t.noticeListN||'公告頁筆數'}</label><input value={listN} onChange={e=>setListN(e.target.value)} inputMode="numeric" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 text-center focus:outline-none focus:border-sky-500" style={{boxSizing:'border-box'}}/></div></div>
+    <div className="flex flex-wrap gap-3 py-1"><span className="text-[10px] text-gray-500 w-full">{t.noticeShowFields||'公開顯示欄位（預設不顯示，分類校正好再勾）：'}</span><label className="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={shCat} onChange={e=>setShCat(e.target.checked)} className="w-4 h-4 rounded accent-sky-500"/><span className="text-xs text-gray-300">{t.tabNoticeCat||'主分類'}</span></label><label className="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={shSub} onChange={e=>setShSub(e.target.checked)} className="w-4 h-4 rounded accent-sky-500"/><span className="text-xs text-gray-300">{t.noticeSubcat||'子分類'}</span></label><label className="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={shTags} onChange={e=>setShTags(e.target.checked)} className="w-4 h-4 rounded accent-sky-500"/><span className="text-xs text-gray-300">{t.noticeTagsLabel||'標籤'}</span></label></div>
     <button onClick={pub} className="w-full py-2 rounded-lg bg-sky-600 text-white text-xs font-semibold active:bg-sky-700">{st==='...'?(step||(t.noticePubbing||'更新中…')):st==='ok'?'✓ '+(t.noticePubOk||'已更新公告'):st==='fail'?'✗ '+(t.noticePubFail||'更新失敗'):(t.noticePubBtn||'從GAS抓公告存GitHub')}</button>
     {st==='...'&&step&&<p className="text-[11px] text-sky-400">⏳ {step}</p>}
     {errMsg&&<p className="text-[11px] text-red-400 break-all">{errMsg}</p>}
     <p className="text-[11px] text-gray-500">{t.noticePubHint||'按此把GAS最新2筆公告發布到GitHub,所有老師即可看到。'}</p>
+  </div>);
+}
+function AITestBlock({t}){
+  const[input,setInput]=React.useState('');
+  const[mode,setMode]=React.useState('translate');
+  const[out,setOut]=React.useState('');
+  const[busy,setBusy]=React.useState(false);
+  const run=async()=>{
+    if(!input.trim()){setOut('請先輸入公告內容');return;}
+    setBusy(true);setOut('AI 處理中…(免費空間較慢,請稍候)');
+    try{
+      if(mode==='translate'){const r=await gasTranslate(input);setOut(r&&r.ok?r.vi:('失敗:'+((r&&r.error)||'?')));}
+      else{const r=await gasAnalyze(input);if(r&&r.ok){const o=r.result;setOut('【主分類】'+o.cat+'\n【子分類】'+o.subcat+'\n【標籤】'+o.tags+'\n【中文標題】'+o.title+'\n【中文摘要】'+o.summary+'\n【越南標題】'+o.titleVi+'\n【越南摘要】'+o.summaryVi+'\n【越南內容】\n'+o.bodyVi);}else{setOut('失敗:'+((r&&r.error)||'?'));}}
+    }catch(e){setOut('錯誤:'+e);}
+    setBusy(false);
+  };
+  return(<div className="space-y-2 bg-white/[0.02] border border-violet-500/20 rounded-xl p-3">
+    <label className="text-xs text-violet-400 font-semibold block">AI 翻譯/分析測試</label>
+    <div className="flex gap-1"><button onClick={()=>setMode('translate')} className={`flex-1 py-1.5 rounded-lg text-xs font-medium ${mode==='translate'?'bg-violet-600 text-white':'bg-white/[0.06] text-gray-400'}`}>翻譯(中→越)</button><button onClick={()=>setMode('analyze')} className={`flex-1 py-1.5 rounded-lg text-xs font-medium ${mode==='analyze'?'bg-violet-600 text-white':'bg-white/[0.06] text-gray-400'}`}>完整分析</button></div>
+    <textarea value={input} onChange={e=>setInput(e.target.value)} rows={4} placeholder="貼上公告中文內容測試…" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-sm text-gray-100 focus:outline-none focus:border-violet-500 resize-none" style={{boxSizing:'border-box'}}/>
+    <button onClick={run} disabled={busy} className="w-full py-2 rounded-lg bg-violet-600 text-white text-xs font-semibold active:bg-violet-700 disabled:opacity-50">{busy?'處理中…':'送出測試'}</button>
+    {out&&<div className="bg-white/[0.04] rounded-lg p-2.5 text-[11px] text-gray-300 whitespace-pre-wrap break-all max-h-64 overflow-y-auto">{out}</div>}
   </div>);
 }
 function ManualCodeEntry({t,gh,staffList,setStaffList}){
@@ -292,6 +316,7 @@ function ManualCodeEntry({t,gh,staffList,setStaffList}){
       </div>)}
       <KeyGenBlock t={t}/>
       <NoticePublishBlock t={t} gh={gh}/>
+      <AITestBlock t={t}/>
       <KeyDiagBlock t={t}/>
     </div>
   );
