@@ -1,5 +1,5 @@
 // settings.js — 設定頁相關元件(從 index.html 抽離,降低 index 體積)
-// v1.10-034.1 / hotfix:公告編輯權限判斷修正:admin身分不是存在staff.json的role欄位,而是要查admin.cfg雜湊比對(比照auth.html AuthGate的tryCheck邏輯),原本只查staff.json role漏掉admin,導致管理者編號看不到編輯/新增公告鈕 | 前: 新增公告完整流程接功能(033)
+// v1.10-034.2 / 公告編輯AI補欄位:編輯Modal的主分類/子分類/標題/摘要/標籤留空時,存檔會提示「留空→AI自動判斷/生成」;GAS editNotice同步改成一次AI呼叫同時補缺欄位+翻譯越南文(省額度);存檔成功提示會列出AI實際補了哪些欄位 | 前:hotfix:公告編輯權限判斷修正(admin查admin.cfg雜湊,不是staff.json role) | 前: 新增公告完整流程接功能(033)
 // 注意:此檔為 type="text/babel",獨立作用域,需自行宣告 hooks 與 bridge
 const{useState,useEffect,useCallback,useMemo}=React;
 const{gasAnalyze,gasAddNotice,gasEditNotice,noticeSummary,getNoticeReadCount,getNoticesLocal,fetchNotices,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,getGasUrl,setGasUrl,gasCall,hasMyKey,issueKey,claimMyKey,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
@@ -156,19 +156,22 @@ function NoticeManagePage({t,settings}){
   })();return()=>{alive=false}},[settings&&settings.code]);
   const closeAdd=()=>{setShowAdd(false);setContent('');setAiResult(null);setAiStatus('')};
   const myCode=(()=>{try{return (settings&&settings.code)||''}catch(_e){return ''}})();
-  const openEdit=(n,ev)=>{try{if(ev)ev.stopPropagation()}catch(_e){}setEditing(n);setEditForm({cat:n.cat||'',subcat:n.subcat||'',title:n.title||'',summary:n.summary||'',body:n.body||'',tags:n.tags||''});setEditStatus('')};
-  const closeEdit=()=>{setEditing(null);setEditForm(null);setEditStatus('')};
+  const[editAiFilled,setEditAiFilled]=React.useState([]);
+  const openEdit=(n,ev)=>{try{if(ev)ev.stopPropagation()}catch(_e){}setEditing(n);setEditForm({cat:n.cat||'',subcat:n.subcat||'',title:n.title||'',summary:n.summary||'',body:n.body||'',tags:n.tags||''});setEditStatus('');setEditAiFilled([])};
+  const closeEdit=()=>{setEditing(null);setEditForm(null);setEditStatus('');setEditAiFilled([])};
   const updEdit=(k,v)=>setEditForm(p=>Object.assign({},p,{[k]:v}));
+  const FIELD_ZH={cat:'主分類',subcat:'子分類',title:'標題',summary:'摘要',tags:'標籤'};
   const submitEdit=async()=>{
     if(!editing||!editForm)return;
-    setEditStatus('saving');
+    setEditStatus('saving');setEditAiFilled([]);
     try{
       const r=await gasEditNotice({id:editing.id,cat:editForm.cat,subcat:editForm.subcat,title:editForm.title,summary:editForm.summary,body:editForm.body,tags:editForm.tags,code:myCode});
       if(r&&r.ok){
-        // 本機列表先同步中文欄位,方便主管馬上看到自己改的結果(老師端要等下次publishNotices才會更新)
+        setEditAiFilled(Array.isArray(r.aiFilled)?r.aiFilled:[]);
+        // 本機列表先同步(含AI補的欄位),方便主管馬上看到結果(老師端要等下次publishNotices才會更新)
         setList(prev=>prev.map(x=>x.id===editing.id?Object.assign({},x,editForm):x));
         setEditStatus(r.viOk===false?'savedNoVi':'saved');
-        setTimeout(()=>closeEdit(),3500);
+        setTimeout(()=>closeEdit(),4500);
       }else{setEditStatus('失敗：'+((r&&r.error)||'?'));}
     }catch(e){setEditStatus('錯誤：'+e);}
   };
@@ -199,15 +202,15 @@ function NoticeManagePage({t,settings}){
     {editing&&editForm&&(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={closeEdit}><div className="bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[88vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
       <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{t.noticeEdit||'編輯公告'} #{editing.id}</h3><button onClick={closeEdit} className="text-gray-500 text-sm">✕</button></div>
       <div className="p-4 space-y-3">
-        <p className="text-[11px] text-gray-500">{t.noticeEditHint||'只需改中文,存檔後系統會在背景自動更新越南文翻譯。'}</p>
-        <div className="grid grid-cols-2 gap-2"><div><label className="text-[10px] text-gray-500">主分類</label><input value={editForm.cat} onChange={e=>updEdit('cat',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div><div><label className="text-[10px] text-gray-500">子分類</label><input value={editForm.subcat} onChange={e=>updEdit('subcat',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div></div>
-        <div><label className="text-[10px] text-gray-500">標題</label><input value={editForm.title} onChange={e=>updEdit('title',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div>
-        <div><label className="text-[10px] text-gray-500">摘要</label><input value={editForm.summary} onChange={e=>updEdit('summary',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div>
+        <p className="text-[11px] text-gray-500">{t.noticeEditHint||'只需改中文,存檔後系統會在背景自動更新越南文翻譯;哪個欄位留空,AI 會依內文自動幫你補上。'}</p>
+        <div className="grid grid-cols-2 gap-2"><div><label className="text-[10px] text-gray-500">主分類{!editForm.cat&&<span className="text-amber-500">（留空→AI自動判斷）</span>}</label><input value={editForm.cat} onChange={e=>updEdit('cat',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div><div><label className="text-[10px] text-gray-500">子分類{!editForm.subcat&&<span className="text-amber-500">（留空→AI自動判斷）</span>}</label><input value={editForm.subcat} onChange={e=>updEdit('subcat',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div></div>
+        <div><label className="text-[10px] text-gray-500">標題{!editForm.title&&<span className="text-amber-500">（留空→AI自動生成）</span>}</label><input value={editForm.title} onChange={e=>updEdit('title',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div>
+        <div><label className="text-[10px] text-gray-500">摘要{!editForm.summary&&<span className="text-amber-500">（留空→AI自動生成）</span>}</label><input value={editForm.summary} onChange={e=>updEdit('summary',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div>
         <div><label className="text-[10px] text-gray-500">內文</label><textarea value={editForm.body} onChange={e=>updEdit('body',e.target.value)} rows={5} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100 resize-none" style={{boxSizing:'border-box'}}/></div>
-        <div><label className="text-[10px] text-gray-500">標籤</label><input value={editForm.tags} onChange={e=>updEdit('tags',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div>
-        {editStatus==='saving'&&<p className="text-[11px] text-amber-500 text-center">存檔中…（背景翻譯，免費空間較慢）</p>}
-        {editStatus==='saved'&&<p className="text-[11px] text-emerald-500 text-center font-semibold">✓ 已存檔，越南文已同步更新。公告頁是快取，需等下次更新才會顯示，當下沒變是正常的。</p>}
-        {editStatus==='savedNoVi'&&<p className="text-[11px] text-amber-500 text-center font-semibold">✓ 中文已存檔，越南文翻譯暫時失敗待補（不影響中文內容）。</p>}
+        <div><label className="text-[10px] text-gray-500">標籤{!editForm.tags&&<span className="text-amber-500">（留空→AI自動生成）</span>}</label><input value={editForm.tags} onChange={e=>updEdit('tags',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div>
+        {editStatus==='saving'&&<p className="text-[11px] text-amber-500 text-center">存檔中…（背景AI處理，免費空間較慢）</p>}
+        {editStatus==='saved'&&<p className="text-[11px] text-emerald-500 text-center font-semibold">✓ 已存檔，越南文已同步更新{editAiFilled.length>0?('，AI 已自動補上：'+editAiFilled.map(k=>FIELD_ZH[k]||k).join('、')):''}。公告頁是快取，需等下次更新才會顯示，當下沒變是正常的。</p>}
+        {editStatus==='savedNoVi'&&<p className="text-[11px] text-amber-500 text-center font-semibold">✓ 中文已存檔{editAiFilled.length===0?'':'（部分欄位待AI補，'}，AI 處理暫時失敗待補（不影響已填的中文內容）。</p>}
         {editStatus&&editStatus!=='saving'&&editStatus!=='saved'&&editStatus!=='savedNoVi'&&<p className="text-[11px] text-red-400 text-center">{editStatus}</p>}
         <div className="pt-2 border-t border-white/[0.06]"><button onClick={submitEdit} disabled={editStatus==='saving'} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold active:bg-emerald-700 disabled:opacity-50">{editStatus==='saving'?'存檔中…':(t.noticeSaveBtn||'儲存變更')}</button></div>
       </div>
