@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.12-020</title>
+<title>薪資追蹤 · 管理 v1.12-022</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -255,16 +255,19 @@ function NoticePublishBlock({t,gh}){
   const[homeN,setHomeN]=React.useState('2');
   const[listN,setListN]=React.useState('10');
   const[shCat,setShCat]=React.useState(false);const[shSub,setShSub]=React.useState(false);const[shTags,setShTags]=React.useState(false);
+  const[listText,setListText]=React.useState('summary');const[countType,setCountType]=React.useState('people');
   if(!gh||!gh.token||!getGasUrl())return null;
-  const pub=async()=>{setSt('...');setErrMsg('');setStep('');const hc=homeN.trim()===''?0:parseInt(homeN,10)||0;const lc=listN.trim()===''?0:parseInt(listN,10)||0;const r=await publishNotices(hc,lc,{cat:shCat,subcat:shSub,tags:shTags},(s)=>setStep(s));if(r&&r.ok){setSt('ok');setStep('');setTimeout(()=>setSt(''),4000)}else{setSt('fail');setErrMsg('['+((r&&r.step)||'?')+'] '+((r&&r.error)||'未知錯誤'))}};
+  const pub=async()=>{setSt('...');setErrMsg('');setStep('');const hc=homeN.trim()===''?0:parseInt(homeN,10)||0;const lc=listN.trim()===''?0:parseInt(listN,10)||0;const r=await publishNotices(hc,lc,{cat:shCat,subcat:shSub,tags:shTags},(s)=>setStep(s),{listText,countType});if(r&&r.ok){setSt('ok');setStep('');setTimeout(()=>setSt(''),4000)}else{setSt('fail');setErrMsg('['+((r&&r.step)||'?')+'] '+((r&&r.error)||'未知錯誤'))}};
   return(<div className="space-y-2 bg-white/[0.02] border border-sky-500/20 rounded-xl p-3">
     <label className="text-xs text-sky-400 font-semibold block">{t.noticePubTitle||'公告更新'}</label>
     <div className="flex gap-2"><div className="flex-1"><label className="text-[10px] text-gray-500 block mb-0.5">{t.noticeHomeN||'首頁筆數'}</label><input value={homeN} onChange={e=>setHomeN(e.target.value)} inputMode="numeric" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 text-center focus:outline-none focus:border-sky-500" style={{boxSizing:'border-box'}}/></div><div className="flex-1"><label className="text-[10px] text-gray-500 block mb-0.5">{t.noticeListN||'公告頁筆數'}</label><input value={listN} onChange={e=>setListN(e.target.value)} inputMode="numeric" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 text-center focus:outline-none focus:border-sky-500" style={{boxSizing:'border-box'}}/></div></div>
     <div className="flex flex-wrap gap-3 py-1"><span className="text-[10px] text-gray-500 w-full">{t.noticeShowFields||'公開顯示欄位（預設不顯示，分類校正好再勾）：'}</span><label className="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={shCat} onChange={e=>setShCat(e.target.checked)} className="w-4 h-4 rounded accent-sky-500"/><span className="text-xs text-gray-300">{t.tabNoticeCat||'主分類'}</span></label><label className="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={shSub} onChange={e=>setShSub(e.target.checked)} className="w-4 h-4 rounded accent-sky-500"/><span className="text-xs text-gray-300">{t.noticeSubcat||'子分類'}</span></label><label className="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={shTags} onChange={e=>setShTags(e.target.checked)} className="w-4 h-4 rounded accent-sky-500"/><span className="text-xs text-gray-300">{t.noticeTagsLabel||'標籤'}</span></label></div>
+    <div className="space-y-1.5 py-1"><span className="text-[10px] text-gray-500 block">{t.noticeListTextLabel||'列表文字用：'}</span><div className="grid grid-cols-2 gap-1.5">{[['title',t.noticeListTitle||'標題'],['summary',t.noticeListSummary||'摘要']].map(([k,l])=>(<button key={k} onClick={()=>setListText(k)} className={`py-1.5 rounded-lg text-xs font-medium ${listText===k?'bg-sky-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{l}</button>))}</div></div>
+    <div className="space-y-1.5 py-1"><span className="text-[10px] text-gray-500 block">{t.noticeCountTypeLabel||'開啟次數顯示：'}</span><div className="grid grid-cols-2 gap-1.5">{[['people',t.noticeCountPeople||'人數(不重複)'],['visits',t.noticeCountVisits||'人次(全部)']].map(([k,l])=>(<button key={k} onClick={()=>setCountType(k)} className={`py-1.5 rounded-lg text-xs font-medium ${countType===k?'bg-sky-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{l}</button>))}</div></div>
     <button onClick={pub} className="w-full py-2 rounded-lg bg-sky-600 text-white text-xs font-semibold active:bg-sky-700">{st==='...'?(step||(t.noticePubbing||'更新中…')):st==='ok'?'✓ '+(t.noticePubOk||'已更新公告'):st==='fail'?'✗ '+(t.noticePubFail||'更新失敗'):(t.noticePubBtn||'從GAS抓公告存GitHub')}</button>
     {st==='...'&&step&&<p className="text-[11px] text-sky-400">⏳ {step}</p>}
     {errMsg&&<p className="text-[11px] text-red-400 break-all">{errMsg}</p>}
-    <p className="text-[11px] text-gray-500">{t.noticePubHint||'按此把GAS最新2筆公告發布到GitHub,所有老師即可看到。'}</p>
+    <p className="text-[11px] text-gray-500">{t.noticePubHint||'按此把GAS最新2筆公告發布到GitHub,所有老師即可看到。每天12點定時更新會沿用這次的選擇。'}</p>
   </div>);
 }
 function AITestBlock({t}){
