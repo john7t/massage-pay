@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.12-011</title>
+<title>薪資追蹤 · 管理 v1.12-013</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -206,7 +206,7 @@ input[type=number]{-moz-appearance:textfield}
 <script src="./common.js"></script>
 <script type="text/babel">
 const{gasUsage,gasTranslate,gasAnalyze,gasCheckAction,gasApproveAction,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,getGasUrl,issueKey,publishNotices,diagClaimKey,getMyKey,setMyKey,hasMyKey,getAdminSecret,setAdminSecret,hasAdminSecret,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,genUUID,getDeviceId,SUP_LEVELS,supLevelName,effSupLevel,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,computeStats,publishStats,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,T}=window.MP;
-const{useState,useEffect,useCallback,useMemo}=React;
+const{useState,useEffect,useCallback,useMemo,useRef}=React;
 
 const goHome=()=>{location.href='./index.html'};
 
@@ -518,6 +518,7 @@ function CloseBtn({onBack,t}){
 // 行為代碼+流水 票證查詢與核准(主管/管理者共用)
 function ActionTicketBlock({t,myCode}){
   const[seqInput,setSeqInput]=useState('');const[info,setInfo]=useState(null);const[status,setStatus]=useState('');const[approveStatus,setApproveStatus]=useState('');
+  const blockRef=useRef(null);
   const lookup=async(overrideSeq)=>{
     const seq=(overrideSeq||seqInput).trim().toUpperCase();if(!seq)return;
     setStatus('...');setInfo(null);setApproveStatus('');
@@ -528,7 +529,7 @@ function ActionTicketBlock({t,myCode}){
     }catch(e){setStatus(t.ticketNotFound+'（'+e+'）')}
   };
   const clearAll=()=>{setSeqInput('');setInfo(null);setStatus('');setApproveStatus('')};
-  // 老師傳來的LINE連結(auth.html#req=N000001)進站時自動帶入+自動查詢,不用手動貼
+  // 老師傳來的LINE連結(auth.html#req=N2000001)進站時自動帶入+自動查詢+自動捲動到這個區塊,不用手動找
   useEffect(()=>{
     try{
       const raw=parseReqHash(window.location.hash||'');
@@ -536,6 +537,7 @@ function ActionTicketBlock({t,myCode}){
         const seq=raw.trim().toUpperCase();
         setSeqInput(seq);
         lookup(seq);
+        setTimeout(()=>{try{blockRef.current&&blockRef.current.scrollIntoView({behavior:'smooth',block:'start'})}catch(_e){}},300);
       }
     }catch(_e){}
   },[]);
@@ -551,11 +553,13 @@ function ActionTicketBlock({t,myCode}){
     if(!info)return;
     // 語系直接編碼在代碼第2碼(1=中文2=越南文),不用另外查payload
     const isVi=info.seq&&info.seq[1]==='2';
-    const msg=(T.zh.lineApprovedPrefix||'')+(isVi?'\n'+(T.vi.lineApprovedPrefix||''):'')+'\n'+info.code;
+    const zhMsg=(T.zh.lineApprovedPrefix||'').replace('{code}',info.code);
+    const viMsg=(T.vi.lineApprovedPrefix||'').replace('{code}',info.code);
+    const msg=zhMsg+(isVi?'\n\n'+viMsg:'');
     location.href='https://line.me/R/share?text='+encodeURIComponent(msg);
   };
-  return(<div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4"><h3 className="text-sm font-semibold text-amber-400">{t.ticketLookup}</h3>
-    <div className="flex gap-2"><input value={seqInput} onChange={e=>setSeqInput(e.target.value)} placeholder={t.ticketLookupPh} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/><button onClick={info?clearAll:()=>lookup()} className={`px-4 py-2.5 rounded-xl text-white text-sm font-bold ${info?'bg-white/[0.1] text-gray-300':'bg-amber-600'}`}>{info?t.ticketClearBtn:t.ticketLookupBtn}</button></div>
+  return(<div ref={blockRef} className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4"><h3 className="text-sm font-semibold text-amber-400">{t.ticketLookup}</h3>
+    <div className="flex gap-2"><input value={seqInput} onChange={e=>setSeqInput(e.target.value)} placeholder={t.ticketLookupPh} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/><button onClick={info?clearAll:()=>lookup()} className={`px-5 py-3 rounded-xl text-white text-sm font-bold min-w-[72px] ${info?'bg-white/[0.1] text-gray-300':'bg-amber-600'}`}>{info?t.ticketClearBtn:t.ticketLookupBtn}</button></div>
     {status&&<p className="text-xs text-center text-red-400">{status}</p>}
     {info&&(<div className="bg-white/[0.03] rounded-xl p-3 space-y-1.5 fi">
       <p className="text-sm text-amber-400 font-bold text-center">{info.actionCode==='N'?t.ticketTypeN:info.actionCode==='F'?t.ticketTypeF:info.actionCode}</p>
@@ -567,9 +571,9 @@ function ActionTicketBlock({t,myCode}){
         {info.payload.workStart&&<p className="text-xs text-gray-500 text-center">{t.ticketInfoWork}：{info.payload.workStart}-{info.payload.workEnd}</p>}
       </>)}
       {info.status==='pending'?(
-        <button onClick={approve} disabled={approveStatus==='...'} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold active:bg-emerald-700 disabled:opacity-50">{approveStatus==='...'?t.approving:t.ticketApproveBtn}</button>
+        <button onClick={approve} disabled={approveStatus==='...'} className="w-full py-3.5 rounded-xl bg-emerald-600 text-white text-base font-bold active:bg-emerald-700 disabled:opacity-50">{approveStatus==='...'?t.approving:t.ticketApproveBtn}</button>
       ):info.status==='approved'?(
-        <button onClick={notifyApproved} className="w-full py-2.5 rounded-xl text-white text-sm font-bold bg-[#06C755] active:bg-[#05b34c]">{t.ticketNotifyBtn}</button>
+        <button onClick={notifyApproved} className="w-full py-3.5 rounded-xl text-white text-base font-bold bg-[#06C755] active:bg-[#05b34c]">{t.ticketNotifyBtn}</button>
       ):(
         <p className="text-xs text-center text-gray-500">{t.ticketAlreadyDone}（{info.status}）</p>
       )}
