@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-016</title>
+<title>薪資追蹤 v1.12-019</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -402,13 +402,20 @@ function Onboarding({onComplete}){
 /* ══════════ Home Page ══════════ */
 function infoFieldLabel(key,t){
   const m={nameZh:t.nameZh,nameVi:t.nameVi,gender:t.gender,phone:t.custPhone||'電話',email:t.email,
-    addrCity:'城市',addrDist:'區',addrDetail:'詳細地址',school:t.school,major:t.major,
-    permitNo:t.permitNo,permitDate:t.permitDate,permitExpiry:t.permitExpiry,permitOrg:t.permitOrgOpt||'核發單位',
+    addrCity:'縣市',addrDist:'鄉鎮區',addrDetail:'詳細地址',school:t.school,major:t.major,
+    permitNo:t.permitNo,permitDate:t.permitDate,permitExpiry:'工作證到期日',permitOrg:t.permitOrgOpt||'核發單位',
     storeSel:t.store,shift:t.shiftLabel||'班別',workStart:t.workStart,workEnd:t.workEnd,workNote:t.workNote,techMentor:t.techMentor,lockerNo:t.lockerNo};
   return m[key]||key;
 }
-const BASIC_FIELD_KEYS=['nameZh','nameVi','gender','phone','email','addrCity','addrDist','addrDetail','school','major','permitNo','permitDate','permitExpiry','permitOrg'];
+// 縣市選項:常見的4個(桃園/新北/臺北/宜蘭,店內大部分員工所在地)排前面,其餘照TW_REGIONS完整列出
+const CITY_PRIORITY=['桃園市','新北市','臺北市','宜蘭縣'];
+const CITY_OPTIONS=[...CITY_PRIORITY,...Object.keys(TW_REGIONS).filter(c=>!CITY_PRIORITY.includes(c))];
+const BASIC_FIELD_KEYS=['nameZh','gender','phone','email','addrCity','addrDist','addrDetail','nameVi','permitNo','permitDate','permitExpiry','permitOrg','school','major'];
+const BASIC_FIELD_LAYOUT=['nameZh','gender','phone','email','addrCity','addrDist','addrDetail','__divider_foreign__','nameVi','permitNo','permitDate','permitExpiry','permitOrg','school','major'];
 const STORE_FIELD_KEYS=['storeSel','shift','workStart','workEnd','workNote','techMentor','lockerNo'];
+// 跟App元件settingsAlert(❗提醒)比對用的完整欄位清單一致,核准後要用這份存confirmedProfile/confirmedStore快照
+const PF_ALERT_FIELDS=['gender','nameZh','nameVi','phone','email','addrCity','addrDist','addrDetail','school','major','schoolType','permitNo','permitDate','permitExpiry','permitOrg'];
+const SF_ALERT_FIELDS=['storeSel','shift','workStart','workEnd','workNote','unitPrice','preg','oil','techMentor','lockerNo'];
 // 基資/店資的密碼解鎖時間戳跟公告共用同一組key,解鎖一次兩邊都算(同屬"公司/個人資料保護"這件事)
 const INFO_UNLOCK_KEY_PREFIX='notice-pwd-unlock-';
 function getInfoUnlockTs(code){try{return parseInt(localStorage.getItem(INFO_UNLOCK_KEY_PREFIX+code)||'0',10)||0}catch(_e){return 0}}
@@ -418,6 +425,7 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
   const code=settings.code;
   const actionCode=type==='basic'?'B':'S';
   const fieldKeys=type==='basic'?BASIC_FIELD_KEYS:STORE_FIELD_KEYS;
+  const layoutKeys=type==='basic'?BASIC_FIELD_LAYOUT:STORE_FIELD_KEYS;
   const titleText=type==='basic'?(t.secBasic||'基本資料'):(t.secStore||'店家資訊');
   const pendingKey='info-pending-'+type+'-'+code;
   const loadPendingT=()=>{try{return JSON.parse(localStorage.getItem(pendingKey)||'null')}catch(_e){return null}};
@@ -491,6 +499,9 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
           setTicketStatus('approved');
           let payload={};try{payload=JSON.parse(r.payload||'{}')}catch(_e){}
           const updated=Object.assign({},settings,payload);
+          // 同步更新confirmedProfile/confirmedStore快照,不然底部設定頁的❗提醒邏輯(比對這兩個欄位)會抓不到"已確認",永遠亮著關不掉
+          const snap={};(type==='basic'?PF_ALERT_FIELDS:SF_ALERT_FIELDS).forEach(fk=>{snap[fk]=updated[fk]!==undefined?updated[fk]:''});
+          if(type==='basic')updated.confirmedProfile=snap;else updated.confirmedStore=snap;
           try{LS.set('app-settings',updated)}catch(_e){}
           if(onUpdateSettings)onUpdateSettings(updated);
           clearPendingT();
@@ -542,7 +553,10 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
   return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}><div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
     <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{titleText}</h3><button onClick={onClose} className="text-gray-500 text-sm">✕</button></div>
     <div className="p-4 space-y-3">
-      {fieldKeys.map(k=>{
+      {layoutKeys.map(k=>{
+        if(k==='__divider_foreign__'){
+          return <div key={k} className="flex items-center gap-3 py-1"><div className="flex-1 h-px bg-white/[0.08]"></div><span className="text-xs text-gray-500">外籍員工</span><div className="flex-1 h-px bg-white/[0.08]"></div></div>;
+        }
         const label=infoFieldLabel(k,t);
         if(!isEdit){
           const v=settings[k]||'';
@@ -559,6 +573,16 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
         }
         if(k==='storeSel'){
           return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><select value={form.storeSel} onChange={e=>setForm(f=>({...f,storeSel:e.target.value}))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-sm text-gray-200 focus:outline-none appearance-none"><option value="">-</option>{stores.map(s=><option key={s} value={s}>{s}</option>)}</select></div>);
+        }
+        if(k==='addrCity'){
+          return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><select value={form.addrCity} onChange={e=>setForm(f=>({...f,addrCity:e.target.value,addrDist:''}))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-sm text-gray-200 focus:outline-none appearance-none"><option value="">-</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select></div>);
+        }
+        if(k==='addrDist'){
+          const opts=TW_REGIONS[form.addrCity]||[];
+          return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><select value={form.addrDist} onChange={e=>setForm(f=>({...f,addrDist:e.target.value}))} disabled={!form.addrCity} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-sm text-gray-200 focus:outline-none appearance-none disabled:opacity-40"><option value="">-</option>{opts.map(d=><option key={d} value={d}>{d}</option>)}</select></div>);
+        }
+        if(k==='permitDate'||k==='permitExpiry'){
+          return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><input type="date" value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>);
         }
         return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><input value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>);
       })}
