@@ -1,8 +1,8 @@
 // settings.js — 設定頁相關元件(從 index.html 抽離,降低 index 體積)
-// v1.12-023 / 首頁設定新增CredentialCard元件(語系選項下方):顯示憑證狀態(正常/憑證已到期,點已到期文字開展期彈窗,走E票證,核准後自動清當日憑證快取讓狀態即時變回正常)+離職按鈕(呼叫gasLeaveTeacher,憑證立即失效+staff標記離職,說明文字有講清楚支數紀錄不受影響) | 前: v1.12-022 / 公告列表照新規格重排:第二排依序👤發布人/👁開啟次數(依主管選的人數或人次)/👍已讀人數/主子分類(受顯示開關控制)/時間(置右)。第一排文字改用主管選的標題或摘要(listText設定) | 前: v1.12-021 / 公告列表版面調整:第一排只留摘要+編輯鈕(主分類移出);第二排右側改放主/子分類(合併顯示,如"薪資・調整")+開啟次數(👁圖示+數字,取代原本的已讀人數,開啟次數是更寬鬆的被動記錄指標) | 前: 語系選項從基資分頁移到首頁設定的主題下方(語系是個人偏好,不屬於需要主管審核的基資,放首頁設定更直覺) | 前: 版次對齊(內容未變動):跟隨common.js/index.html/auth.html/notice-modal.js這次的整理點同步版號,方便日後從標題/檔頭確認全套部署是否一致 | 前: 公告分頁:移除進入公告頁後的提示文字段落(點右上新增公告...那句)。新增公告的權限限制(限主管supervisor+admin)在v034已完成(canManage判斷),此次確認沿用 | 前:hotfix:公告編輯權限判斷修正(admin查admin.cfg雜湊,不是staff.json role) | 前: 新增公告完整流程接功能(033)
+// v1.12-022 / 公告列表照新規格重排:第二排依序👤發布人/👁開啟次數(依主管選的人數或人次)/👍已讀人數/主子分類(受顯示開關控制)/時間(置右)。第一排文字改用主管選的標題或摘要(listText設定) | 前: v1.12-021 / 公告列表版面調整:第一排只留摘要+編輯鈕(主分類移出);第二排右側改放主/子分類(合併顯示,如"薪資・調整")+開啟次數(👁圖示+數字,取代原本的已讀人數,開啟次數是更寬鬆的被動記錄指標) | 前: 語系選項從基資分頁移到首頁設定的主題下方(語系是個人偏好,不屬於需要主管審核的基資,放首頁設定更直覺) | 前: 版次對齊(內容未變動):跟隨common.js/index.html/auth.html/notice-modal.js這次的整理點同步版號,方便日後從標題/檔頭確認全套部署是否一致 | 前: 公告分頁:移除進入公告頁後的提示文字段落(點右上新增公告...那句)。新增公告的權限限制(限主管supervisor+admin)在v034已完成(canManage判斷),此次確認沿用 | 前:hotfix:公告編輯權限判斷修正(admin查admin.cfg雜湊,不是staff.json role) | 前: 新增公告完整流程接功能(033)
 // 注意:此檔為 type="text/babel",獨立作用域,需自行宣告 hooks 與 bridge
 const{useState,useEffect,useCallback,useMemo}=React;
-const{gasAnalyze,gasAddNotice,gasEditNotice,noticeSummary,noticeTitle,getNoticeReadCount,getNoticeShow,getNoticeListText,getNoticeCountType,getNoticesLocal,fetchNotices,gasVerifyKey,gasLeaveTeacher,gasSubmitAction,gasCheckAction,hasMyKey,getMyKey,buildReqLink,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,getGasUrl,setGasUrl,gasCall,hasMyKey,issueKey,claimMyKey,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{gasAnalyze,gasAddNotice,gasEditNotice,noticeSummary,noticeTitle,getNoticeReadCount,getNoticeShow,getNoticeListText,getNoticeCountType,getNoticesLocal,fetchNotices,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,getGasUrl,setGasUrl,gasCall,hasMyKey,issueKey,claimMyKey,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 function fmtSyncTime(iso){try{const d=new Date(iso);const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"/"+p(d.getMonth()+1)+"/"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes())}catch(_e){return ""}}
 
 function ChartPage({t,settings}){
@@ -255,88 +255,6 @@ function NoticeManagePage({t,settings}){
     </div></div>)}
   </div>);
 }
-function CredentialCard({t,settings}){
-  const code=settings&&settings.code;
-  const[status,setStatus]=React.useState(null); // null/checking/ok/invalid
-  const[showRenew,setShowRenew]=React.useState(false);
-  const[showLeave,setShowLeave]=React.useState(false);
-  const[leaveBusy,setLeaveBusy]=React.useState(false);
-  const[leaveDone,setLeaveDone]=React.useState(false);
-  const[leaveErr,setLeaveErr]=React.useState('');
-  const[devId]=React.useState(()=>getDeviceId());
-  // 展期票證用的小狀態
-  const[ticketSeq,setTicketSeq]=React.useState('');const[ticketStatus,setTicketStatus]=React.useState('');const[cooldown,setCooldown]=React.useState(0);const[busy,setBusy]=React.useState(false);const[err,setErr]=React.useState('');
-  React.useEffect(()=>{
-    if(!code||!hasMyKey(code)){setStatus('ok');return}
-    setStatus('checking');
-    (async()=>{
-      try{const key=getMyKey(code);const r=await gasVerifyKey(code,key);setStatus((r&&r.ok&&r.valid)?'ok':'invalid')}catch(_e){setStatus('ok')}
-    })();
-  },[code]);
-  React.useEffect(()=>{if(cooldown<=0)return;const tm=setTimeout(()=>setCooldown(c=>c>0?c-1:0),1000);return()=>clearTimeout(tm)},[cooldown]);
-  const doLeave=async()=>{
-    setLeaveBusy(true);setLeaveErr('');
-    try{const r=await gasLeaveTeacher(code,code);if(r&&r.ok){setLeaveDone(true);setStatus('invalid')}else{setLeaveErr((r&&r.error)||t.leaveFail)}}catch(e){setLeaveErr(t.leaveFail)}
-    setLeaveBusy(false);
-  };
-  const submitRenew=async()=>{
-    setBusy(true);setErr('');
-    try{
-      const r=await gasSubmitAction('E',code,{devId});
-      setBusy(false);
-      if(r&&r.ok){setTicketSeq(r.seq);setTicketStatus('')}else{setErr((r&&r.error)||'送出失敗')}
-    }catch(e){setBusy(false);setErr(String(e))}
-  };
-  const checkRenew=async()=>{
-    if(cooldown>0||ticketStatus==='checking')return;
-    setTicketStatus('checking');
-    try{
-      const r=await gasCheckAction(ticketSeq);
-      if(r&&r.ok){
-        if(r.status==='approved'){
-          setTicketStatus('approved');
-          // 核准後清掉當日的憑證快取,不然本機還記著今天早上查過的"失效"結果
-          try{const today=new Date().toISOString().slice(0,10);localStorage.setItem('key-check-date-'+code,today);localStorage.setItem('key-check-result-'+code,'ok')}catch(_e){}
-          setStatus('ok');
-          setTimeout(()=>{setShowRenew(false);setTicketSeq('');setTicketStatus('')},1500);
-        }else{setTicketStatus('pending');setCooldown(60)}
-      }else{setTicketStatus('error');setCooldown(60)}
-    }catch(_e){setTicketStatus('error');setCooldown(60)}
-  };
-  return(<div><label className="text-xs text-gray-400 mb-1 block">{t.credentialLabel}</label>
-    <div className="flex items-center justify-between bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2.5">
-      {status==='invalid'?<button onClick={()=>setShowRenew(true)} className="text-sm text-red-400 underline">{t.credentialExpired}</button>:<span className="text-sm text-emerald-500">{status==='checking'?'…':t.credentialOk}</span>}
-      <button onClick={()=>{setShowLeave(true);setLeaveDone(false);setLeaveErr('')}} className="text-xs text-gray-500 active:text-red-400">{t.leaveBtn}</button>
-    </div>
-    {showLeave&&(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={()=>!leaveBusy&&setShowLeave(false)}><div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl" onClick={e=>e.stopPropagation()}>
-      <div className="p-4 border-b border-white/[0.06]"><h3 className="text-base font-bold text-gray-100">{t.leaveConfirmTitle}</h3></div>
-      <div className="p-4 space-y-3">
-        {!leaveDone?(<>
-          <p className="text-sm text-gray-400">{t.leaveConfirmMsg}</p>
-          {leaveErr&&<p className="text-xs text-red-400 text-center">{leaveErr}</p>}
-          <div className="flex gap-2"><button onClick={()=>setShowLeave(false)} disabled={leaveBusy} className="flex-1 py-2.5 rounded-xl bg-white/[0.06] text-gray-400 font-semibold">{t.cancel}</button><button onClick={doLeave} disabled={leaveBusy} className="flex-1 py-2.5 rounded-xl bg-red-600 text-white font-bold disabled:opacity-50">{leaveBusy?'…':t.leaveConfirmBtn}</button></div>
-        </>):(<p className="text-sm text-emerald-500 text-center font-semibold">✓ {t.leaveOk}</p>)}
-      </div>
-    </div></div>)}
-    {showRenew&&(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={()=>setShowRenew(false)}><div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl" onClick={e=>e.stopPropagation()}>
-      <div className="p-4 border-b border-white/[0.06] flex items-center justify-between"><h3 className="text-base font-bold text-gray-100">{t.renewModalTitle}</h3><button onClick={()=>setShowRenew(false)} className="text-gray-500 text-sm">✕</button></div>
-      <div className="p-4 space-y-4">
-        {!ticketSeq?(<>
-          <p className="text-sm text-gray-400">{t.renewModalBody}</p>
-          {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
-          <button onClick={submitRenew} disabled={busy} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold disabled:opacity-50">{busy?'…':t.submitActivation}</button>
-        </>):(<>
-          <div className="bg-white/[0.03] rounded-xl p-4 text-center"><p className="text-[11px] text-gray-500 mb-1">{t.ticketInfoTeacher}</p><p className="text-2xl font-bold text-gray-100 mb-3">{code}</p><p className="text-[11px] text-gray-500 mb-1">{t.ticketCode}</p><p className="text-base font-semibold text-amber-400 font-mono tracking-widest select-all">{ticketSeq}</p></div>
-          <button onClick={()=>{const base=location.origin+location.pathname.replace(/index\.html$/,'')+'auth.html';const link=buildReqLink(base,ticketSeq);const isVi=ticketSeq&&ticketSeq[1]==='2';const zhMsg=(T.zh.lineTicketRenewPrefix||'').replace('{code}',code);const viMsg=(T.vi.lineTicketRenewPrefix||'').replace('{code}',code);const msg=zhMsg+(isVi?'\n'+viMsg:'')+'\n'+link;location.href='https://line.me/R/share?text='+encodeURIComponent(msg)}} className="w-full px-3 py-4 rounded-xl text-base font-bold bg-[#06C755] text-white active:bg-[#05b34c]">{t.ticketSend}</button>
-          <button onClick={checkRenew} disabled={cooldown>0||ticketStatus==='checking'} className={`w-full py-3.5 rounded-xl font-bold transition-all ${cooldown>0||ticketStatus==='checking'?'bg-white/[0.06] text-gray-600 cursor-not-allowed':'bg-amber-600 text-white'}`}>{ticketStatus==='checking'?t.ticketChecking:cooldown>0?fmtLog(t.ticketWaitCountdown,[String(cooldown)]):t.ticketCheckBtn}</button>
-          {ticketStatus==='pending'&&<p className="text-xs text-gray-500 text-center">{t.ticketPending}</p>}
-          {ticketStatus==='approved'&&<p className="text-xs text-emerald-400 text-center font-semibold">{t.ticketApproved}</p>}
-          {ticketStatus==='error'&&<p className="text-xs text-red-400 text-center">{t.pwdLoginFail}</p>}
-        </>)}
-      </div>
-    </div></div>)}
-  </div>);
-}
 function SettingsPage({settings,onUpdate,t,theme,setTheme}){
   const[form,setForm]=useState({...settings});const[gasTest,setGasTest]=useState('');const[keyAdminSec,setKeyAdminSec]=useState('');const[keyGenCode,setKeyGenCode]=useState('');const[keyGenResult,setKeyGenResult]=useState(null);const[claimInput,setClaimInput]=useState('');const[claimMsg,setClaimMsg]=useState('');
   const[saved,setSaved]=useState(false);
@@ -429,7 +347,6 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
         <div><label className="text-xs text-gray-400 mb-1 block">{t.language}</label>
           <div className="grid grid-cols-2 gap-2">{[['zh','中文'],['vi','Tiếng Việt']].map(([c,l])=>(<button key={c} onClick={()=>upd({lang:c})} className={`py-2.5 rounded-xl text-sm font-semibold ${form.lang===c?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div>
         </div>
-        <CredentialCard t={t} settings={settings}/>
         <div><label className="text-xs text-gray-400 mb-1 block">{t.bizCutoffLabel}</label><input type="time" value={form.bizCutoff||'06:30'} onChange={e=>upd({bizCutoff:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500" style={{boxSizing:'border-box',maxWidth:'90%',minWidth:0}}/><p className="text-[11px] text-gray-500 mt-1">{t.bizCutoffHint}</p></div>
         {(()=>{const ghLocal=getGHConfig();const hasConn=!!(ghLocal&&ghLocal.token);return(
           <div className="space-y-2"><label className="text-xs text-gray-400 mb-1 block">{t.serviceStatus}</label>

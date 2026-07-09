@@ -1,0 +1,1087 @@
+/**
+ * 薪資追蹤系統 — GAS 後端服務
+ * ========================================
+ * 功能:金鑰產發驗證、公告讀寫與AI翻譯、Staff名單存檔(搬Sheet)
+ *
+ * 【部署步驟】
+ * 1. 建立一個 Google Sheet,記下它的 ID(網址中 /d/xxxxx/ 那段)
+ * 2. 在 Sheet 建立一張工作表,命名為 "Keys"
+ * 3. 開啟 擴充功能 → Apps Script,貼上此檔全部內容
+ * 4. 上方 專案設定 → 指令碼屬性,新增:
+ *      SHEET_ID     = 你的 Sheet ID
+ *      GH_TOKEN     = 你的 GitHub token(公告發布/staff寫回GitHub都需要,務必填)
+ *      ADMIN_SECRET = 自己設一組管理密碼(主管端產金鑰時要帶)
+ *      CLAIM_SALT   = 自己設一組領取碼鹽值(隨便一串字,別外流)
+ *      BATCH_CODE   = (選填)過渡期批量領取碼。設了老師才能用內建網址批量領金鑰;
+ *                     大部分老師領完後,把此屬性清空即停用批量領取。
+ * 5. 部署 → 新增部署作業 → 類型選「網頁應用程式」
+ *      執行身分:我自己
+ *      具有存取權的使用者:任何人
+ * 6. 複製部署後的網址(https://script.google.com/macros/s/xxxx/exec)
+ *      這就是前端要填的 GAS 網址
+ *
+ * 【安全說明】
+ * - 產生金鑰(genKey)需要帶 adminSecret,一般人無法亂產
+ * - 驗證金鑰(verifyKey)只回傳「是否有效」,不外洩其他資料
+ * - GitHub token 存在 GAS 指令碼屬性,前端永遠拿不到
+ */
+
+// ===== 工具:讀取指令碼屬性 =====
+function _prop(k){return PropertiesService.getScriptProperties().getProperty(k);}
+// 台北時間字串(yyyy-MM-dd HH:mm:ss)
+function _now(){return Utilities.formatDate(new Date(),'Asia/Taipei','yyyy-MM-dd HH:mm:ss');}
+// 記錄領取活動到 Log 工作表(成功/失敗都記)
+function _log(code,action,result,reason){
+  try{
+    const ss=SpreadsheetApp.openById(_prop('SHEET_ID'));
+    let sh=ss.getSheetByName('Log');
+    if(!sh){sh=ss.insertSheet('Log');sh.appendRow(['時間','編號','動作','結果','原因']);}
+    if(sh.getLastRow()===0){sh.appendRow(['時間','編號','動作','結果','原因']);}
+    sh.appendRow([_now(),code||'',action||'',result||'',reason||'']);
+  }catch(_e){}
+}
+function _sheet(name){
+  const id=_prop('SHEET_ID');
+  const ss=SpreadsheetApp.openById(id);
+  let sh=ss.getSheetByName(name);
+  if(!sh){sh=ss.insertSheet(name);}
+  return sh;
+}
+
+// ===== Keys 表:確保表頭 =====
+function _ensureKeysHeader(){
+  const sh=_sheet('Keys');
+  if(sh.getLastRow()===0){
+    sh.appendRow(['code','key','role','createdAt','status','expiresAt']);
+  }
+  return sh;
+}
+// 首次領取金鑰時才設到期日(預設6個月),已經設過就不再延後(避免每次檢查/驗證都重算)
+function _ensureKeyExpirySet(code,months){
+  try{
+    const sh=_ensureKeysHeader();
+    const row=_findKeyRow(code);
+    if(row<0)return;
+    const cur=sh.getRange(row,6).getValue();
+    if(cur)return;
+    const d=new Date();d.setMonth(d.getMonth()+(months||6));
+    sh.getRange(row,6).setValue(d);
+  }catch(_e){}
+}
+
+// ===== 產生金鑰:編號+隨機(看得出屬於誰) =====
+function _makeKey(code){
+  const rand=Utilities.getUuid().replace(/-/g,'').substring(0,16);
+  return code + '-' + rand;
+}
+
+// ===== 領取碼:只綁編號,用獨立鹽(CLAIM_SALT)算,GAS 才知道鹽 =====
+// 老師憑領取碼向 GAS 領金鑰,不需 adminSecret
+function _claimCode(code){
+  const salt=_prop('CLAIM_SALT')||'MPClaim2026';
+  const raw=salt + '|' + code + '|' + salt;
+  const bytes=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, raw);
+  // 轉成 8 碼英數
+  let s='';
+  for(let i=0;i<bytes.length && s.length<8;i++){
+    const b=(bytes[i]+256)%256;
+    s+=(b%36).toString(36);
+  }
+  return s.toUpperCase();
+}
+function _verifyClaim(code,claim){
+  if(!code||!claim)return false;
+  return String(claim).trim().toUpperCase()===_claimCode(code);
+}
+
+// ===== 找某編號的金鑰列(回傳列號,找不到回 -1) =====
+function _findKeyRow(code){
+  const sh=_ensureKeysHeader();
+  const data=sh.getDataRange().getValues();
+  for(let i=1;i<data.length;i++){
+    if(String(data[i][0])===String(code))return i+1; // 1-based
+  }
+  return -1;
+}
+
+// ===== 產生/取得金鑰(需 adminSecret)。回傳金鑰 + 領取碼 =====
+// 內部核心邏輯:產金鑰(不驗adminSecret,給已經是信任路徑的呼叫方用,如approveAction核准N票證時)
+function _issueKeyInternal(code,role){
+  const sh=_ensureKeysHeader();
+  const row=_findKeyRow(code);
+  const claim=_claimCode(code);
+  if(row>0){
+    const existing=sh.getRange(row,2).getValue();
+    return {ok:true,code:code,key:existing,claim:claim,existed:true};
+  }
+  const key=_makeKey(code);
+  sh.appendRow([code,key,role||'teacher',_now(),'active','']);
+  _log(code,'genKey','成功','新產金鑰');
+  return {ok:true,code:code,key:key,claim:claim,existed:false};
+}
+function genKey(params){
+  const code=(params.code||'').trim();
+  if(!code)return {ok:false,error:'no code'};
+  if(params.adminSecret!==_prop('ADMIN_SECRET'))return {ok:false,error:'unauthorized'};
+  return _issueKeyInternal(code,params.role||'teacher');
+}
+
+// ===== 老師領金鑰(不需 adminSecret,憑領取碼) =====
+function claimKey(params){
+  const code=(params.code||'').trim();
+  const claim=(params.claim||'').trim();
+  if(!code||!claim)return {ok:false,error:'missing'};
+  if(!_verifyClaim(code,claim))return {ok:false,error:'bad claim'};
+  const row=_findKeyRow(code);
+  if(row<0)return {ok:false,error:'no key yet'}; // 主管還沒產金鑰
+  const sh=_ensureKeysHeader();
+  const status=String(sh.getRange(row,5).getValue());
+  if(status!=='active')return {ok:false,error:'revoked'};
+  _ensureKeyExpirySet(code,6);
+  _log(code,'claimKey','成功','');
+  return {ok:true,code:code,key:String(sh.getRange(row,2).getValue())};
+}
+
+// ===== 已讀記錄(驗金鑰身分後記錄,金鑰的第一個實際驗證用途) =====
+// 內部:驗證金鑰是否有效
+function _keyValid(code,key){
+  if(!code||!key)return false;
+  const row=_findKeyRow(code);
+  if(row<0)return false;
+  const sh=_ensureKeysHeader();
+  const okKey=String(sh.getRange(row,2).getValue())===String(key);
+  const okStatus=String(sh.getRange(row,5).getValue())==='active';
+  const exp=sh.getRange(row,6).getValue();
+  const okExpiry=!exp||new Date(exp).getTime()>Date.now();
+  return okKey&&okStatus&&okExpiry;
+}
+// NoticeReads 工作表:公告ID/編號/時間
+// NoticeOpens工作表:開啟記錄(客觀/被動,跟readNotice的已讀主動確認不同層)
+function _opensSheet(){
+  const ss=SpreadsheetApp.openById(_prop('SHEET_ID'));
+  let sh=ss.getSheetByName('NoticeOpens');
+  if(!sh){sh=ss.insertSheet('NoticeOpens');sh.appendRow(['公告ID','編號','時間']);}
+  if(sh.getLastRow()===0){sh.appendRow(['公告ID','編號','時間']);}
+  return sh;
+}
+// 記開啟:每次都記一筆(人次用),不去重。人數(不重複)在查詢/彙整時另外算
+function logNoticeOpen(params){
+  const code=(params.code||'').trim();
+  const nid=(params.noticeId||'').trim();
+  if(!code||!nid)return {ok:false,error:'missing'};
+  const sh=_opensSheet();
+  sh.appendRow([nid,code,_now()]);
+  return {ok:true};
+}
+// 查公告開啟統計(不需金鑰,列表顯示用):回傳人數(不重複)+人次(全部)
+function noticeOpens(params){
+  const nid=(params.noticeId||'').trim();
+  try{
+    const sh=_opensSheet();
+    const data=sh.getDataRange().getValues();
+    if(!nid){
+      const peopleMap={};const visitMap={};const seen={};
+      for(let i=1;i<data.length;i++){
+        const rid=String(data[i][0]),rc=String(data[i][1]);
+        visitMap[rid]=(visitMap[rid]||0)+1;
+        const k=rid+'|'+rc;if(!seen[k]){seen[k]=1;peopleMap[rid]=(peopleMap[rid]||0)+1;}
+      }
+      return {ok:true,people:peopleMap,visits:visitMap};
+    }
+    const seen={};let people=0,visits=0;
+    for(let i=1;i<data.length;i++){if(String(data[i][0])===nid){visits++;const rc=String(data[i][1]);if(!seen[rc]){seen[rc]=1;people++;}}}
+    return {ok:true,people:people,visits:visits};
+  }catch(err){return {ok:false,error:String(err)};}
+}
+
+function _readsSheet(){
+  const ss=SpreadsheetApp.openById(_prop('SHEET_ID'));
+  let sh=ss.getSheetByName('NoticeReads');
+  if(!sh){sh=ss.insertSheet('NoticeReads');sh.appendRow(['公告ID','編號','時間']);}
+  if(sh.getLastRow()===0){sh.appendRow(['公告ID','編號','時間']);}
+  return sh;
+}
+// 記已讀:驗金鑰→同編號同公告只記一次→回該公告已讀人數
+function readNotice(params){
+  const code=(params.code||'').trim();
+  const key=(params.key||'').trim();
+  const nid=(params.noticeId||'').trim();
+  if(!code||!key||!nid)return {ok:false,error:'missing'};
+  if(!_keyValid(code,key)){_log(code,'readNotice','失敗','金鑰無效');return {ok:false,error:'bad key'};}
+  const sh=_readsSheet();
+  const data=sh.getDataRange().getValues();
+  let already=false;const readers={};
+  for(let i=1;i<data.length;i++){
+    const rid=String(data[i][0]),rcode=String(data[i][1]);
+    if(rid===nid){readers[rcode]=1;if(rcode===String(code))already=true;}
+  }
+  if(!already){sh.appendRow([nid,code,_now()]);readers[code]=1;_log(code,'readNotice','成功',nid);}
+  return {ok:true,count:Object.keys(readers).length,already:already};
+}
+// 查公告已讀人數(不需金鑰,列表顯示用)
+function noticeReads(params){
+  const nid=(params.noticeId||'').trim();
+  try{
+    const sh=_readsSheet();
+    const data=sh.getDataRange().getValues();
+    if(!nid){
+      // 回所有公告的人數統計 {nid:count}
+      const map={};const seen={};
+      for(let i=1;i<data.length;i++){const rid=String(data[i][0]),rc=String(data[i][1]);const k=rid+'|'+rc;if(seen[k])continue;seen[k]=1;map[rid]=(map[rid]||0)+1;}
+      return {ok:true,counts:map};
+    }
+    const readers={};const list=[];
+    for(let i=1;i<data.length;i++){if(String(data[i][0])===nid){const rc=String(data[i][1]);if(!readers[rc]){readers[rc]=1;list.push({code:rc,time:String(data[i][2]||'')})}}}
+    if(params.detail){return {ok:true,count:list.length,readers:list};}
+    return {ok:true,count:Object.keys(readers).length};
+  }catch(err){return {ok:false,error:String(err)};}
+}
+
+// ===== 驗證金鑰 =====
+function verifyKey(params){
+  const code=(params.code||'').trim();
+  const key=(params.key||'').trim();
+  if(!code||!key)return {ok:false,valid:false,error:'missing'};
+  const row=_findKeyRow(code);
+  if(row<0)return {ok:true,valid:false};
+  const sh=_ensureKeysHeader();
+  const storedKey=String(sh.getRange(row,2).getValue());
+  const status=String(sh.getRange(row,5).getValue());
+  const exp=sh.getRange(row,6).getValue();
+  const expired=!!exp&&new Date(exp).getTime()<=Date.now();
+  const valid=(storedKey===key && status==='active' && !expired);
+  return {ok:true,valid:valid,expired:expired,role:valid?String(sh.getRange(row,3).getValue()):null};
+}
+
+// ===== 批量領取:老師憑 BATCH_CODE 領自己金鑰(過渡期批量發放用) =====
+// 只能領金鑰,不能做任何管理操作。就算 BATCH_CODE 洩漏,危害極小。
+function batchClaim(params){
+  const code=(params.code||'').trim();
+  const batch=(params.batch||'').trim();
+  if(!code||!batch){_log(code,'batchClaim','失敗','缺編號或領取碼');return {ok:false,error:'missing'};}
+  const BC=_prop('BATCH_CODE');
+  if(!BC||batch!==BC){_log(code,'batchClaim','失敗','領取碼不符');return {ok:false,error:'bad batch'};}
+  const row=_findKeyRow(code);
+  if(row<0){_log(code,'batchClaim','失敗','尚未產金鑰');return {ok:false,error:'no key yet'};}
+  const sh=_ensureKeysHeader();
+  const status=String(sh.getRange(row,5).getValue());
+  if(status!=='active'){_log(code,'batchClaim','失敗','金鑰已停用');return {ok:false,error:'revoked'};}
+  _ensureKeyExpirySet(code,6);
+  _log(code,'batchClaim','成功','');
+  return {ok:true,code:code,key:String(sh.getRange(row,2).getValue())};
+}
+
+// ===== 批量產金鑰:管理者憑 adminSecret,一次對多個編號產金鑰 =====
+function batchGenKey(params){
+  if(params.adminSecret!==_prop('ADMIN_SECRET'))return {ok:false,error:'unauthorized'};
+  const codesRaw=(params.codes||'').trim(); // 逗號分隔的編號清單
+  if(!codesRaw)return {ok:false,error:'no codes'};
+  const codes=codesRaw.split(',').map(c=>c.trim()).filter(c=>c);
+  const sh=_ensureKeysHeader();
+  const results=[];
+  for(let i=0;i<codes.length;i++){
+    const code=codes[i];
+    const row=_findKeyRow(code);
+    if(row>0){
+      results.push({code:code,existed:true});
+    }else{
+      const key=_makeKey(code);
+      sh.appendRow([code,key,'teacher',_now(),'active']);
+      results.push({code:code,existed:false});
+    }
+  }
+  return {ok:true,count:results.length,results:results};
+}
+
+// ===== 作廢金鑰(需 adminSecret,金鑰外洩時用) =====
+function revokeKey(params){
+  if(params.adminSecret!==_prop('ADMIN_SECRET'))return {ok:false,error:'unauthorized'};
+  const code=(params.code||'').trim();
+  const row=_findKeyRow(code);
+  if(row<0)return {ok:false,error:'not found'};
+  const sh=_ensureKeysHeader();
+  sh.getRange(row,5).setValue('revoked');
+  return {ok:true};
+}
+
+// ===== 產生靜態公告檔(含已讀統計)並寫入 GitHub =====
+// 供:主管按更新(前端呼叫 action=publishNotices)、每天12點定時(publishNoticesJob)
+// ===== 讀 GitHub 檔案(GAS端,需GH_TOKEN/GH_OWNER/GH_REPO屬性) =====
+function _ghReadRaw(path){
+  const token=_prop('GH_TOKEN');const owner=_prop('GH_OWNER');const repo=_prop('GH_REPO');
+  if(!token||!owner||!repo)return null;
+  try{
+    const api='https://api.github.com/repos/'+owner+'/'+repo+'/contents/'+path;
+    const res=UrlFetchApp.fetch(api,{method:'get',headers:{Authorization:'token '+token},muteHttpExceptions:true});
+    if(res.getResponseCode()!==200)return null;
+    const data=JSON.parse(res.getContentText());
+    return Utilities.newBlob(Utilities.base64Decode(data.content)).getDataAsString('UTF-8');
+  }catch(_e){return null}
+}
+// XOR 解密(對應前端 xDec:hex→XOR(CK)→decodeURIComponent),密鑰放 DECRYPT_KEY 屬性
+function _xorDec(hex){
+  const CK=_prop('DECRYPT_KEY');
+  if(!CK||!hex)return '';
+  try{
+    const pairs=hex.match(/.{2}/g);if(!pairs)return '';
+    let out='';
+    for(let i=0;i<pairs.length;i++){out+=String.fromCharCode(parseInt(pairs[i],16)^CK.charCodeAt(i%CK.length));}
+    return decodeURIComponent(out);
+  }catch(_e){return ''}
+}
+// 讀 staff.json 解密回老師陣列
+function _readStaff(){
+  const enc=_ghReadRaw('staff.json');
+  if(!enc)return [];
+  const raw=_xorDec(enc.trim());
+  try{return JSON.parse(raw)}catch(_e){try{return JSON.parse(decodeURIComponent(raw))}catch(_e2){return []}}
+}
+
+// ===== staff 存檔搬 Sheet(第一階段:只動寫入路徑,讀取仍走staff.json不變)=====
+// 前端writeStaff()改呼叫這裡,帶的是前端xEnc()加密後的完整陣列字串(跟原本寫入staff.json的內容格式一樣)。
+// 流程:解密驗證格式 → 先存Staff工作表(一列一人,B方案:code獨立一欄方便肉眼搜尋,其餘欄位包在json裡,真正來源)
+//      → 容錯寫回GitHub staff.json(維持老師端/現有readStaff()讀取路徑不變),GitHub那步失敗不擋管理端操作,只記log。
+function saveStaff(params){
+  try{
+    const enc=String(params.staff||'').trim();
+    if(!enc)return {ok:false,error:'no staff data'};
+    const raw=_xorDec(enc);
+    let arr;
+    try{arr=JSON.parse(raw);}catch(_e){try{arr=JSON.parse(decodeURIComponent(raw));}catch(_e2){return {ok:false,error:'解密或JSON格式錯誤'};}}
+    if(!Array.isArray(arr))return {ok:false,error:'staff資料格式不是陣列'};
+    // Step1:先存Staff工作表(容錯優先,這是之後的真實來源)
+    const ss=SpreadsheetApp.openById(_prop('SHEET_ID'));
+    let sh=ss.getSheetByName('Staff');
+    if(!sh){sh=ss.insertSheet('Staff');}
+    sh.clearContents();
+    sh.appendRow(['code','json']);
+    if(arr.length){
+      const rows=arr.map(function(s){return [String((s&&s.code)||''),JSON.stringify(s)];});
+      sh.getRange(2,1,rows.length,2).setValues(rows);
+    }
+    _log(params.code||'','saveStaff','成功(Sheet)','筆數:'+arr.length);
+    // Step2:容錯寫回GitHub staff.json(讀取路徑暫不動,老師端/auth.html readStaff()還是打這個檔案)
+    let ghOk=false,ghErr='';
+    try{
+      const r=_ghWriteFile('staff.json',enc,'update staff via saveStaff('+(params.code||'')+')');
+      ghOk=!!(r&&r.ok);
+      if(!ghOk)ghErr='HTTP'+(r&&r.code);
+    }catch(e){ghErr=String(e);}
+    if(!ghOk)_log(params.code||'','saveStaff','GitHub寫入失敗(Sheet已存為真實來源)',ghErr);
+    return {ok:true,count:arr.length,ghOk:ghOk,ghError:ghOk?'':ghErr};
+  }catch(err){return {ok:false,error:String(err)};}
+}
+// 未讀清單:在職老師 － 已讀者,分早晚班
+// ===== Gemini API 串接 =====
+// 呼叫 Gemini,回傳文字(失敗回 null)。model=gemini-2.5-flash
+// Gemini用量計數(存GAS屬性,格式 GEMINI_USAGE=今日日期:次數,換日歸零)
+function _geminiCount(){
+  try{
+    const today=Utilities.formatDate(new Date(),'Asia/Taipei','yyyy-MM-dd');
+    const raw=_prop('GEMINI_USAGE')||'';
+    const parts=raw.split(':');
+    let n=0;
+    if(parts[0]===today)n=parseInt(parts[1],10)||0;
+    n++;
+    PropertiesService.getScriptProperties().setProperty('GEMINI_USAGE',today+':'+n);
+  }catch(_e){}
+}
+// 每次Gemini呼叫記一列到GeminiLog工作表(時間/編號/功能)
+function _geminiLog(meta){
+  try{
+    const sh=_sheet('GeminiLog');
+    if(sh.getLastRow()===0)sh.appendRow(['時間','編號','功能']);
+    const code=(meta&&meta.code)||'';
+    const feature=(meta&&meta.feature)||'';
+    sh.appendRow([_now(),code,feature]);
+  }catch(_e){}
+}
+// 查今日Gemini用量。回 {ok,date,used,limit,remain}
+function geminiUsage(params){
+  const today=Utilities.formatDate(new Date(),'Asia/Taipei','yyyy-MM-dd');
+  const raw=_prop('GEMINI_USAGE')||'';
+  const parts=raw.split(':');
+  const used=(parts[0]===today)?(parseInt(parts[1],10)||0):0;
+  const limit=250; // gemini-2.5-flash 免費層 RPD
+  return {ok:true,date:today,used:used,limit:limit,remain:Math.max(0,limit-used)};
+}
+
+function _gemini(prompt,meta){
+  const key=_prop('GEMINI_API_KEY');
+  if(!key)return {ok:false,error:'no GEMINI_API_KEY'};
+  const url='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+key;
+  const payload={contents:[{parts:[{text:prompt}]}]};
+  try{
+    const res=UrlFetchApp.fetch(url,{method:'post',contentType:'application/json',payload:JSON.stringify(payload),muteHttpExceptions:true});
+    const code=res.getResponseCode();
+    const body=res.getContentText();
+    if(code!==200)return {ok:false,error:'HTTP '+code+':'+body.slice(0,300)};
+    const data=JSON.parse(body);
+    const text=data&&data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts&&data.candidates[0].content.parts[0]&&data.candidates[0].content.parts[0].text;
+    if(!text)return {ok:false,error:'no text in response:'+body.slice(0,300)};
+    _geminiCount();
+    _geminiLog(meta);
+    return {ok:true,text:text};
+  }catch(err){return {ok:false,error:String(err)}}
+}
+// 讀 Categories 工作表(主分類/子分類/建議標籤)→整理成文字給Gemini
+function _readCategories(){
+  try{
+    const sh=_sheet('Categories');const data=sh.getDataRange().getValues();
+    const lines=[];
+    for(let i=1;i<data.length;i++){const c=String(data[i][0]||'').trim();if(!c)continue;const sub=String(data[i][1]||'').trim();const tags=String(data[i][2]||'').trim();lines.push(c+' / '+sub+' / '+tags);}
+    return lines.join('\n');
+  }catch(_e){return ''}
+}
+// 讀 Glossary 工作表(中文/越南文/備註)→整理成對照給Gemini
+function _readGlossary(){
+  try{
+    const sh=_sheet('Glossary');const data=sh.getDataRange().getValues();
+    const lines=[];
+    for(let i=1;i<data.length;i++){const zh=String(data[i][0]||'').trim();const vi=String(data[i][1]||'').trim();if(!zh||!vi)continue;lines.push(zh+'='+vi);}
+    return lines.join('、');
+  }catch(_e){return ''}
+}
+// 翻譯公告:中文內容→越南文(用行話表保一致)。params.text=中文
+function translateNotice(params){
+  const text=String(params.text||'').trim();
+  if(!text)return {ok:false,error:'no text'};
+  const glossary=_readGlossary();
+  const prompt='你是一位精通繁體中文與越南文的專業職場翻譯官，長期為台越企業處理內部管理公告。\n\n'+
+    '請將以下台灣主管撰寫的職場公告翻譯成越南文。\n\n'+
+    '【翻譯要求】\n'+
+    '1. 語氣符合越南職場文化：對員工展現「專業、清晰、親切但具管理威嚴」，使用得體的職場人稱。\n'+
+    '2. 專有名詞、日期、時間、數字、金額務必精確，不可改動。\n'+
+    '3. 保留原文的段落結構、編號、換行，排版清晰。\n'+
+    '4. 若原文有命令或規範語氣（如「嚴禁」「一律」），越南文須保留同等力度。\n'+
+    '5. 遇到按摩業專有術語，依產業慣用譯法，並保持全文一致。\n'+
+    (glossary?('【固定詞彙】以下術語請務必使用指定譯法，全文一致：'+glossary+'\n'):'')+
+    '6. 只輸出越南文翻譯結果，不要任何解釋、拼音或聊天。\n\n'+
+    '【原文】\n'+text;
+  const r=_gemini(prompt,{code:params.code||'',feature:params.feature||'翻譯測試'});
+  if(!r.ok)return {ok:false,error:r.error};
+  return {ok:true,vi:(r.text||'').trim()};
+}
+// AI分析公告:中文內容→選分類/標籤+做標題摘要+翻越南文。params.content=中文內容
+function analyzeNotice(params){
+  const content=String(params.content||'').trim();
+  if(!content)return {ok:false,error:'no content'};
+  const cats=_readCategories();
+  const glossary=_readGlossary();
+  const prompt='你是台越按摩企業的公告整理助手。以下是一則主管撰寫的公告內容，請你完成分類、產生標題摘要，並翻譯成越南文。\n\n'+
+    '【可選分類與標籤】（主分類 / 子分類 / 建議標籤，請務必從中挑選最合適的）\n'+cats+'\n\n'+
+    (glossary?('【固定行話對照】翻越南文時務必用指定譯法：'+glossary+'\n\n'):'')+
+    '【公告內容】\n'+content+'\n\n'+
+    '請嚴格只輸出以下 JSON 格式（不要markdown、不要```、不要多餘文字）：\n'+
+    '{"cat":"主分類","subcat":"子分類","tags":"#標籤1, #標籤2","title":"中文標題","summary":"中文摘要一句","titleVi":"越南文標題","summaryVi":"越南文摘要","bodyVi":"越南文完整內容"}';
+  const r=_gemini(prompt,{code:params.code||'',feature:params.feature||'分析測試'});
+  if(!r.ok)return {ok:false,error:r.error};
+  let txt=(r.text||'').trim();
+  txt=txt.replace(/^```json\s*/i,'').replace(/^```\s*/,'').replace(/```\s*$/,'').trim();
+  try{const obj=JSON.parse(txt);return {ok:true,result:obj};}
+  catch(_e){return {ok:false,error:'解析JSON失敗:'+txt.slice(0,300)};}
+}
+
+function addNotice(params){
+  try{
+    const ss=SpreadsheetApp.openById(_prop('SHEET_ID'));
+    let sh=ss.getSheetByName('Notices');
+    if(!sh)return {ok:false,error:'no Notices sheet'};
+    const data=sh.getDataRange().getValues();
+    let prefix='L',maxNum=0;
+    for(let i=1;i<data.length;i++){
+      const id=String(data[i][0]||'').trim();if(!id)continue;
+      const m=id.match(/^([A-Za-z]*)(\d+)$/);
+      if(m){const p=m[1]||'';const n=parseInt(m[2],10);if(n>maxNum){maxNum=n;if(p)prefix=p;}}
+    }
+    const newId=prefix+String(maxNum+1).padStart(4,'0');
+    const today=Utilities.formatDate(new Date(),'Asia/Taipei','yyyy-MM-dd');
+    const row=[newId,today,params.author||'',params.cat||'',params.subcat||'',params.title||'',params.summary||'',params.body||'',params.bodyVi||'',params.tags||'','','','','','','',params.titleVi||'',params.summaryVi||''];
+    sh.appendRow(row);
+    _geminiLog({code:params.code||'',feature:'新增公告'});
+    return {ok:true,id:newId};
+  }catch(err){return {ok:false,error:String(err)};}
+}
+
+// ===== 主管線上編輯既有公告(改中文,免Excel)=====
+// 只存Sheet,不觸發notices.json更新(批次思維,更新走既有publishNotices機制)。
+// 流程:
+//  1) 算出「有效值」(前端這次有帶的用前端的,沒帶的沿用Sheet原值)
+//  2) 找出中文欄位(主分類/子分類/標題/摘要/標籤)裡還空著的
+//  3) 若有空的且內文非空 → 呼叫一次Gemini,已填的欄位當「已確定」context不覆蓋,只生成空的欄位;
+//     同時把最終版標題/摘要/內文一起翻成越南文(省額度,一次呼叫兩件事)
+//  4) 若欄位都不缺,只有title/summary/body變了 → 單純重翻越南文(舊行為)
+//  5) 若都沒缺也沒改到需要翻譯的欄位 → 直接存檔,不呼叫AI
+// 翻譯/生成失敗自動重試1次;仍失敗仍算「已存檔」(中文已存,AI部分待補),回viOk:false讓前端顯示提醒。
+function editNotice(params){
+  try{
+    const id=String(params.id||'').trim();
+    if(!id)return {ok:false,error:'no id'};
+    const ss=SpreadsheetApp.openById(_prop('SHEET_ID'));
+    const sh=ss.getSheetByName('Notices');
+    if(!sh)return {ok:false,error:'no Notices sheet'};
+    const data=sh.getDataRange().getValues();
+    let row=-1;
+    for(let i=1;i<data.length;i++){if(String(data[i][0])===id){row=i+1;break;}}
+    if(row<0)return {ok:false,error:'notice not found'};
+    const rowVals=sh.getRange(row,1,1,sh.getLastColumn()).getValues()[0];
+    // 有效值:前端這次有帶(即使是清空成空字串)就用前端的,沒帶(undefined)才沿用舊值
+    const eff=function(v,old){return (v!=null)?String(v):String(old||'');};
+    let cat=eff(params.cat,rowVals[3]);
+    let subcat=eff(params.subcat,rowVals[4]);
+    let title=eff(params.title,rowVals[5]);
+    let summary=eff(params.summary,rowVals[6]);
+    const body=eff(params.body,rowVals[7]);
+    let tags=eff(params.tags,rowVals[9]);
+    const missing=[];
+    if(!cat.trim())missing.push('cat');
+    if(!subcat.trim())missing.push('subcat');
+    if(!title.trim())missing.push('title');
+    if(!summary.trim())missing.push('summary');
+    if(!tags.trim())missing.push('tags');
+    const needTranslate=missing.length>0||(params.title!=null)||(params.summary!=null)||(params.body!=null);
+    let aiErr='';
+    if(needTranslate&&body.trim()){
+      // 一次呼叫:缺的欄位交給AI依內文生成,已有的欄位當context保留原樣;最終標題/摘要/內文一併翻越南文
+      const cats=_readCategories();
+      const glossary=_readGlossary();
+      const known=[];
+      if(missing.indexOf('cat')<0)known.push('主分類='+cat);
+      if(missing.indexOf('subcat')<0)known.push('子分類='+subcat);
+      if(missing.indexOf('title')<0)known.push('標題='+title);
+      if(missing.indexOf('summary')<0)known.push('摘要='+summary);
+      if(missing.indexOf('tags')<0)known.push('標籤='+tags);
+      const prompt='你是台越按摩企業的公告整理助手,同時精通繁體中文與越南文職場翻譯。\n\n'+
+        '這是一則公告的編輯作業,內文是唯一真實依據：\n【公告內文】\n'+body+'\n\n'+
+        (known.length?('【主管已確定、不可更動的欄位】\n'+known.join('、')+'\n\n'):'')+
+        (missing.length?('【請你依內文生成以下欄位】\n'+missing.join('、')+'\n\n'+'【可選分類與標籤】（主分類 / 子分類 / 建議標籤，請務必從中挑選最合適的）\n'+cats+'\n\n'):'')+
+        (glossary?('【固定行話對照】翻越南文時務必用指定譯法：'+glossary+'\n\n'):'')+
+        '請完成兩件事：(1)把上面「請你依內文生成」的欄位生成好；已確定的欄位就原樣照抄回傳，不要更動。(2)把最終版的標題、摘要、內文，正確翻譯成越南文，語氣專業清晰、保留原意與力度、專有名詞數字金額精確、按摩業術語一致。\n\n'+
+        '請嚴格只輸出以下 JSON 格式（不要markdown、不要```、不要多餘文字，欄位全部要有）：\n'+
+        '{"cat":"主分類","subcat":"子分類","title":"中文標題","summary":"中文摘要","tags":"#標籤1, #標籤2","titleVi":"越南文標題","summaryVi":"越南文摘要","bodyVi":"越南文完整內容"}';
+      const tryRun=function(){
+        const r=_gemini(prompt,{code:params.code||'',feature:'公告編輯'+(missing.length?'(補欄位+翻譯)':'(翻譯)')});
+        if(!r.ok)return {ok:false,error:r.error};
+        let txt=(r.text||'').trim();
+        txt=txt.replace(/^```json\s*/i,'').replace(/^```\s*/,'').replace(/```\s*$/,'').trim();
+        try{return {ok:true,obj:JSON.parse(txt)};}
+        catch(_e){return {ok:false,error:'解析JSON失敗:'+txt.slice(0,200)};}
+      };
+      let result=tryRun();
+      if(!result.ok)result=tryRun(); // 自動重試1次(容錯:API暫時掛/逾時)
+      if(result.ok){
+        const o=result.obj;
+        // 缺的欄位才採用AI生成值;主管已填的欄位一律保留原值,不被AI覆蓋(即使AI沒聽話照抄)
+        if(missing.indexOf('cat')>=0&&o.cat!=null)cat=String(o.cat);
+        if(missing.indexOf('subcat')>=0&&o.subcat!=null)subcat=String(o.subcat);
+        if(missing.indexOf('title')>=0&&o.title!=null)title=String(o.title);
+        if(missing.indexOf('summary')>=0&&o.summary!=null)summary=String(o.summary);
+        if(missing.indexOf('tags')>=0&&o.tags!=null)tags=String(o.tags);
+        sh.getRange(row,4).setValue(cat);
+        sh.getRange(row,5).setValue(subcat);
+        sh.getRange(row,6).setValue(title);
+        sh.getRange(row,7).setValue(summary);
+        sh.getRange(row,8).setValue(body);
+        sh.getRange(row,10).setValue(tags);
+        if(o.titleVi!=null)sh.getRange(row,17).setValue(o.titleVi);
+        if(o.summaryVi!=null)sh.getRange(row,18).setValue(o.summaryVi);
+        if(o.bodyVi!=null)sh.getRange(row,9).setValue(o.bodyVi);
+        _log(params.code||'','editNotice','成功(含AI'+(missing.length?'補欄位+':'')+'翻譯)',id);
+        return {ok:true,id:id,viOk:true,aiFilled:missing};
+      }
+      aiErr=result.error;
+    }
+    // AI沒跑(不需要)或AI失敗:中文欄位還是要先存(容錯優先),缺的欄位就先留空待補
+    sh.getRange(row,4).setValue(cat);
+    sh.getRange(row,5).setValue(subcat);
+    sh.getRange(row,6).setValue(title);
+    sh.getRange(row,7).setValue(summary);
+    sh.getRange(row,8).setValue(body);
+    sh.getRange(row,10).setValue(tags);
+    if(!aiErr&&missing.length&&!body.trim())aiErr='內文是空的,AI無法自動生成缺少的欄位('+missing.join('、')+'),已維持空白';
+    if(aiErr){
+      _log(params.code||'','editNotice','AI失敗(中文已存)',id+':'+aiErr);
+      return {ok:true,id:id,viOk:false,viError:aiErr,aiFilled:[]};
+    }
+    _log(params.code||'','editNotice','成功(無需AI)',id);
+    return {ok:true,id:id,viOk:true,viSkipped:true};
+  }catch(err){return {ok:false,error:String(err)};}
+}
+
+// ===== 行為代碼+流水 通用審核架構 =====
+// Actions工作表欄位: 0:seq 1:actionCode 2:code 3:payload(JSON) 4:status(pending/approved/used/rejected) 5:createdAt 6:approvedAt 7:approvedBy
+function _actionsSheet(){
+  const ss=SpreadsheetApp.openById(_prop('SHEET_ID'));
+  let sh=ss.getSheetByName('Actions');
+  if(!sh){sh=ss.insertSheet('Actions');sh.appendRow(['seq','actionCode','code','payload','status','createdAt','approvedAt','approvedBy']);}
+  return sh;
+}
+// 流水號格式:actionCode(1碼)+語系碼(1碼,1=中文2=越南文)+6位數字,如N1000001(中文)/N2000006(越南文)
+// 計數器同一個actionCode下中越文共用,不會撞號
+function _nextSeq(actionCode,langDigit){
+  const sh=_actionsSheet();
+  const data=sh.getDataRange().getValues();
+  let max=0;
+  for(let i=0;i<data.length;i++){
+    if(String(data[i][0])==='seq')continue; // 跳過標題列(不論在哪一列)
+    const s=String(data[i][0]||'');
+    if(s.length===8&&s[0]===actionCode){
+      const n=parseInt(s.slice(2),10);
+      if(!isNaN(n)&&n>max)max=n;
+    }
+  }
+  return actionCode+String(langDigit||1)+String(max+1).padStart(6,'0');
+}
+// 老師端送出待審核動作(如N=新老師啟動、F=忘記密碼),回{ok,seq}
+function submitAction(params){
+  try{
+    const actionCode=String(params.actionCode||'').trim();
+    const code=String(params.code||'').trim();
+    if(!actionCode||!code)return {ok:false,error:'缺actionCode或code'};
+    let payloadObj={};try{payloadObj=JSON.parse(params.payload||'{}');}catch(_e){}
+    const langDigit=(String(payloadObj.lang||'zh')==='vi')?2:1;
+    const seq=_nextSeq(actionCode,langDigit);
+    const sh=_actionsSheet();
+    sh.appendRow([seq,actionCode,code,String(params.payload||''),'pending',new Date(),'','']);
+    _log(code,'submitAction',actionCode,seq);
+    return {ok:true,seq:seq};
+  }catch(err){return {ok:false,error:String(err)};}
+}
+// 查詢流水號目前狀態
+function checkAction(params){
+  try{
+    const seq=String(params.seq||'').trim();
+    if(!seq)return {ok:false,error:'缺seq'};
+    const sh=_actionsSheet();
+    const data=sh.getDataRange().getValues();
+    for(let i=0;i<data.length;i++){
+      if(String(data[i][0])==='seq')continue; // 跳過標題列(不論在哪一列)
+      if(String(data[i][0])===seq){
+        const res={ok:true,seq:seq,actionCode:data[i][1],code:data[i][2],payload:data[i][3],status:data[i][4],createdAt:data[i][5]?String(data[i][5]):'',approvedAt:data[i][6]?String(data[i][6]):'',approvedBy:data[i][7]||''};
+        // N票證核准後,順便把金鑰一起帶回去,老師端不用再另外走批量領取
+        if(res.status==='approved'&&res.actionCode==='N'){
+          _ensureKeyExpirySet(res.code,6); // 老師查核准情形的當下,才開始算6個月效期
+          try{const row=_findKeyRow(res.code);if(row>0){res.key=String(_ensureKeysHeader().getRange(row,2).getValue());res.keyExpiresAt=String(_ensureKeysHeader().getRange(row,6).getValue()||'');}}catch(_e){}
+        }
+        // A票證(主管申請)核准後,順便把GitHub Token/金鑰一起帶回去,取代原本連線碼那段作業
+        if(res.status==='approved'&&res.actionCode==='A'){
+          res.ghToken=_prop('GH_TOKEN')||'';
+          res.ghOwner=_prop('GH_OWNER')||'';
+          res.ghRepo=_prop('GH_REPO')||'';
+          _ensureKeyExpirySet(res.code,6);
+          try{const row=_findKeyRow(res.code);if(row>0)res.key=String(_ensureKeysHeader().getRange(row,2).getValue());}catch(_e){}
+        }
+        return res;
+      }
+    }
+    return {ok:false,error:'查無此流水號'};
+  }catch(err){return {ok:false,error:String(err)};}
+}
+// 主管/管理者核准動作(N建staff;F核准時直接套用老師預先設定好的新密碼,免再一步)
+function approveAction(params){
+  try{
+    const seq=String(params.seq||'').trim();
+    const approver=String(params.code||'').trim();
+    if(!seq)return {ok:false,error:'缺seq'};
+    const sh=_actionsSheet();
+    const data=sh.getDataRange().getValues();
+    let row=-1,rec=null;
+    for(let i=0;i<data.length;i++){if(String(data[i][0])==='seq')continue;if(String(data[i][0])===seq){row=i+1;rec=data[i];break;}}
+    if(row<0)return {ok:false,error:'查無此流水號'};
+    if(rec[4]!=='pending')return {ok:false,error:'此申請已處理過('+rec[4]+')'};
+    const actionCode=rec[1],teacherCode=String(rec[2]);
+    let payload={};try{payload=JSON.parse(rec[3]||'{}');}catch(_e){}
+    if(actionCode==='N'){
+      _staffUpsert(teacherCode,{code:teacherCode,role:'teacher',status:'active',approvedAt:Date.now(),
+        store:payload.store||'',lang:payload.lang||'zh',gender:payload.gender||'',
+        workStart:payload.workStart||'',workEnd:payload.workEnd||'',shift:payload.shift||'',
+        lockPwdEnc:payload.lockPwdEnc||'',skills:[]});
+      _regenerateStaffJson();
+      _issueKeyInternal(teacherCode,'teacher'); // 主管核准新老師時順便產金鑰,老師端檢查核定情形通過時會一併領走
+    }else if(actionCode==='F'){
+      // 老師申請時已經預先帶好新密碼憑證,主管核准當下直接套用,免老師端再多一步設定
+      if(payload.lockPwdEnc){_staffUpsert(teacherCode,{lockPwdEnc:payload.lockPwdEnc});_regenerateStaffJson();}
+    }else if(actionCode==='A'){
+      // 主管申請核准:核准者這時候選的等級,寫回payload讓checkAction查得到
+      const level=parseInt(params.level,10)||1;
+      payload.level=level;
+      sh.getRange(row,4).setValue(JSON.stringify(payload));
+      _staffUpsert(teacherCode,{role:'supervisor',level:level,status:'active',approvedAt:Date.now()});
+      _regenerateStaffJson();
+      _issueKeyInternal(teacherCode,'supervisor'); // 主管也需要金鑰(公告已讀等功能用)
+    }else if(actionCode==='B'||actionCode==='S'){
+      // 基資(B)/店資(S)更新:payload只包含老師這次改動的欄位,直接merge進staff
+      if(payload&&Object.keys(payload).length){_staffUpsert(teacherCode,payload);_regenerateStaffJson();}
+    }
+    sh.getRange(row,5).setValue('approved');
+    sh.getRange(row,7).setValue(new Date());
+    sh.getRange(row,8).setValue(approver);
+    _log(approver,'approveAction',actionCode,seq+':'+teacherCode);
+    return {ok:true};
+  }catch(err){return {ok:false,error:String(err)};}
+}
+// 忘記密碼核准後,老師端帶已核准的F流水號設定新密碼(防止亂改,一次性,用完標記used)
+function updatePwd(params){
+  try{
+    const seq=String(params.seq||'').trim();
+    const code=String(params.code||'').trim();
+    const lockPwdEnc=String(params.lockPwdEnc||'').trim();
+    if(!seq||!code||!lockPwdEnc)return {ok:false,error:'缺參數'};
+    const sh=_actionsSheet();
+    const data=sh.getDataRange().getValues();
+    let row=-1,rec=null;
+    for(let i=0;i<data.length;i++){if(String(data[i][0])==='seq')continue;if(String(data[i][0])===seq){row=i+1;rec=data[i];break;}}
+    if(row<0)return {ok:false,error:'查無此流水號'};
+    if(rec[1]!=='F')return {ok:false,error:'流水號類型錯誤'};
+    if(String(rec[2])!==code)return {ok:false,error:'編號不符'};
+    if(rec[4]!=='approved')return {ok:false,error:'尚未核准或已使用'};
+    _staffUpsert(code,{lockPwdEnc:lockPwdEnc});
+    _regenerateStaffJson();
+    sh.getRange(row,5).setValue('used');
+    _log(code,'updatePwd','F',seq);
+    return {ok:true};
+  }catch(err){return {ok:false,error:String(err)};}
+}
+// 密碼登入(換機用):比對Staff裡存的密碼憑證字串,GAS只需比對不需解密
+function loginPwd(params){
+  try{
+    const code=String(params.code||'').trim();
+    const lockPwdEnc=String(params.lockPwdEnc||'').trim();
+    if(!code||!lockPwdEnc)return {ok:false,error:'缺參數'};
+    const rec=_staffGet(code);
+    if(!rec)return {ok:false,error:'查無此員工'};
+    if(!rec.lockPwdEnc)return {ok:false,error:'此員工尚未設定密碼'};
+    if(String(rec.lockPwdEnc)!==lockPwdEnc)return {ok:false,error:'密碼不符'};
+    if(rec.status&&rec.status!=='active')return {ok:false,error:'帳號已停用'};
+    return {ok:true,store:rec.store||'',lang:rec.lang||'zh',gender:rec.gender||'',workStart:rec.workStart||'',workEnd:rec.workEnd||'',shift:rec.shift||'',unitPrice:rec.unitPrice||250};
+  }catch(err){return {ok:false,error:String(err)};}
+}
+// ===== Staff Sheet 單列讀寫輔助(B方案:code|json,與saveStaff共用同一張表) =====
+function _staffSheetRef(){
+  const ss=SpreadsheetApp.openById(_prop('SHEET_ID'));
+  let sh=ss.getSheetByName('Staff');
+  if(!sh){sh=ss.insertSheet('Staff');sh.appendRow(['code','json']);}
+  return sh;
+}
+function _staffGet(code){
+  const sh=_staffSheetRef();
+  const data=sh.getDataRange().getValues();
+  for(let i=1;i<data.length;i++){
+    if(String(data[i][0])===String(code)){try{return JSON.parse(data[i][1]||'{}');}catch(_e){return null;}}
+  }
+  return null;
+}
+function _staffUpsert(code,patch){
+  const sh=_staffSheetRef();
+  const data=sh.getDataRange().getValues();
+  for(let i=1;i<data.length;i++){
+    if(String(data[i][0])===String(code)){
+      let cur={};try{cur=JSON.parse(data[i][1]||'{}');}catch(_e){}
+      const merged=Object.assign({},cur,patch);
+      sh.getRange(i+1,2).setValue(JSON.stringify(merged));
+      return;
+    }
+  }
+  const fresh=Object.assign({code:code},patch);
+  sh.appendRow([code,JSON.stringify(fresh)]);
+}
+// 把整個Staff工作表重新編碼寫回GitHub staff.json(維持舊readStaff()讀取路徑相容)。單列異動後呼叫。
+function _regenerateStaffJson(){
+  try{
+    const sh=_staffSheetRef();
+    const data=sh.getDataRange().getValues();
+    const arr=[];
+    for(let i=1;i<data.length;i++){
+      if(!data[i][0])continue;
+      try{arr.push(JSON.parse(data[i][1]||'{}'));}catch(_e){}
+    }
+    const json=JSON.stringify(arr);
+    const ck=_prop('DECRYPT_KEY');
+    if(!ck)return;
+    const uri=encodeURIComponent(json);
+    let enc='';
+    for(let i=0;i<uri.length;i++){enc+=(uri.charCodeAt(i)^ck.charCodeAt(i%ck.length)).toString(16).padStart(2,'0');}
+    _ghWriteFile('staff.json',enc,'regenerate staff.json from Staff sheet');
+  }catch(_e){}
+}
+
+// 首次設定密碼(非忘記密碼重設):只有Staff該員工還沒有密碼時才允許,已有密碼要走F忘記密碼流程,防止被覆蓋
+function setInitialPwd(params){
+  try{
+    const code=String(params.code||'').trim();
+    const lockPwdEnc=String(params.lockPwdEnc||'').trim();
+    if(!code||!lockPwdEnc)return {ok:false,error:'缺參數'};
+    const rec=_staffGet(code);
+    if(rec&&rec.lockPwdEnc)return {ok:false,error:'已設定過密碼,請走忘記密碼流程'};
+    _staffUpsert(code,{lockPwdEnc:lockPwdEnc});
+    _regenerateStaffJson();
+    _log(code,'setInitialPwd','','');
+    return {ok:true};
+  }catch(err){return {ok:false,error:String(err)};}
+}
+
+// 已通過本機信任檢查(admin.cfg/已核准過的教師)啟動時,直接同步基本資料到Staff,不需要走N票證審核
+// (修正:原本快速通道只在本機doActivate,完全沒呼叫GAS,導致性別/班別/上下班/語系沒同步進Staff)
+function syncProfile(params){
+  try{
+    const code=String(params.code||'').trim();
+    if(!code)return {ok:false,error:'缺code'};
+    let payload={};try{payload=JSON.parse(params.payload||'{}');}catch(_e){}
+    const patch={};
+    if(payload.store!=null)patch.store=payload.store;
+    if(payload.lang!=null)patch.lang=payload.lang;
+    if(payload.gender!=null)patch.gender=payload.gender;
+    if(payload.workStart!=null)patch.workStart=payload.workStart;
+    if(payload.workEnd!=null)patch.workEnd=payload.workEnd;
+    if(payload.shift!=null)patch.shift=payload.shift;
+    if(payload.lockPwdEnc!=null)patch.lockPwdEnc=payload.lockPwdEnc;
+    _staffUpsert(code,patch);
+    _regenerateStaffJson();
+    _log(code,'syncProfile','','');
+    return {ok:true};
+  }catch(err){return {ok:false,error:String(err)};}
+}
+
+// 查詢編號是否已經是Staff裡的已啟動老師(新老師啟動頁用來判斷該走新啟動還是密碼登入)
+function checkCode(params){
+  try{
+    const code=String(params.code||'').trim();
+    if(!code)return {ok:false,error:'缺code'};
+    const rec=_staffGet(code);
+    return {ok:true,exists:!!rec,role:rec?(rec.role||'teacher'):'',status:rec?(rec.status||''):''};
+  }catch(err){return {ok:false,error:String(err)};}
+}
+
+// 撤銷主管權限(GAS化,不再需要revoked.cfg離線查詢——因為現在staff.role本身就是GAS/Sheet裡的即時狀態)
+function revokeSup(params){
+  try{
+    const targetCode=String(params.targetCode||'').trim();
+    const approver=String(params.code||'').trim();
+    if(!targetCode)return {ok:false,error:'缺targetCode'};
+    _staffUpsert(targetCode,{role:'teacher',level:0,revokedAt:Date.now(),revokedBy:approver});
+    _regenerateStaffJson();
+    _log(approver,'revokeSup','',targetCode);
+    return {ok:true};
+  }catch(err){return {ok:false,error:String(err)};}
+}
+
+// 退回申請(附理由),老師端可以看到理由後修改重送
+function rejectAction(params){
+  try{
+    const seq=String(params.seq||'').trim();
+    const approver=String(params.code||'').trim();
+    const reason=String(params.reason||'').trim();
+    if(!seq)return {ok:false,error:'缺seq'};
+    const sh=_actionsSheet();
+    const data=sh.getDataRange().getValues();
+    let row=-1,rec=null;
+    for(let i=0;i<data.length;i++){if(String(data[i][0])==='seq')continue;if(String(data[i][0])===seq){row=i+1;rec=data[i];break;}}
+    if(row<0)return {ok:false,error:'查無此流水號'};
+    if(rec[4]!=='pending')return {ok:false,error:'此申請已處理過('+rec[4]+')'};
+    let payload={};try{payload=JSON.parse(rec[3]||'{}');}catch(_e){}
+    payload.rejectReason=reason;
+    sh.getRange(row,4).setValue(JSON.stringify(payload));
+    sh.getRange(row,5).setValue('rejected');
+    sh.getRange(row,7).setValue(new Date());
+    sh.getRange(row,8).setValue(approver);
+    _log(approver,'rejectAction',rec[1],seq+':'+String(rec[2])+':'+reason);
+    return {ok:true};
+  }catch(err){return {ok:false,error:String(err)};}
+}
+
+function noticeUnread(params){
+  const nid=String((params.noticeId!=null?params.noticeId:'')).trim();
+  if(!nid)return {ok:false,error:'no noticeId'};
+  try{
+    const staff=_readStaff();
+    if(!staff.length)return {ok:false,error:'staff empty(檢查staff.json/DECRYPT_KEY/GH屬性)'};
+    // 已讀編號集合
+    const rsh=_readsSheet();const rdata=rsh.getDataRange().getValues();const readSet={};
+    for(let i=1;i<rdata.length;i++){if(String(rdata[i][0])===nid)readSet[String(rdata[i][1])]=1;}
+    // 在職老師分班,排除已讀
+    const day=[],night=[],other=[];
+    staff.forEach(function(s){
+      if(!s||!s.code)return;
+      if(s.status&&s.status!=='active'&&s.status!=='approved')return; // 只算在職
+      const code=String(s.code);
+      if(readSet[code])return; // 已讀跳過
+      if(s.shift==='day')day.push(code);
+      else if(s.shift==='night')night.push(code);
+      else other.push(code);
+    });
+    return {ok:true,day:day,night:night,other:other,total:day.length+night.length+other.length};
+  }catch(err){return {ok:false,error:String(err)}}
+}
+
+function _ghWriteFile(path,content,msg){
+  const token=_prop('GH_TOKEN');const owner=_prop('GH_OWNER');const repo=_prop('GH_REPO');
+  if(!token||!owner||!repo)return {ok:false,error:'GAS缺GH_TOKEN/GH_OWNER/GH_REPO屬性'};
+  const api='https://api.github.com/repos/'+owner+'/'+repo+'/contents/'+path;
+  // 先取得現有 sha
+  let sha=null;
+  try{
+    const g=UrlFetchApp.fetch(api,{method:'get',headers:{Authorization:'token '+token},muteHttpExceptions:true});
+    if(g.getResponseCode()===200){sha=JSON.parse(g.getContentText()).sha;}
+  }catch(_e){}
+  const body={message:msg||('update '+path),content:Utilities.base64Encode(content,Utilities.Charset.UTF_8)};
+  if(sha)body.sha=sha;
+  const res=UrlFetchApp.fetch(api,{method:'put',headers:{Authorization:'token '+token},contentType:'application/json',payload:JSON.stringify(body),muteHttpExceptions:true});
+  const ok=res.getResponseCode()===200||res.getResponseCode()===201;
+  return {ok:ok,code:res.getResponseCode()};
+}
+// 產生公告靜態檔(最新N筆+每則已讀人數/清單)
+function buildNoticesJson(listCount){
+  const n=listCount||0;
+  if(n<=0)return []; // 0或空→清空
+  const nres=notices({});
+  let list=(nres&&nres.notices)||[];
+  if(list.length>n)list=list.slice(-n);
+  // 併入已讀統計
+  const rsh=_readsSheet();const rdata=rsh.getDataRange().getValues();
+  // 併入開啟統計:人數(不重複)+人次(全部,含重複開啟)
+  const osh=_opensSheet();const odata=osh.getDataRange().getValues();
+  const openPeople={};const openVisits={};const openSeen={};
+  for(let i=1;i<odata.length;i++){
+    const rid=String(odata[i][0]),rc=String(odata[i][1]);
+    openVisits[rid]=(openVisits[rid]||0)+1;
+    const k=rid+'|'+rc;if(!openSeen[k]){openSeen[k]=1;openPeople[rid]=(openPeople[rid]||0)+1;}
+  }
+  list.forEach(function(nt){
+    const readers=[];const seen={};
+    for(let i=1;i<rdata.length;i++){if(String(rdata[i][0])===String(nt.id)){const rc=String(rdata[i][1]);if(!seen[rc]){seen[rc]=1;readers.push({code:rc,time:String(rdata[i][2]||'')})}}}
+    nt.readCount=readers.length;nt.readers=readers;
+    nt.openCount=openPeople[String(nt.id)]||0; // 人數(不重複)
+    nt.openVisits=openVisits[String(nt.id)]||0; // 人次(含重複開啟)
+  });
+  return list;
+}
+// 主管按更新 or 定時:產靜態檔寫GitHub。homeCount=首頁筆數,listCount=公告頁筆數
+function publishNotices(params){
+  const homeCount=(params&&params.homeCount!=null)?Number(params.homeCount):2;
+  const listCount=(params&&params.listCount!=null)?Number(params.listCount):10;
+  const listText=(params&&params.listText)||'summary'; // 'title'|'summary'
+  const countType=(params&&params.countType)||'people'; // 'people'|'visits'
+  const list=buildNoticesJson(listCount);
+  const show={cat:!!(params&&params.showCat),subcat:!!(params&&params.showSubcat),tags:!!(params&&params.showTags)};
+  const payload={homeCount:homeCount,show:show,listText:listText,countType:countType,notices:list};
+  // 存下這次的選擇,每天12點定時job(沒帶params)會沿用,不用每次都手動重選
+  try{PropertiesService.getScriptProperties().setProperty('NOTICE_DISPLAY_OPTS',JSON.stringify({homeCount:homeCount,listCount:listCount,showCat:show.cat,showSubcat:show.subcat,showTags:show.tags,listText:listText,countType:countType}));}catch(_e){}
+  const r=_ghWriteFile('notices.json',JSON.stringify(payload),'update notices '+_now());
+  _log('','publishNotices',r.ok?'成功':'失敗',r.ok?('首頁'+homeCount+'/共'+list.length+'筆'):('GitHub錯誤 '+(r.error||r.code)));
+  return r.ok?{ok:true,count:list.length,homeCount:homeCount}:{ok:false,error:r.error||('github '+r.code)};
+}
+// 每天12點定時觸發(在GAS的觸發器設這個函式):依主管上次手動更新時的選擇沿用,沒選過就用預設值
+function publishNoticesJob(){
+  let saved=null;
+  try{const s=PropertiesService.getScriptProperties().getProperty('NOTICE_DISPLAY_OPTS');if(s)saved=JSON.parse(s);}catch(_e){}
+  publishNotices(saved||{homeCount:2,listCount:10});
+}
+
+// ===== 讀公告(這階段不驗證,之後可加金鑰驗證) =====
+// Notices 工作表欄位順序:ID/日期/發布人/主分類/子分類/標題/摘要/原文/越南文內容/標籤/是否有圖片/圖片說明/重複提醒次數/關聯公告/關鍵字/備註
+function notices(params){
+  try{
+    const ss=SpreadsheetApp.openById(_prop('SHEET_ID'));
+    const sh=ss.getSheetByName('Notices');
+    if(!sh)return {ok:true,notices:[]};
+    const data=sh.getDataRange().getValues();
+    if(data.length<2)return {ok:true,notices:[]};
+    const list=[];
+    for(let i=1;i<data.length;i++){
+      const r=data[i];
+      if(!r[0]&&!r[5])continue;
+      let dateStr=r[1];
+      if(r[1] instanceof Date){dateStr=Utilities.formatDate(r[1],'Asia/Taipei','yyyy-MM-dd');}
+      list.push({
+        id:String(r[0]||''),date:String(dateStr||''),author:String(r[2]||''),
+        cat:String(r[3]||''),subcat:String(r[4]||''),title:String(r[5]||''),
+        summary:String(r[6]||''),body:String(r[7]||''),bodyVi:String(r[8]||''),
+        tags:String(r[9]||''),hasImg:String(r[10]||''),imgDesc:String(r[11]||''),
+        related:String(r[13]||''),keywords:String(r[14]||''),
+        titleVi:String(r[16]||''),summaryVi:String(r[17]||'')
+      });
+    }
+    return {ok:true,notices:list,count:list.length};
+  }catch(err){return {ok:false,error:String(err)};}
+}
+
+// ===== 主入口:處理前端請求 =====
+// GAS 版次號:每次改動GAS程式碼記得手動更新這個值。錯誤訊息會自動附上這個版號,
+// 方便從任何錯誤代碼判斷線上跑的是不是最新部署版本(常見卡點:改完忘記部署新版本,線上還是舊版)
+const GAS_VERSION='v1.12-022';
+function _handle(params){
+  const action=params.action||'';
+  let result;
+  try{
+    if(action==='genKey')result=genKey(params);
+    else if(action==='claimKey')result=claimKey(params);
+    else if(action==='batchClaim')result=batchClaim(params);
+    else if(action==='batchGenKey')result=batchGenKey(params);
+    else if(action==='verifyKey')result=verifyKey(params);
+    else if(action==='revokeKey')result=revokeKey(params);
+    else if(action==='ping')result={ok:true,pong:true,version:GAS_VERSION}; // 預熱用,順便回版號方便測試
+    else if(action==='notices')result=notices(params);
+    else if(action==='publishNotices')result=publishNotices(params);
+    else if(action==='readNotice')result=readNotice(params);
+    else if(action==='noticeReads')result=noticeReads(params);
+    else if(action==='logNoticeOpen')result=logNoticeOpen(params);
+    else if(action==='noticeOpens')result=noticeOpens(params);
+    else if(action==='noticeUnread')result=noticeUnread(params);
+    else if(action==='translateNotice')result=translateNotice(params);
+    else if(action==='analyzeNotice')result=analyzeNotice(params);
+    else if(action==='addNotice')result=addNotice(params);
+    else if(action==='editNotice')result=editNotice(params);
+    else if(action==='saveStaff')result=saveStaff(params);
+    else if(action==='submitAction')result=submitAction(params);
+    else if(action==='checkAction')result=checkAction(params);
+    else if(action==='approveAction')result=approveAction(params);
+    else if(action==='updatePwd')result=updatePwd(params);
+    else if(action==='loginPwd')result=loginPwd(params);
+    else if(action==='setInitialPwd')result=setInitialPwd(params);
+    else if(action==='syncProfile')result=syncProfile(params);
+    else if(action==='checkCode')result=checkCode(params);
+    else if(action==='revokeSup')result=revokeSup(params);
+    else if(action==='rejectAction')result=rejectAction(params);
+    else if(action==='geminiUsage')result=geminiUsage(params);
+    else result={ok:false,error:'unknown action'};
+  }catch(err){
+    result={ok:false,error:String(err)};
+  }
+  // 統一在這裡附上版次號,不用每個函式自己記得加
+  if(result&&result.ok===false){
+    result=Object.assign({},result,{error:(result.error||'')+'('+GAS_VERSION+')'});
+  }
+  return result;
+}
+
+function _json(obj){
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// GET:用 query string 傳參(方便測試、預熱)
+function doGet(e){
+  return _json(_handle(e.parameter||{}));
+}
+
+// POST:用 JSON body 傳參(正式提交用)
+function doPost(e){
+  let params={};
+  try{
+    if(e.postData && e.postData.contents){
+      params=JSON.parse(e.postData.contents);
+    }
+  }catch(err){params=e.parameter||{};}
+  return _json(_handle(params));
+}
+
+/**
+ * 【測試方式】
+ * 部署後,瀏覽器直接開:
+ *   你的網址?action=ping
+ *     → {"ok":true,"pong":true}  表示活著
+ *   你的網址?action=genKey&code=251&adminSecret=你設的密碼
+ *     → 產生 251 的金鑰
+ *   你的網址?action=verifyKey&code=251&key=剛才拿到的金鑰
+ *     → {"ok":true,"valid":true,...}
+ */
