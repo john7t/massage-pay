@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-015</title>
+<title>薪資追蹤 v1.12-016</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -198,7 +198,7 @@ input[type=number]{-moz-appearance:textfield}
 <script type="text/babel" src="./notice-modal.js"></script>
 <script type="text/babel" src="./settings.js"></script>
 <script type="text/babel">
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasSubmitAction,gasCheckAction,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasSubmitAction,gasCheckAction,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 function NoticeBox({t,agreed,setAgreed}){return(<div className="mt-6 space-y-2"><button onClick={()=>setAgreed(!agreed)} className="flex items-center gap-2 w-full text-left"><span className={`w-5 h-5 rounded flex items-center justify-center text-xs flex-shrink-0 ${agreed?'bg-amber-600 text-white':'bg-white/[0.06] border border-white/[0.12] text-transparent'}`}>✓</span><span className="text-[13px] text-gray-300 font-semibold">{t.readConfirm}</span></button><div className="space-y-1.5 text-[11px] text-gray-500 leading-relaxed pl-7"><p>{t.privacyBody}</p><p>{t.browserNote}</p><p>{t.myBookingNote}</p><p className="text-red-400/80">{t.backupReminder}</p></div></div>)}
@@ -400,7 +400,182 @@ function Onboarding({onComplete}){
 
 
 /* ══════════ Home Page ══════════ */
-function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices}){
+function infoFieldLabel(key,t){
+  const m={nameZh:t.nameZh,nameVi:t.nameVi,gender:t.gender,phone:t.custPhone||'電話',email:t.email,
+    addrCity:'城市',addrDist:'區',addrDetail:'詳細地址',school:t.school,major:t.major,
+    permitNo:t.permitNo,permitDate:t.permitDate,permitExpiry:t.permitExpiry,permitOrg:t.permitOrgOpt||'核發單位',
+    storeSel:t.store,shift:t.shiftLabel||'班別',workStart:t.workStart,workEnd:t.workEnd,workNote:t.workNote,techMentor:t.techMentor,lockerNo:t.lockerNo};
+  return m[key]||key;
+}
+const BASIC_FIELD_KEYS=['nameZh','nameVi','gender','phone','email','addrCity','addrDist','addrDetail','school','major','permitNo','permitDate','permitExpiry','permitOrg'];
+const STORE_FIELD_KEYS=['storeSel','shift','workStart','workEnd','workNote','techMentor','lockerNo'];
+// 基資/店資的密碼解鎖時間戳跟公告共用同一組key,解鎖一次兩邊都算(同屬"公司/個人資料保護"這件事)
+const INFO_UNLOCK_KEY_PREFIX='notice-pwd-unlock-';
+function getInfoUnlockTs(code){try{return parseInt(localStorage.getItem(INFO_UNLOCK_KEY_PREFIX+code)||'0',10)||0}catch(_e){return 0}}
+function setInfoUnlockTs(code){try{localStorage.setItem(INFO_UNLOCK_KEY_PREFIX+code,String(Date.now()))}catch(_e){}}
+
+function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
+  const code=settings.code;
+  const actionCode=type==='basic'?'B':'S';
+  const fieldKeys=type==='basic'?BASIC_FIELD_KEYS:STORE_FIELD_KEYS;
+  const titleText=type==='basic'?(t.secBasic||'基本資料'):(t.secStore||'店家資訊');
+  const pendingKey='info-pending-'+type+'-'+code;
+  const loadPendingT=()=>{try{return JSON.parse(localStorage.getItem(pendingKey)||'null')}catch(_e){return null}};
+  const savePendingT=(o)=>{try{localStorage.setItem(pendingKey,JSON.stringify(o))}catch(_e){}};
+  const clearPendingT=()=>{try{localStorage.removeItem(pendingKey)}catch(_e){}};
+  const[pending]=useState(()=>loadPendingT());
+  const[stores,setStores]=useState(['龍山寺店']);
+  useEffect(()=>{if(type==='store')loadStores().then(s=>setStores(s))},[]);
+
+  const initGate=()=>{
+    if(!code)return 'none';
+    if(!settings.lockPwd)return 'setup';
+    if(Date.now()-getInfoUnlockTs(code)>5*60*1000)return 'locked';
+    return 'none';
+  };
+  const[gate,setGate]=useState(initGate);
+  const[setupPwd,setSetupPwd]=useState('');const[setupPwd2,setSetupPwd2]=useState('');const[setupErr,setSetupErr]=useState('');const[setupBusy,setSetupBusy]=useState(false);
+  const[unlockInput,setUnlockInput]=useState('');const[unlockErr,setUnlockErr]=useState('');
+
+  const[mode,setMode]=useState(()=>pending?'ticket':'view'); // view/edit/ticket
+  const initForm=()=>{const f={};fieldKeys.forEach(k=>{f[k]=settings[k]||''});return f};
+  const[form,setForm]=useState(initForm);
+  const[ticketSeq,setTicketSeq]=useState(()=>pending?pending.seq:'');
+  const[changedList,setChangedList]=useState(()=>pending?pending.changed:[]);
+  const[ticketStatus,setTicketStatus]=useState('');const[cooldown,setCooldown]=useState(0);
+  const[err,setErr]=useState('');const[busy,setBusy]=useState(false);
+  useEffect(()=>{if(cooldown<=0)return;const tm=setTimeout(()=>setCooldown(c=>c>0?c-1:0),1000);return()=>clearTimeout(tm)},[cooldown]);
+
+  const doSetup=async()=>{
+    if(!isValidPin(setupPwd)){setSetupErr(t.lockPwdInvalid);return}
+    if(setupPwd!==setupPwd2){setSetupErr(t.lockPwdMismatch);return}
+    setSetupErr('');setSetupBusy(true);
+    const updated=Object.assign({},settings,{lockPwd:setupPwd});
+    try{LS.set('app-settings',updated)}catch(_e){}
+    if(onUpdateSettings)onUpdateSettings(updated);
+    setInfoUnlockTs(code);
+    setSetupBusy(false);setGate('none');
+    try{const cred=lockPwdCred(code,setupPwd);gasSetInitialPwd(code,cred)}catch(_e){}
+  };
+  const doUnlock=()=>{
+    if(unlockInput===settings.lockPwd){setInfoUnlockTs(code);setUnlockErr('');setGate('none')}
+    else{setUnlockErr(t.noticePwdWrong||'密碼錯誤')}
+  };
+
+  const startEdit=()=>{setForm(initForm());setMode('edit')};
+  const cancelEdit=()=>{setForm(initForm());setMode('view')};
+  const submitEdit=async()=>{
+    const changed={};const changedDisp=[];
+    fieldKeys.forEach(k=>{
+      const ov=settings[k]||'';const nv=(form[k]||'').trim();
+      if(ov!==nv){changed[k]=nv;changedDisp.push({key:k,label:infoFieldLabel(k,t),val:nv})}
+    });
+    if(Object.keys(changed).length===0){setMode('view');return}
+    setBusy(true);setErr('');
+    try{
+      const r=await gasSubmitAction(actionCode,code,changed);
+      setBusy(false);
+      if(r&&r.ok){
+        setTicketSeq(r.seq);setChangedList(changedDisp);setMode('ticket');setTicketStatus('');setCooldown(0);
+        savePendingT({seq:r.seq,changed:changedDisp});
+      }else{setErr((r&&r.error)||'送出失敗')}
+    }catch(e){setBusy(false);setErr(String(e))}
+  };
+  const checkTicket=async()=>{
+    if(cooldown>0||ticketStatus==='checking')return;
+    setTicketStatus('checking');
+    try{
+      const r=await gasCheckAction(ticketSeq);
+      if(r&&r.ok){
+        if(r.status==='approved'){
+          setTicketStatus('approved');
+          let payload={};try{payload=JSON.parse(r.payload||'{}')}catch(_e){}
+          const updated=Object.assign({},settings,payload);
+          try{LS.set('app-settings',updated)}catch(_e){}
+          if(onUpdateSettings)onUpdateSettings(updated);
+          clearPendingT();
+          setTimeout(()=>{if(onClose)onClose()},1200);
+        }else{setTicketStatus('pending');setCooldown(60)}
+      }else{setTicketStatus('error');setCooldown(60)}
+    }catch(_e){setTicketStatus('error');setCooldown(60)}
+  };
+
+  if(gate==='setup'){
+    return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}><div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl" onClick={e=>e.stopPropagation()}>
+      <div className="p-4 border-b border-white/[0.06] flex items-center justify-between"><h3 className="text-base font-bold text-gray-100">{t.noticePwdSetupTitle||'設定4位數密碼'}</h3><button onClick={onClose} className="text-gray-500 text-sm">✕</button></div>
+      <div className="p-4 space-y-4">
+        <p className="text-sm text-gray-300 leading-relaxed">{type==='basic'?t.infoPwdSetupBasicBody:t.infoPwdSetupStoreBody}</p>
+        <div className="grid grid-cols-2 gap-2"><input value={setupPwd} onChange={e=>{setSetupPwd(e.target.value.replace(/\D/g,'').slice(0,4));setSetupErr('')}} inputMode="numeric" maxLength={4} type="password" placeholder="••••" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3.5 text-xl text-center text-gray-100 tracking-[0.5em] focus:outline-none focus:border-amber-500"/><input value={setupPwd2} onChange={e=>{setSetupPwd2(e.target.value.replace(/\D/g,'').slice(0,4));setSetupErr('')}} inputMode="numeric" maxLength={4} type="password" placeholder={t.lockPwdConfirm} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3.5 text-xl text-center text-gray-100 tracking-[0.5em] focus:outline-none focus:border-amber-500"/></div>
+        {setupErr&&<p className="text-xs text-red-400 text-center">{setupErr}</p>}
+        <button onClick={doSetup} disabled={setupBusy||setupPwd.length!==4||setupPwd2.length!==4} className={`w-full py-3.5 rounded-xl font-bold transition-all ${!setupBusy&&setupPwd.length===4&&setupPwd2.length===4?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{t.noticePwdSetupBtn||'設定密碼'}</button>
+      </div>
+    </div></div>);
+  }
+  if(gate==='locked'){
+    return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}><div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl" onClick={e=>e.stopPropagation()}>
+      <div className="p-4 border-b border-white/[0.06] flex items-center justify-between"><h3 className="text-base font-bold text-gray-100">{t.noticePwdLockedTitle||'請輸入密碼'}</h3><button onClick={onClose} className="text-gray-500 text-sm">✕</button></div>
+      <div className="p-4 space-y-4">
+        <p className="text-sm text-gray-300 text-center">{type==='basic'?t.infoPwdLockedBasicBody:t.infoPwdLockedStoreBody}</p>
+        <input value={unlockInput} onChange={e=>{setUnlockInput(e.target.value.replace(/\D/g,'').slice(0,4));setUnlockErr('')}} inputMode="numeric" maxLength={4} type="password" placeholder="••••" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3.5 text-xl text-center text-gray-100 tracking-[0.5em] focus:outline-none focus:border-amber-500"/>
+        {unlockErr&&<p className="text-xs text-red-400 text-center">{unlockErr}</p>}
+        <button onClick={doUnlock} disabled={unlockInput.length!==4} className={`w-full py-3.5 rounded-xl font-bold transition-all ${unlockInput.length===4?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{t.noticePwdUnlockBtn||'解鎖'}</button>
+      </div>
+    </div></div>);
+  }
+
+  if(mode==='ticket'){
+    return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}><div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+      <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{type==='basic'?t.ticketTypeB:t.ticketTypeS}</h3><button onClick={onClose} className="text-gray-500 text-sm">✕</button></div>
+      <div className="p-4 space-y-4">
+        <div className="bg-white/[0.03] rounded-xl p-4 text-center"><p className="text-[11px] text-gray-500 mb-1">{t.ticketInfoTeacher}</p><p className="text-2xl font-bold text-gray-100 mb-3">{code}</p><p className="text-[11px] text-gray-500 mb-1">{t.ticketCode}</p><p className="text-base font-semibold text-amber-400 font-mono tracking-widest select-all">{ticketSeq}</p></div>
+        <button onClick={()=>{const base=location.origin+location.pathname.replace(/index\.html$/,'')+'auth.html';const link=buildReqLink(base,ticketSeq);const prefixKey=type==='basic'?'lineTicketBasicPrefix':'lineTicketStorePrefix';const zhMsg=(T.zh[prefixKey]||'').replace('{code}',code);const viMsg=(T.vi[prefixKey]||'').replace('{code}',code);const isVi=ticketSeq&&ticketSeq[1]==='2';const msg=zhMsg+(isVi?'\n'+viMsg:'')+'\n'+link;location.href='https://line.me/R/share?text='+encodeURIComponent(msg)}} className="w-full px-3 py-4 rounded-xl text-base font-bold bg-[#06C755] text-white active:bg-[#05b34c]">{t.ticketSend}</button>
+        <button onClick={checkTicket} disabled={cooldown>0||ticketStatus==='checking'} className={`w-full py-3.5 rounded-xl font-bold transition-all ${cooldown>0||ticketStatus==='checking'?'bg-white/[0.06] text-gray-600 cursor-not-allowed':'bg-amber-600 text-white'}`}>{ticketStatus==='checking'?t.ticketChecking:cooldown>0?fmtLog(t.ticketWaitCountdown,[String(cooldown)]):t.ticketCheckBtn}</button>
+        {ticketStatus==='pending'&&<p className="text-xs text-gray-500 text-center">{t.ticketPending}</p>}
+        {ticketStatus==='approved'&&<p className="text-xs text-emerald-400 text-center font-semibold">{t.ticketApproved}</p>}
+        {ticketStatus==='error'&&<p className="text-xs text-red-400 text-center">{t.pwdLoginFail}</p>}
+        <div className="pt-3 border-t border-white/[0.06]"><p className="text-xs text-gray-500 mb-2">{t.infoChangedTitle}</p><div className="space-y-1.5">{changedList.map(c=>(<div key={c.key} className="flex justify-between gap-3 text-sm"><span className="text-gray-500">{c.label}</span><span className="text-gray-200 text-right">{c.val}</span></div>))}</div></div>
+      </div>
+    </div></div>);
+  }
+
+  const isEdit=mode==='edit';
+  return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}><div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+    <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{titleText}</h3><button onClick={onClose} className="text-gray-500 text-sm">✕</button></div>
+    <div className="p-4 space-y-3">
+      {fieldKeys.map(k=>{
+        const label=infoFieldLabel(k,t);
+        if(!isEdit){
+          const v=settings[k]||'';
+          return <div key={k} className="flex justify-between items-start gap-3"><span className="text-xs text-gray-500 flex-shrink-0">{label}</span><span className="text-sm text-gray-200 text-right">{v||'—'}</span></div>;
+        }
+        if(k==='gender'){
+          return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><div className="grid grid-cols-2 gap-2">{[['M',t.genderM],['F',t.genderF]].map(([g,l])=>(<button key={g} onClick={()=>setForm(f=>({...f,gender:g}))} className={`py-2 rounded-lg text-sm font-semibold ${form.gender===g?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{l}</button>))}</div></div>);
+        }
+        if(k==='shift'){
+          return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><div className="grid grid-cols-2 gap-2">{[['day',t.shiftDay],['night',t.shiftNight]].map(([sv,l])=>(<button key={sv} onClick={()=>setForm(f=>({...f,shift:sv}))} className={`py-2 rounded-lg text-sm font-semibold ${form.shift===sv?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{l}</button>))}</div></div>);
+        }
+        if(k==='workStart'||k==='workEnd'){
+          return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><select value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-sm text-gray-200 focus:outline-none appearance-none">{TIME_OPTS.map(o=><option key={o} value={o}>{o}</option>)}</select></div>);
+        }
+        if(k==='storeSel'){
+          return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><select value={form.storeSel} onChange={e=>setForm(f=>({...f,storeSel:e.target.value}))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-sm text-gray-200 focus:outline-none appearance-none"><option value="">-</option>{stores.map(s=><option key={s} value={s}>{s}</option>)}</select></div>);
+        }
+        return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><input value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>);
+      })}
+      {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
+      <div className="pt-2 flex gap-2">
+        {!isEdit?(
+          <button onClick={startEdit} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold">{t.infoEditBtn}</button>
+        ):(<>
+          <button onClick={cancelEdit} className="flex-1 py-3 rounded-xl bg-white/[0.06] text-gray-400 font-semibold">{t.infoCancelBtn}</button>
+          <button onClick={submitEdit} disabled={busy} className="flex-1 py-3 rounded-xl bg-amber-600 text-white font-bold disabled:opacity-50">{busy?'…':t.infoSubmitBtn}</button>
+        </>)}
+      </div>
+    </div>
+  </div></div>);
+}
+
+function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onUpdateSettings}){
   const now=bizDate();const bp=bizParts();const ty=settings.year||bp.y,tm=bp.m,td=bp.d;
   const[data,setData]=useState(null);const[prev,setPrev]=useState(null);const[otherMode,setOtherMode]=useState(false);const[otherVal,setOtherVal]=useState('');const[editPrev,setEditPrev]=useState(false);const[editToday,setEditToday]=useState(false);
   const[showStoreInfo,setShowStoreInfo]=useState(false);const[showBasicInfo,setShowBasicInfo]=useState(false);
@@ -443,16 +618,8 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices}){
       <div onClick={()=>setShowStoreInfo(true)} className="flex items-baseline gap-1.5 active:opacity-70 cursor-pointer"><span className="text-base font-bold text-gray-100">雲心閣</span><span className="text-xs text-gray-500">養生會館</span><span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-600 text-white font-bold border border-red-400">24h</span></div>
       <button onClick={()=>setShowBasicInfo(true)} className="text-sm text-gray-500 font-mono active:text-gray-300 px-2 py-1 -mr-1">#{settings.code}</button>
     </div>
-    {showStoreInfo&&(()=>{const rows=[['store',t.store,settings.storeSel||settings.store],['shift',t.shiftLabel||'班別',settings.shift==='day'?(t.shiftDay||'早班'):settings.shift==='night'?(t.shiftNight||'晚班'):''],['work',t.workStart+'-'+t.workEnd,(settings.workStart&&settings.workEnd)?(settings.workStart+' - '+settings.workEnd):''],['unitPrice',t.unitPrice,settings.unitPrice?String(settings.unitPrice):''],['workNote',t.workNote||'備註',settings.workNote||''],['techMentor',t.techMentor,settings.techMentor||''],['lockerNo',t.lockerNo,settings.lockerNo||'']].filter(r=>r[2]);return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={()=>setShowStoreInfo(false)}><div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl max-h-[80vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
-      <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{t.secStore||'店家資訊'}</h3><button onClick={()=>setShowStoreInfo(false)} className="text-gray-500 text-sm">✕</button></div>
-      <div className="p-4 space-y-3">{rows.length===0?<p className="text-xs text-gray-600 text-center py-4">{t.noData||'尚無資料'}</p>:rows.map(r=>(<div key={r[0]} className="flex justify-between items-start gap-3"><span className="text-xs text-gray-500 flex-shrink-0">{r[1]}</span><span className="text-sm text-gray-200 text-right">{r[2]}</span></div>))}</div>
-    </div></div>)})()}
-    {showBasicInfo&&(()=>{const rows=[['nameZh',t.nameZh,settings.nameZh||''],['nameVi',t.nameVi,settings.nameVi||''],['gender',t.gender,settings.gender==='M'?t.genderM:settings.gender==='F'?t.genderF:''],['phone',t.custPhone||'電話',settings.phone||''],['email',t.email,settings.email||''],['address',t.address||'地址',[settings.addrCity,settings.addrDist,settings.addrDetail].filter(Boolean).join('')],['school',t.school,settings.school||''],['major',t.major,settings.major||''],['permitNo',t.permitNo,settings.permitNo||''],['permitExpiry',t.permitExpiry,settings.permitExpiry||'']].filter(r=>r[2]);return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={()=>setShowBasicInfo(false)}><div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl max-h-[80vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
-      <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{t.secBasic||'基本資料'}</h3><button onClick={()=>setShowBasicInfo(false)} className="text-gray-500 text-sm">✕</button></div>
-      <div className="p-4 space-y-3">{rows.length===0?<p className="text-xs text-gray-600 text-center py-4">{t.noData||'尚無資料'}</p>:rows.map(r=>(<div key={r[0]} className="flex justify-between items-start gap-3"><span className="text-xs text-gray-500 flex-shrink-0">{r[1]}</span><span className="text-sm text-gray-200 text-right">{r[2]}</span></div>))}
-      <div className="pt-2 border-t border-white/[0.06]"><span className="text-xs text-gray-500">{t.teacherCode}：</span><span className="text-sm text-gray-200 font-mono">#{settings.code}</span></div>
-      </div>
-    </div></div>)})()}
+    {showStoreInfo&&<InfoEditModal type="store" settings={settings} t={t} onClose={()=>setShowStoreInfo(false)} onUpdateSettings={onUpdateSettings}/>}
+    {showBasicInfo&&<InfoEditModal type="basic" settings={settings} t={t} onClose={()=>setShowBasicInfo(false)} onUpdateSettings={onUpdateSettings}/>}
     {latestNotices.length>0&&(<div className="mb-4"><div className="flex items-center justify-between mb-2 px-1"><span className="text-xs font-semibold text-amber-400">📢 {t.latestNotices||'最新公告'}</span>{onGotoNotices&&<button onClick={()=>onGotoNotices()} className="text-[11px] text-gray-500 active:text-gray-300">{t.viewAll||'看全部'} ›</button>}</div><div className="space-y-1.5">{latestNotices.map(n=>(<div key={n.id} onClick={()=>openNotice(n)} className="bg-white/[0.03] border border-white/[0.05] rounded-xl px-3 py-2.5 active:bg-white/[0.06] cursor-pointer"><div className="flex items-center justify-between gap-2"><p className="text-sm text-gray-200 font-medium truncate flex-1">{typeof noticeSummary==='function'?noticeSummary(n,settings.lang):(n.summary||n.title||'')}</p><span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${isAllStore(n)?'bg-red-500 text-white':'bg-amber-500 text-white'}`}>{isAllStore(n)?(t.allStore||'全店公告'):(t.oneStore||'單店公告')}</span></div><div className="flex items-center justify-between gap-2 mt-1"><span className="text-[10px] text-gray-500 truncate">👤 {n.author||''} · {n.date}</span><span className={`text-[11px] flex-shrink-0 ${isNoticeRead(n.id)?'text-emerald-500':'text-gray-400'}`}>{isNoticeRead(n.id)?('✓ '+(t.noticeReadMark||'已讀')):'👍'}</span></div></div>))}</div></div>)}
     {prev&&(<div onClick={()=>setEditPrev(true)} className="bg-white/[0.03] border border-white/[0.05] rounded-2xl p-4 mb-4 active:bg-white/[0.06] cursor-pointer"><div className="flex items-center justify-between"><div><span className="text-lg font-bold text-gray-400">{prev.month}/{prev.day}</span><span className="text-sm text-gray-600 ml-1">({t.dn[prevDow]})</span></div><div className="text-right">{canWork[prev.status||0]?(<span className="text-xl font-bold text-gray-400 tabular-nums">${calcSal(prev,settings.unitPrice,settings.skills).toLocaleString()}</span>):(<span className={`text-sm px-2 py-0.5 rounded-full ${SBG[prev.status]} ${STC[prev.status]}`}>{t[SK[prev.status]]}</span>)}</div></div>{canWork[prev.status||0]&&(<div className="flex items-center justify-between mt-0.5"><span className="text-xs text-gray-600">{prev.total}{t.units}{prev.laodian>0?` · ${prev.laodian}${t.laodian}`:''}</span><svg className="w-3.5 h-3.5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg></div>)}</div>)}
     <div onClick={()=>setEditToday(true)} className="bg-emerald-500/10 border border-emerald-500/25 rounded-2xl p-4 mb-4 active:bg-emerald-500/15 cursor-pointer"><div className="flex items-center justify-between"><div className="flex items-center gap-2"><span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${(canWork[todayData.status||0]&&todayData.total>0)?'led-green':'led-gray'}`}/><span className="text-lg font-bold text-gray-100">{tm}/{td}</span><span className="text-sm text-gray-500 ml-0.5">({t.dn[now.getDay()]})</span></div><div className="text-right">{canWork[todayData.status||0]?(<span className="text-xl font-bold text-emerald-400 tabular-nums">${sal.toLocaleString()}</span>):(<span className={`text-sm px-2 py-0.5 rounded-full ${SBG[todayData.status]} ${STC[todayData.status]}`}>{t[SK[todayData.status]]}</span>)}</div></div>{canWork[todayData.status||0]&&(<div className="flex items-center justify-between mt-0.5"><span className="text-xs text-gray-500">{todayData.total}{t.units}{todayData.laodian>0?` · ${todayData.laodian}${t.laodian}`:''}</span><svg className={`w-3.5 h-3.5 ${todayData.total>0?'text-red-500 arrow-blink':'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg></div>)}</div>
@@ -602,7 +769,7 @@ function App(){
   const settingsAlert=(()=>{const permExp=(()=>{if(!settings.permitExpiry)return false;const days=(new Date(settings.permitExpiry)-new Date())/86400000;return days<=30})();const gh=getGHConfig();if(gh&&gh.token)return permExp;const cp=settings.confirmedProfile,cs=settings.confirmedStore;const pf=['gender','nameZh','nameVi','phone','email','addrCity','addrDist','addrDetail','school','major','schoolType','permitNo','permitDate','permitExpiry','permitOrg'];const sf=['storeSel','shift','workStart','workEnd','workNote','unitPrice','preg','oil','techMentor','lockerNo'];const chg=(snap,fs)=>{if(!snap)return fs.some(k=>{const v=settings[k];return v!==undefined&&v!==''&&v!==null});return fs.some(k=>(snap[k]||'')!==((settings[k]!==undefined?settings[k]:'')||''))};return chg(cp,pf)||chg(cs,sf)||permExp})();
   return(<div className={`${isLight?'text-gray-900':'text-gray-100'} flex flex-col`} style={{backgroundColor:bgColor,height:'100vh',maxHeight:'100dvh'}} data-light={isLight||undefined}>
     <div className="flex-1 overflow-y-auto">
-      {tab==='home'&&<HomePage settings={settings} t={t} refreshKey={refreshKey} onGotoProfile={()=>{try{sessionStorage.setItem('__settingsSub','basic')}catch(e){}handleTab('settings')}} onGotoNotices={()=>{try{sessionStorage.setItem('__settingsSub','notice')}catch(e){}handleTab('settings')}}/>}
+      {tab==='home'&&<HomePage settings={settings} t={t} refreshKey={refreshKey} onUpdateSettings={updateSettings} onGotoProfile={()=>{try{sessionStorage.setItem('__settingsSub','basic')}catch(e){}handleTab('settings')}} onGotoNotices={()=>{try{sessionStorage.setItem('__settingsSub','notice')}catch(e){}handleTab('settings')}}/>}
       {tab==='monthly'&&<MonthlyPage settings={settings} curM={curM} setCurM={setCurM} t={t} onGotoYear={()=>handleTab('yearly')}/>}
       {tab==='yearly'&&<YearlyPage settings={settings} t={t} onBack={()=>handleTab('monthly')}/>}
       {tab==='customers'&&(()=>{const CP=(window.__V&&window.__V.CustomerPage)||(()=>null);return<CP settings={settings} t={t}/>})()}

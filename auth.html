@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.12-014</title>
+<title>薪資追蹤 · 管理 v1.12-017</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -554,16 +554,17 @@ function ActionTicketBlock({t,myCode}){
     if(!info)return;
     // 語系直接編碼在代碼第2碼(1=中文2=越南文),不用另外查payload
     const isVi=info.seq&&info.seq[1]==='2';
-    const zhMsg=(T.zh.lineApprovedPrefix||'').replace('{code}',info.code);
-    const viMsg=(T.vi.lineApprovedPrefix||'').replace('{code}',info.code);
-    const msg=zhMsg+(isVi?'\n\n'+viMsg:'');
+    const prefixKey={N:'lineApprovedPrefix',F:'lineApprovedForgotPrefix',A:'lineApprovedSupPrefix',B:'lineApprovedBasicPrefix',S:'lineApprovedStorePrefix'}[info.actionCode]||'lineApprovedPrefix';
+    const zhMsg=(T.zh[prefixKey]||'').replace('{code}',info.code);
+    const viMsg=(T.vi[prefixKey]||'').replace('{code}',info.code);
+    const msg=zhMsg+(isVi?'\n\n'+viMsg:'')+'\n'+(myCode||'');
     location.href='https://line.me/R/share?text='+encodeURIComponent(msg);
   };
   return(<div ref={blockRef} className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4"><h3 className="text-sm font-semibold text-amber-400">{t.ticketLookup}</h3>
     <div className="flex gap-2"><input value={seqInput} onChange={e=>setSeqInput(e.target.value)} placeholder={t.ticketLookupPh} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/><button onClick={info?clearAll:()=>lookup()} className={`px-5 py-3 rounded-xl text-white text-sm font-bold min-w-[72px] ${info?'bg-white/[0.1] text-gray-300':'bg-amber-600'}`}>{info?t.ticketClearBtn:t.ticketLookupBtn}</button></div>
     {status&&<p className="text-xs text-center text-red-400">{status}</p>}
     {info&&(<div className="bg-white/[0.03] rounded-xl p-3 space-y-1.5 fi">
-      <p className="text-sm text-amber-400 font-bold text-center">{info.actionCode==='N'?t.ticketTypeN:info.actionCode==='F'?t.ticketTypeF:info.actionCode==='A'?t.ticketTypeA:info.actionCode}</p>
+      <p className="text-sm text-amber-400 font-bold text-center">{info.actionCode==='N'?t.ticketTypeN:info.actionCode==='F'?t.ticketTypeF:info.actionCode==='A'?t.ticketTypeA:info.actionCode==='B'?t.ticketTypeB:info.actionCode==='S'?t.ticketTypeS:info.actionCode}</p>
       <p className="text-xs text-gray-400 text-center">{t.ticketInfoTeacher}：{info.code}</p>
       {info.actionCode==='N'&&(<>
         {info.payload.store&&<p className="text-xs text-gray-500 text-center">{t.ticketInfoStore}：{info.payload.store}</p>}
@@ -571,6 +572,7 @@ function ActionTicketBlock({t,myCode}){
         {info.payload.shift&&<p className="text-xs text-gray-500 text-center">{t.ticketInfoShift}：{info.payload.shift==='day'?t.shiftDay:t.shiftNight}</p>}
         {info.payload.workStart&&<p className="text-xs text-gray-500 text-center">{t.ticketInfoWork}：{info.payload.workStart}-{info.payload.workEnd}</p>}
       </>)}
+      {(info.actionCode==='B'||info.actionCode==='S')&&(<div className="bg-white/[0.03] rounded-lg p-2 space-y-1">{Object.keys(info.payload||{}).length===0?<p className="text-[11px] text-gray-600 text-center">{t.infoNoChange}</p>:Object.entries(info.payload).map(([k,v])=>(<div key={k} className="flex justify-between gap-2 text-[11px]"><span className="text-gray-500">{k}</span><span className="text-gray-300">{String(v)}</span></div>))}</div>)}
       {info.actionCode==='A'&&info.status==='pending'&&(<div className="pt-1"><label className="text-[11px] text-gray-500 block mb-1">{t.approveLevel}</label><select value={supLevel} onChange={e=>setSupLevel(parseInt(e.target.value)||1)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-200 focus:outline-none">{SUP_LEVELS.map(lv=><option key={lv.id} value={lv.id}>{lv[t===T.zh?'zh':'vi']}</option>)}</select></div>)}
       {info.actionCode==='A'&&info.status==='approved'&&info.payload.level&&<p className="text-xs text-gray-500 text-center">{t.approveLevel}：{supLevelName(info.payload.level,t===T.zh?'zh':'vi')}</p>}
       {info.status==='pending'?(
