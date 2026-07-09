@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-004</title>
+<title>薪資追蹤 v1.12-005</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -301,7 +301,7 @@ function Onboarding({onComplete}){
   const ticketBlock=(prefixKey,onApproved,extraAfterApprove)=>(
     <div className="space-y-4">
       <div className="bg-white/[0.03] rounded-xl p-4 text-center"><p className="text-xs text-gray-500 mb-1">{t.ticketCode}</p><p className="text-2xl font-bold text-amber-400 font-mono tracking-widest select-all">{ticketSeq}</p></div>
-      <button onClick={()=>{const msg=(t[prefixKey]||'').replace('{code}',code)+ticketSeq;location.href='https://line.me/R/share?text='+encodeURIComponent(msg)}} className="w-full px-3 py-3 rounded-lg text-sm font-bold bg-[#06C755] text-white active:bg-[#05b34c]">{t.ticketSend}</button>
+      <button onClick={()=>{const base=location.origin+location.pathname.replace(/index\.html$/,'')+'auth.html';const link=buildReqLink(base,ticketSeq);const msg=(t[prefixKey]||'').replace('{code}',code)+link;location.href='https://line.me/R/share?text='+encodeURIComponent(msg)}} className="w-full px-3 py-3 rounded-lg text-sm font-bold bg-[#06C755] text-white active:bg-[#05b34c]">{t.ticketSend}</button>
       {ticketStatus==='approved'?(<div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-center"><p className="text-sm text-emerald-400 font-bold">{t.ticketApproved}</p>{extraAfterApprove}</div>):(
         <div className="space-y-2">
           <button onClick={()=>checkTicket(onApproved)} disabled={cooldown>0||ticketStatus==='checking'} className={`w-full py-3.5 rounded-xl font-bold transition-all ${cooldown>0||ticketStatus==='checking'?'bg-white/[0.06] text-gray-600 cursor-not-allowed':'bg-amber-600 text-white'}`}>{ticketStatus==='checking'?t.ticketChecking:cooldown>0?fmtLog(t.ticketWaitCountdown,[String(cooldown)]):t.ticketCheckBtn}</button>

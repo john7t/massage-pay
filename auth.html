@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.12-005</title>
+<title>薪資追蹤 · 管理 v1.12-006</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -518,8 +518,8 @@ function CloseBtn({onBack,t}){
 // 行為代碼+流水 票證查詢與核准(主管/管理者共用)
 function ActionTicketBlock({t,myCode}){
   const[seqInput,setSeqInput]=useState('');const[info,setInfo]=useState(null);const[status,setStatus]=useState('');const[approveStatus,setApproveStatus]=useState('');
-  const lookup=async()=>{
-    const seq=seqInput.trim().toUpperCase();if(!seq)return;
+  const lookup=async(overrideSeq)=>{
+    const seq=(overrideSeq||seqInput).trim().toUpperCase();if(!seq)return;
     setStatus('...');setInfo(null);setApproveStatus('');
     try{
       const r=await gasCheckAction(seq);
@@ -527,6 +527,17 @@ function ActionTicketBlock({t,myCode}){
       else{setStatus((r&&r.error)||t.ticketNotFound)}
     }catch(e){setStatus(t.ticketNotFound+'（'+e+'）')}
   };
+  // 老師傳來的LINE連結(auth.html#req=N000001)進站時自動帶入+自動查詢,不用手動貼
+  useEffect(()=>{
+    try{
+      const raw=parseReqHash(window.location.hash||'');
+      if(raw&&/^[A-Za-z]\d{6}$/.test(raw.trim())){
+        const seq=raw.trim().toUpperCase();
+        setSeqInput(seq);
+        lookup(seq);
+      }
+    }catch(_e){}
+  },[]);
   const approve=async()=>{
     if(!info)return;setApproveStatus('...');
     try{
