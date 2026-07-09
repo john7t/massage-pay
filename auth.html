@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.12-004</title>
+<title>薪資追蹤 · 管理 v1.12-005</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -524,8 +524,8 @@ function ActionTicketBlock({t,myCode}){
     try{
       const r=await gasCheckAction(seq);
       if(r&&r.ok){let payload={};try{payload=JSON.parse(r.payload||'{}')}catch(_e){}setInfo({seq:r.seq,actionCode:r.actionCode,code:r.code,payload,status:r.status});setStatus('')}
-      else{setStatus(t.ticketNotFound)}
-    }catch(_e){setStatus(t.ticketNotFound)}
+      else{setStatus((r&&r.error)||t.ticketNotFound)}
+    }catch(e){setStatus(t.ticketNotFound+'（'+e+'）')}
   };
   const approve=async()=>{
     if(!info)return;setApproveStatus('...');
