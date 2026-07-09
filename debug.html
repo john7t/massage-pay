@@ -19,6 +19,8 @@
 <body>
 <h1>🔧 部署診斷頁</h1>
 <button onclick="location.reload()">重新檢查</button>
+<button onclick="copyMarkdown()" style="background:#0891b2">📋 複製診斷結果(Markdown)</button>
+<span id="copyMsg" style="font-size:12px;color:#10b981;margin-left:8px"></span>
 
 <h2>1. 檔案版本(直接讀原始文字,不執行,壞了也讀得到)</h2>
 <div id="versions">檢查中…</div>
@@ -29,6 +31,7 @@
 <script>
 const versionsEl = document.getElementById('versions');
 const loadsEl = document.getElementById('loads');
+window.__diag = { versions: [], loads: [] };
 
 function extractVersion(text, patterns) {
   for (const p of patterns) {
@@ -50,12 +53,14 @@ async function checkVersions() {
   for (const f of files) {
     try {
       const res = await fetch('./' + f.name + '?t=' + Date.now(), { cache: 'no-store' });
-      if (!res.ok) { html += `<div class="row"><span>${f.name}</span><span class="fail">HTTP ${res.status}</span></div>`; continue; }
+      if (!res.ok) { html += `<div class="row"><span>${f.name}</span><span class="fail">HTTP ${res.status}</span></div>`; window.__diag.versions.push([f.name, 'HTTP ' + res.status]); continue; }
       const text = await res.text();
       const ver = extractVersion(text, f.patterns);
       html += `<div class="row"><span>${f.name}</span><span class="${ver ? 'ok' : 'fail'}">${ver || '找不到版號'}</span></div>`;
+      window.__diag.versions.push([f.name, ver || '找不到版號']);
     } catch (e) {
       html += `<div class="row"><span>${f.name}</span><span class="fail">讀取失敗: ${e.message}</span></div>`;
+      window.__diag.versions.push([f.name, '讀取失敗: ' + e.message]);
     }
   }
   // GAS版本(ping)
@@ -65,11 +70,14 @@ async function checkVersions() {
       const res = await fetch(gasUrl + (gasUrl.indexOf('?') >= 0 ? '&' : '?') + 'action=ping');
       const data = await res.json();
       html += `<div class="row"><span>GAS(ping)</span><span class="${data.version ? 'ok' : 'fail'}">${data.version || JSON.stringify(data)}</span></div>`;
+      window.__diag.versions.push(['GAS(ping)', data.version || JSON.stringify(data)]);
     } else {
       html += `<div class="row"><span>GAS(ping)</span><span class="pending">本機沒存GAS網址,跳過</span></div>`;
+      window.__diag.versions.push(['GAS(ping)', '本機沒存GAS網址,跳過']);
     }
   } catch (e) {
     html += `<div class="row"><span>GAS(ping)</span><span class="fail">${e.message}</span></div>`;
+    window.__diag.versions.push(['GAS(ping)', e.message]);
   }
   versionsEl.innerHTML = html;
 }
@@ -87,6 +95,30 @@ async function loadScript(src, isModule) {
   });
 }
 
+async function checkBabelScript(url, label) {
+  try {
+    const res = await fetch(url + '?t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return { ok: false, msg: 'HTTP ' + res.status };
+    const source = await res.text();
+    let transformed;
+    try {
+      transformed = Babel.transform(source, { presets: ['react'], filename: label }).code;
+    } catch (e) {
+      return { ok: false, msg: '【轉譯失敗(語法錯誤)】' + e.message };
+    }
+    try {
+      // 用Function包起來執行,跟babel-standalone實際運作方式一致(同一個全域環境,能存取window.MP/React等)
+      const fn = new Function(transformed);
+      fn();
+    } catch (e) {
+      return { ok: false, msg: '【執行失敗】' + e.message + (e.stack ? ('\n' + e.stack.split('\n').slice(0,5).join('\n')) : '') };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, msg: '讀取失敗: ' + e.message };
+  }
+}
+
 async function checkLoads() {
   let html = '';
   const errors = [];
@@ -94,7 +126,6 @@ async function checkLoads() {
     errors.push((e.message || 'Script error') + (e.filename ? (' @ ' + e.filename.split('/').pop() + ':' + e.lineno) : ''));
   }, true);
 
-  // 依序載入 react / react-dom / babel-standalone(跟index.html一樣的CDN)
   const cdns = [
     ['React', 'https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js'],
     ['ReactDOM', 'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js'],
@@ -103,40 +134,64 @@ async function checkLoads() {
   for (const [label, url] of cdns) {
     const r = await loadScript(url, false);
     html += `<div class="row"><span>${label}(CDN)</span><span class="${r.ok ? 'ok' : 'fail'}">${r.ok ? '✓ 載入成功' : '✗ ' + r.msg}</span></div>`;
+    window.__diag.loads.push([label + '(CDN)', r.ok ? '✓ 載入成功' : '✗ ' + r.msg, '']);
     loadsEl.innerHTML = html;
     if (!r.ok) { loadsEl.innerHTML += '<div class="detail">CDN載入失敗,後面的檢查會跳過(不影響判斷本機檔案問題)</div>'; return; }
   }
 
-  // common.js(純JS,非babel)
   const errBefore = errors.length;
   const rc = await loadScript('./common.js', false);
   await new Promise(r => setTimeout(r, 300));
   const commonErr = errors.slice(errBefore);
-  html += `<div class="row"><span>common.js</span><span class="${rc.ok && commonErr.length === 0 ? 'ok' : 'fail'}">${rc.ok ? (commonErr.length ? '✗ 執行時出錯' : '✓ 載入+執行成功') : '✗ ' + rc.msg}</span></div>`;
+  const commonOk = rc.ok && commonErr.length === 0;
+  const commonMsg = rc.ok ? (commonErr.length ? '✗ 執行時出錯' : '✓ 載入+執行成功') : '✗ ' + rc.msg;
+  html += `<div class="row"><span>common.js</span><span class="${commonOk ? 'ok' : 'fail'}">${commonMsg}</span></div>`;
   if (commonErr.length) html += `<div class="detail">${commonErr.join('\n')}</div>`;
-  loadsEl.innerHTML = html;
-  if (!rc.ok || commonErr.length) { html += '<div class="detail">common.js有問題,後面的檔案依賴它,可能連帶失敗,但還是繼續測給你看</div>'; loadsEl.innerHTML = html; }
-
-  // notice-modal.js(babel)
-  const errBefore2 = errors.length;
-  const rn = await loadScript('./notice-modal.js', true);
-  await new Promise(r => setTimeout(r, 800));
-  const nmErr = errors.slice(errBefore2);
-  html += `<div class="row"><span>notice-modal.js</span><span class="${rn.ok && nmErr.length === 0 ? 'ok' : 'fail'}">${rn.ok ? (nmErr.length ? '✗ 執行/轉譯時出錯' : '✓ 載入+執行成功') : '✗ ' + rn.msg}</span></div>`;
-  if (nmErr.length) html += `<div class="detail">${nmErr.join('\n')}</div>`;
+  window.__diag.loads.push(['common.js', commonMsg, commonErr.join('\n')]);
   loadsEl.innerHTML = html;
 
-  // settings.js(babel)
-  const errBefore3 = errors.length;
-  const rs = await loadScript('./settings.js', true);
-  await new Promise(r => setTimeout(r, 800));
-  const stErr = errors.slice(errBefore3);
-  html += `<div class="row"><span>settings.js</span><span class="${rs.ok && stErr.length === 0 ? 'ok' : 'fail'}">${rs.ok ? (stErr.length ? '✗ 執行/轉譯時出錯' : '✓ 載入+執行成功') : '✗ ' + rs.msg}</span></div>`;
-  if (stErr.length) html += `<div class="detail">${stErr.join('\n')}</div>`;
+  const rn = await checkBabelScript('./notice-modal.js', 'notice-modal.js');
+  const nmMsg = rn.ok ? '✓ 轉譯+執行成功' : '✗ 有問題';
+  html += `<div class="row"><span>notice-modal.js</span><span class="${rn.ok ? 'ok' : 'fail'}">${nmMsg}</span></div>`;
+  if (!rn.ok) html += `<div class="detail">${rn.msg}</div>`;
+  window.__diag.loads.push(['notice-modal.js', nmMsg, rn.msg || '']);
   loadsEl.innerHTML = html;
 
-  html += '<div class="detail" style="margin-top:12px;color:#f59e0b">檢查完成。如果某個檔案顯示✗,上面的詳細內容就是實際錯誤,把這頁的畫面截圖給我即可。</div>';
+  const rs = await checkBabelScript('./settings.js', 'settings.js');
+  const stMsg = rs.ok ? '✓ 轉譯+執行成功' : '✗ 有問題';
+  html += `<div class="row"><span>settings.js</span><span class="${rs.ok ? 'ok' : 'fail'}">${stMsg}</span></div>`;
+  if (!rs.ok) html += `<div class="detail">${rs.msg}</div>`;
+  window.__diag.loads.push(['settings.js', stMsg, rs.msg || '']);
   loadsEl.innerHTML = html;
+
+  html += '<div class="detail" style="margin-top:12px;color:#f59e0b">檢查完成。如果某個檔案顯示✗,上面的詳細內容就是實際錯誤,把這頁的畫面截圖給我即可,或按上面「複製診斷結果」直接貼給我。</div>';
+  loadsEl.innerHTML = html;
+}
+
+function copyMarkdown() {
+  const d = window.__diag;
+  let md = '### 部署診斷結果\n\n**檔案版本**\n\n';
+  d.versions.forEach(([name, ver]) => { md += `- ${name}: \`${ver}\`\n`; });
+  md += '\n**逐一載入腳本**\n\n';
+  d.loads.forEach(([name, status, detail]) => {
+    md += `- ${name}: ${status}\n`;
+    if (detail) md += '  ```\n  ' + detail.replace(/\n/g, '\n  ') + '\n  ```\n';
+  });
+  md += `\n(裝置: ${navigator.userAgent})\n`;
+  const done = () => { document.getElementById('copyMsg').textContent = '✓ 已複製,可以直接貼給我了'; setTimeout(() => { document.getElementById('copyMsg').textContent = ''; }, 3000); };
+  const fail = () => {
+    // 部分環境(如iOS內嵌webview)clipboard API可能被擋,退而求其次用textarea+execCommand
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = md; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      done();
+    } catch (e) { document.getElementById('copyMsg').textContent = '複製失敗,請手動截圖'; }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(md).then(done).catch(fail);
+  } else { fail(); }
 }
 
 checkVersions();
