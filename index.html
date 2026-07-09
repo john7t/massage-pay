@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-005</title>
+<title>薪資追蹤 v1.12-008</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -198,7 +198,7 @@ input[type=number]{-moz-appearance:textfield}
 <script type="text/babel" src="./notice-modal.js"></script>
 <script type="text/babel" src="./settings.js"></script>
 <script type="text/babel">
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasSubmitAction,gasCheckAction,gasUpdatePwd,gasLoginPwd,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasSubmitAction,gasCheckAction,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 function NoticeBox({t,agreed,setAgreed}){return(<div className="mt-6 space-y-2"><button onClick={()=>setAgreed(!agreed)} className="flex items-center gap-2 w-full text-left"><span className={`w-5 h-5 rounded flex items-center justify-center text-xs flex-shrink-0 ${agreed?'bg-amber-600 text-white':'bg-white/[0.06] border border-white/[0.12] text-transparent'}`}>✓</span><span className="text-[13px] text-gray-300 font-semibold">{t.readConfirm}</span></button><div className="space-y-1.5 text-[11px] text-gray-500 leading-relaxed pl-7"><p>{t.privacyBody}</p><p>{t.browserNote}</p><p>{t.myBookingNote}</p><p className="text-red-400/80">{t.backupReminder}</p></div></div>)}
@@ -208,42 +208,68 @@ function _pad2(n){return String(n).padStart(2,'0')}
 function nextHalfHour(){const now=new Date();let h=now.getHours(),m=now.getMinutes();if(m===0)return _pad2(h)+':00';if(m<=30)return _pad2(h)+':30';return _pad2((h+1)%24)+':00'}
 function addHalfHourTime(hhmm,hours){const p=(hhmm||'00:00').split(':');const h=parseInt(p[0],10)||0,m=parseInt(p[1],10)||0;let total=(h*60+m+hours*60)%1440;if(total<0)total+=1440;return _pad2(Math.floor(total/60))+':'+_pad2(total%60)}
 const TIME_OPTS=(()=>{const a=[];for(let h=0;h<24;h++){a.push(_pad2(h)+':00');a.push(_pad2(h)+':30')}return a})();
+// 新老師啟動流程中途(送出票證後、核准前)的本機暫存,重新整理要停在原本畫面,不要重新申請
+const ONBOARD_PENDING_KEY='onboard-pending-v1';
+function loadPending(){try{return JSON.parse(localStorage.getItem(ONBOARD_PENDING_KEY)||'null')}catch(_e){return null}}
+function savePending(obj){try{localStorage.setItem(ONBOARD_PENDING_KEY,JSON.stringify(obj))}catch(_e){}}
+function clearPending(){try{localStorage.removeItem(ONBOARD_PENDING_KEY)}catch(_e){}}
 
 function Onboarding({onComplete}){
-  const[mode,setMode]=useState('choice'); // choice/new/newTicket/login/forgot/forgotTicket/forgotSetPwd
-  const[lang,setLang]=useState('zh');const[code,setCode]=useState('');const[err,setErr]=useState('');const[checking,setChecking]=useState(false);const[devId]=useState(()=>getDeviceId());const[stores,setStores]=useState(['龍山寺店']);const[store,setStore]=useState('龍山寺店');const[agreed,setAgreed]=useState(false);const[agreeErr,setAgreeErr]=useState(false);
-  const[gender,setGender]=useState('');const[shift,setShift]=useState('');
-  const[workStart,setWorkStart]=useState(()=>nextHalfHour());const[workEnd,setWorkEnd]=useState(()=>addHalfHourTime(nextHalfHour(),12));const[workEndTouched,setWorkEndTouched]=useState(false);
-  const[pwd,setPwd]=useState('');const[pwd2,setPwd2]=useState('');const[fieldErr,setFieldErr]=useState('');
+  const[pending]=useState(()=>loadPending());
+  const pendActive=pending&&(pending.mode==='newTicket'||pending.mode==='forgotTicket');
+  const[mode,setMode]=useState(()=>pendActive?pending.mode:'choice');
+  const[lang,setLang]=useState(()=>(pending&&pending.lang)||'zh');const[code,setCode]=useState(()=>(pending&&pending.code)||'');const[err,setErr]=useState('');const[checking,setChecking]=useState(false);const[devId]=useState(()=>getDeviceId());const[stores,setStores]=useState(['龍山寺店']);const[store,setStore]=useState(()=>(pending&&pending.store)||'龍山寺店');const[agreed,setAgreed]=useState(false);const[agreeErr,setAgreeErr]=useState(false);
+  const[codeCheck,setCodeCheck]=useState(null); // null/checking/new/exists/error — 新老師啟動頁的編號檢查閘門
+  const[gender,setGender]=useState(()=>(pending&&pending.gender)||'');const[shift,setShift]=useState(()=>(pending&&pending.shift)||'');
+  const[workStart,setWorkStart]=useState(()=>(pending&&pending.workStart)||nextHalfHour());const[workEnd,setWorkEnd]=useState(()=>(pending&&pending.workEnd)||addHalfHourTime(nextHalfHour(),12));const[workEndTouched,setWorkEndTouched]=useState(false);
+  const[pwd,setPwd]=useState(()=>(pending&&pending.pwd)||'');const[pwd2,setPwd2]=useState('');const[fieldErr,setFieldErr]=useState('');
   const[loginPwdInput,setLoginPwdInput]=useState('');
-  const[ticketSeq,setTicketSeq]=useState('');const[ticketStatus,setTicketStatus]=useState('');const[cooldown,setCooldown]=useState(0);
+  const[forgotPwd,setForgotPwd]=useState(()=>(pending&&pending.forgotPwd)||'');const[forgotPwd2,setForgotPwd2]=useState('');
+  const[ticketSeq,setTicketSeq]=useState(()=>(pending&&pending.ticketSeq)||'');const[ticketStatus,setTicketStatus]=useState('');const[cooldown,setCooldown]=useState(0);
   const t=T[lang];
-  useEffect(()=>{loadStores().then(s=>{setStores(s);setStore(s[0]||'龍山寺店')})},[]);
+  useEffect(()=>{loadStores().then(s=>{setStores(s);if(!pending)setStore(s[0]||'龍山寺店')})},[]);
   useEffect(()=>{if(cooldown<=0)return;const tm=setTimeout(()=>setCooldown(c=>c>0?c-1:0),1000);return()=>clearTimeout(tm)},[cooldown]);
   const onWorkStartChange=(v)=>{setWorkStart(v);if(!workEndTouched)setWorkEnd(addHalfHourTime(v,12))};
   const onWorkEndChange=(v)=>{setWorkEnd(v);setWorkEndTouched(true)};
   const baseSettings=(extra)=>Object.assign({code,unitPrice:250,lang,store,year:bizParts().y,deviceId:devId,gender,workStart,workEnd,shift,lockPwd:pwd},extra||{});
-  const doActivate=(settings)=>{LS.set('app-settings',settings);LS.set(`activated-${code}`,{deviceId:devId,ts:Date.now()});try{if(shouldClaimKey(code)){autoClaimKey(code)}}catch(_e){}onComplete(settings)};
+  const doActivate=(settings)=>{clearPending();LS.set('app-settings',settings);LS.set(`activated-${code}`,{deviceId:devId,ts:Date.now()});try{if(shouldClaimKey(code)){autoClaimKey(code)}}catch(_e){}onComplete(settings)};
   const pinOk=isValidPin(pwd);
-  const canSubmitNew=code.trim()&&gender&&shift&&workStart&&workEnd&&pinOk&&pwd===pwd2;
+  const canSubmitNew=codeCheck==='new'&&code.trim()&&gender&&shift&&workStart&&workEnd&&pinOk&&pwd===pwd2&&agreed;
 
-  const goChoice=()=>{setMode('choice');setErr('');setFieldErr('');setChecking(false);setTicketStatus('');setCooldown(0)};
+  const goChoice=()=>{clearPending();setMode('choice');setErr('');setFieldErr('');setChecking(false);setTicketStatus('');setCooldown(0)};
+
+  const onCodeChange=(v)=>{setCode(v.replace(/[^a-zA-Z0-9]/g,''));setCodeCheck(null)};
+  const doCheckCode=async()=>{
+    if(!code.trim())return;
+    setCodeCheck('checking');setErr('');
+    try{
+      const r=await gasCheckCode(code.trim());
+      if(r&&r.ok){
+        if(r.exists){setCodeCheck('exists');setMode('login');setLoginPwdInput('')}
+        else{setCodeCheck('new')}
+      }else{setCodeCheck('error');setErr((r&&r.error)||t.codeCheckFail)}
+    }catch(e){setCodeCheck('error');setErr(t.codeCheckFail)}
+  };
 
   const submitNew=async()=>{
-    if(!canSubmitNew)return;if(!agreed){setAgreeErr(true);return}setAgreeErr(false);
-    if(!pinOk){setFieldErr(t.lockPwdInvalid);return}
-    if(pwd!==pwd2){setFieldErr(t.lockPwdMismatch);return}
-    setFieldErr('');setChecking(true);
-    // 快速通道:本來就是管理者/已核准過的編號,免走票證流程
-    try{const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),5000);const res=await fetch('./admin.cfg',{cache:'no-store',signal:ctrl.signal});clearTimeout(timer);if(res.ok){const text=(await res.text()).trim();const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));const myHash=adminHash(code);const match=lines.some(l=>{const parts=l.split(':');const h=parts.length>=2?parts[parts.length-1]:parts[0];return h===myHash});if(match){doActivate(baseSettings());return}}}catch(_e){}
-    try{const result=await checkApproved('t',approveHash(code,devId));if(result){doActivate(baseSettings());return}}catch(_e){}
+    if(!canSubmitNew){if(!agreed)setAgreeErr(true);return}
+    setAgreeErr(false);setFieldErr('');setChecking(true);
+    // 快速通道:本來就是管理者/已核准過的編號,免走票證審核,但要記得把資料同步進Staff(不然性別/班別/上下班/語系不會進staff)
+    const syncAndActivate=async()=>{
+      try{await gasSyncProfile(code,{store,lang,gender,workStart,workEnd,shift,lockPwdEnc:lockPwdCred(code,pwd)})}catch(_e){}
+      doActivate(baseSettings());
+    };
+    try{const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),5000);const res=await fetch('./admin.cfg',{cache:'no-store',signal:ctrl.signal});clearTimeout(timer);if(res.ok){const text=(await res.text()).trim();const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));const myHash=adminHash(code);const match=lines.some(l=>{const parts=l.split(':');const h=parts.length>=2?parts[parts.length-1]:parts[0];return h===myHash});if(match){await syncAndActivate();return}}}catch(_e){}
+    try{const result=await checkApproved('t',approveHash(code,devId));if(result){await syncAndActivate();return}}catch(_e){}
     // 送出N票證(行為代碼+流水),不夾帶資料本身,資料另外走GAS存staff
     try{
       const payload={store,lang,gender,workStart,workEnd,shift,devId,lockPwdEnc:lockPwdCred(code,pwd)};
       const r=await gasSubmitAction('N',code,payload);
       setChecking(false);
-      if(r&&r.ok){setTicketSeq(r.seq);setMode('newTicket');setTicketStatus('');setCooldown(0)}
-      else{setErr(r&&r.error||'送出失敗,請檢查網路')}
+      if(r&&r.ok){
+        setTicketSeq(r.seq);setMode('newTicket');setTicketStatus('');setCooldown(0);
+        savePending({mode:'newTicket',ticketSeq:r.seq,code,lang,store,gender,shift,workStart,workEnd,pwd});
+      }else{setErr((r&&r.error)||'送出失敗,請檢查網路')}
     }catch(e){setChecking(false);setErr(String(e))}
   };
 
@@ -271,44 +297,46 @@ function Onboarding({onComplete}){
     }catch(e){setChecking(false);setErr(t.pwdLoginFail)}
   };
 
+  const forgotPinOk=isValidPin(forgotPwd);
+  const canSubmitForgot=code.trim()&&forgotPinOk&&forgotPwd===forgotPwd2;
   const submitForgot=async()=>{
-    if(!code.trim())return;
-    setChecking(true);setErr('');
+    if(!canSubmitForgot)return;
+    setFieldErr('');setChecking(true);setErr('');
     try{
-      const r=await gasSubmitAction('F',code,{devId});
+      const payload={devId,lockPwdEnc:lockPwdCred(code,forgotPwd)};
+      const r=await gasSubmitAction('F',code,payload);
       setChecking(false);
-      if(r&&r.ok){setTicketSeq(r.seq);setMode('forgotTicket');setTicketStatus('');setCooldown(0)}
-      else{setErr(r&&r.error||'送出失敗')}
-    }catch(e){setChecking(false);setErr(String(e))}
-  };
-
-  const submitNewPwd=async()=>{
-    if(!isValidPin(pwd)){setFieldErr(t.lockPwdInvalid);return}
-    if(pwd!==pwd2){setFieldErr(t.lockPwdMismatch);return}
-    setFieldErr('');setChecking(true);
-    try{
-      const cred=lockPwdCred(code,pwd);
-      const r=await gasUpdatePwd(code,ticketSeq,cred);
       if(r&&r.ok){
-        const r2=await gasLoginPwd(code,cred);
-        setChecking(false);
-        if(r2&&r2.ok){doActivate({code,unitPrice:r2.unitPrice||250,lang:r2.lang||lang,store:r2.store||store,year:bizParts().y,deviceId:devId,gender:r2.gender||'',workStart:r2.workStart||'',workEnd:r2.workEnd||'',shift:r2.shift||'',lockPwd:pwd})}
-        else{setErr(t.pwdLoginFail)}
-      }else{setChecking(false);setErr(r&&r.error||'設定失敗')}
+        setTicketSeq(r.seq);setMode('forgotTicket');setTicketStatus('');setCooldown(0);
+        savePending({mode:'forgotTicket',ticketSeq:r.seq,code,lang,store,gender,shift,workStart,workEnd,forgotPwd});
+      }else{setErr((r&&r.error)||'送出失敗')}
     }catch(e){setChecking(false);setErr(String(e))}
   };
+  const onForgotApproved=async()=>{
+    try{
+      const cred=lockPwdCred(code,forgotPwd);
+      const r=await gasLoginPwd(code,cred);
+      if(r&&r.ok){doActivate({code,unitPrice:r.unitPrice||250,lang:r.lang||lang,store:r.store||store,year:bizParts().y,deviceId:devId,gender:r.gender||'',workStart:r.workStart||'',workEnd:r.workEnd||'',shift:r.shift||'',lockPwd:forgotPwd})}
+      else{setErr(t.pwdLoginFail)}
+    }catch(e){setErr(t.pwdLoginFail)}
+  };
 
-  const ticketBlock=(prefixKey,onApproved,extraAfterApprove)=>(
+  const ticketBlock=(prefixKey,titleKey,onApproved)=>(
     <div className="space-y-4">
-      <div className="bg-white/[0.03] rounded-xl p-4 text-center"><p className="text-xs text-gray-500 mb-1">{t.ticketCode}</p><p className="text-2xl font-bold text-amber-400 font-mono tracking-widest select-all">{ticketSeq}</p></div>
+      <div className="bg-white/[0.03] rounded-xl p-4 text-center">
+        <p className="text-xs text-amber-400 font-semibold mb-3">{t[titleKey]}</p>
+        <p className="text-[11px] text-gray-500 mb-1">{t.ticketInfoTeacher}</p>
+        <p className="text-2xl font-bold text-gray-100 mb-3">{code}</p>
+        <p className="text-[11px] text-gray-500 mb-1">{t.ticketCode}</p>
+        <p className="text-base font-semibold text-amber-400 font-mono tracking-widest select-all">{ticketSeq}</p>
+      </div>
       <button onClick={()=>{const base=location.origin+location.pathname.replace(/index\.html$/,'')+'auth.html';const link=buildReqLink(base,ticketSeq);const msg=(t[prefixKey]||'').replace('{code}',code)+link;location.href='https://line.me/R/share?text='+encodeURIComponent(msg)}} className="w-full px-3 py-3 rounded-lg text-sm font-bold bg-[#06C755] text-white active:bg-[#05b34c]">{t.ticketSend}</button>
-      {ticketStatus==='approved'?(<div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-center"><p className="text-sm text-emerald-400 font-bold">{t.ticketApproved}</p>{extraAfterApprove}</div>):(
-        <div className="space-y-2">
-          <button onClick={()=>checkTicket(onApproved)} disabled={cooldown>0||ticketStatus==='checking'} className={`w-full py-3.5 rounded-xl font-bold transition-all ${cooldown>0||ticketStatus==='checking'?'bg-white/[0.06] text-gray-600 cursor-not-allowed':'bg-amber-600 text-white'}`}>{ticketStatus==='checking'?t.ticketChecking:cooldown>0?fmtLog(t.ticketWaitCountdown,[String(cooldown)]):t.ticketCheckBtn}</button>
-          {ticketStatus==='pending'&&<p className="text-xs text-gray-500 text-center">{t.ticketPending}</p>}
-          {ticketStatus==='error'&&<p className="text-xs text-red-400 text-center">{t.pwdLoginFail}</p>}
-        </div>
-      )}
+      <div className="space-y-2">
+        <button onClick={()=>checkTicket(onApproved)} disabled={cooldown>0||ticketStatus==='checking'} className={`w-full py-3.5 rounded-xl font-bold transition-all ${cooldown>0||ticketStatus==='checking'?'bg-white/[0.06] text-gray-600 cursor-not-allowed':'bg-amber-600 text-white'}`}>{ticketStatus==='checking'?t.ticketChecking:cooldown>0?fmtLog(t.ticketWaitCountdown,[String(cooldown)]):t.ticketCheckBtn}</button>
+        {ticketStatus==='pending'&&<p className="text-xs text-gray-500 text-center">{t.ticketPending}</p>}
+        {ticketStatus==='error'&&<p className="text-xs text-red-400 text-center">{t.pwdLoginFail}</p>}
+        {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
+      </div>
       <button onClick={goChoice} className="w-full py-2.5 rounded-xl bg-white/[0.05] text-gray-400 text-sm font-semibold">{t.backToChoice}</button>
     </div>
   );
@@ -318,55 +346,52 @@ function Onboarding({onComplete}){
 
     {mode==='choice'&&(<div className="space-y-3">
       <div><label className="text-sm text-gray-400 mb-1.5 block">{t.language}</label><div className="grid grid-cols-2 gap-2">{[['zh','中文'],['vi','Tiếng Việt']].map(([c,l])=>(<button key={c} onClick={()=>setLang(c)} className={`py-3 rounded-xl text-sm font-semibold transition-all ${lang===c?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div></div>
-      <button onClick={()=>setMode('new')} className="w-full py-4 rounded-xl font-bold text-lg bg-amber-600 text-white mt-2">{t.flowNew}</button>
-      <button onClick={()=>{setMode('login');setErr('')}} className="w-full py-4 rounded-xl font-bold text-lg bg-white/[0.06] text-gray-200">{t.flowLogin}</button>
+      <button onClick={()=>{setMode('new');setCodeCheck(null)}} className="w-full py-4 rounded-xl font-bold text-lg bg-amber-600 text-white mt-2">{t.flowNew}</button>
+      <button onClick={()=>{setMode('login');setErr('');setCodeCheck(null)}} className="w-full py-4 rounded-xl font-bold text-lg bg-white/[0.06] text-gray-200">{t.flowLogin}</button>
     </div>)}
 
-    {mode==='new'&&(<div className="space-y-5">
+    {mode==='new'&&(()=>{const locked=codeCheck!=='new';return(<div className="space-y-5">
+    <div><label className="text-sm text-gray-400 mb-1.5 block">{t.teacherCode}</label><div className="flex gap-2"><input value={code} onChange={e=>onCodeChange(e.target.value)} disabled={codeCheck==='new'} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3.5 text-xl text-center text-gray-100 tracking-widest focus:outline-none focus:border-amber-500 disabled:opacity-60" placeholder={t.teacherCodePlaceholder}/><button onClick={doCheckCode} disabled={!code.trim()||codeCheck==='checking'||codeCheck==='new'} className={`px-4 rounded-xl text-sm font-bold ${codeCheck==='new'?'bg-emerald-600 text-white':code.trim()?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600'}`}>{codeCheck==='checking'?t.checkingCode:codeCheck==='new'?'✓':t.checkCodeBtn}</button></div>
+      {codeCheck==='new'&&<p className="text-xs text-emerald-500 mt-1.5">{t.codeAvailHint}</p>}
+      {codeCheck==='error'&&<p className="text-xs text-red-400 mt-1.5">{err}</p>}
+    </div>
+    <fieldset disabled={locked} className={locked?'opacity-40 space-y-5 pointer-events-none':'space-y-5'}>
     <div><label className="text-sm text-gray-400 mb-1.5 block">{t.store}</label><select value={store} onChange={e=>setStore(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3.5 text-lg text-gray-100 focus:outline-none focus:border-amber-500 appearance-none">{stores.map(s=><option key={s} value={s}>{s}</option>)}</select></div>
-    <div><label className="text-sm text-gray-400 mb-1.5 block">{t.teacherCode}</label><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3.5 text-xl text-center text-gray-100 tracking-widest focus:outline-none focus:border-amber-500" placeholder={t.teacherCodePlaceholder}/></div>
     <div><label className="text-sm text-gray-400 mb-1.5 block">{t.gender}</label><div className="grid grid-cols-2 gap-2">{[['M',t.genderM],['F',t.genderF]].map(([g,l])=>(<button key={g} onClick={()=>setGender(g)} className={`py-3 rounded-xl text-sm font-semibold transition-all ${gender===g?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div></div>
     <div><label className="text-sm text-gray-400 mb-1.5 block">{t.shiftLabel}</label><div className="grid grid-cols-2 gap-2">{[['day',t.shiftDay],['night',t.shiftNight]].map(([sv,l])=>(<button key={sv} onClick={()=>setShift(sv)} className={`py-3 rounded-xl text-sm font-semibold transition-all ${shift===sv?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div></div>
     <div className="grid grid-cols-2 gap-2"><div><label className="text-sm text-gray-400 mb-1.5 block">{t.workStart}</label><select value={workStart} onChange={e=>onWorkStartChange(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3.5 text-base text-center text-gray-100 focus:outline-none focus:border-amber-500 appearance-none">{TIME_OPTS.map(o=><option key={o} value={o}>{o}</option>)}</select></div><div><label className="text-sm text-gray-400 mb-1.5 block">{t.workEnd}</label><select value={workEnd} onChange={e=>onWorkEndChange(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3.5 text-base text-center text-gray-100 focus:outline-none focus:border-amber-500 appearance-none">{TIME_OPTS.map(o=><option key={o} value={o}>{o}</option>)}</select></div></div>
-    <div><label className="text-sm text-gray-400 mb-1.5 block">{t.lockPwdTitle}</label><p className="text-[11px] text-gray-600 mb-2">{t.lockPwdHint}</p><div className="grid grid-cols-2 gap-2"><input value={pwd} onChange={e=>{setPwd(e.target.value.replace(/\D/g,'').slice(0,4));setFieldErr('')}} inputMode="numeric" maxLength={4} type="password" placeholder="••••" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3.5 text-xl text-center text-gray-100 tracking-[0.5em] focus:outline-none focus:border-amber-500"/><input value={pwd2} onChange={e=>{setPwd2(e.target.value.replace(/\D/g,'').slice(0,4));setFieldErr('')}} inputMode="numeric" maxLength={4} type="password" placeholder={t.lockPwdConfirm} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3.5 text-xl text-center text-gray-100 tracking-[0.5em] focus:outline-none focus:border-amber-500"/></div>{pwd.length===4&&!pinOk&&<p className="text-xs text-red-400 mt-1.5">{t.lockPwdInvalid}</p>}</div>
+    <div><label className="text-sm text-gray-400 mb-1.5 block">{t.lockPwdTitle}</label><p className="text-[11px] text-gray-600 mb-2">{t.lockPwdHint}</p><div className="grid grid-cols-2 gap-2"><input value={pwd} onChange={e=>{setPwd(e.target.value.replace(/\D/g,'').slice(0,4));setFieldErr('')}} inputMode="numeric" maxLength={4} type="password" placeholder="••••" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3.5 text-xl text-center text-gray-100 tracking-[0.5em] focus:outline-none focus:border-amber-500"/><input value={pwd2} onChange={e=>{setPwd2(e.target.value.replace(/\D/g,'').slice(0,4));setFieldErr('')}} inputMode="numeric" maxLength={4} type="password" placeholder={t.lockPwdConfirm} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3.5 text-xl text-center text-gray-100 tracking-[0.5em] focus:outline-none focus:border-amber-500"/></div>{pwd.length===4&&!pinOk&&<p className="text-xs text-red-400 mt-1.5">{t.lockPwdInvalid}</p>}{pwd2.length===4&&pwd!==pwd2&&<p className="text-xs text-red-400 mt-1.5">{t.lockPwdMismatch}</p>}</div>
+    <NoticeBox t={t} agreed={agreed} setAgreed={v=>{setAgreed(v);if(v)setAgreeErr(false)}}/>
+    </fieldset>
     <button onClick={submitNew} disabled={!canSubmitNew||checking} className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${canSubmitNew&&!checking?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{checking?t.adminWelcome:t.submitActivation}</button>
     {agreeErr&&<p className="text-xs text-red-400 text-center -mt-3">{t.mustReadFirst}</p>}
     {fieldErr&&<p className="text-xs text-red-400 text-center -mt-3">{fieldErr}</p>}
-    {err&&<p className="text-red-400 text-sm text-center fi">{err}</p>}
-    <NoticeBox t={t} agreed={agreed} setAgreed={v=>{setAgreed(v);if(v)setAgreeErr(false)}}/>
+    {err&&codeCheck!=='error'&&<p className="text-red-400 text-sm text-center fi">{err}</p>}
     <button onClick={goChoice} className="w-full py-2.5 rounded-xl bg-white/[0.05] text-gray-400 text-sm font-semibold">{t.backToChoice}</button>
-    </div>)}
+    </div>)})()}
 
-    {mode==='newTicket'&&ticketBlock('lineTicketNewPrefix',()=>{})}
+    {mode==='newTicket'&&ticketBlock('lineTicketNewPrefix','ticketPendingNewTitle',()=>doActivate(baseSettings()))}
 
     {mode==='login'&&(<div className="space-y-4">
-      <p className="text-sm text-amber-400 text-center font-medium">{t.pwdLoginHint}</p>
+      <p className="text-sm text-amber-400 text-center font-medium">{codeCheck==='exists'?t.codeExistsHint:t.pwdLoginHint}</p>
       <div><label className="text-sm text-gray-400 mb-1.5 block">{t.teacherCode}</label><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3.5 text-xl text-center text-gray-100 tracking-widest focus:outline-none focus:border-amber-500" placeholder={t.teacherCodePlaceholder}/></div>
       <div><label className="text-sm text-gray-400 mb-1.5 block">{t.pwdInputPh}</label><input value={loginPwdInput} onChange={e=>setLoginPwdInput(e.target.value.replace(/\D/g,'').slice(0,4))} inputMode="numeric" maxLength={4} type="password" placeholder="••••" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3.5 text-xl text-center text-gray-100 tracking-[0.5em] focus:outline-none focus:border-amber-500"/></div>
       {err&&<p className="text-red-400 text-sm text-center fi">{err}</p>}
       <button onClick={doLogin} disabled={checking||!code.trim()||loginPwdInput.length!==4} className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${!checking&&code.trim()&&loginPwdInput.length===4?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{checking?t.adminWelcome:t.pwdLoginBtn}</button>
-      <button onClick={()=>{setMode('forgot');setErr('')}} className="w-full text-center text-xs text-gray-500 underline">{t.forgotPwdLink}</button>
+      <button onClick={()=>{setMode('forgot');setErr('');setFieldErr('')}} className="w-full text-center text-xs text-gray-500 underline">{t.forgotPwdLink}</button>
       <button onClick={goChoice} className="w-full py-2.5 rounded-xl bg-white/[0.05] text-gray-400 text-sm font-semibold">{t.backToChoice}</button>
     </div>)}
 
     {mode==='forgot'&&(<div className="space-y-4">
       <p className="text-sm text-amber-400 text-center font-medium">{t.forgotPwdHint}</p>
       <div><label className="text-sm text-gray-400 mb-1.5 block">{t.teacherCode}</label><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3.5 text-xl text-center text-gray-100 tracking-widest focus:outline-none focus:border-amber-500" placeholder={t.teacherCodePlaceholder}/></div>
+      <div><label className="text-sm text-gray-400 mb-1.5 block">{t.newPwdTitle}</label><p className="text-[11px] text-gray-600 mb-2">{t.newPwdHint}</p><div className="grid grid-cols-2 gap-2"><input value={forgotPwd} onChange={e=>{setForgotPwd(e.target.value.replace(/\D/g,'').slice(0,4));setFieldErr('')}} inputMode="numeric" maxLength={4} type="password" placeholder="••••" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3.5 text-xl text-center text-gray-100 tracking-[0.5em] focus:outline-none focus:border-amber-500"/><input value={forgotPwd2} onChange={e=>{setForgotPwd2(e.target.value.replace(/\D/g,'').slice(0,4));setFieldErr('')}} inputMode="numeric" maxLength={4} type="password" placeholder={t.lockPwdConfirm} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3.5 text-xl text-center text-gray-100 tracking-[0.5em] focus:outline-none focus:border-amber-500"/></div>{forgotPwd.length===4&&!forgotPinOk&&<p className="text-xs text-red-400 mt-1.5">{t.lockPwdInvalid}</p>}{forgotPwd2.length===4&&forgotPwd!==forgotPwd2&&<p className="text-xs text-red-400 mt-1.5">{t.lockPwdMismatch}</p>}</div>
       {err&&<p className="text-red-400 text-sm text-center fi">{err}</p>}
-      <button onClick={submitForgot} disabled={checking||!code.trim()} className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${!checking&&code.trim()?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{checking?t.adminWelcome:t.submitActivation}</button>
+      <button onClick={submitForgot} disabled={checking||!canSubmitForgot} className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${!checking&&canSubmitForgot?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{checking?t.adminWelcome:t.submitActivation}</button>
       <button onClick={goChoice} className="w-full py-2.5 rounded-xl bg-white/[0.05] text-gray-400 text-sm font-semibold">{t.backToChoice}</button>
     </div>)}
 
-    {mode==='forgotTicket'&&ticketBlock('lineTicketForgotPrefix',()=>{},
-      <div className="mt-4 space-y-3 text-left">
-        <p className="text-xs text-gray-400 text-center mb-2">{t.setNewPwdTitle}</p>
-        <div className="grid grid-cols-2 gap-2"><input value={pwd} onChange={e=>{setPwd(e.target.value.replace(/\D/g,'').slice(0,4));setFieldErr('')}} inputMode="numeric" maxLength={4} type="password" placeholder="••••" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3.5 text-xl text-center text-gray-100 tracking-[0.5em] focus:outline-none focus:border-amber-500"/><input value={pwd2} onChange={e=>{setPwd2(e.target.value.replace(/\D/g,'').slice(0,4));setFieldErr('')}} inputMode="numeric" maxLength={4} type="password" placeholder={t.lockPwdConfirm} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3.5 text-xl text-center text-gray-100 tracking-[0.5em] focus:outline-none focus:border-amber-500"/></div>
-        {pwd.length===4&&!isValidPin(pwd)&&<p className="text-xs text-red-400">{t.lockPwdInvalid}</p>}
-        {fieldErr&&<p className="text-xs text-red-400">{fieldErr}</p>}
-        {err&&<p className="text-xs text-red-400">{err}</p>}
-        <button onClick={submitNewPwd} disabled={checking||pwd.length!==4||pwd2.length!==4} className={`w-full py-3.5 rounded-xl font-bold transition-all ${!checking&&pwd.length===4&&pwd2.length===4?'bg-emerald-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{checking?t.adminWelcome:t.setNewPwdTitle}</button>
-      </div>
-    )}
+    {mode==='forgotTicket'&&ticketBlock('lineTicketForgotPrefix','ticketPendingForgotTitle',onForgotApproved)}
   </div></div>)}
 
 
