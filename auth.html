@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.12-019</title>
+<title>薪資追蹤 · 管理 v1.12-020</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -205,7 +205,7 @@ input[type=number]{-moz-appearance:textfield}
 <style>@keyframes fbspin{to{transform:rotate(360deg)}}@keyframes fbpulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
 <script src="./common.js"></script>
 <script type="text/babel">
-const{gasUsage,gasTranslate,gasAnalyze,gasCheckAction,gasApproveAction,gasSubmitAction,gasRevokeSup,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,getGasUrl,issueKey,publishNotices,diagClaimKey,getMyKey,setMyKey,hasMyKey,getAdminSecret,setAdminSecret,hasAdminSecret,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,genUUID,getDeviceId,SUP_LEVELS,supLevelName,effSupLevel,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,computeStats,publishStats,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,T}=window.MP;
+const{gasUsage,gasTranslate,gasAnalyze,gasCheckAction,gasApproveAction,gasSubmitAction,gasRevokeSup,gasRejectAction,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,getGasUrl,issueKey,publishNotices,diagClaimKey,getMyKey,setMyKey,hasMyKey,getAdminSecret,setAdminSecret,hasAdminSecret,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,genUUID,getDeviceId,SUP_LEVELS,supLevelName,effSupLevel,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,computeStats,publishStats,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo,useRef}=React;
 
 const goHome=()=>{location.href='./index.html'};
@@ -519,6 +519,7 @@ function CloseBtn({onBack,t}){
 function ActionTicketBlock({t,myCode}){
   const[seqInput,setSeqInput]=useState('');const[info,setInfo]=useState(null);const[status,setStatus]=useState('');const[approveStatus,setApproveStatus]=useState('');
   const[supLevel,setSupLevel]=useState(1);
+  const[rejectReason,setRejectReason]=useState('');const[showReject,setShowReject]=useState(false);
   const blockRef=useRef(null);
   const lookup=async(overrideSeq)=>{
     const seq=(overrideSeq||seqInput).trim().toUpperCase();if(!seq)return;
@@ -547,6 +548,14 @@ function ActionTicketBlock({t,myCode}){
     try{
       const r=await gasApproveAction(info.seq,myCode,info.actionCode==='A'?supLevel:undefined);
       if(r&&r.ok){await lookup(info.seq);setApproveStatus(t.ticketApproveOk)}
+      else{setApproveStatus(t.ticketApproveFail+(r&&r.error?'：'+r.error:''))}
+    }catch(e){setApproveStatus(t.ticketApproveFail)}
+  };
+  const reject=async()=>{
+    if(!info)return;setApproveStatus('...');
+    try{
+      const r=await gasRejectAction(info.seq,myCode,rejectReason);
+      if(r&&r.ok){await lookup(info.seq);setApproveStatus('');setShowReject(false);setRejectReason('')}
       else{setApproveStatus(t.ticketApproveFail+(r&&r.error?'：'+r.error:''))}
     }catch(e){setApproveStatus(t.ticketApproveFail)}
   };
@@ -579,9 +588,18 @@ function ActionTicketBlock({t,myCode}){
       {info.actionCode==='A'&&info.status==='pending'&&(<div className="pt-1"><label className="text-[11px] text-gray-500 block mb-1">{t.approveLevel}</label><select value={supLevel} onChange={e=>setSupLevel(parseInt(e.target.value)||1)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-200 focus:outline-none">{SUP_LEVELS.map(lv=><option key={lv.id} value={lv.id}>{lv[t===T.zh?'zh':'vi']}</option>)}</select></div>)}
       {info.actionCode==='A'&&info.status==='approved'&&info.payload.level&&<p className="text-xs text-gray-500 text-center">{t.approveLevel}：{supLevelName(info.payload.level,t===T.zh?'zh':'vi')}</p>}
       {info.status==='pending'?(
-        <button onClick={approve} disabled={approveStatus==='...'} className="w-full py-3.5 rounded-xl bg-emerald-600 text-white text-base font-bold active:bg-emerald-700 disabled:opacity-50">{approveStatus==='...'?t.approving:t.ticketApproveBtn}</button>
+        <div className="space-y-2">
+          <button onClick={approve} disabled={approveStatus==='...'} className="w-full py-3.5 rounded-xl bg-emerald-600 text-white text-base font-bold active:bg-emerald-700 disabled:opacity-50">{approveStatus==='...'?t.approving:t.ticketApproveBtn}</button>
+          {!showReject?(
+            <button onClick={()=>setShowReject(true)} className="w-full py-2 text-xs text-gray-500 active:text-red-400">{t.rejectBtn}</button>
+          ):(
+            <div className="space-y-2 pt-1"><input value={rejectReason} onChange={e=>setRejectReason(e.target.value)} placeholder={t.rejectReasonPh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-gray-100 focus:outline-none focus:border-red-500"/><button onClick={reject} disabled={approveStatus==='...'} className="w-full py-2.5 rounded-xl bg-red-600/80 text-white text-sm font-bold active:bg-red-700 disabled:opacity-50">{t.rejectBtn}</button></div>
+          )}
+        </div>
       ):info.status==='approved'?(
         <button onClick={notifyApproved} className="w-full py-3.5 rounded-xl text-white text-base font-bold bg-[#06C755] active:bg-[#05b34c]">{t.ticketNotifyBtn}</button>
+      ):info.status==='rejected'?(
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 space-y-1"><p className="text-xs text-red-400 font-semibold text-center">{t.ticketRejected}</p>{info.payload.rejectReason&&<p className="text-xs text-gray-400 text-center">{t.ticketRejectedReason}：{info.payload.rejectReason}</p>}</div>
       ):(
         <p className="text-xs text-center text-gray-500">{t.ticketAlreadyDone}（{info.status}）</p>
       )}

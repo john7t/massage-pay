@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-019</title>
+<title>薪資追蹤 v1.12-021</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -198,7 +198,7 @@ input[type=number]{-moz-appearance:textfield}
 <script type="text/babel" src="./notice-modal.js"></script>
 <script type="text/babel" src="./settings.js"></script>
 <script type="text/babel">
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasSubmitAction,gasCheckAction,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasSubmitAction,gasCheckAction,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasVerifyKey,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 function NoticeBox({t,agreed,setAgreed}){return(<div className="mt-6 space-y-2"><button onClick={()=>setAgreed(!agreed)} className="flex items-center gap-2 w-full text-left"><span className={`w-5 h-5 rounded flex items-center justify-center text-xs flex-shrink-0 ${agreed?'bg-amber-600 text-white':'bg-white/[0.06] border border-white/[0.12] text-transparent'}`}>✓</span><span className="text-[13px] text-gray-300 font-semibold">{t.readConfirm}</span></button><div className="space-y-1.5 text-[11px] text-gray-500 leading-relaxed pl-7"><p>{t.privacyBody}</p><p>{t.browserNote}</p><p>{t.myBookingNote}</p><p className="text-red-400/80">{t.backupReminder}</p></div></div>)}
@@ -420,6 +420,9 @@ const SF_ALERT_FIELDS=['storeSel','shift','workStart','workEnd','workNote','unit
 const INFO_UNLOCK_KEY_PREFIX='notice-pwd-unlock-';
 function getInfoUnlockTs(code){try{return parseInt(localStorage.getItem(INFO_UNLOCK_KEY_PREFIX+code)||'0',10)||0}catch(_e){return 0}}
 function setInfoUnlockTs(code){try{localStorage.setItem(INFO_UNLOCK_KEY_PREFIX+code,String(Date.now()))}catch(_e){}}
+// 憑證有效性一天只查一次,跟notice-modal.js共用同一組localStorage key(互通,不會各查各的)
+function getCachedKeyCheck(code){try{const today=new Date().toISOString().slice(0,10);if(localStorage.getItem('key-check-date-'+code)===today)return localStorage.getItem('key-check-result-'+code)}catch(_e){}return null}
+function setCachedKeyCheck(code,result){try{const today=new Date().toISOString().slice(0,10);localStorage.setItem('key-check-date-'+code,today);localStorage.setItem('key-check-result-'+code,result)}catch(_e){}}
 
 function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
   const code=settings.code;
@@ -442,6 +445,7 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
     return 'none';
   };
   const[gate,setGate]=useState(initGate);
+  const[keyCheck,setKeyCheck]=useState(null); // null/checking/ok/invalid
   const[setupPwd,setSetupPwd]=useState('');const[setupPwd2,setSetupPwd2]=useState('');const[setupErr,setSetupErr]=useState('');const[setupBusy,setSetupBusy]=useState(false);
   const[unlockInput,setUnlockInput]=useState('');const[unlockErr,setUnlockErr]=useState('');
 
@@ -452,7 +456,25 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
   const[changedList,setChangedList]=useState(()=>pending?pending.changed:[]);
   const[ticketStatus,setTicketStatus]=useState('');const[cooldown,setCooldown]=useState(0);
   const[err,setErr]=useState('');const[busy,setBusy]=useState(false);
+  const[rejectReason,setRejectReason]=useState('');
   useEffect(()=>{if(cooldown<=0)return;const tm=setTimeout(()=>setCooldown(c=>c>0?c-1:0),1000);return()=>clearTimeout(tm)},[cooldown]);
+  // 密碼關卡通過後,背景驗證金鑰是否還有效(離職員工密碼還能用,但金鑰會被設過期)
+  // 店資:金鑰失效直接擋內容(比照公告,屬公司資料)。基資:仍可檢視(算自己的資料),只擋送出變更
+  useEffect(()=>{
+    if(gate!=='none'){return}
+    if(!code||!hasMyKey(code)){setKeyCheck('ok');return}
+    const cached=getCachedKeyCheck(code);
+    if(cached){setKeyCheck(cached);return}
+    setKeyCheck('checking');
+    (async()=>{
+      try{
+        const key=getMyKey(code);
+        const r=await gasVerifyKey(code,key);
+        const result=(r&&r.ok&&r.valid)?'ok':'invalid';
+        setKeyCheck(result);setCachedKeyCheck(code,result);
+      }catch(_e){setKeyCheck('ok')} // 網路失敗容錯:不擋
+    })();
+  },[gate]);
 
   const doSetup=async()=>{
     if(!isValidPin(setupPwd)){setSetupErr(t.lockPwdInvalid);return}
@@ -472,7 +494,9 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
 
   const startEdit=()=>{setForm(initForm());setMode('edit')};
   const cancelEdit=()=>{setForm(initForm());setMode('view')};
+  const backToEditAfterReject=()=>{clearPendingT();const f=initForm();changedList.forEach(c=>{f[c.key]=c.val});setForm(f);setMode('edit');setTicketStatus('');setRejectReason('')};
   const submitEdit=async()=>{
+    if(keyCheck==='invalid'){setErr(t.keyInvalidEditMsg);return}
     const changed={};const changedDisp=[];
     fieldKeys.forEach(k=>{
       const ov=settings[k]||'';const nv=(form[k]||'').trim();
@@ -506,6 +530,9 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
           if(onUpdateSettings)onUpdateSettings(updated);
           clearPendingT();
           setTimeout(()=>{if(onClose)onClose()},1200);
+        }else if(r.status==='rejected'){
+          let rp={};try{rp=JSON.parse(r.payload||'{}')}catch(_e){}
+          setTicketStatus('rejected');setRejectReason(rp.rejectReason||'');
         }else{setTicketStatus('pending');setCooldown(60)}
       }else{setTicketStatus('error');setCooldown(60)}
     }catch(_e){setTicketStatus('error');setCooldown(60)}
@@ -534,6 +561,16 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
     </div></div>);
   }
 
+  if(type==='store'&&keyCheck==='invalid'){
+    return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}><div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl" onClick={e=>e.stopPropagation()}>
+      <div className="p-4 border-b border-white/[0.06] flex items-center justify-between"><h3 className="text-base font-bold text-gray-100">{t.keyInvalidMsg||'憑證已失效'}</h3><button onClick={onClose} className="text-gray-500 text-sm">✕</button></div>
+      <div className="p-4"><p className="text-sm text-gray-400 text-center">{t.keyExpiredMsg}</p></div>
+    </div></div>);
+  }
+  if(type==='store'&&keyCheck==='checking'){
+    return(<div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center" onClick={onClose}><div className="text-gray-500 text-sm">…</div></div>);
+  }
+
   if(mode==='ticket'){
     return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}><div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
       <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{type==='basic'?t.ticketTypeB:t.ticketTypeS}</h3><button onClick={onClose} className="text-gray-500 text-sm">✕</button></div>
@@ -544,6 +581,7 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
         {ticketStatus==='pending'&&<p className="text-xs text-gray-500 text-center">{t.ticketPending}</p>}
         {ticketStatus==='approved'&&<p className="text-xs text-emerald-400 text-center font-semibold">{t.ticketApproved}</p>}
         {ticketStatus==='error'&&<p className="text-xs text-red-400 text-center">{t.pwdLoginFail}</p>}
+        {ticketStatus==='rejected'&&(<div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 space-y-2"><p className="text-xs text-red-400 font-semibold text-center">{t.ticketRejected}</p>{rejectReason&&<p className="text-xs text-gray-400 text-center">{t.ticketRejectedReason}：{rejectReason}</p>}<button onClick={backToEditAfterReject} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold">{t.reeditBtn}</button></div>)}
         <div className="pt-3 border-t border-white/[0.06]"><p className="text-xs text-gray-500 mb-2">{t.infoChangedTitle}</p><div className="space-y-1.5">{changedList.map(c=>(<div key={c.key} className="flex justify-between gap-3 text-sm"><span className="text-gray-500">{c.label}</span><span className="text-gray-200 text-right">{c.val}</span></div>))}</div></div>
       </div>
     </div></div>);
@@ -552,6 +590,7 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
   const isEdit=mode==='edit';
   return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}><div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
     <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{titleText}</h3><button onClick={onClose} className="text-gray-500 text-sm">✕</button></div>
+    {type==='basic'&&keyCheck==='invalid'&&<div className="mx-4 mt-3 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2"><p className="text-xs text-red-400 text-center">{t.keyInvalidEditMsg}</p></div>}
     <div className="p-4 space-y-3">
       {layoutKeys.map(k=>{
         if(k==='__divider_foreign__'){
