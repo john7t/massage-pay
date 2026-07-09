@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.12-006</title>
+<title>薪資追蹤 · 管理 v1.12-011</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -527,11 +527,12 @@ function ActionTicketBlock({t,myCode}){
       else{setStatus((r&&r.error)||t.ticketNotFound)}
     }catch(e){setStatus(t.ticketNotFound+'（'+e+'）')}
   };
+  const clearAll=()=>{setSeqInput('');setInfo(null);setStatus('');setApproveStatus('')};
   // 老師傳來的LINE連結(auth.html#req=N000001)進站時自動帶入+自動查詢,不用手動貼
   useEffect(()=>{
     try{
       const raw=parseReqHash(window.location.hash||'');
-      if(raw&&/^[A-Za-z]\d{6}$/.test(raw.trim())){
+      if(raw&&/^[A-Za-z]\d{7}$/.test(raw.trim())){
         const seq=raw.trim().toUpperCase();
         setSeqInput(seq);
         lookup(seq);
@@ -546,8 +547,15 @@ function ActionTicketBlock({t,myCode}){
       else{setApproveStatus(t.ticketApproveFail+(r&&r.error?'：'+r.error:''))}
     }catch(e){setApproveStatus(t.ticketApproveFail)}
   };
+  const notifyApproved=()=>{
+    if(!info)return;
+    // 語系直接編碼在代碼第2碼(1=中文2=越南文),不用另外查payload
+    const isVi=info.seq&&info.seq[1]==='2';
+    const msg=(T.zh.lineApprovedPrefix||'')+(isVi?'\n'+(T.vi.lineApprovedPrefix||''):'')+'\n'+info.code;
+    location.href='https://line.me/R/share?text='+encodeURIComponent(msg);
+  };
   return(<div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4"><h3 className="text-sm font-semibold text-amber-400">{t.ticketLookup}</h3>
-    <div className="flex gap-2"><input value={seqInput} onChange={e=>setSeqInput(e.target.value)} placeholder={t.ticketLookupPh} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/><button onClick={lookup} className="px-4 py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold">{t.ticketLookupBtn}</button></div>
+    <div className="flex gap-2"><input value={seqInput} onChange={e=>setSeqInput(e.target.value)} placeholder={t.ticketLookupPh} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/><button onClick={info?clearAll:()=>lookup()} className={`px-4 py-2.5 rounded-xl text-white text-sm font-bold ${info?'bg-white/[0.1] text-gray-300':'bg-amber-600'}`}>{info?t.ticketClearBtn:t.ticketLookupBtn}</button></div>
     {status&&<p className="text-xs text-center text-red-400">{status}</p>}
     {info&&(<div className="bg-white/[0.03] rounded-xl p-3 space-y-1.5 fi">
       <p className="text-sm text-amber-400 font-bold text-center">{info.actionCode==='N'?t.ticketTypeN:info.actionCode==='F'?t.ticketTypeF:info.actionCode}</p>
@@ -558,8 +566,12 @@ function ActionTicketBlock({t,myCode}){
         {info.payload.shift&&<p className="text-xs text-gray-500 text-center">{t.ticketInfoShift}：{info.payload.shift==='day'?t.shiftDay:t.shiftNight}</p>}
         {info.payload.workStart&&<p className="text-xs text-gray-500 text-center">{t.ticketInfoWork}：{info.payload.workStart}-{info.payload.workEnd}</p>}
       </>)}
-      {info.status!=='pending'?(<p className="text-xs text-center text-gray-500">{t.ticketAlreadyDone}（{info.status}）</p>):(
+      {info.status==='pending'?(
         <button onClick={approve} disabled={approveStatus==='...'} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold active:bg-emerald-700 disabled:opacity-50">{approveStatus==='...'?t.approving:t.ticketApproveBtn}</button>
+      ):info.status==='approved'?(
+        <button onClick={notifyApproved} className="w-full py-2.5 rounded-xl text-white text-sm font-bold bg-[#06C755] active:bg-[#05b34c]">{t.ticketNotifyBtn}</button>
+      ):(
+        <p className="text-xs text-center text-gray-500">{t.ticketAlreadyDone}（{info.status}）</p>
       )}
       {approveStatus&&approveStatus!=='...'&&<p className={`text-xs text-center ${approveStatus.includes('✓')?'text-emerald-400':'text-red-400'}`}>{approveStatus}</p>}
     </div>)}

@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-008</title>
+<title>薪資追蹤 v1.12-011</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -198,7 +198,7 @@ input[type=number]{-moz-appearance:textfield}
 <script type="text/babel" src="./notice-modal.js"></script>
 <script type="text/babel" src="./settings.js"></script>
 <script type="text/babel">
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasSubmitAction,gasCheckAction,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasSubmitAction,gasCheckAction,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 function NoticeBox({t,agreed,setAgreed}){return(<div className="mt-6 space-y-2"><button onClick={()=>setAgreed(!agreed)} className="flex items-center gap-2 w-full text-left"><span className={`w-5 h-5 rounded flex items-center justify-center text-xs flex-shrink-0 ${agreed?'bg-amber-600 text-white':'bg-white/[0.06] border border-white/[0.12] text-transparent'}`}>✓</span><span className="text-[13px] text-gray-300 font-semibold">{t.readConfirm}</span></button><div className="space-y-1.5 text-[11px] text-gray-500 leading-relaxed pl-7"><p>{t.privacyBody}</p><p>{t.browserNote}</p><p>{t.myBookingNote}</p><p className="text-red-400/80">{t.backupReminder}</p></div></div>)}
@@ -279,7 +279,11 @@ function Onboarding({onComplete}){
     try{
       const r=await gasCheckAction(ticketSeq);
       if(r&&r.ok){
-        if(r.status==='approved'){setTicketStatus('approved');onApproved&&onApproved()}
+        if(r.status==='approved'){
+          setTicketStatus('approved');
+          if(r.key){try{setMyKey(code,r.key)}catch(_e){}} // 主管核准時順便產的金鑰,這裡一起領走存本機
+          onApproved&&onApproved();
+        }
         else{setTicketStatus('pending');setCooldown(60)}
       }else{setTicketStatus('error');setCooldown(60)}
     }catch(_e){setTicketStatus('error');setCooldown(60)}
@@ -303,7 +307,7 @@ function Onboarding({onComplete}){
     if(!canSubmitForgot)return;
     setFieldErr('');setChecking(true);setErr('');
     try{
-      const payload={devId,lockPwdEnc:lockPwdCred(code,forgotPwd)};
+      const payload={devId,lang,lockPwdEnc:lockPwdCred(code,forgotPwd)};
       const r=await gasSubmitAction('F',code,payload);
       setChecking(false);
       if(r&&r.ok){
@@ -330,7 +334,7 @@ function Onboarding({onComplete}){
         <p className="text-[11px] text-gray-500 mb-1">{t.ticketCode}</p>
         <p className="text-base font-semibold text-amber-400 font-mono tracking-widest select-all">{ticketSeq}</p>
       </div>
-      <button onClick={()=>{const base=location.origin+location.pathname.replace(/index\.html$/,'')+'auth.html';const link=buildReqLink(base,ticketSeq);const msg=(t[prefixKey]||'').replace('{code}',code)+link;location.href='https://line.me/R/share?text='+encodeURIComponent(msg)}} className="w-full px-3 py-3 rounded-lg text-sm font-bold bg-[#06C755] text-white active:bg-[#05b34c]">{t.ticketSend}</button>
+      <button onClick={()=>{const base=location.origin+location.pathname.replace(/index\.html$/,'')+'auth.html';const link=buildReqLink(base,ticketSeq);const zhMsg=(T.zh[prefixKey]||'').replace('{code}',code);const viMsg=(T.vi[prefixKey]||'').replace('{code}',code);const isVi=ticketSeq&&ticketSeq[1]==='2';const msg=zhMsg+(isVi?'\n'+viMsg:'')+'\n'+link;location.href='https://line.me/R/share?text='+encodeURIComponent(msg)}} className="w-full px-3 py-3 rounded-lg text-sm font-bold bg-[#06C755] text-white active:bg-[#05b34c]">{t.ticketSend}</button>
       <div className="space-y-2">
         <button onClick={()=>checkTicket(onApproved)} disabled={cooldown>0||ticketStatus==='checking'} className={`w-full py-3.5 rounded-xl font-bold transition-all ${cooldown>0||ticketStatus==='checking'?'bg-white/[0.06] text-gray-600 cursor-not-allowed':'bg-amber-600 text-white'}`}>{ticketStatus==='checking'?t.ticketChecking:cooldown>0?fmtLog(t.ticketWaitCountdown,[String(cooldown)]):t.ticketCheckBtn}</button>
         {ticketStatus==='pending'&&<p className="text-xs text-gray-500 text-center">{t.ticketPending}</p>}
