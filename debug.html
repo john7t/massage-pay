@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>診斷頁</title>
+<style>
+  body{background:#0a0a0f;color:#e5e7eb;font-family:-apple-system,sans-serif;padding:16px;margin:0;font-size:14px;line-height:1.6}
+  h1{font-size:18px;margin:0 0 16px}
+  h2{font-size:14px;color:#f59e0b;margin:24px 0 8px;border-bottom:1px solid #333;padding-bottom:4px}
+  .row{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #1a1a1f}
+  .ok{color:#10b981}
+  .fail{color:#ef4444;font-weight:bold}
+  .pending{color:#6b7280}
+  .detail{font-size:11px;color:#9ca3af;white-space:pre-wrap;word-break:break-all;background:#111;padding:8px;border-radius:6px;margin-top:4px}
+  button{background:#d97706;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-size:14px;margin-bottom:16px}
+</style>
+</head>
+<body>
+<h1>🔧 部署診斷頁</h1>
+<button onclick="location.reload()">重新檢查</button>
+
+<h2>1. 檔案版本(直接讀原始文字,不執行,壞了也讀得到)</h2>
+<div id="versions">檢查中…</div>
+
+<h2>2. 逐一載入腳本(找出哪個檔案執行時出錯)</h2>
+<div id="loads">尚未開始</div>
+
+<script>
+const versionsEl = document.getElementById('versions');
+const loadsEl = document.getElementById('loads');
+
+function extractVersion(text, patterns) {
+  for (const p of patterns) {
+    const m = text.match(p);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+async function checkVersions() {
+  const files = [
+    { name: 'index.html', patterns: [/<title>薪資追蹤\s*v([\d.\-]+)<\/title>/] },
+    { name: 'auth.html', patterns: [/<title>薪資追蹤 · 管理\s*v([\d.\-]+)<\/title>/] },
+    { name: 'common.js', patterns: [/v(\d+\.\d+-\d+(?:\.\d+)?)\s*\//] },
+    { name: 'settings.js', patterns: [/\/\/\s*v(\d+\.\d+-\d+(?:\.\d+)?)\s*\//] },
+    { name: 'notice-modal.js', patterns: [/notice-modal\.js\s*v(\d+\.\d+-\d+(?:\.\d+)?)/] },
+  ];
+  let html = '';
+  for (const f of files) {
+    try {
+      const res = await fetch('./' + f.name + '?t=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) { html += `<div class="row"><span>${f.name}</span><span class="fail">HTTP ${res.status}</span></div>`; continue; }
+      const text = await res.text();
+      const ver = extractVersion(text, f.patterns);
+      html += `<div class="row"><span>${f.name}</span><span class="${ver ? 'ok' : 'fail'}">${ver || '找不到版號'}</span></div>`;
+    } catch (e) {
+      html += `<div class="row"><span>${f.name}</span><span class="fail">讀取失敗: ${e.message}</span></div>`;
+    }
+  }
+  // GAS版本(ping)
+  try {
+    const gasUrl = localStorage.getItem('gas-url');
+    if (gasUrl) {
+      const res = await fetch(gasUrl + (gasUrl.indexOf('?') >= 0 ? '&' : '?') + 'action=ping');
+      const data = await res.json();
+      html += `<div class="row"><span>GAS(ping)</span><span class="${data.version ? 'ok' : 'fail'}">${data.version || JSON.stringify(data)}</span></div>`;
+    } else {
+      html += `<div class="row"><span>GAS(ping)</span><span class="pending">本機沒存GAS網址,跳過</span></div>`;
+    }
+  } catch (e) {
+    html += `<div class="row"><span>GAS(ping)</span><span class="fail">${e.message}</span></div>`;
+  }
+  versionsEl.innerHTML = html;
+}
+
+async function loadScript(src, isModule) {
+  return new Promise((resolve) => {
+    const el = document.createElement('script');
+    el.src = src + '?t=' + Date.now();
+    if (isModule) el.type = 'text/babel';
+    el.crossOrigin = 'anonymous';
+    const timer = setTimeout(() => resolve({ ok: false, msg: '逾時(10秒無回應)' }), 10000);
+    el.onload = () => { clearTimeout(timer); resolve({ ok: true }); };
+    el.onerror = (e) => { clearTimeout(timer); resolve({ ok: false, msg: '載入失敗(網路或404)' }); };
+    document.body.appendChild(el);
+  });
+}
+
+async function checkLoads() {
+  let html = '';
+  const errors = [];
+  window.addEventListener('error', function (e) {
+    errors.push((e.message || 'Script error') + (e.filename ? (' @ ' + e.filename.split('/').pop() + ':' + e.lineno) : ''));
+  }, true);
+
+  // 依序載入 react / react-dom / babel-standalone(跟index.html一樣的CDN)
+  const cdns = [
+    ['React', 'https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js'],
+    ['ReactDOM', 'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js'],
+    ['Babel', 'https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js'],
+  ];
+  for (const [label, url] of cdns) {
+    const r = await loadScript(url, false);
+    html += `<div class="row"><span>${label}(CDN)</span><span class="${r.ok ? 'ok' : 'fail'}">${r.ok ? '✓ 載入成功' : '✗ ' + r.msg}</span></div>`;
+    loadsEl.innerHTML = html;
+    if (!r.ok) { loadsEl.innerHTML += '<div class="detail">CDN載入失敗,後面的檢查會跳過(不影響判斷本機檔案問題)</div>'; return; }
+  }
+
+  // common.js(純JS,非babel)
+  const errBefore = errors.length;
+  const rc = await loadScript('./common.js', false);
+  await new Promise(r => setTimeout(r, 300));
+  const commonErr = errors.slice(errBefore);
+  html += `<div class="row"><span>common.js</span><span class="${rc.ok && commonErr.length === 0 ? 'ok' : 'fail'}">${rc.ok ? (commonErr.length ? '✗ 執行時出錯' : '✓ 載入+執行成功') : '✗ ' + rc.msg}</span></div>`;
+  if (commonErr.length) html += `<div class="detail">${commonErr.join('\n')}</div>`;
+  loadsEl.innerHTML = html;
+  if (!rc.ok || commonErr.length) { html += '<div class="detail">common.js有問題,後面的檔案依賴它,可能連帶失敗,但還是繼續測給你看</div>'; loadsEl.innerHTML = html; }
+
+  // notice-modal.js(babel)
+  const errBefore2 = errors.length;
+  const rn = await loadScript('./notice-modal.js', true);
+  await new Promise(r => setTimeout(r, 800));
+  const nmErr = errors.slice(errBefore2);
+  html += `<div class="row"><span>notice-modal.js</span><span class="${rn.ok && nmErr.length === 0 ? 'ok' : 'fail'}">${rn.ok ? (nmErr.length ? '✗ 執行/轉譯時出錯' : '✓ 載入+執行成功') : '✗ ' + rn.msg}</span></div>`;
+  if (nmErr.length) html += `<div class="detail">${nmErr.join('\n')}</div>`;
+  loadsEl.innerHTML = html;
+
+  // settings.js(babel)
+  const errBefore3 = errors.length;
+  const rs = await loadScript('./settings.js', true);
+  await new Promise(r => setTimeout(r, 800));
+  const stErr = errors.slice(errBefore3);
+  html += `<div class="row"><span>settings.js</span><span class="${rs.ok && stErr.length === 0 ? 'ok' : 'fail'}">${rs.ok ? (stErr.length ? '✗ 執行/轉譯時出錯' : '✓ 載入+執行成功') : '✗ ' + rs.msg}</span></div>`;
+  if (stErr.length) html += `<div class="detail">${stErr.join('\n')}</div>`;
+  loadsEl.innerHTML = html;
+
+  html += '<div class="detail" style="margin-top:12px;color:#f59e0b">檢查完成。如果某個檔案顯示✗,上面的詳細內容就是實際錯誤,把這頁的畫面截圖給我即可。</div>';
+  loadsEl.innerHTML = html;
+}
+
+checkVersions();
+checkLoads();
+</script>
+</body>
+</html>
