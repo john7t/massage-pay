@@ -150,6 +150,24 @@ async function checkLoads() {
   window.__diag.loads.push(['common.js', commonMsg, commonErr.join('\n')]);
   loadsEl.innerHTML = html;
 
+  // 額外檢查:window.MP裡有沒有缺函式/缺翻譯鍵(load沒報錯不代表內容完整,常見於檔案沒複製完整)
+  if (window.MP) {
+    const needFns = ['gasListDisasterSurveys','gasCreateDisasterSurvey','gasEndDisasterSurvey','gasMyDisasterReports','gasDisasterDayStatus','gasCreateGroupBuy','gasListGroupBuys','gasJoinGroupBuy','gasDeclineGroupBuy','gasLogGroupBuyOpen','gasCloseGroupBuy','gasGroupBuyDetail','gasLeaveTeacher','gasVerifyKey','gasRejectAction'];
+    const missingFns = needFns.filter(n => typeof window.MP[n] !== 'function');
+    const needKeys = ['groupBuyItemGlove','groupBuyItemCustom','groupBuyScopeStore','groupBuyScopeAll','drSurveyNamePh','credentialInvalid','noticeLocalBadge'];
+    const T = window.MP.T || {};
+    const missingKeysZh = needKeys.filter(k => !(T.zh && T.zh[k]));
+    const mpMsg = (missingFns.length === 0 && missingKeysZh.length === 0) ? '✓ 關鍵函式/翻譯鍵齊全' : '✗ 有缺漏(檔案可能沒複製完整)';
+    const mpDetail = [
+      missingFns.length ? '缺函式: ' + missingFns.join(', ') : '',
+      missingKeysZh.length ? '缺翻譯鍵(zh): ' + missingKeysZh.join(', ') : ''
+    ].filter(Boolean).join('\n');
+    html += `<div class="row"><span>window.MP 完整性</span><span class="${missingFns.length === 0 && missingKeysZh.length === 0 ? 'ok' : 'fail'}">${mpMsg}</span></div>`;
+    if (mpDetail) html += `<div class="detail">${mpDetail}</div>`;
+    window.__diag.loads.push(['window.MP 完整性', mpMsg, mpDetail]);
+    loadsEl.innerHTML = html;
+  }
+
   const rn = await checkBabelScript('./notice-modal.js', 'notice-modal.js');
   const nmMsg = rn.ok ? '✓ 轉譯+執行成功' : '✗ 有問題';
   html += `<div class="row"><span>notice-modal.js</span><span class="${rn.ok ? 'ok' : 'fail'}">${nmMsg}</span></div>`;

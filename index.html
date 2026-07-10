@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-033</title>
+<title>薪資追蹤 v1.12-034</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -704,6 +704,7 @@ function GroupBuyModal({t,settings,onClose}){
   const[mine,setMine]=useState(null);
   const[busy,setBusy]=useState('');
   const[joinSize,setJoinSize]=useState(settings.gloveSize||'M');
+  const[sizePromptBuy,setSizePromptBuy]=useState(null);
   const[showCreate,setShowCreate]=useState(false);
   const[newItem,setNewItem]=useState('glove');const[newCustomItem,setNewCustomItem]=useState('');
   const[newAmount,setNewAmount]=useState('');const[newDeadline,setNewDeadline]=useState('');const[newScope,setNewScope]=useState('');
@@ -712,10 +713,17 @@ function GroupBuyModal({t,settings,onClose}){
   const loadList=()=>{gasListGroupBuys().then(r=>{if(r&&r.ok){setList(r.list||[]);(r.list||[]).filter(g=>g.status==='open').forEach(g=>{try{gasLogGroupBuyOpen(g.id,code)}catch(_e){}})}})};
   const loadMine=()=>{gasMyGroupBuyOrders(code).then(r=>{if(r&&r.ok)setMine(r.list||[])})};
   useEffect(()=>{loadList();loadMine()},[]);
+  const joinedIds=useMemo(()=>new Set((mine||[]).map(o=>o.buyId)),[mine]);
   const doJoin=async(g)=>{
+    if(g.item==='glove'&&!settings.gloveSize){setSizePromptBuy(g);return}
     setBusy(g.id);
-    try{await gasJoinGroupBuy(g.id,code,g.item==='glove'?joinSize:'',1);}catch(_e){}
+    try{await gasJoinGroupBuy(g.id,code,g.item==='glove'?(settings.gloveSize||joinSize):'',1);}catch(_e){}
     setBusy('');loadList();loadMine();
+  };
+  const confirmJoinWithSize=async(g)=>{
+    setBusy(g.id);
+    try{await gasJoinGroupBuy(g.id,code,joinSize,1);}catch(_e){}
+    setBusy('');setSizePromptBuy(null);loadList();loadMine();
   };
   const doDecline=async(g)=>{
     setBusy(g.id);
@@ -769,12 +777,12 @@ function GroupBuyModal({t,settings,onClose}){
           {createErr&&<p className="text-xs text-red-400 text-center">{createErr}</p>}
           <button onClick={doCreate} disabled={createBusy} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50">{createBusy?'…':t.groupBuyCreateBtn}</button>
         </div>)}
-        {newItem==='glove'&&!showCreate&&<div><label className="text-xs text-gray-500 block mb-1">{t.gloveSize}</label><div className="grid grid-cols-5 gap-1.5">{['XS','S','M','L','XL'].map(g=>(<button key={g} onClick={()=>setJoinSize(g)} className={`py-2 rounded-lg text-xs font-semibold ${joinSize===g?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{g}</button>))}</div></div>}
+        {sizePromptBuy&&(<div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 space-y-2"><p className="text-xs text-amber-400">{t.gloveSize}</p><div className="grid grid-cols-5 gap-1.5">{['XS','S','M','L','XL'].map(g=>(<button key={g} onClick={()=>setJoinSize(g)} className={`py-2 rounded-lg text-xs font-semibold ${joinSize===g?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{g}</button>))}</div><button onClick={()=>confirmJoinWithSize(sizePromptBuy)} disabled={busy===sizePromptBuy.id} className="w-full py-2 rounded-lg bg-amber-600 text-white text-xs font-bold disabled:opacity-50">{busy===sizePromptBuy.id?'…':t.groupBuyJoinBtn}</button></div>)}
         {list===null?<p className="text-xs text-gray-600 text-center py-4">{t.loading||'載入中…'}</p>:list.filter(g=>g.status==='open').length===0?<p className="text-xs text-gray-600 text-center py-4">{t.groupBuyEmpty}</p>:list.filter(g=>g.status==='open').map(g=>(
           <div key={g.id} className="bg-white/[0.03] rounded-xl p-3 space-y-2">
             <div onClick={()=>openDetail(g)} className="flex items-center justify-between gap-2 cursor-pointer"><p className="text-sm text-gray-200 font-medium">{g.title}（由{g.creator}發起）</p><span className="text-xs text-amber-400 font-semibold flex-shrink-0">{fmtCountdown(g.deadline)}</span></div>
             <p className="text-[11px] text-gray-500">{t.groupBuyAmountLabel}：{g.amount}｜{g.orderCount}{t.groupBuyOrderCount}</p>
-            <div className="flex gap-2"><button onClick={()=>doJoin(g)} disabled={busy===g.id} className="flex-1 py-2 rounded-lg bg-amber-600 text-white text-xs font-bold disabled:opacity-50">{busy===g.id?'…':t.groupBuyJoinBtn}</button><button onClick={()=>doDecline(g)} disabled={busy===g.id} className="flex-1 py-2 rounded-lg bg-white/[0.06] text-gray-400 text-xs font-semibold disabled:opacity-50">{t.groupBuyDeclineBtn}</button></div>
+            <div className="flex gap-2"><button onClick={()=>doJoin(g)} disabled={busy===g.id||joinedIds.has(g.id)} className={`flex-1 py-2 rounded-lg text-xs font-bold disabled:opacity-50 ${joinedIds.has(g.id)?'bg-white/[0.06] text-gray-500':'bg-amber-600 text-white'}`}>{busy===g.id?'…':joinedIds.has(g.id)?(t.groupBuyJoinOk||'已登記'):t.groupBuyJoinBtn}</button><button onClick={()=>doDecline(g)} disabled={busy===g.id||joinedIds.has(g.id)} className="flex-1 py-2 rounded-lg bg-white/[0.06] text-gray-400 text-xs font-semibold disabled:opacity-50">{t.groupBuyDeclineBtn}</button></div>
           </div>
         ))}
       </>)}
