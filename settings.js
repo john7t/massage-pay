@@ -1,5 +1,5 @@
 // settings.js — 設定頁相關元件(從 index.html 抽離,降低 index 體積)
-// v1.12-027 / 公告列表大改版:(1)標題下方加分類分頁(全部+最多6個主分類,從現有公告資料取不重複主分類,不用另外查Categories表)(2)每則公告第一排最前面加公告編號(3)加下架/上架:編輯頁下方新增按鈕,呼叫GAS toggleNoticeStatus,下架後列表仍看得到但灰字+加下架標籤,一般老師端(notices.json實際發布內容)會被過濾掉(4)editNotice核准後,GAS回傳最終欄位值(含AI產生的越南文),前端直接套用到本機列表,不用等下次發布就能看到完整結果 | 前: v1.12-025 / 重新正確加入離職+憑證展期功能(CredentialCard元件):上一版(v023)bridge匯入清單裡`buildReqLink`重複宣告(跟後面既有的申請碼系統匯入撞名),導致Babel轉譯整個檔案失敗、index.html跟著崩潰(白畫面"網站更新中")。這次改成只加缺少的識別字(gasVerifyKey/gasLeaveTeacher/gasSubmitAction/gasCheckAction/getMyKey),不重複加已存在的(buildReqLink/hasMyKey),並額外做了「解構清單重複識別字」專門檢查(TypeScript語法檢查器抓不到這種錯誤,只有真的用Babel轉譯才會抓到) | 前: v1.12-022 / 公告列表照新規格重排:第二排依序👤發布人/👁開啟次數(依主管選的人數或人次)/👍已讀人數/主子分類(受顯示開關控制)/時間(置右)。第一排文字改用主管選的標題或摘要(listText設定) | 前: v1.12-021 / 公告列表版面調整:第一排只留摘要+編輯鈕(主分類移出);第二排右側改放主/子分類(合併顯示,如"薪資・調整")+開啟次數(👁圖示+數字,取代原本的已讀人數,開啟次數是更寬鬆的被動記錄指標) | 前: 語系選項從基資分頁移到首頁設定的主題下方(語系是個人偏好,不屬於需要主管審核的基資,放首頁設定更直覺) | 前: 版次對齊(內容未變動):跟隨common.js/index.html/auth.html/notice-modal.js這次的整理點同步版號,方便日後從標題/檔頭確認全套部署是否一致 | 前: 公告分頁:移除進入公告頁後的提示文字段落(點右上新增公告...那句)。新增公告的權限限制(限主管supervisor+admin)在v034已完成(canManage判斷),此次確認沿用 | 前:hotfix:公告編輯權限判斷修正(admin查admin.cfg雜湊,不是staff.json role) | 前: 新增公告完整流程接功能(033)
+// v1.12-028 / 公告列表細部調整+憑證狀態整合:(1)分類分頁改3欄(原4欄文字被吃),點主分類後下方多一列子分類可再篩選(2)公告編號從第一排移到分類標籤之後(3)本機優先(還沒發布)的公告加綠底白字「本機」標籤(4)CredentialCard整合進既有「老師專屬憑證」那行,不再是獨立卡片,加憑證期限+離職日/已逾期原因顯示,展期按鈕改成到期前7天就會出現(不用等真的失效),移除卡片裡的離職按鈕(離職移到店資彈窗) | 前: v1.12-027 / 公告列表大改版:(1)標題下方加分類分頁(全部+最多6個主分類,從現有公告資料取不重複主分類,不用另外查Categories表)(2)每則公告第一排最前面加公告編號(3)加下架/上架:編輯頁下方新增按鈕,呼叫GAS toggleNoticeStatus,下架後列表仍看得到但灰字+加下架標籤,一般老師端(notices.json實際發布內容)會被過濾掉(4)editNotice核准後,GAS回傳最終欄位值(含AI產生的越南文),前端直接套用到本機列表,不用等下次發布就能看到完整結果 | 前: v1.12-025 / 重新正確加入離職+憑證展期功能(CredentialCard元件):上一版(v023)bridge匯入清單裡`buildReqLink`重複宣告(跟後面既有的申請碼系統匯入撞名),導致Babel轉譯整個檔案失敗、index.html跟著崩潰(白畫面"網站更新中")。這次改成只加缺少的識別字(gasVerifyKey/gasLeaveTeacher/gasSubmitAction/gasCheckAction/getMyKey),不重複加已存在的(buildReqLink/hasMyKey),並額外做了「解構清單重複識別字」專門檢查(TypeScript語法檢查器抓不到這種錯誤,只有真的用Babel轉譯才會抓到) | 前: v1.12-022 / 公告列表照新規格重排:第二排依序👤發布人/👁開啟次數(依主管選的人數或人次)/👍已讀人數/主子分類(受顯示開關控制)/時間(置右)。第一排文字改用主管選的標題或摘要(listText設定) | 前: v1.12-021 / 公告列表版面調整:第一排只留摘要+編輯鈕(主分類移出);第二排右側改放主/子分類(合併顯示,如"薪資・調整")+開啟次數(👁圖示+數字,取代原本的已讀人數,開啟次數是更寬鬆的被動記錄指標) | 前: 語系選項從基資分頁移到首頁設定的主題下方(語系是個人偏好,不屬於需要主管審核的基資,放首頁設定更直覺) | 前: 版次對齊(內容未變動):跟隨common.js/index.html/auth.html/notice-modal.js這次的整理點同步版號,方便日後從標題/檔頭確認全套部署是否一致 | 前: 公告分頁:移除進入公告頁後的提示文字段落(點右上新增公告...那句)。新增公告的權限限制(限主管supervisor+admin)在v034已完成(canManage判斷),此次確認沿用 | 前:hotfix:公告編輯權限判斷修正(admin查admin.cfg雜湊,不是staff.json role) | 前: 新增公告完整流程接功能(033)
 // 注意:此檔為 type="text/babel",獨立作用域,需自行宣告 hooks 與 bridge
 const{useState,useEffect,useCallback,useMemo}=React;
 const{gasAnalyze,gasAddNotice,gasEditNotice,noticeSummary,noticeTitle,getNoticeReadCount,getNoticeShow,getNoticeListText,getNoticeCountType,getNoticesLocal,fetchNotices,gasVerifyKey,gasLeaveTeacher,gasSubmitAction,gasCheckAction,gasToggleNoticeStatus,getMyKey,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,getGasUrl,setGasUrl,gasCall,hasMyKey,issueKey,claimMyKey,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
@@ -171,6 +171,7 @@ function NoticeManagePage({t,settings}){
         // 本機列表直接套用GAS回傳的最終欄位(含AI補的中文欄位+AI翻的越南文),不用等下次publishNotices就能馬上看到完整結果
         const merged=r.fields||editForm;
         setList(prev=>prev.map(x=>x.id===editing.id?Object.assign({},x,merged):x));
+        setLocalOverrides(prev=>Object.assign({},prev,{[editing.id]:true}));
         setEditStatus(r.viOk===false?'savedNoVi':'saved');
         setTimeout(()=>closeEdit(),4500);
       }else{setEditStatus('失敗：'+((r&&r.error)||'?'));}
@@ -196,7 +197,10 @@ function NoticeManagePage({t,settings}){
   };
   const upd=(k,v)=>setAiResult(p=>Object.assign({},p,{[k]:v}));
   const[catTab,setCatTab]=React.useState('all');
+  const[subTabSel,setSubTabSel]=React.useState('all');
+  const[localOverrides,setLocalOverrides]=React.useState({}); // {id:true} 這則公告是不是套用了本機優先(還沒發布)的內容
   const mainCatsPresent=React.useMemo(()=>{const s=[];const seen={};list.forEach(n=>{if(n.cat&&!seen[n.cat]){seen[n.cat]=1;s.push(n.cat)}});return s.slice(0,6)},[list]);
+  const subCatsPresent=React.useMemo(()=>{if(catTab==='all')return[];const s=[];const seen={};list.forEach(n=>{if(n.cat===catTab&&n.subcat&&!seen[n.subcat]){seen[n.subcat]=1;s.push(n.subcat)}});return s},[list,catTab]);
   const[toggleBusy,setToggleBusy]=React.useState(false);
   const toggleStatus=async()=>{
     if(!editing)return;
@@ -212,23 +216,27 @@ function NoticeManagePage({t,settings}){
   };
   return(<div className="fi">
     <div className="flex items-center justify-between mb-3"><h2 className="text-lg font-bold text-gray-100">{t.noticeCenter||'公告'}</h2>{canManage&&<button onClick={()=>setShowAdd(true)} className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold active:bg-amber-700">+ {t.noticeAdd||'新增公告'}</button>}</div>
-    <div className="grid grid-cols-4 gap-1.5 mb-3">{[['all',t.catTabAll||'全部'],...mainCatsPresent.map(c=>[c,c])].map(([k,l])=>(<button key={k} onClick={()=>setCatTab(k)} className={`py-1.5 rounded-lg text-[11px] font-semibold truncate ${catTab===k?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-400'}`}>{l}</button>))}</div>
-    <div className="space-y-2 mt-3">{list.length===0?<p className="text-xs text-gray-600 text-center py-6">{t.noticeEmpty||'目前沒有公告'}</p>:list.filter(n=>catTab==='all'||n.cat===catTab).slice().reverse().map(n=>{
+    <div className="grid grid-cols-3 gap-1.5 mb-2">{[['all',t.catTabAll||'全部'],...mainCatsPresent.map(c=>[c,c])].map(([k,l])=>(<button key={k} onClick={()=>{setCatTab(k);setSubTabSel('all')}} className={`py-2 rounded-lg text-[11px] font-semibold truncate px-1 ${catTab===k?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-400'}`}>{l}</button>))}</div>
+    {catTab!=='all'&&subCatsPresent.length>0&&(<div className="flex flex-wrap gap-1.5 mb-3">{[['all',t.catTabAll||'全部'],...subCatsPresent.map(c=>[c,c])].map(([k,l])=>(<button key={k} onClick={()=>setSubTabSel(k)} className={`px-2.5 py-1 rounded-full text-[10px] font-medium ${subTabSel===k?'bg-amber-500/20 text-amber-400 border border-amber-500/30':'bg-white/[0.04] text-gray-500 border border-transparent'}`}>{l}</button>))}</div>)}
+    <div className="space-y-2 mt-3">{list.length===0?<p className="text-xs text-gray-600 text-center py-6">{t.noticeEmpty||'目前沒有公告'}</p>:list.filter(n=>(catTab==='all'||n.cat===catTab)&&(subTabSel==='all'||n.subcat===subTabSel)).slice().reverse().map(n=>{
       const listText=(typeof getNoticeListText==='function'?getNoticeListText():'summary');
       const showFlags=(typeof getNoticeShow==='function'?getNoticeShow():{cat:false,subcat:false});
       const countType=(typeof getNoticeCountType==='function'?getNoticeCountType():'people');
       const displayText=listText==='title'?(noticeTitle?noticeTitle(n,settings.lang):n.title):((noticeSummary?noticeSummary(n,settings.lang):n.summary)||n.title);
       const openN=countType==='visits'?(typeof n.openVisits==='number'?n.openVisits:0):(typeof n.openCount==='number'?n.openCount:0);
       const isOff=n.status==='off';
+      const isLocal=!!localOverrides[n.id];
       return(<div key={n.id} onClick={()=>openNotice(n)} className={`bg-white/[0.03] border border-white/[0.05] rounded-xl px-3 py-2.5 active:bg-white/[0.06] cursor-pointer ${isOff?'opacity-50':''}`}>
-        <div className="flex items-center justify-between gap-2"><p className={`text-sm font-medium truncate flex-1 ${isOff?'text-gray-500':'text-gray-200'}`}>{n.id} {displayText}</p>{canManage&&<button onClick={(ev)=>openEdit(n,ev)} className="text-[11px] px-1.5 py-0.5 rounded-full bg-white/[0.08] text-gray-300 active:bg-white/[0.15] flex-shrink-0">✏️</button>}</div>
+        <div className="flex items-center justify-between gap-2"><p className={`text-sm font-medium truncate flex-1 ${isOff?'text-gray-500':'text-gray-200'}`}>{displayText}</p>{canManage&&<button onClick={(ev)=>openEdit(n,ev)} className="text-[11px] px-1.5 py-0.5 rounded-full bg-white/[0.08] text-gray-300 active:bg-white/[0.15] flex-shrink-0">✏️</button>}</div>
         <div className="flex items-center justify-between gap-2 mt-1">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
             <span className="text-[10px] text-gray-500 flex-shrink-0">👤 {n.author||''}</span>
             <span className="text-[10px] text-gray-600 flex-shrink-0">👁 {openN}</span>
             <span className="text-[10px] text-gray-600 flex-shrink-0">👍 {typeof n.readCount==='number'?n.readCount:0}</span>
             {(showFlags.cat&&n.cat)&&<span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 flex-shrink-0">{n.cat}{(showFlags.subcat&&n.subcat)?'・'+n.subcat:''}</span>}
+            <span className="text-[10px] text-gray-600 font-mono flex-shrink-0">{n.id}</span>
             {isOff&&<span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-gray-500 flex-shrink-0">{t.noticeOffBtn||'下架'}</span>}
+            {isLocal&&<span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-600 text-white flex-shrink-0">{t.noticeLocalBadge||'本機'}</span>}
           </div>
           <span className="text-[10px] text-gray-500 flex-shrink-0">{n.date}</span>
         </div>
@@ -278,26 +286,31 @@ function NoticeManagePage({t,settings}){
 function CredentialCard({t,settings}){
   const code=settings&&settings.code;
   const[status,setStatus]=React.useState(null); // null/checking/ok/invalid
+  const[expiresAt,setExpiresAt]=React.useState('');
+  const[reason,setReason]=React.useState(''); // 'left'/'expired'/''
+  const[daysLeft,setDaysLeft]=React.useState(null);
   const[showRenew,setShowRenew]=React.useState(false);
-  const[showLeave,setShowLeave]=React.useState(false);
-  const[leaveBusy,setLeaveBusy]=React.useState(false);
-  const[leaveDone,setLeaveDone]=React.useState(false);
-  const[leaveErr,setLeaveErr]=React.useState('');
   const[devId]=React.useState(()=>getDeviceId());
   const[ticketSeq,setTicketSeq]=React.useState('');const[ticketStatus,setTicketStatus]=React.useState('');const[cooldown,setCooldown]=React.useState(0);const[busy,setBusy]=React.useState(false);const[err,setErr]=React.useState('');
-  React.useEffect(()=>{
+  const doCheck=React.useCallback(()=>{
     if(!code||!hasMyKey(code)){setStatus('ok');return}
     setStatus('checking');
     (async()=>{
-      try{const key=getMyKey(code);const r=await gasVerifyKey(code,key);setStatus((r&&r.ok&&r.valid)?'ok':'invalid')}catch(_e){setStatus('ok')}
+      try{
+        const key=getMyKey(code);
+        const r=await gasVerifyKey(code,key);
+        setStatus((r&&r.ok&&r.valid)?'ok':'invalid');
+        setExpiresAt((r&&r.expiresAt)||'');
+        setReason((r&&r.reason)||'');
+        if(r&&r.expiresAt){
+          const d=Math.ceil((new Date(r.expiresAt.replace(/\//g,'-')).getTime()-Date.now())/86400000);
+          setDaysLeft(d);
+        }else{setDaysLeft(null)}
+      }catch(_e){setStatus('ok')}
     })();
   },[code]);
+  React.useEffect(()=>{doCheck()},[doCheck]);
   React.useEffect(()=>{if(cooldown<=0)return;const tm=setTimeout(()=>setCooldown(c=>c>0?c-1:0),1000);return()=>clearTimeout(tm)},[cooldown]);
-  const doLeave=async()=>{
-    setLeaveBusy(true);setLeaveErr('');
-    try{const r=await gasLeaveTeacher(code,code);if(r&&r.ok){setLeaveDone(true);setStatus('invalid')}else{setLeaveErr((r&&r.error)||t.leaveFail)}}catch(e){setLeaveErr(t.leaveFail)}
-    setLeaveBusy(false);
-  };
   const submitRenew=async()=>{
     setBusy(true);setErr('');
     try{
@@ -315,27 +328,18 @@ function CredentialCard({t,settings}){
         if(r.status==='approved'){
           setTicketStatus('approved');
           try{const today=new Date().toISOString().slice(0,10);localStorage.setItem('key-check-date-'+code,today);localStorage.setItem('key-check-result-'+code,'ok')}catch(_e){}
-          setStatus('ok');
-          setTimeout(()=>{setShowRenew(false);setTicketSeq('');setTicketStatus('')},1500);
+          setTimeout(()=>{setShowRenew(false);setTicketSeq('');setTicketStatus('');doCheck()},1500);
         }else{setTicketStatus('pending');setCooldown(60)}
       }else{setTicketStatus('error');setCooldown(60)}
     }catch(_e){setTicketStatus('error');setCooldown(60)}
   };
-  return(<div><label className="text-xs text-gray-400 mb-1 block">{t.credentialLabel}</label>
-    <div className="flex items-center justify-between bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2.5">
-      {status==='invalid'?<button onClick={()=>setShowRenew(true)} className="text-sm text-red-400 underline">{t.credentialExpired}</button>:<span className="text-sm text-emerald-500">{status==='checking'?'…':t.credentialOk}</span>}
-      <button onClick={()=>{setShowLeave(true);setLeaveDone(false);setLeaveErr('')}} className="text-xs text-gray-500 active:text-red-400">{t.leaveBtn}</button>
+  const showRenewBtn=status==='invalid'||(typeof daysLeft==='number'&&daysLeft<=7&&daysLeft>=0);
+  return(<>
+    <div className="bg-white/[0.04] rounded-xl px-4 py-3">
+      <div className="flex items-center justify-between"><span className="text-sm text-gray-400">{t.teacherCert||'老師專屬憑證'}</span><span className={`text-sm font-semibold ${status==='invalid'?'text-red-400':'text-emerald-400'}`}>{status==='checking'?'…':status==='invalid'?(t.credentialInvalid||'無效'):('✓ '+(t.certGot||'本機已領'))}</span></div>
+      {expiresAt&&<div className="flex items-center justify-between mt-1"><span className="text-xs text-gray-500">{t.credentialExpiryLabel||'憑證期限'}</span><span className="text-xs text-gray-400">{expiresAt}{reason==='left'?('（'+(t.leftDateLabel||'離職日')+'）'):reason==='expired'?('（'+(t.expiredLabel||'已逾期')+'）'):''}</span></div>}
     </div>
-    {showLeave&&(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={()=>!leaveBusy&&setShowLeave(false)}><div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl" onClick={e=>e.stopPropagation()}>
-      <div className="p-4 border-b border-white/[0.06]"><h3 className="text-base font-bold text-gray-100">{t.leaveConfirmTitle}</h3></div>
-      <div className="p-4 space-y-3">
-        {!leaveDone?(<>
-          <p className="text-sm text-gray-400">{t.leaveConfirmMsg}</p>
-          {leaveErr&&<p className="text-xs text-red-400 text-center">{leaveErr}</p>}
-          <div className="flex gap-2"><button onClick={()=>setShowLeave(false)} disabled={leaveBusy} className="flex-1 py-2.5 rounded-xl bg-white/[0.06] text-gray-400 font-semibold">{t.cancel}</button><button onClick={doLeave} disabled={leaveBusy} className="flex-1 py-2.5 rounded-xl bg-red-600 text-white font-bold disabled:opacity-50">{leaveBusy?'…':t.leaveConfirmBtn}</button></div>
-        </>):(<p className="text-sm text-emerald-500 text-center font-semibold">✓ {t.leaveOk}</p>)}
-      </div>
-    </div></div>)}
+    {showRenewBtn&&<button onClick={()=>setShowRenew(true)} className="w-full py-2.5 rounded-xl bg-amber-600/20 border border-amber-500/30 text-amber-400 text-sm font-semibold active:bg-amber-600/30">{t.renewModalTitle||'憑證展期'}</button>}
     {showRenew&&(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={()=>setShowRenew(false)}><div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl" onClick={e=>e.stopPropagation()}>
       <div className="p-4 border-b border-white/[0.06] flex items-center justify-between"><h3 className="text-base font-bold text-gray-100">{t.renewModalTitle}</h3><button onClick={()=>setShowRenew(false)} className="text-gray-500 text-sm">✕</button></div>
       <div className="p-4 space-y-4">
@@ -353,7 +357,7 @@ function CredentialCard({t,settings}){
         </>)}
       </div>
     </div></div>)}
-  </div>);
+  </>);
 }
 function SettingsPage({settings,onUpdate,t,theme,setTheme}){
   const[form,setForm]=useState({...settings});const[gasTest,setGasTest]=useState('');const[keyAdminSec,setKeyAdminSec]=useState('');const[keyGenCode,setKeyGenCode]=useState('');const[keyGenResult,setKeyGenResult]=useState(null);const[claimInput,setClaimInput]=useState('');const[claimMsg,setClaimMsg]=useState('');
@@ -447,12 +451,11 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
         <div><label className="text-xs text-gray-400 mb-1 block">{t.language}</label>
           <div className="grid grid-cols-2 gap-2">{[['zh','中文'],['vi','Tiếng Việt']].map(([c,l])=>(<button key={c} onClick={()=>upd({lang:c})} className={`py-2.5 rounded-xl text-sm font-semibold ${form.lang===c?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div>
         </div>
-        <CredentialCard t={t} settings={settings}/>
         <div><label className="text-xs text-gray-400 mb-1 block">{t.bizCutoffLabel}</label><input type="time" value={form.bizCutoff||'06:30'} onChange={e=>upd({bizCutoff:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500" style={{boxSizing:'border-box',maxWidth:'90%',minWidth:0}}/><p className="text-[11px] text-gray-500 mt-1">{t.bizCutoffHint}</p></div>
         {(()=>{const ghLocal=getGHConfig();const hasConn=!!(ghLocal&&ghLocal.token);return(
           <div className="space-y-2"><label className="text-xs text-gray-400 mb-1 block">{t.serviceStatus}</label>
             <div className="bg-white/[0.04] rounded-xl px-4 py-3 flex items-center justify-between"><span className="text-sm text-gray-400">{t.connection}</span><span className="text-sm">{hasConn?t.connOnline:t.connOffline}</span></div>
-            <div className="bg-white/[0.04] rounded-xl px-4 py-3 flex items-center justify-between"><span className="text-sm text-gray-400">{t.teacherCert||'老師專屬憑證'}</span><span className={`text-sm font-semibold ${hasMyKey(settings.code)?'text-emerald-400':'text-gray-500'}`}>{hasMyKey(settings.code)?('✓ '+(t.certGot||'本機已領')):(t.certNone||'未領')}</span></div>
+            <CredentialCard t={t} settings={settings}/>
             {!hasConn&&!connMode&&(<button onClick={()=>setConnMode('apply')} className="w-full py-2.5 rounded-xl bg-amber-600/20 border border-amber-500/30 text-amber-400 text-sm font-semibold active:bg-amber-600/30">{t.connApply}</button>)}
             {connMode==='apply'&&(<div className="space-y-3 fi">
               <div className="flex justify-center"><div className="bg-white p-2.5 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(settings.code+':'+devId)}`} alt="QR" className="w-40 h-40"/></div></div>
