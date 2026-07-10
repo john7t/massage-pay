@@ -1,8 +1,8 @@
 // settings.js — 設定頁相關元件(從 index.html 抽離,降低 index 體積)
-// v1.12-025 / 重新正確加入離職+憑證展期功能(CredentialCard元件):上一版(v023)bridge匯入清單裡`buildReqLink`重複宣告(跟後面既有的申請碼系統匯入撞名),導致Babel轉譯整個檔案失敗、index.html跟著崩潰(白畫面"網站更新中")。這次改成只加缺少的識別字(gasVerifyKey/gasLeaveTeacher/gasSubmitAction/gasCheckAction/getMyKey),不重複加已存在的(buildReqLink/hasMyKey),並額外做了「解構清單重複識別字」專門檢查(TypeScript語法檢查器抓不到這種錯誤,只有真的用Babel轉譯才會抓到) | 前: v1.12-022 / 公告列表照新規格重排:第二排依序👤發布人/👁開啟次數(依主管選的人數或人次)/👍已讀人數/主子分類(受顯示開關控制)/時間(置右)。第一排文字改用主管選的標題或摘要(listText設定) | 前: v1.12-021 / 公告列表版面調整:第一排只留摘要+編輯鈕(主分類移出);第二排右側改放主/子分類(合併顯示,如"薪資・調整")+開啟次數(👁圖示+數字,取代原本的已讀人數,開啟次數是更寬鬆的被動記錄指標) | 前: 語系選項從基資分頁移到首頁設定的主題下方(語系是個人偏好,不屬於需要主管審核的基資,放首頁設定更直覺) | 前: 版次對齊(內容未變動):跟隨common.js/index.html/auth.html/notice-modal.js這次的整理點同步版號,方便日後從標題/檔頭確認全套部署是否一致 | 前: 公告分頁:移除進入公告頁後的提示文字段落(點右上新增公告...那句)。新增公告的權限限制(限主管supervisor+admin)在v034已完成(canManage判斷),此次確認沿用 | 前:hotfix:公告編輯權限判斷修正(admin查admin.cfg雜湊,不是staff.json role) | 前: 新增公告完整流程接功能(033)
+// v1.12-027 / 公告列表大改版:(1)標題下方加分類分頁(全部+最多6個主分類,從現有公告資料取不重複主分類,不用另外查Categories表)(2)每則公告第一排最前面加公告編號(3)加下架/上架:編輯頁下方新增按鈕,呼叫GAS toggleNoticeStatus,下架後列表仍看得到但灰字+加下架標籤,一般老師端(notices.json實際發布內容)會被過濾掉(4)editNotice核准後,GAS回傳最終欄位值(含AI產生的越南文),前端直接套用到本機列表,不用等下次發布就能看到完整結果 | 前: v1.12-025 / 重新正確加入離職+憑證展期功能(CredentialCard元件):上一版(v023)bridge匯入清單裡`buildReqLink`重複宣告(跟後面既有的申請碼系統匯入撞名),導致Babel轉譯整個檔案失敗、index.html跟著崩潰(白畫面"網站更新中")。這次改成只加缺少的識別字(gasVerifyKey/gasLeaveTeacher/gasSubmitAction/gasCheckAction/getMyKey),不重複加已存在的(buildReqLink/hasMyKey),並額外做了「解構清單重複識別字」專門檢查(TypeScript語法檢查器抓不到這種錯誤,只有真的用Babel轉譯才會抓到) | 前: v1.12-022 / 公告列表照新規格重排:第二排依序👤發布人/👁開啟次數(依主管選的人數或人次)/👍已讀人數/主子分類(受顯示開關控制)/時間(置右)。第一排文字改用主管選的標題或摘要(listText設定) | 前: v1.12-021 / 公告列表版面調整:第一排只留摘要+編輯鈕(主分類移出);第二排右側改放主/子分類(合併顯示,如"薪資・調整")+開啟次數(👁圖示+數字,取代原本的已讀人數,開啟次數是更寬鬆的被動記錄指標) | 前: 語系選項從基資分頁移到首頁設定的主題下方(語系是個人偏好,不屬於需要主管審核的基資,放首頁設定更直覺) | 前: 版次對齊(內容未變動):跟隨common.js/index.html/auth.html/notice-modal.js這次的整理點同步版號,方便日後從標題/檔頭確認全套部署是否一致 | 前: 公告分頁:移除進入公告頁後的提示文字段落(點右上新增公告...那句)。新增公告的權限限制(限主管supervisor+admin)在v034已完成(canManage判斷),此次確認沿用 | 前:hotfix:公告編輯權限判斷修正(admin查admin.cfg雜湊,不是staff.json role) | 前: 新增公告完整流程接功能(033)
 // 注意:此檔為 type="text/babel",獨立作用域,需自行宣告 hooks 與 bridge
 const{useState,useEffect,useCallback,useMemo}=React;
-const{gasAnalyze,gasAddNotice,gasEditNotice,noticeSummary,noticeTitle,getNoticeReadCount,getNoticeShow,getNoticeListText,getNoticeCountType,getNoticesLocal,fetchNotices,gasVerifyKey,gasLeaveTeacher,gasSubmitAction,gasCheckAction,getMyKey,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,getGasUrl,setGasUrl,gasCall,hasMyKey,issueKey,claimMyKey,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{gasAnalyze,gasAddNotice,gasEditNotice,noticeSummary,noticeTitle,getNoticeReadCount,getNoticeShow,getNoticeListText,getNoticeCountType,getNoticesLocal,fetchNotices,gasVerifyKey,gasLeaveTeacher,gasSubmitAction,gasCheckAction,gasToggleNoticeStatus,getMyKey,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,getGasUrl,setGasUrl,gasCall,hasMyKey,issueKey,claimMyKey,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 function fmtSyncTime(iso){try{const d=new Date(iso);const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"/"+p(d.getMonth()+1)+"/"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes())}catch(_e){return ""}}
 
 function ChartPage({t,settings}){
@@ -168,8 +168,9 @@ function NoticeManagePage({t,settings}){
       const r=await gasEditNotice({id:editing.id,cat:editForm.cat,subcat:editForm.subcat,title:editForm.title,summary:editForm.summary,body:editForm.body,tags:editForm.tags,code:myCode});
       if(r&&r.ok){
         setEditAiFilled(Array.isArray(r.aiFilled)?r.aiFilled:[]);
-        // 本機列表先同步(含AI補的欄位),方便主管馬上看到結果(老師端要等下次publishNotices才會更新)
-        setList(prev=>prev.map(x=>x.id===editing.id?Object.assign({},x,editForm):x));
+        // 本機列表直接套用GAS回傳的最終欄位(含AI補的中文欄位+AI翻的越南文),不用等下次publishNotices就能馬上看到完整結果
+        const merged=r.fields||editForm;
+        setList(prev=>prev.map(x=>x.id===editing.id?Object.assign({},x,merged):x));
         setEditStatus(r.viOk===false?'savedNoVi':'saved');
         setTimeout(()=>closeEdit(),4500);
       }else{setEditStatus('失敗：'+((r&&r.error)||'?'));}
@@ -194,22 +195,40 @@ function NoticeManagePage({t,settings}){
     }catch(e){setAiStatus('錯誤：'+e);}
   };
   const upd=(k,v)=>setAiResult(p=>Object.assign({},p,{[k]:v}));
+  const[catTab,setCatTab]=React.useState('all');
+  const mainCatsPresent=React.useMemo(()=>{const s=[];const seen={};list.forEach(n=>{if(n.cat&&!seen[n.cat]){seen[n.cat]=1;s.push(n.cat)}});return s.slice(0,6)},[list]);
+  const[toggleBusy,setToggleBusy]=React.useState(false);
+  const toggleStatus=async()=>{
+    if(!editing)return;
+    setToggleBusy(true);
+    try{
+      const r=await gasToggleNoticeStatus(editing.id,myCode);
+      if(r&&r.ok){
+        setList(prev=>prev.map(x=>x.id===editing.id?Object.assign({},x,{status:r.status}):x));
+        setEditing(prev=>prev?Object.assign({},prev,{status:r.status}):prev);
+      }
+    }catch(_e){}
+    setToggleBusy(false);
+  };
   return(<div className="fi">
     <div className="flex items-center justify-between mb-3"><h2 className="text-lg font-bold text-gray-100">{t.noticeCenter||'公告'}</h2>{canManage&&<button onClick={()=>setShowAdd(true)} className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold active:bg-amber-700">+ {t.noticeAdd||'新增公告'}</button>}</div>
-    <div className="space-y-2 mt-3">{list.length===0?<p className="text-xs text-gray-600 text-center py-6">{t.noticeEmpty||'目前沒有公告'}</p>:list.slice().reverse().map(n=>{
+    <div className="grid grid-cols-4 gap-1.5 mb-3">{[['all',t.catTabAll||'全部'],...mainCatsPresent.map(c=>[c,c])].map(([k,l])=>(<button key={k} onClick={()=>setCatTab(k)} className={`py-1.5 rounded-lg text-[11px] font-semibold truncate ${catTab===k?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-400'}`}>{l}</button>))}</div>
+    <div className="space-y-2 mt-3">{list.length===0?<p className="text-xs text-gray-600 text-center py-6">{t.noticeEmpty||'目前沒有公告'}</p>:list.filter(n=>catTab==='all'||n.cat===catTab).slice().reverse().map(n=>{
       const listText=(typeof getNoticeListText==='function'?getNoticeListText():'summary');
       const showFlags=(typeof getNoticeShow==='function'?getNoticeShow():{cat:false,subcat:false});
       const countType=(typeof getNoticeCountType==='function'?getNoticeCountType():'people');
       const displayText=listText==='title'?(noticeTitle?noticeTitle(n,settings.lang):n.title):((noticeSummary?noticeSummary(n,settings.lang):n.summary)||n.title);
       const openN=countType==='visits'?(typeof n.openVisits==='number'?n.openVisits:0):(typeof n.openCount==='number'?n.openCount:0);
-      return(<div key={n.id} onClick={()=>openNotice(n)} className="bg-white/[0.03] border border-white/[0.05] rounded-xl px-3 py-2.5 active:bg-white/[0.06] cursor-pointer">
-        <div className="flex items-center justify-between gap-2"><p className="text-sm text-gray-200 font-medium truncate flex-1">{displayText}</p>{canManage&&<button onClick={(ev)=>openEdit(n,ev)} className="text-[11px] px-1.5 py-0.5 rounded-full bg-white/[0.08] text-gray-300 active:bg-white/[0.15] flex-shrink-0">✏️</button>}</div>
+      const isOff=n.status==='off';
+      return(<div key={n.id} onClick={()=>openNotice(n)} className={`bg-white/[0.03] border border-white/[0.05] rounded-xl px-3 py-2.5 active:bg-white/[0.06] cursor-pointer ${isOff?'opacity-50':''}`}>
+        <div className="flex items-center justify-between gap-2"><p className={`text-sm font-medium truncate flex-1 ${isOff?'text-gray-500':'text-gray-200'}`}>{n.id} {displayText}</p>{canManage&&<button onClick={(ev)=>openEdit(n,ev)} className="text-[11px] px-1.5 py-0.5 rounded-full bg-white/[0.08] text-gray-300 active:bg-white/[0.15] flex-shrink-0">✏️</button>}</div>
         <div className="flex items-center justify-between gap-2 mt-1">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
             <span className="text-[10px] text-gray-500 flex-shrink-0">👤 {n.author||''}</span>
             <span className="text-[10px] text-gray-600 flex-shrink-0">👁 {openN}</span>
             <span className="text-[10px] text-gray-600 flex-shrink-0">👍 {typeof n.readCount==='number'?n.readCount:0}</span>
             {(showFlags.cat&&n.cat)&&<span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 flex-shrink-0">{n.cat}{(showFlags.subcat&&n.subcat)?'・'+n.subcat:''}</span>}
+            {isOff&&<span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-gray-500 flex-shrink-0">{t.noticeOffBtn||'下架'}</span>}
           </div>
           <span className="text-[10px] text-gray-500 flex-shrink-0">{n.date}</span>
         </div>
@@ -232,6 +251,7 @@ function NoticeManagePage({t,settings}){
         {editStatus==='savedNoVi'&&<p className="text-[11px] text-amber-500 text-center font-semibold">✓ 中文已存檔{editAiFilled.length===0?'':'（部分欄位待AI補，'}，AI 處理暫時失敗待補（不影響已填的中文內容）。</p>}
         {editStatus&&editStatus!=='saving'&&editStatus!=='saved'&&editStatus!=='savedNoVi'&&<p className="text-[11px] text-red-400 text-center">{editStatus}</p>}
         <div className="pt-2 border-t border-white/[0.06]"><button onClick={submitEdit} disabled={editStatus==='saving'} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold active:bg-emerald-700 disabled:opacity-50">{editStatus==='saving'?'存檔中…':(t.noticeSaveBtn||'儲存變更')}</button></div>
+        <button onClick={toggleStatus} disabled={toggleBusy} className={`w-full py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 ${editing.status==='off'?'bg-emerald-600/20 text-emerald-400':'bg-red-600/20 text-red-400'}`}>{toggleBusy?'…':(editing.status==='off'?(t.noticeOnBtn||'上架'):(t.noticeOffBtn||'下架'))}</button>
       </div>
     </div></div>)}
     {showAdd&&(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={closeAdd}><div className="bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[88vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
