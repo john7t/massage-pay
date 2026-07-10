@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-028</title>
+<title>薪資追蹤 v1.12-030</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -198,7 +198,7 @@ input[type=number]{-moz-appearance:textfield}
 <script type="text/babel" src="./notice-modal.js"></script>
 <script type="text/babel" src="./settings.js"></script>
 <script type="text/babel">
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasSubmitAction,gasCheckAction,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasVerifyKey,gasLeaveTeacher,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasSubmitAction,gasCheckAction,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasSubmitDisasterReport,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 function NoticeBox({t,agreed,setAgreed}){return(<div className="mt-6 space-y-2"><button onClick={()=>setAgreed(!agreed)} className="flex items-center gap-2 w-full text-left"><span className={`w-5 h-5 rounded flex items-center justify-center text-xs flex-shrink-0 ${agreed?'bg-amber-600 text-white':'bg-white/[0.06] border border-white/[0.12] text-transparent'}`}>✓</span><span className="text-[13px] text-gray-300 font-semibold">{t.readConfirm}</span></button><div className="space-y-1.5 text-[11px] text-gray-500 leading-relaxed pl-7"><p>{t.privacyBody}</p><p>{t.browserNote}</p><p>{t.myBookingNote}</p><p className="text-red-400/80">{t.backupReminder}</p></div></div>)}
@@ -297,8 +297,8 @@ function Onboarding({onComplete}){
       const r=await gasLoginPwd(code,cred);
       setChecking(false);
       if(r&&r.ok){doActivate({code,unitPrice:r.unitPrice||250,lang:r.lang||lang,store:r.store||store,year:bizParts().y,deviceId:devId,gender:r.gender||'',workStart:r.workStart||'',workEnd:r.workEnd||'',shift:r.shift||'',lockPwd:loginPwdInput})}
-      else{setErr(t.pwdLoginFail)}
-    }catch(e){setChecking(false);setErr(t.pwdLoginFail)}
+      else{setErr((r&&r.error)?(t.pwdLoginFail+'（'+r.error+'）'):t.pwdLoginFail)}
+    }catch(e){setChecking(false);setErr(t.pwdLoginFail+'（'+e+'）')}
   };
 
   const forgotPinOk=isValidPin(forgotPwd);
@@ -321,8 +321,8 @@ function Onboarding({onComplete}){
       const cred=lockPwdCred(code,forgotPwd);
       const r=await gasLoginPwd(code,cred);
       if(r&&r.ok){doActivate({code,unitPrice:r.unitPrice||250,lang:r.lang||lang,store:r.store||store,year:bizParts().y,deviceId:devId,gender:r.gender||'',workStart:r.workStart||'',workEnd:r.workEnd||'',shift:r.shift||'',lockPwd:forgotPwd})}
-      else{setErr(t.pwdLoginFail)}
-    }catch(e){setErr(t.pwdLoginFail)}
+      else{setErr((r&&r.error)?(t.pwdLoginFail+'（'+r.error+'）'):t.pwdLoginFail)}
+    }catch(e){setErr(t.pwdLoginFail+'（'+e+'）')}
   };
 
   const ticketBlock=(prefixKey,titleKey,onApproved)=>(
@@ -401,7 +401,7 @@ function Onboarding({onComplete}){
 
 /* ══════════ Home Page ══════════ */
 function infoFieldLabel(key,t){
-  const m={nameZh:t.nameZh,nameVi:t.nameVi,gender:t.gender,phone:t.custPhone||'電話',email:t.email,
+  const m={nameZh:t.nameZh,nameVi:t.nameVi,gender:t.gender,gloveSize:t.gloveSize||'手套尺寸',phone:t.custPhone||'電話',email:t.email,
     addrCity:'縣市',addrDist:'鄉鎮區',addrDetail:'詳細地址',school:t.school,major:t.major,
     permitNo:t.permitNo,permitDate:t.permitDate,permitExpiry:'工作證到期日',permitOrg:t.permitOrgOpt||'核發單位',
     storeSel:t.store,shift:t.shiftLabel||'班別',workStart:t.workStart,workEnd:t.workEnd,workNote:t.workNote,techMentor:t.techMentor,lockerNo:t.lockerNo};
@@ -410,8 +410,8 @@ function infoFieldLabel(key,t){
 // 縣市選項:常見的4個(桃園/新北/臺北/宜蘭,店內大部分員工所在地)排前面,其餘照TW_REGIONS完整列出
 const CITY_PRIORITY=['桃園市','新北市','臺北市','宜蘭縣'];
 const CITY_OPTIONS=[...CITY_PRIORITY,...Object.keys(TW_REGIONS).filter(c=>!CITY_PRIORITY.includes(c))];
-const BASIC_FIELD_KEYS=['nameZh','gender','phone','email','addrCity','addrDist','addrDetail','nameVi','permitNo','permitDate','permitExpiry','permitOrg','school','major'];
-const BASIC_FIELD_LAYOUT=['nameZh','gender','phone','email','addrCity','addrDist','addrDetail','__divider_foreign__','nameVi','permitNo','permitDate','permitExpiry','permitOrg','school','major'];
+const BASIC_FIELD_KEYS=['nameZh','gender','gloveSize','phone','email','addrCity','addrDist','addrDetail','nameVi','permitNo','permitDate','permitExpiry','permitOrg','school','major'];
+const BASIC_FIELD_LAYOUT=['nameZh','gender','gloveSize','phone','email','addrCity','addrDist','addrDetail','__divider_foreign__','nameVi','permitNo','permitDate','permitExpiry','permitOrg','school','major'];
 const STORE_FIELD_KEYS=['storeSel','shift','workStart','workEnd','workNote','techMentor','lockerNo'];
 // 跟App元件settingsAlert(❗提醒)比對用的完整欄位清單一致,核准後要用這份存confirmedProfile/confirmedStore快照
 const PF_ALERT_FIELDS=['gender','nameZh','nameVi','phone','email','addrCity','addrDist','addrDetail','school','major','schoolType','permitNo','permitDate','permitExpiry','permitOrg'];
@@ -441,7 +441,7 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
   const initGate=()=>{
     if(!code)return 'none';
     if(!settings.lockPwd)return 'setup';
-    if(Date.now()-getInfoUnlockTs(code)>5*60*1000)return 'locked';
+    if(Date.now()-getInfoUnlockTs(code)>(settings.lockAutoTime||60)*60*1000)return 'locked';
     return 'none';
   };
   const[gate,setGate]=useState(initGate);
@@ -450,7 +450,7 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
   const[unlockInput,setUnlockInput]=useState('');const[unlockErr,setUnlockErr]=useState('');
 
   const[mode,setMode]=useState(()=>pending?'ticket':'view'); // view/edit/ticket
-  const initForm=()=>{const f={};fieldKeys.forEach(k=>{f[k]=settings[k]||''});return f};
+  const initForm=()=>{const f={};fieldKeys.forEach(k=>{f[k]=settings[k]||(k==='gloveSize'?'M':'')});return f};
   const[form,setForm]=useState(initForm);
   const[ticketSeq,setTicketSeq]=useState(()=>pending?pending.seq:'');
   const[changedList,setChangedList]=useState(()=>pending?pending.changed:[]);
@@ -607,6 +607,9 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
         if(k==='gender'){
           return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><div className="grid grid-cols-2 gap-2">{[['M',t.genderM],['F',t.genderF]].map(([g,l])=>(<button key={g} onClick={()=>setForm(f=>({...f,gender:g}))} className={`py-2 rounded-lg text-sm font-semibold ${form.gender===g?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{l}</button>))}</div></div>);
         }
+        if(k==='gloveSize'){
+          return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><div className="grid grid-cols-5 gap-1.5">{['XS','S','M','L','XL'].map(g=>(<button key={g} onClick={()=>setForm(f=>({...f,gloveSize:g}))} className={`py-2 rounded-lg text-xs font-semibold ${form.gloveSize===g?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{g}</button>))}</div></div>);
+        }
         if(k==='shift'){
           return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><div className="grid grid-cols-2 gap-2">{[['day',t.shiftDay],['night',t.shiftNight]].map(([sv,l])=>(<button key={sv} onClick={()=>setForm(f=>({...f,shift:sv}))} className={`py-2 rounded-lg text-sm font-semibold ${form.shift===sv?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{l}</button>))}</div></div>);
         }
@@ -652,10 +655,130 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
   </div></div>);
 }
 
+function GroupBuyModal({t,settings,onClose}){
+  const code=settings.code;
+  const[tab,setTab]=useState('list'); // list/mine
+  const[list,setList]=useState(null);
+  const[mine,setMine]=useState(null);
+  const[joinBusy,setJoinBusy]=useState('');
+  const[joinSize,setJoinSize]=useState(settings.gloveSize||'M');
+  const[showCreate,setShowCreate]=useState(false);
+  const[newTitle,setNewTitle]=useState(t.groupBuyTitle||'手套團購');const[newDeadline,setNewDeadline]=useState('');const[createBusy,setCreateBusy]=useState(false);
+  const canCreate=true; // 團購是低風險小功能,開放所有人發起,不特別限制身分(settings.role在本機設定裡本來就不存在)
+  const loadList=()=>{gasListGroupBuys().then(r=>{if(r&&r.ok)setList(r.list||[])})};
+  const loadMine=()=>{gasMyGroupBuyOrders(code).then(r=>{if(r&&r.ok)setMine(r.list||[])})};
+  useEffect(()=>{loadList();loadMine()},[]);
+  const doJoin=async(buyId)=>{
+    setJoinBusy(buyId);
+    try{await gasJoinGroupBuy(buyId,code,joinSize,1);}catch(_e){}
+    setJoinBusy('');loadList();loadMine();
+  };
+  const doCreate=async()=>{
+    setCreateBusy(true);
+    try{const r=await gasCreateGroupBuy(code,newTitle,newDeadline);if(r&&r.ok){setShowCreate(false);loadList()}}catch(_e){}
+    setCreateBusy(false);
+  };
+  return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}><div className="bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+    <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{t.groupBuyTitle}</h3><button onClick={onClose} className="text-gray-500 text-sm">✕</button></div>
+    <div className="flex gap-2 p-3 pb-0"><button onClick={()=>setTab('list')} className={`flex-1 py-2 rounded-lg text-sm font-semibold ${tab==='list'?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-400'}`}>{t.groupBuyTabList}</button><button onClick={()=>setTab('mine')} className={`flex-1 py-2 rounded-lg text-sm font-semibold ${tab==='mine'?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-400'}`}>{t.groupBuyTabMine}</button></div>
+    <div className="p-4 space-y-3">
+      {tab==='list'&&(<>
+        <div><label className="text-xs text-gray-500 block mb-1">{t.gloveSize}</label><div className="grid grid-cols-5 gap-1.5">{['XS','S','M','L','XL'].map(g=>(<button key={g} onClick={()=>setJoinSize(g)} className={`py-2 rounded-lg text-xs font-semibold ${joinSize===g?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{g}</button>))}</div></div>
+        {canCreate&&!showCreate&&<button onClick={()=>setShowCreate(true)} className="w-full py-2.5 rounded-xl bg-white/[0.06] text-amber-400 text-sm font-semibold">+ {t.groupBuyCreateBtn}</button>}
+        {showCreate&&(<div className="bg-white/[0.03] rounded-xl p-3 space-y-2"><input value={newTitle} onChange={e=>setNewTitle(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/><div><label className="text-xs text-gray-500 block mb-1">{t.groupBuyDeadlineLabel}</label><input type="date" value={newDeadline} onChange={e=>setNewDeadline(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/></div><button onClick={doCreate} disabled={createBusy} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50">{createBusy?'…':t.groupBuyCreateBtn}</button></div>)}
+        {list===null?<p className="text-xs text-gray-600 text-center py-4">{t.loading||'載入中…'}</p>:list.filter(g=>g.status==='open').length===0?<p className="text-xs text-gray-600 text-center py-4">{t.groupBuyEmpty}</p>:list.filter(g=>g.status==='open').map(g=>(
+          <div key={g.id} className="bg-white/[0.03] rounded-xl p-3 flex items-center justify-between gap-2"><div><p className="text-sm text-gray-200 font-medium">{g.title}</p><p className="text-[11px] text-gray-500">{g.deadline?g.deadline+' · ':''}{g.orderCount}{t.groupBuyOrderCount}</p></div><button onClick={()=>doJoin(g.id)} disabled={joinBusy===g.id} className="px-4 py-2 rounded-lg bg-amber-600 text-white text-xs font-bold disabled:opacity-50 flex-shrink-0">{joinBusy===g.id?'…':t.groupBuyJoinBtn}</button></div>
+        ))}
+      </>)}
+      {tab==='mine'&&(mine===null?<p className="text-xs text-gray-600 text-center py-4">{t.loading||'載入中…'}</p>:mine.length===0?<p className="text-xs text-gray-600 text-center py-4">{t.groupBuyMineEmpty}</p>:mine.map((o,i)=>(
+        <div key={i} className="bg-white/[0.03] rounded-xl p-3 flex items-center justify-between"><p className="text-sm text-gray-200">{o.title}</p><span className="text-xs text-amber-400 font-semibold">{o.size}</span></div>
+      )))}
+    </div>
+  </div></div>);
+}
+function DisasterReportModal({t,settings,onClose,onSaved}){
+  const code=settings.code;
+  const today=new Date().toISOString().slice(0,10);
+  const[type,setType]=useState('');
+  const[statuses,setStatuses]=useState([]);
+  const[city,setCity]=useState(settings.addrCity||'');const[dist,setDist]=useState(settings.addrDist||'');
+  const[busy,setBusy]=useState(false);const[done,setDone]=useState(false);const[err,setErr]=useState('');
+  const needAddr=!city||!dist;
+  const toggleStatus=(s)=>setStatuses(prev=>prev.includes(s)?prev.filter(x=>x!==s):[...prev,s]);
+  const submit=async()=>{
+    if(needAddr||!type||statuses.length===0)return;
+    setBusy(true);setErr('');
+    try{
+      const r=await gasSubmitDisasterReport({code,date:today,type,statuses:statuses.join(','),city,dist});
+      if(r&&r.ok){
+        setDone(true);
+        if(onSaved)onSaved({addrCity:city,addrDist:dist});
+        setTimeout(()=>onClose(),1500);
+      }else{setErr((r&&r.error)||t.drSubmitFail)}
+    }catch(e){setErr(t.drSubmitFail)}
+    setBusy(false);
+  };
+  return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}><div className="bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+    <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{t.drTitle}</h3><button onClick={onClose} className="text-gray-500 text-sm">✕</button></div>
+    {done?(<div className="p-8 text-center"><p className="text-sm text-emerald-500 font-semibold">✓ {t.drSubmitOk}</p></div>):(
+    <div className="p-4 space-y-4">
+      <div className="flex justify-between text-sm"><span className="text-gray-500">{t.drDateLabel}</span><span className="text-gray-300">{today}</span></div>
+      {needAddr&&(<div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 space-y-2"><p className="text-xs text-amber-400">{t.drNeedAddrHint}</p><div className="grid grid-cols-2 gap-2"><select value={city} onChange={e=>{setCity(e.target.value);setDist('')}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-sm text-gray-200"><option value="">-</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select><select value={dist} onChange={e=>setDist(e.target.value)} disabled={!city} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-sm text-gray-200 disabled:opacity-40"><option value="">-</option>{(TW_REGIONS[city]||[]).map(d=><option key={d} value={d}>{d}</option>)}</select></div></div>)}
+      <div><label className="text-xs text-gray-500 block mb-1.5">{t.drTypeLabel}</label><div className="grid grid-cols-2 gap-2">{[['earthquake',t.drTypeEarthquake],['typhoon',t.drTypeTyphoon],['flood',t.drTypeFlood],['landslide',t.drTypeLandslide]].map(([k,l])=>(<button key={k} onClick={()=>setType(k)} className={`py-2.5 rounded-xl text-sm font-semibold ${type===k?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{l}</button>))}</div></div>
+      <div><label className="text-xs text-gray-500 block mb-1.5">{t.drStatusLabel}</label><div className="grid grid-cols-2 gap-2">{[['safe',t.drSafe],['cantLeave',t.drCantLeave],['vehicleDamaged',t.drVehicleDamaged],['sick',t.drSick]].map(([k,l])=>(<button key={k} onClick={()=>toggleStatus(k)} className={`py-2.5 rounded-xl text-sm font-semibold ${statuses.includes(k)?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{l}</button>))}</div></div>
+      {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
+      <button onClick={submit} disabled={busy||needAddr||!type||statuses.length===0} className="w-full py-3 rounded-xl bg-red-600 text-white font-bold disabled:opacity-50">{busy?'…':t.drSubmitBtn}</button>
+    </div>)}
+  </div></div>);
+}
 function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onUpdateSettings}){
   const now=bizDate();const bp=bizParts();const ty=settings.year||bp.y,tm=bp.m,td=bp.d;
   const[data,setData]=useState(null);const[prev,setPrev]=useState(null);const[otherMode,setOtherMode]=useState(false);const[otherVal,setOtherVal]=useState('');const[editPrev,setEditPrev]=useState(false);const[editToday,setEditToday]=useState(false);
   const[showStoreInfo,setShowStoreInfo]=useState(false);const[showBasicInfo,setShowBasicInfo]=useState(false);
+  const[showGroupBuy,setShowGroupBuy]=useState(false);const[showDisasterReport,setShowDisasterReport]=useState(false);
+  const[dailyQueue,setDailyQueue]=useState([]);const[gbPromptData,setGbPromptData]=useState(null);
+  const[pwdInput,setPwdInput]=useState('');const[pwdErr,setPwdErr]=useState('');
+  const advanceQueue=()=>setDailyQueue(q=>q.slice(1));
+  useEffect(()=>{
+    if(!settings.code)return;
+    const today=new Date().toISOString().slice(0,10);
+    const homeKey='home-daily-'+settings.code;
+    let already=false;try{already=localStorage.getItem(homeKey)===today}catch(_e){}
+    if(!already){
+      if(!settings.disableHomePwd&&settings.lockPwd)setDailyQueue(q=>[...q,'pwd']);
+      (async()=>{
+        try{
+          if(hasMyKey(settings.code)){const key=getMyKey(settings.code);await gasVerifyKey(settings.code,key)}
+          await gasLogDailyCheck(settings.code);
+        }catch(_e){}
+        try{localStorage.setItem(homeKey,today)}catch(_e){}
+      })();
+    }
+    const gbPromptKey='gb-prompt-'+settings.code;
+    let gbAlready=false;try{gbAlready=localStorage.getItem(gbPromptKey)===today}catch(_e){}
+    if(!gbAlready){
+      (async()=>{
+        try{
+          const r=await gasListGroupBuys();
+          const open=(r&&r.ok&&Array.isArray(r.list))?r.list.find(g=>g.status==='open'):null;
+          if(open){
+            const mr=await gasMyGroupBuyOrders(settings.code);
+            const mine=(mr&&mr.ok&&Array.isArray(mr.list))?mr.list:[];
+            if(!mine.some(o=>o.buyId===open.id)){setGbPromptData(open);setDailyQueue(q=>[...q,'groupbuy'])}
+          }
+        }catch(_e){}
+        try{localStorage.setItem(gbPromptKey,today)}catch(_e){}
+      })();
+    }
+  },[settings.code]);
+  const submitPwdGate=()=>{
+    if(pwdInput===settings.lockPwd){setPwdInput('');setPwdErr('');advanceQueue()}
+    else{setPwdErr(t.noticePwdWrong||'密碼錯誤')}
+  };
+  const joinGbPrompt=async()=>{
+    if(gbPromptData){try{await gasJoinGroupBuy(gbPromptData.id,settings.code,settings.gloveSize||'M',1)}catch(_e){}}
+    advanceQueue();
+  };
   const load=()=>{const md=LS.get(dk(settings.code,ty,tm));if(md&&migrateMonthGroups(md)){LS.set(dk(settings.code,ty,tm),md)}setData(md);let found=false;if(md?.days){for(let d=td-1;d>=1;d--){const day=md.days[d];if(day&&(day.total>0||day.status>0)){setPrev({day:d,month:tm,year:ty,...day});found=true;break}}}if(!found){for(let pm=tm-1;pm>=1;pm--){const pmd=LS.get(dk(settings.code,ty,pm));if(!pmd)continue;for(let d=dim(ty,pm);d>=1;d--){const day=pmd.days?.[d];if(day&&(day.total>0||day.status>0)){setPrev({day:d,month:pm,year:ty,...day});found=true;break}}if(found)break}}if(!found)setPrev(null)};
   useEffect(load,[settings.code,refreshKey]);
   const[notices,setNotices]=useState(()=>{try{return typeof getNoticesLocal==='function'?getNoticesLocal():[]}catch(_e){return []}});const[noticeView,setNoticeView]=useState(null);const[nvLang,setNvLang]=useState({zh:true,vi:false});
@@ -706,6 +829,29 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onUpdateSet
     {SKILL_KEYS.some(k=>settings.skills?.[k])&&(<div className="mb-6"><p className="text-sm text-gray-400 mb-3">{t.skills}</p><div className="grid grid-cols-3 gap-2">{SKILL_KEYS.map((k,i)=>settings.skills?.[k]?(<button key={k} onClick={()=>addSkill(k)} className="py-3 rounded-xl bg-white/[0.04] border border-white/[0.06] active:bg-white/[0.08] transition-all text-center"><div className={`text-sm font-bold ${SKILL_COLORS[i]}`}>{t[SKILL_SHORT[i]]}{(todayData.skills?.[k]||0)>0?` ×${todayData.skills[k]}`:''}</div><div className="text-[10px] text-gray-600">{t[k]} ${SKILL_PRICES[i]}</div></button>):null)}</div></div>)}
     {/* 今日流水列表已移除,改由點今日標題開編輯器 */}
     <div><p className="text-sm text-gray-400 mb-3">{t.status}</p><div className="grid grid-cols-3 gap-2">{[0,3,4,1,2,5].map(s=>(<button key={s} onClick={()=>setTodayStatus(s)} className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${todayData.status===s?(s===0?'bg-gray-600 text-white ring-2 ring-gray-500':`${SBG[s].replace('/20','/30')} ${STC[s]} ring-2 ring-current`):'bg-white/[0.04] text-gray-600'}`}>{t[SK[s]]}</button>))}</div></div>
+    <div className="flex items-center gap-3 mt-3">
+      <button onClick={()=>setShowGroupBuy(true)} className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]" title={t.groupBuyBtn}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></button>
+      <button onClick={()=>setShowDisasterReport(true)} className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]" title={t.drBtn}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg></button>
+    </div>
+    {showGroupBuy&&<GroupBuyModal t={t} settings={settings} onClose={()=>setShowGroupBuy(false)}/>}
+    {showDisasterReport&&<DisasterReportModal t={t} settings={settings} onClose={()=>setShowDisasterReport(false)} onSaved={(patch)=>{if(onUpdateSettings)onUpdateSettings(Object.assign({},settings,patch));try{LS.set('app-settings',Object.assign({},settings,patch))}catch(_e){}}}/>}
+    {dailyQueue[0]==='pwd'&&(<div className="fixed inset-0 z-[70] bg-black/80 flex items-end sm:items-center justify-center"><div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl" onClick={e=>e.stopPropagation()}>
+      <div className="p-4 border-b border-white/[0.06]"><h3 className="text-base font-bold text-gray-100">{t.homePwdPopupTitle}</h3></div>
+      <div className="p-4 space-y-4">
+        <p className="text-sm text-gray-400 text-center">{t.homePwdPopupBody}</p>
+        <input value={pwdInput} onChange={e=>{setPwdInput(e.target.value.replace(/\D/g,'').slice(0,4));setPwdErr('')}} inputMode="numeric" maxLength={4} type="password" placeholder="••••" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3.5 text-xl text-center text-gray-100 tracking-[0.5em] focus:outline-none focus:border-amber-500"/>
+        {pwdErr&&<p className="text-xs text-red-400 text-center">{pwdErr}</p>}
+        <button onClick={submitPwdGate} disabled={pwdInput.length!==4} className={`w-full py-3.5 rounded-xl font-bold transition-all ${pwdInput.length===4?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{t.noticePwdUnlockBtn||'解鎖'}</button>
+      </div>
+    </div></div>)}
+    {dailyQueue[0]==='groupbuy'&&gbPromptData&&(<div className="fixed inset-0 z-[70] bg-black/80 flex items-end sm:items-center justify-center"><div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl" onClick={e=>e.stopPropagation()}>
+      <div className="p-4 border-b border-white/[0.06]"><h3 className="text-base font-bold text-gray-100">{t.groupBuyPopupTitle}</h3></div>
+      <div className="p-4 space-y-4">
+        <p className="text-sm text-gray-400 text-center">{gbPromptData.title}</p>
+        <p className="text-xs text-gray-500 text-center">{t.groupBuyPopupBody}</p>
+        <div className="flex gap-2"><button onClick={advanceQueue} className="flex-1 py-3 rounded-xl bg-white/[0.06] text-gray-400 font-semibold">{t.groupBuyPopupSkip}</button><button onClick={joinGbPrompt} className="flex-1 py-3 rounded-xl bg-amber-600 text-white font-bold">{t.groupBuyPopupJoin}</button></div>
+      </div>
+    </div></div>)}
     {editPrev&&prev&&(<DayEditor day={{groups:prev.groups||[],total:prev.total,laodian:prev.laodian,status:prev.status,skills:prev.skills||{},slips:prev.slips||[]}} d={prev.day} y={prev.year} m={prev.month} t={t} up={settings.unitPrice} sk={settings.skills} code={settings.code} onSave={savePrevDay} onCancel={()=>setEditPrev(false)}/>)}
     {editToday&&(<DayEditor day={{groups:todayData.groups||[],total:todayData.total,laodian:todayData.laodian,status:todayData.status,skills:todayData.skills||{},slips:todayData.slips||[]}} d={td} y={ty} m={tm} t={t} up={settings.unitPrice} sk={settings.skills} code={settings.code} onSave={saveTodayDay} onCancel={()=>setEditToday(false)}/>)}
     {noticeView&&window.NoticeDetailModal&&(()=>{const NDM=window.NoticeDetailModal;return <NDM notice={noticeView} settings={settings} t={t} onClose={()=>setNoticeView(null)} onMore={()=>{setNoticeView(null);if(onGotoNotices)onGotoNotices()}}/>;})()}
