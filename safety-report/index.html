@@ -74,6 +74,7 @@ const SF_T={
     reportedList:'已回報人員',noReports:'尚無人回報',loading:'載入中…',noActiveSurvey:'目前沒有進行中的通報',
     historyTitle:'歷史通報(可刪除)',ended:'已結束',
     centerTitle:'天然災害每日安全回報中心',sortByTime:'時間',sortByCode:'編號',sortByCity:'居住地',sortByStore:'店名',shareBtn:'分享',
+    pushFlexBtn:'推播到我的LINE',pushedMsg:'✓ 已推播',
     backHomeBtn:'回主頁',
     listQueryBtn:'查詢',backToList:'← 列表',noSurveys:'目前沒有進行中的通報',
     myProfileTitle:'我的資料',editBtn:'編輯',saveBtn:'更新',cancelBtn:'取消',saved:'已更新',
@@ -104,6 +105,7 @@ const SF_T={
     reportedList:'Người đã báo cáo',noReports:'Chưa có ai báo cáo',loading:'Đang tải…',noActiveSurvey:'Hiện không có thông báo nào',
     historyTitle:'Lịch sử (có thể xóa)',ended:'Đã kết thúc',
     centerTitle:'Trung tâm báo cáo an toàn thiên tai hàng ngày',sortByTime:'Thời gian',sortByCode:'Mã số',sortByCity:'Nơi ở',sortByStore:'Cửa hàng',shareBtn:'Chia sẻ',
+    pushFlexBtn:'Gửi đến LINE của tôi',pushedMsg:'✓ Đã gửi',
     backHomeBtn:'Về trang chính',
     listQueryBtn:'Tra cứu',backToList:'← Danh sách',noSurveys:'Hiện không có thông báo nào',
     myProfileTitle:'Thông tin của tôi',editBtn:'Sửa',saveBtn:'Cập nhật',cancelBtn:'Hủy',saved:'Đã cập nhật',
@@ -128,6 +130,7 @@ async function sfConfig(){const r=await gasCall('sfConfig',{},10000);return r||{
 async function sfGetUser(lineUserId){const r=await gasCall('sfGetUser',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfRegister(data){const r=await gasCallPost('sfRegister',data,15000);return r||{ok:false,error:'GAS無回應'};}
 async function sfCreateSurvey(title,lineUserId){const r=await gasCallPost('sfCreateSurvey',{title,lineUserId},15000);return r||{ok:false,error:'GAS無回應'};}
+async function sfPushFlexToMe(id,lineUserId){const r=await gasCallPost('sfPushFlexToMe',{id,lineUserId},15000);return r||{ok:false,error:'GAS無回應'};}
 async function sfEndSurvey(id){const r=await gasCallPost('sfEndSurvey',{id},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfDeleteSurvey(id,lineUserId){const r=await gasCallPost('sfDeleteSurvey',{id,lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfListSurveys(lineUserId){const r=await gasCall('sfListSurveys',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
@@ -301,6 +304,15 @@ function ListPage({profile,userProfile,liffId}){
   const statusLabel=(k)=>t['status'+k[0].toUpperCase()+k.slice(1)]||k;
   const fmtTime=(tm)=>{try{const d=new Date(tm);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}catch(_e){return ''}};
   const detailUrl=(id)=>'https://liff.line.me/'+liffId+'?sid='+id; // 用LIFF專屬網址格式,確保LINE登入導轉不會弄丟參數
+  const[busyPush,setBusyPush]=useState('');const[pushMsg,setPushMsg]=useState('');
+  const doPushFlex=async(id)=>{
+    setBusyPush(id);
+    try{
+      const r=await sfPushFlexToMe(id,profile.userId);
+      if(r&&r.ok){setPushMsg(id);setTimeout(()=>setPushMsg(''),2500)}
+    }catch(_e){}
+    setBusyPush('');
+  };
   const shareSurvey=(s)=>{
     const msg=s.title+'\n'+detailUrl(s.id);
     location.href='https://line.me/R/share?text='+encodeURIComponent(msg);
@@ -357,7 +369,8 @@ function ListPage({profile,userProfile,liffId}){
           <div key={s.id} className="bg-white/[0.03] rounded-xl p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <p onClick={()=>openDetail(s.id)} className="text-sm text-gray-200 font-medium cursor-pointer flex-1">{s.title}</p>
-              <button onClick={()=>shareSurvey(s)} className="text-xs px-2.5 py-1.5 rounded-lg bg-[#06C755] text-white font-semibold flex-shrink-0">{t.shareBtn}</button>
+              <button onClick={()=>doPushFlex(s.id)} disabled={busyPush===s.id} className="text-xs px-2.5 py-1.5 rounded-lg bg-[#06C755] text-white font-semibold flex-shrink-0 disabled:opacity-50 flex items-center gap-1">{busyPush===s.id&&<Spinner size={11}/>}{pushMsg===s.id?t.pushedMsg:t.pushFlexBtn}</button>
+              <button onClick={()=>shareSurvey(s)} className="text-xs px-2.5 py-1.5 rounded-lg bg-white/[0.06] text-gray-300 font-semibold flex-shrink-0">{t.shareBtn}</button>
             </div>
             <div className="flex gap-2">
               <select onChange={e=>doQuery(s.id,e.target.value)} defaultValue="" className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-gray-200"><option value="" disabled>{t.selectDay}</option>{dayOptions(s).map(o=>(<option key={o.n} value={o.date}>{'day'+o.n+': '+o.date}</option>))}</select>
