@@ -48,7 +48,7 @@
 <script src="../common.js"></script>
 <script type="text/babel">
 (function(){
-const{useState,useEffect}=React;
+const{useState,useEffect,useMemo}=React;
 const{gasCall,gasCallPost,getGasUrl,setGasUrl,TW_REGIONS,LANG_SCHOOLS}=window.MP||{};
 
 const STORES=['龍山寺店','東門店','古亭店','公館店'];
@@ -73,6 +73,8 @@ const SF_T={
     selectDay:'選擇天數',endBtn:'結束通報',reportedCount:'已回報',notReportedCount:'未回報',
     reportedList:'已回報人員',noReports:'尚無人回報',loading:'載入中…',noActiveSurvey:'目前沒有進行中的通報',
     historyTitle:'歷史通報(可刪除)',ended:'已結束',
+    centerTitle:'安全回報中心',sortByTime:'時間',sortByCode:'編號',shareBtn:'分享',
+    listQueryBtn:'查詢',backToList:'← 列表',noSurveys:'目前沒有進行中的通報',
   },
   vi:{
     appTitle:'Đăng ký báo cáo an toàn',appSubtitle:'Lần đầu sử dụng vui lòng hoàn tất đăng ký',
@@ -90,6 +92,8 @@ const SF_T={
     selectDay:'Chọn ngày thứ mấy',endBtn:'Kết thúc',reportedCount:'Đã báo cáo',notReportedCount:'Chưa báo cáo',
     reportedList:'Người đã báo cáo',noReports:'Chưa có ai báo cáo',loading:'Đang tải…',noActiveSurvey:'Hiện không có thông báo nào',
     historyTitle:'Lịch sử (có thể xóa)',ended:'Đã kết thúc',
+    centerTitle:'Trung tâm báo cáo an toàn',sortByTime:'Thời gian',sortByCode:'Mã số',shareBtn:'Chia sẻ',
+    listQueryBtn:'Tra cứu',backToList:'← Danh sách',noSurveys:'Hiện không có thông báo nào',
   }
 };
 const STATUS_KEYS=['safe','flooded','sick'];
@@ -131,7 +135,8 @@ function RegisterFlow({profile,onDone}){
     setBusy(true);setErr('');
     try{
       const r=await sfRegister({lineUserId:profile.userId,displayName:profile.displayName,store,personType,subType,name:personType==='teacher'?code.trim():name.trim(),lang,gender,shift,city,dist});
-      if(r&&r.ok){onDone()}else{setErr((r&&r.error)||'登記失敗')}
+      if(r&&r.ok){onDone();return} // 成功就不把busy設回false,按鈕保持灰色直到頁面跳轉,避免誤點兩次
+      setErr((r&&r.error)||'登記失敗');
     }catch(e){setErr(String(e))}
     setBusy(false);
   };
@@ -172,58 +177,34 @@ function RegisterFlow({profile,onDone}){
   </div>);
 }
 
-function MainPage({profile,userProfile,sid}){
+function ListPage({profile,userProfile}){
   const t=SF_T[userProfile.lang||'zh'];
   const isManagerLevel=userProfile.personType==='manager'||userProfile.personType==='admin';
   const isAdmin=userProfile.personType==='admin';
-  const displayName=userProfile.personType==='teacher'?userProfile.name:(userProfile.name||userProfile.displayName);
-  const STATUS_OPTS=STATUS_KEYS.map(k=>[k,t['status'+k[0].toUpperCase()+k.slice(1)]]);
-  const[survey,setSurvey]=useState(undefined);
-  const[status,setStatus]=useState('');
-  const[otherText,setOtherText]=useState('');
-  const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
-  const[reports,setReports]=useState(null);
+  const[list,setList]=useState(undefined);
   const[showCreate,setShowCreate]=useState(false);
   const[newTitle,setNewTitle]=useState('');const[createBusy,setCreateBusy]=useState(false);
-  const[queryDate,setQueryDate]=useState('');const[queryResult,setQueryResult]=useState(null);
+  const[queryOpenId,setQueryOpenId]=useState('');const[queryResult,setQueryResult]=useState(null);
   const[history,setHistory]=useState(null);const[showHistory,setShowHistory]=useState(false);
-  const loadReports=(sid)=>sfTodayReports(sid).then(r=>{if(r&&r.ok)setReports(r.list||[])});
-  const loadSurvey=()=>{
+  const load=()=>{
     sfListSurveys().then(r=>{
       if(r&&r.ok&&Array.isArray(r.list)){
-        const target=sid?r.list.find(s=>s.id===sid):r.list.find(s=>!s.endDate);
-        setSurvey(target||null);
-        if(target)loadReports(target.id);
+        setList(r.list.filter(s=>!s.endDate));
         if(isAdmin)setHistory(r.list.filter(s=>s.endDate));
-      }else{setSurvey(null)}
-    }).catch(()=>setSurvey(null));
+      }else{setList([])}
+    }).catch(()=>setList([]));
   };
-  useEffect(()=>{loadSurvey()},[]);
-  const submit=async()=>{
-    if(!survey||(!status&&!otherText.trim()))return;
-    setBusy(true);setErr('');
-    try{
-      const r=await sfSubmitReport(survey.id,profile.userId,status,otherText.trim());
-      if(r&&r.ok){setStatus('');setOtherText('');loadReports(survey.id)}else{setErr((r&&r.error)||'送出失敗')}
-    }catch(e){setErr(String(e))}
-    setBusy(false);
-  };
+  useEffect(()=>{if(isManagerLevel)load()},[]);
   const doCreate=async()=>{
     if(!newTitle.trim())return;
     setCreateBusy(true);
-    try{const r=await sfCreateSurvey(newTitle.trim(),profile.userId);if(r&&r.ok){setShowCreate(false);setNewTitle('');loadSurvey()}}catch(_e){}
+    try{const r=await sfCreateSurvey(newTitle.trim(),profile.userId);if(r&&r.ok){setShowCreate(false);setNewTitle('');load()}}catch(_e){}
     setCreateBusy(false);
   };
-  const doEnd=async()=>{
-    if(!survey)return;
-    try{await sfEndSurvey(survey.id);loadSurvey()}catch(_e){}
-  };
-  const doDeleteHistory=async(id)=>{
-    try{await sfDeleteSurvey(id,profile.userId);loadSurvey()}catch(_e){}
-  };
-  const dayOptions=(()=>{
-    if(!survey)return[];
-    const start=new Date(survey.createdAt||Date.now());start.setHours(0,0,0,0);
+  const doEnd=async(id)=>{try{await sfEndSurvey(id);load()}catch(_e){}};
+  const doDeleteHistory=async(id)=>{try{await sfDeleteSurvey(id,profile.userId);load()}catch(_e){}};
+  const dayOptions=(s)=>{
+    const start=new Date(s.createdAt||Date.now());start.setHours(0,0,0,0);
     const now=new Date();now.setHours(0,0,0,0);
     const days=Math.floor((now-start)/86400000)+1;
     const opts=[];
@@ -233,40 +214,112 @@ function MainPage({profile,userProfile,sid}){
       opts.push({n:n,date:d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())});
     }
     return opts;
-  })();
-  const doQuery=async(date)=>{
-    setQueryDate(date);setQueryResult(null);
-    if(!date||!survey)return;
-    const r=await sfDayStatus(survey.id,date);
+  };
+  const doQuery=async(surveyId,date)=>{
+    setQueryOpenId(surveyId);setQueryResult(null);
+    if(!date)return;
+    const r=await sfDayStatus(surveyId,date);
     if(r&&r.ok)setQueryResult(r);
   };
   const statusLabel=(k)=>t['status'+k[0].toUpperCase()+k.slice(1)]||k;
   const fmtTime=(tm)=>{try{const d=new Date(tm);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}catch(_e){return ''}};
-  const pageUrl=location.href.split('?')[0]+(survey?('?sid='+survey.id):'');
+  const detailUrl=(id)=>location.href.split('?')[0]+'?sid='+id;
+  const shareSurvey=(s)=>{
+    const msg=s.title+'\n'+detailUrl(s.id);
+    location.href='https://line.me/R/share?text='+encodeURIComponent(msg);
+  };
+  const openDetail=(id)=>{location.href=location.href.split('?')[0]+'?sid='+id};
 
   return(<div className="min-h-screen p-4 pb-10">
     <div className="max-w-md mx-auto space-y-4">
       <div className="flex items-center justify-between pt-2">
-        <div><h1 className="text-base font-bold text-gray-100">{SF_T.zh.appTitle.replace('登記','')}</h1><p className="text-xs text-gray-500">{userProfile.store} · {displayName}</p></div>
+        <h1 className="text-lg font-bold text-gray-100">{t.centerTitle}</h1>
         {isManagerLevel&&<button onClick={()=>setShowCreate(v=>!v)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold flex-shrink-0">{t.createNewBtn}</button>}
       </div>
 
-      {showCreate&&(<div className="bg-white/[0.03] border border-amber-500/20 rounded-xl p-3 space-y-2">
-        <label className="text-xs text-gray-500 block">{t.createTitleLabel}</label>
-        <input value={newTitle} onChange={e=>setNewTitle(e.target.value)} placeholder={t.createTitlePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-gray-100"/>
-        <button onClick={doCreate} disabled={createBusy||!newTitle.trim()} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50">{createBusy?t.submitting2:t.createBtn}</button>
-      </div>)}
+      {!isManagerLevel?null:(<>
+        {showCreate&&(<div className="bg-white/[0.03] border border-amber-500/20 rounded-xl p-3 space-y-2">
+          <label className="text-xs text-gray-500 block">{t.createTitleLabel}</label>
+          <input value={newTitle} onChange={e=>setNewTitle(e.target.value)} placeholder={t.createTitlePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-gray-100"/>
+          <button onClick={doCreate} disabled={createBusy||!newTitle.trim()} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50">{createBusy?t.submitting2:t.createBtn}</button>
+        </div>)}
+
+        {list===undefined?<p className="text-sm text-gray-600 text-center py-8">{t.loading}</p>:list.length===0?<p className="text-sm text-gray-500 text-center py-8">{t.noSurveys}</p>:list.map(s=>(
+          <div key={s.id} className="bg-white/[0.03] rounded-xl p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p onClick={()=>openDetail(s.id)} className="text-sm text-gray-200 font-medium cursor-pointer flex-1">{s.title}</p>
+              <button onClick={()=>shareSurvey(s)} className="text-xs px-2.5 py-1.5 rounded-lg bg-[#06C755] text-white font-semibold flex-shrink-0">{t.shareBtn}</button>
+            </div>
+            <div className="flex gap-2">
+              <select onChange={e=>doQuery(s.id,e.target.value)} defaultValue="" className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-gray-200"><option value="" disabled>{t.selectDay}</option>{dayOptions(s).map(o=>(<option key={o.n} value={o.date}>{'day'+o.n+': '+o.date}</option>))}</select>
+              <button onClick={()=>doEnd(s.id)} className="px-3 py-1.5 rounded-lg bg-red-600/20 text-red-400 text-xs font-semibold flex-shrink-0">{t.endBtn}</button>
+            </div>
+            {queryOpenId===s.id&&queryResult&&(<div className="space-y-1.5 pt-1"><p className="text-[11px] text-gray-500">{t.reportedCount} {queryResult.did.length}｜{t.notReportedCount} {queryResult.notDid.length}</p>{queryResult.did.map((r,i)=>(<div key={i} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-2.5 py-1.5"><span className="text-xs text-gray-300">{r.display} {statusLabel(r.status)}{r.otherText?('、'+r.otherText):''}</span><span className="text-[10px] text-gray-500 flex-shrink-0">{fmtTime(r.time)}</span></div>))}</div>)}
+          </div>
+        ))}
+
+        {isAdmin&&history&&history.length>0&&(<div className="space-y-2 pt-2 border-t border-white/[0.06]">
+          <button onClick={()=>setShowHistory(v=>!v)} className="text-xs text-gray-500">{t.historyTitle}（{history.length}）{showHistory?'▲':'▼'}</button>
+          {showHistory&&history.map(s=>(<div key={s.id} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-3 py-2"><span className="text-xs text-gray-400">{s.title}（{t.ended}）</span><button onClick={()=>doDeleteHistory(s.id)} className="text-[10px] px-2 py-1 rounded bg-red-600/20 text-red-400 font-bold flex-shrink-0">✕</button></div>))}
+        </div>)}
+      </>)}
+    </div>
+  </div>);
+}
+
+function DetailPage({profile,userProfile,sid}){
+  const t=SF_T[userProfile.lang||'zh'];
+  const displayName=userProfile.personType==='teacher'?userProfile.name:(userProfile.name||userProfile.displayName);
+  const STATUS_OPTS=STATUS_KEYS.map(k=>[k,t['status'+k[0].toUpperCase()+k.slice(1)]]);
+  const PERSON_ORDER={manager:0,admin:0,frontdesk:1,teacher:2};
+  const[survey,setSurvey]=useState(undefined);
+  const[status,setStatus]=useState('');
+  const[otherText,setOtherText]=useState('');
+  const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
+  const[reports,setReports]=useState(null);
+  const[sortMode,setSortMode]=useState('time'); // time/code
+  const loadReports=()=>sfTodayReports(sid).then(r=>{if(r&&r.ok)setReports(r.list||[])});
+  const loadSurvey=()=>{
+    sfListSurveys().then(r=>{
+      if(r&&r.ok&&Array.isArray(r.list)){
+        const target=r.list.find(s=>s.id===sid);
+        setSurvey(target||null);
+        if(target)loadReports();
+      }else{setSurvey(null)}
+    }).catch(()=>setSurvey(null));
+  };
+  useEffect(()=>{loadSurvey()},[]);
+  const submit=async()=>{
+    if(!survey||(!status&&!otherText.trim()))return;
+    setBusy(true);setErr('');
+    try{
+      const r=await sfSubmitReport(survey.id,profile.userId,status,otherText.trim());
+      if(r&&r.ok){setStatus('');setOtherText('');loadReports()}else{setErr((r&&r.error)||'送出失敗')}
+    }catch(e){setErr(String(e))}
+    setBusy(false);
+  };
+  const statusLabel=(k)=>t['status'+k[0].toUpperCase()+k.slice(1)]||k;
+  const fmtTime=(tm)=>{try{const d=new Date(tm);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}catch(_e){return ''}};
+  const sortedReports=useMemo(()=>{
+    if(!reports)return null;
+    if(sortMode==='time')return [...reports].sort((a,b)=>new Date(b.time)-new Date(a.time));
+    return [...reports].sort((a,b)=>{
+      const oa=PERSON_ORDER[a.personType]??9;const ob=PERSON_ORDER[b.personType]??9;
+      if(oa!==ob)return oa-ob;
+      return String(a.display).localeCompare(String(b.display));
+    });
+  },[reports,sortMode]);
+
+  return(<div className="min-h-screen p-4 pb-10">
+    <div className="max-w-md mx-auto space-y-4">
+      <div className="flex items-center justify-between pt-2">
+        <a href={location.href.split('?')[0]} className="text-xs text-gray-500">{t.backToList}</a>
+        <p className="text-xs text-gray-500">{userProfile.store} · {displayName}</p>
+      </div>
 
       {survey===undefined?<p className="text-sm text-gray-600 text-center py-8">{t.loading}</p>:!survey?(
         <p className="text-sm text-gray-500 text-center py-8">{t.noActiveSurvey}</p>
       ):(<>
-        {isManagerLevel&&(<div className="bg-white/[0.03] rounded-xl p-3 space-y-2">
-          <p className="text-sm text-gray-200 font-semibold">{survey.title}</p>
-          <p className="text-[11px] text-gray-500 break-all">{pageUrl}</p>
-          <div className="flex gap-2"><select onChange={e=>doQuery(e.target.value)} defaultValue="" className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200"><option value="" disabled>{t.selectDay}</option>{dayOptions.map(o=>(<option key={o.n} value={o.date}>{'day'+o.n+': '+o.date}</option>))}</select><button onClick={doEnd} className="px-3 py-2 rounded-lg bg-red-600/20 text-red-400 text-xs font-semibold flex-shrink-0">{t.endBtn}</button></div>
-          {queryResult&&(<div className="space-y-1.5 pt-1"><p className="text-[11px] text-gray-500">{t.reportedCount} {queryResult.did.length}｜{t.notReportedCount} {queryResult.notDid.length}</p>{queryResult.did.map((r,i)=>(<div key={i} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-2.5 py-1.5"><span className="text-xs text-gray-300">{r.display} {statusLabel(r.status)}{r.otherText?('、'+r.otherText):''}</span><span className="text-[10px] text-gray-500 flex-shrink-0">{fmtTime(r.time)}</span></div>))}</div>)}
-        </div>)}
-
         {survey.endDate?(<div className="bg-white/[0.03] rounded-xl p-3"><p className="text-sm text-gray-400 text-center">{survey.title}（{t.ended}）</p></div>):(
         <div className="bg-white/[0.03] rounded-xl p-3 space-y-3">
           <p className="text-sm text-gray-300 font-medium">{survey.title}</p>
@@ -277,17 +330,12 @@ function MainPage({profile,userProfile,sid}){
         </div>)}
 
         <div className="space-y-2">
-          <p className="text-xs text-gray-500">{t.reportedList}</p>
-          {reports===null?<p className="text-xs text-gray-600 text-center py-3">{t.loading}</p>:reports.length===0?<p className="text-xs text-gray-600 text-center py-3">{t.noReports}</p>:reports.map((r,i)=>(
+          <div className="flex items-center justify-between"><p className="text-xs text-gray-500">{t.reportedList}</p><div className="flex gap-1"><button onClick={()=>setSortMode('time')} className={`text-[11px] px-2 py-1 rounded ${sortMode==='time'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByTime}</button><button onClick={()=>setSortMode('code')} className={`text-[11px] px-2 py-1 rounded ${sortMode==='code'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByCode}</button></div></div>
+          {sortedReports===null?<p className="text-xs text-gray-600 text-center py-3">{t.loading}</p>:sortedReports.length===0?<p className="text-xs text-gray-600 text-center py-3">{t.noReports}</p>:sortedReports.map((r,i)=>(
             <div key={i} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-3 py-2"><span className="text-sm text-gray-200">{r.display}: {statusLabel(r.status)}{r.otherText?('、'+r.otherText):''}</span><span className="text-xs text-gray-500 flex-shrink-0">{fmtTime(r.time)}</span></div>
           ))}
         </div>
       </>)}
-
-      {isAdmin&&history&&history.length>0&&(<div className="space-y-2 pt-2 border-t border-white/[0.06]">
-        <button onClick={()=>setShowHistory(v=>!v)} className="text-xs text-gray-500">{t.historyTitle}（{history.length}）{showHistory?'▲':'▼'}</button>
-        {showHistory&&history.map(s=>(<div key={s.id} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-3 py-2"><span className="text-xs text-gray-400">{s.title}（{t.ended}）</span><button onClick={()=>doDeleteHistory(s.id)} className="text-[10px] px-2 py-1 rounded bg-red-600/20 text-red-400 font-bold flex-shrink-0">✕</button></div>))}
-      </div>)}
     </div>
   </div>);
 }
@@ -320,7 +368,7 @@ function App(){
   if(phase==='error')return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{liffErr}</p></div>);
   if(phase==='liffInit'||phase==='loading')return(<div className="min-h-screen flex items-center justify-center"><p className="text-sm text-gray-500">載入中…</p></div>);
   if(phase==='register')return(<RegisterFlow profile={profile} onDone={()=>{sfGetUser(profile.userId).then(r=>{if(r&&r.ok&&r.exists){setUserProfile(r.profile);setPhase('main')}})}}/>);
-  return(<MainPage profile={profile} userProfile={userProfile} sid={sid}/>);
+  return sid?(<DetailPage profile={profile} userProfile={userProfile} sid={sid}/>):(<ListPage profile={profile} userProfile={userProfile}/>);
 }
 
 class __EB extends React.Component{constructor(p){super(p);this.state={e:false}}static getDerivedStateFromError(){return{e:true}}componentDidCatch(err){try{window.__showFallback(3,{lineno:0,msg:(err&&err.message)||String(err)})}catch(e){}}render(){return this.state.e?null:this.props.children}}
