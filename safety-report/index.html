@@ -119,6 +119,9 @@ const SF_T={
   }
 };
 const STATUS_KEYS=['safe','flooded','sick'];
+// 測速用:如果這裡填了LIFF ID,會直接跳過問GAS要LIFF_ID那一次來回(省一段網路延遲)。
+// 留空的話會照原本方式去問GAS的指令碼屬性(多一次來回,但LIFF ID要改的話不用重新部署前端)。
+const LIFF_ID_HARDCODED='2010673151-kemVP4Pi';
 const Spinner=({size})=>(<svg className="animate-spin" width={size||14} height={size||14} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>);
 
 async function sfConfig(){const r=await gasCall('sfConfig',{},10000);return r||{ok:false,error:'GAS無回應'};}
@@ -517,9 +520,7 @@ function App(){
   const sid=new URLSearchParams(location.search).get('sid')||''; // 網址帶?sid=SF0001時直接顯示該筆通報,沒帶就顯示目前進行中的列表頁
 
   useEffect(()=>{
-    sfConfig().then(cfg=>{
-      const id=cfg&&cfg.ok?cfg.liffId:'';
-      if(!id){setLiffErr('尚未在GAS指令碼屬性設定LIFF_ID,請聯繫系統管理者');setPhase('error');return}
+    const initLiff=(id)=>{
       setLiffId(id);
       return liff.init({liffId:id}).then(()=>{
         if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return} // 明確帶目前完整網址(含?sid=...),避免LINE登入導轉過程弄丟參數
@@ -533,6 +534,15 @@ function App(){
           });
         });
       });
+    };
+    if(LIFF_ID_HARDCODED){
+      initLiff(LIFF_ID_HARDCODED).catch(err=>{setLiffErr(String(err&&err.message||err));setPhase('error')});
+      return;
+    }
+    sfConfig().then(cfg=>{
+      const id=cfg&&cfg.ok?cfg.liffId:'';
+      if(!id){setLiffErr('尚未在GAS指令碼屬性設定LIFF_ID,請聯繫系統管理者');setPhase('error');return}
+      return initLiff(id);
     }).catch(err=>{setLiffErr(String(err&&err.message||err));setPhase('error')});
   },[]);
 
