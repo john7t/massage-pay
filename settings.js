@@ -199,7 +199,13 @@ function NoticeManagePage({t,settings}){
   const[catTab,setCatTab]=React.useState('all');
   const[subTabSel,setSubTabSel]=React.useState('all');
   const[localOverrides,setLocalOverrides]=React.useState({}); // {id:true} 這則公告是不是套用了本機優先(還沒發布)的內容
-  const mainCatsAll=React.useMemo(()=>{try{return getNoticeMainCats()||[]}catch(_e){return []}},[]);
+  const mainCatsAll=React.useMemo(()=>{
+    try{const v=getNoticeMainCats();if(v&&v.length)return v}catch(_e){}
+    // 防呆:還沒按過「公告更新」重新發布、或Categories工作表還沒設定好時,mainCats會是空的。
+    // 這種情況先退回舊做法(從目前公告資料裡抓出現過的分類),不然畫面會只剩「全部」一個按鈕看起來像壞掉。
+    const s=[];const seen={};list.forEach(n=>{if(n.cat&&!seen[n.cat]){seen[n.cat]=1;s.push({zh:n.cat,vi:''})}});
+    return s;
+  },[list]);
   const catLabel=(zh)=>{const found=mainCatsAll.find(c=>c.zh===zh);return (settings.lang==='vi'&&found&&found.vi)?found.vi:zh};
   const subCatsPresent=React.useMemo(()=>{if(catTab==='all')return[];const s=[];const seen={};list.forEach(n=>{if(n.cat===catTab&&n.subcat&&!seen[n.subcat]){seen[n.subcat]=1;s.push(n.subcat)}});return s},[list,catTab]);
   const[toggleBusy,setToggleBusy]=React.useState(false);
