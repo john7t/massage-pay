@@ -172,7 +172,7 @@ function RegisterFlow({profile,onDone}){
   </div>);
 }
 
-function MainPage({profile,userProfile}){
+function MainPage({profile,userProfile,sid}){
   const t=SF_T[userProfile.lang||'zh'];
   const isManagerLevel=userProfile.personType==='manager'||userProfile.personType==='admin';
   const isAdmin=userProfile.personType==='admin';
@@ -191,9 +191,9 @@ function MainPage({profile,userProfile}){
   const loadSurvey=()=>{
     sfListSurveys().then(r=>{
       if(r&&r.ok&&Array.isArray(r.list)){
-        const active=r.list.find(s=>!s.endDate);
-        setSurvey(active||null);
-        if(active)loadReports(active.id);
+        const target=sid?r.list.find(s=>s.id===sid):r.list.find(s=>!s.endDate);
+        setSurvey(target||null);
+        if(target)loadReports(target.id);
         if(isAdmin)setHistory(r.list.filter(s=>s.endDate));
       }else{setSurvey(null)}
     }).catch(()=>setSurvey(null));
@@ -242,7 +242,7 @@ function MainPage({profile,userProfile}){
   };
   const statusLabel=(k)=>t['status'+k[0].toUpperCase()+k.slice(1)]||k;
   const fmtTime=(tm)=>{try{const d=new Date(tm);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}catch(_e){return ''}};
-  const pageUrl=location.href.split('?')[0];
+  const pageUrl=location.href.split('?')[0]+(survey?('?sid='+survey.id):'');
 
   return(<div className="min-h-screen p-4 pb-10">
     <div className="max-w-md mx-auto space-y-4">
@@ -267,13 +267,14 @@ function MainPage({profile,userProfile}){
           {queryResult&&(<div className="space-y-1.5 pt-1"><p className="text-[11px] text-gray-500">{t.reportedCount} {queryResult.did.length}｜{t.notReportedCount} {queryResult.notDid.length}</p>{queryResult.did.map((r,i)=>(<div key={i} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-2.5 py-1.5"><span className="text-xs text-gray-300">{r.display} {statusLabel(r.status)}{r.otherText?('、'+r.otherText):''}</span><span className="text-[10px] text-gray-500 flex-shrink-0">{fmtTime(r.time)}</span></div>))}</div>)}
         </div>)}
 
+        {survey.endDate?(<div className="bg-white/[0.03] rounded-xl p-3"><p className="text-sm text-gray-400 text-center">{survey.title}（{t.ended}）</p></div>):(
         <div className="bg-white/[0.03] rounded-xl p-3 space-y-3">
           <p className="text-sm text-gray-300 font-medium">{survey.title}</p>
           <div className="grid grid-cols-1 gap-2">{STATUS_OPTS.map(([k,l])=>(<button key={k} onClick={()=>setStatus(k)} className={`py-3 rounded-xl text-sm font-semibold ${status===k?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{l}</button>))}</div>
           <div><label className="text-[11px] text-gray-500 block mb-1">{t.otherLabel}</label><input value={otherText} onChange={e=>setOtherText(e.target.value)} placeholder={t.otherPh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/></div>
           {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
           <button onClick={submit} disabled={busy||(!status&&!otherText.trim())} className="w-full py-3 rounded-xl bg-red-600 text-white font-bold disabled:opacity-50">{busy?t.submitting2:t.submitReportBtn}</button>
-        </div>
+        </div>)}
 
         <div className="space-y-2">
           <p className="text-xs text-gray-500">{t.reportedList}</p>
@@ -296,6 +297,7 @@ function App(){
   const[profile,setProfile]=useState(null);
   const[userProfile,setUserProfile]=useState(null);
   const[liffErr,setLiffErr]=useState('');
+  const sid=new URLSearchParams(location.search).get('sid')||''; // 網址帶?sid=SF0001時直接顯示該筆通報,沒帶就顯示目前進行中的列表頁
 
   useEffect(()=>{
     sfConfig().then(cfg=>{
@@ -318,7 +320,7 @@ function App(){
   if(phase==='error')return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{liffErr}</p></div>);
   if(phase==='liffInit'||phase==='loading')return(<div className="min-h-screen flex items-center justify-center"><p className="text-sm text-gray-500">載入中…</p></div>);
   if(phase==='register')return(<RegisterFlow profile={profile} onDone={()=>{sfGetUser(profile.userId).then(r=>{if(r&&r.ok&&r.exists){setUserProfile(r.profile);setPhase('main')}})}}/>);
-  return(<MainPage profile={profile} userProfile={userProfile}/>);
+  return(<MainPage profile={profile} userProfile={userProfile} sid={sid}/>);
 }
 
 class __EB extends React.Component{constructor(p){super(p);this.state={e:false}}static getDerivedStateFromError(){return{e:true}}componentDidCatch(err){try{window.__showFallback(3,{lineno:0,msg:(err&&err.message)||String(err)})}catch(e){}}render(){return this.state.e?null:this.props.children}}
