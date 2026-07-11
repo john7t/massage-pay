@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+<title>安全回報</title>
+<script>
+  // ══════════ 全域錯誤攔截(白畫面診斷用,比照專案裡其他頁面的做法) ══════════
+  var PAGE="safety",PCODE="02";
+  var __fbL={zh:{title:"網站更新中",info:function(p,v,c){return p+" 網頁 v"+v+" 更新中　代碼 "+c},keep:"你所輸入的舊資料仍保存在你的手機暫存檔中。",warn:"資料只存在本機，不會上傳雲端。"}};
+  window.__fbLang='zh';
+  window.__fbApply=function(){var L=__fbL.zh;var t=document.getElementById('__fbtitle');if(t)t.textContent=L.title;var k=document.getElementById('__fbkeep');if(k)k.textContent=L.keep;var w=document.getElementById('__fbwarn');if(w)w.textContent=L.warn;if(window.__fbData){var info=document.getElementById("__fbinfo");if(info)info.textContent=L.info(window.__fbData.page,window.__fbData.ver,window.__fbData.code);try{var md=document.getElementById("__fbmsg");if(md&&window.__fbData.msg){md.textContent=window.__fbData.msg;md.style.display="block";}}catch(_e){}}};
+  window.__showFallback=function(src,detail){
+    if(window.__shownFallback)return;window.__shownFallback=true;
+    try{
+      var ver=(document.title.match(/v?(\d+\.\d+[-.]\d+)/)||[])[1]||"?";
+      var line=(detail&&detail.lineno)?detail.lineno:0;
+      var ecode=PCODE+String(src).padStart(2,"0")+String(line%10000).padStart(4,"0");
+      window.__fbData={page:PAGE,ver:ver,code:ecode,msg:(detail&&detail.msg)||''};
+      var el=document.getElementById("__fallback");
+      if(el){window.__fbApply();el.style.display="flex";}
+    }catch(_e){}
+  };
+  window.addEventListener("error",function(e){window.__showFallback(1,{lineno:e.lineno,msg:(e.message||'')+(e.filename?(' @'+e.filename.split('/').pop()+':'+e.lineno+':'+e.colno):'')});},true);
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>body{background:#0a0a0f;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}#root{min-height:100vh}</style>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- 白畫面救援畫面(語法/執行錯誤時顯示) -->
+<div id="__fallback" style="display:none;position:fixed;inset:0;z-index:99999;background:#0a0a0f;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;font-family:-apple-system,sans-serif">
+  <div style="width:64px;height:64px;border-radius:50%;border:3px solid #d97706;display:flex;align-items:center;justify-content:center;margin-bottom:24px">🔧</div>
+  <h1 id="__fbtitle" style="font-size:22px;font-weight:500;color:#f3f4f6;margin:0 0 1rem;line-height:1.3">網站更新中</h1>
+  <p id="__fbinfo" style="font-size:12px;color:#6b7280;margin:0 0 2rem;font-family:monospace"></p>
+  <div id="__fbmsg" style="display:none;margin:-1rem 0 2rem;padding:10px 12px;background:#1e1b1b;border:1px solid #7f1d1d;border-radius:8px;font-family:monospace;font-size:11px;color:#fca5a5;max-width:90%;word-break:break-all;white-space:pre-wrap"></div>
+  <div style="max-width:320px;padding:16px;background:#111114;border-radius:12px;border:1px solid #27272a">
+    <p id="__fbkeep" style="font-size:13px;color:#9ca3af;margin:0 0 8px;line-height:1.5"></p>
+    <p id="__fbwarn" style="font-size:12px;color:#f59e0b;margin:0">⚠️ <span id="__fbwarn2"></span></p>
+  </div>
+</div>
+
+<script src="./common.js"></script>
+<script type="text/babel">
+(function(){
+// ══════════ LIFF 設定 ══════════
+// 請到 LINE Developers Console 建立 LIFF App(Login channel → LIFF → Add),
+// Endpoint URL 填這個頁面的網址,然後把拿到的 LIFF ID 貼在下面這行。
+const LIFF_ID = "PLEASE_FILL_YOUR_LIFF_ID"; // 例如 "1234567890-AbCdEfGh"
+
+const{useState,useEffect}=React;
+const{gasCall,gasCallPost,getGasUrl,setGasUrl,TW_REGIONS,LANG_SCHOOLS,T}=window.MP||{};
+
+const STORES=['龍山寺店','東門店','古亭店','公館店'];
+const MANAGER_SUBTYPES=['執行長','區經理','經理','副理','實習副理','櫃台組長'];
+const CITY_PRIORITY=['桃園市','新北市','臺北市','宜蘭縣'];
+const CITY_OPTIONS=[...CITY_PRIORITY,...Object.keys(TW_REGIONS||{}).filter(c=>!CITY_PRIORITY.includes(c))];
+const STATUS_OPTS=[['safe','我很安全'],['flooded','道路積水封路'],['sick','人不舒服']];
+
+async function sfGetUser(lineUserId){const r=await gasCall('sfGetUser',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfRegister(data){const r=await gasCallPost('sfRegister',data,15000);return r||{ok:false,error:'GAS無回應'};}
+async function sfCreateSurvey(title,lineUserId){const r=await gasCallPost('sfCreateSurvey',{title,lineUserId},15000);return r||{ok:false,error:'GAS無回應'};}
+async function sfEndSurvey(id){const r=await gasCallPost('sfEndSurvey',{id},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfListSurveys(){const r=await gasCall('sfListSurveys',{},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfSubmitReport(surveyId,lineUserId,status,otherText){const r=await gasCallPost('sfSubmitReport',{surveyId,lineUserId,status,otherText},15000);return r||{ok:false,error:'GAS無回應'};}
+async function sfTodayReports(surveyId){const r=await gasCall('sfTodayReports',{surveyId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfDayStatus(surveyId,date){const r=await gasCall('sfDayStatus',{surveyId,date},10000);return r||{ok:false,error:'GAS無回應'};}
+
+function RegisterFlow({profile,onDone}){
+  const[store,setStore]=useState('');
+  const[personType,setPersonType]=useState(''); // manager/frontdesk/teacher
+  const[subType,setSubType]=useState('');
+  const[name,setName]=useState('');
+  const[lang,setLang]=useState('zh');
+  const[code,setCode]=useState('');
+  const[gender,setGender]=useState('');
+  const[shift,setShift]=useState('');
+  const[city,setCity]=useState('');const[dist,setDist]=useState('');
+  const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
+  const step1Done=!!store;
+  const canSubmit=(()=>{
+    if(!step1Done||!personType)return false;
+    if(personType==='manager')return subType&&name.trim();
+    if(personType==='frontdesk')return name.trim();
+    if(personType==='teacher')return code.trim()&&gender&&shift&&city&&dist;
+    return false;
+  })();
+  const submit=async()=>{
+    if(!canSubmit)return;
+    setBusy(true);setErr('');
+    try{
+      const r=await sfRegister({lineUserId:profile.userId,displayName:profile.displayName,store,personType,subType,name:personType==='teacher'?code.trim():name.trim(),lang,gender,shift,city,dist});
+      if(r&&r.ok){onDone()}else{setErr((r&&r.error)||'登記失敗')}
+    }catch(e){setErr(String(e))}
+    setBusy(false);
+  };
+  return(<div className="min-h-screen flex items-center justify-center p-4">
+    <div className="w-full max-w-md bg-gray-900 rounded-2xl border border-white/[0.08] p-5 space-y-5">
+      <div className="text-center"><h1 className="text-lg font-bold text-gray-100">安全回報登記</h1><p className="text-xs text-gray-500 mt-1">第一次使用請先完成人員登記</p></div>
+
+      <div><label className="text-sm text-gray-400 block mb-2">選擇店別</label><div className="grid grid-cols-2 gap-2">{STORES.map(s=>(<button key={s} onClick={()=>setStore(s)} className={`py-3 rounded-xl text-sm font-semibold ${store===s?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{s}</button>))}</div></div>
+
+      {step1Done&&(<div><label className="text-sm text-gray-400 block mb-2">選擇人員別</label><div className="grid grid-cols-1 gap-2">
+        <button onClick={()=>setPersonType('manager')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='manager'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>無老師編號的主管</button>
+        <button onClick={()=>setPersonType('frontdesk')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='frontdesk'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>櫃台</button>
+        <button onClick={()=>setPersonType('teacher')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='teacher'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>老師</button>
+      </div></div>)}
+
+      {personType==='manager'&&(<div className="space-y-3">
+        <div><label className="text-sm text-gray-400 block mb-2">選擇主管別</label><div className="grid grid-cols-2 gap-2">{MANAGER_SUBTYPES.map(s=>(<button key={s} onClick={()=>setSubType(s)} className={`py-2.5 rounded-xl text-xs font-semibold ${subType===s?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{s}</button>))}</div></div>
+        <div><label className="text-sm text-gray-400 block mb-2">姓名</label><input value={name} onChange={e=>setName(e.target.value)} placeholder="請輸入姓名" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/></div>
+      </div>)}
+
+      {personType==='frontdesk'&&(<div><label className="text-sm text-gray-400 block mb-2">姓名</label><input value={name} onChange={e=>setName(e.target.value)} placeholder="請輸入姓名" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/></div>)}
+
+      {personType==='teacher'&&(<div className="space-y-3">
+        <div><label className="text-sm text-gray-400 block mb-2">語系</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setLang('zh')} className={`py-2.5 rounded-xl text-sm font-semibold ${lang==='zh'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>中文</button><button onClick={()=>setLang('vi')} className={`py-2.5 rounded-xl text-sm font-semibold ${lang==='vi'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>Tiếng Việt</button></div></div>
+        <div><label className="text-sm text-gray-400 block mb-2">老師編號</label><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder="編號" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 text-center tracking-widest"/></div>
+        <div><label className="text-sm text-gray-400 block mb-2">性別</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setGender('M')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='M'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>男</button><button onClick={()=>setGender('F')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='F'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>女</button></div></div>
+        <div><label className="text-sm text-gray-400 block mb-2">班別</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setShift('day')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='day'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>早班</button><button onClick={()=>setShift('night')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='night'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>晚班</button></div></div>
+        <div><label className="text-sm text-gray-400 block mb-2">居住地區</label><div className="grid grid-cols-2 gap-2">
+          <select value={city} onChange={e=>{setCity(e.target.value);setDist('')}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100"><option value="">縣市</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select>
+          <select value={dist} onChange={e=>setDist(e.target.value)} disabled={!city} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100 disabled:opacity-40"><option value="">鄉鎮市區</option>{(TW_REGIONS&&TW_REGIONS[city]||[]).map(d=><option key={d} value={d}>{d}</option>)}</select>
+        </div></div>
+      </div>)}
+
+      {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
+      {personType&&<button onClick={submit} disabled={!canSubmit||busy} className={`w-full py-3.5 rounded-xl font-bold transition-all ${canSubmit&&!busy?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{busy?'處理中…':'完成登記'}</button>}
+    </div>
+  </div>);
+}
+
+function MainPage({profile,userProfile}){
+  const isManager=userProfile.personType==='manager';
+  const displayName=userProfile.personType==='teacher'?userProfile.name:(userProfile.name||userProfile.displayName);
+  const[survey,setSurvey]=useState(undefined);
+  const[status,setStatus]=useState('');
+  const[otherText,setOtherText]=useState('');
+  const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
+  const[reports,setReports]=useState(null);
+  const[showCreate,setShowCreate]=useState(false);
+  const[newTitle,setNewTitle]=useState('');const[createBusy,setCreateBusy]=useState(false);
+  const[queryDate,setQueryDate]=useState('');const[queryResult,setQueryResult]=useState(null);
+  const loadReports=(sid)=>sfTodayReports(sid).then(r=>{if(r&&r.ok)setReports(r.list||[])});
+  const loadSurvey=()=>{
+    sfListSurveys().then(r=>{
+      if(r&&r.ok&&Array.isArray(r.list)){
+        const active=r.list.find(s=>!s.endDate);
+        setSurvey(active||null);
+        if(active)loadReports(active.id);
+      }else{setSurvey(null)}
+    }).catch(()=>setSurvey(null));
+  };
+  useEffect(()=>{loadSurvey()},[]);
+  const submit=async()=>{
+    if(!survey||(!status&&!otherText.trim()))return;
+    setBusy(true);setErr('');
+    try{
+      const r=await sfSubmitReport(survey.id,profile.userId,status,otherText.trim());
+      if(r&&r.ok){setStatus('');setOtherText('');loadReports(survey.id)}else{setErr((r&&r.error)||'送出失敗')}
+    }catch(e){setErr(String(e))}
+    setBusy(false);
+  };
+  const doCreate=async()=>{
+    if(!newTitle.trim())return;
+    setCreateBusy(true);
+    try{const r=await sfCreateSurvey(newTitle.trim(),profile.userId);if(r&&r.ok){setShowCreate(false);setNewTitle('');loadSurvey()}}catch(_e){}
+    setCreateBusy(false);
+  };
+  const doEnd=async()=>{
+    if(!survey)return;
+    try{await sfEndSurvey(survey.id);loadSurvey()}catch(_e){}
+  };
+  const dayOptions=(()=>{
+    if(!survey)return[];
+    const start=new Date(survey.createdAt||Date.now());start.setHours(0,0,0,0);
+    const now=new Date();now.setHours(0,0,0,0);
+    const days=Math.floor((now-start)/86400000)+1;
+    const opts=[];
+    for(let n=1;n<=Math.max(1,days);n++){
+      const d=new Date(start.getTime()+(n-1)*86400000);
+      const p=x=>String(x).padStart(2,'0');
+      opts.push({n:n,date:d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())});
+    }
+    return opts;
+  })();
+  const doQuery=async(date)=>{
+    setQueryDate(date);setQueryResult(null);
+    if(!date||!survey)return;
+    const r=await sfDayStatus(survey.id,date);
+    if(r&&r.ok)setQueryResult(r);
+  };
+  const statusLabel=(k)=>({safe:'我很安全',flooded:'道路積水封路',sick:'人不舒服'}[k]||k);
+  const fmtTime=(t)=>{try{const d=new Date(t);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}catch(_e){return ''}};
+  const pageUrl=location.href.split('?')[0];
+
+  return(<div className="min-h-screen p-4 pb-10">
+    <div className="max-w-md mx-auto space-y-4">
+      <div className="flex items-center justify-between pt-2">
+        <div><h1 className="text-base font-bold text-gray-100">安全回報</h1><p className="text-xs text-gray-500">{userProfile.store} · {displayName}</p></div>
+        {isManager&&<button onClick={()=>setShowCreate(v=>!v)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold flex-shrink-0">發起新的</button>}
+      </div>
+
+      {showCreate&&(<div className="bg-white/[0.03] border border-amber-500/20 rounded-xl p-3 space-y-2">
+        <label className="text-xs text-gray-500 block">發起通報標題</label>
+        <input value={newTitle} onChange={e=>setNewTitle(e.target.value)} placeholder="例如：0710強颱安全回報" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-gray-100"/>
+        <button onClick={doCreate} disabled={createBusy||!newTitle.trim()} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50">{createBusy?'…':'發起'}</button>
+      </div>)}
+
+      {survey===undefined?<p className="text-sm text-gray-600 text-center py-8">載入中…</p>:!survey?(
+        <p className="text-sm text-gray-500 text-center py-8">目前沒有進行中的通報</p>
+      ):(<>
+        {isManager&&(<div className="bg-white/[0.03] rounded-xl p-3 space-y-2">
+          <p className="text-sm text-gray-200 font-semibold">{survey.title}</p>
+          <p className="text-[11px] text-gray-500 break-all">{pageUrl}</p>
+          <div className="flex gap-2"><select onChange={e=>doQuery(e.target.value)} defaultValue="" className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200"><option value="" disabled>選擇天數</option>{dayOptions.map(o=>(<option key={o.n} value={o.date}>{'day'+o.n+': '+o.date}</option>))}</select><button onClick={doEnd} className="px-3 py-2 rounded-lg bg-red-600/20 text-red-400 text-xs font-semibold flex-shrink-0">結束通報</button></div>
+          {queryResult&&(<div className="space-y-1.5 pt-1"><p className="text-[11px] text-gray-500">已回報 {queryResult.did.length}｜未回報 {queryResult.notDid.length}</p>{queryResult.did.map((r,i)=>(<div key={i} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-2.5 py-1.5"><span className="text-xs text-gray-300">{r.display} {statusLabel(r.status)}{r.otherText?('、'+r.otherText):''}</span><span className="text-[10px] text-gray-500 flex-shrink-0">{fmtTime(r.time)}</span></div>))}</div>)}
+        </div>)}
+
+        <div className="bg-white/[0.03] rounded-xl p-3 space-y-3">
+          <p className="text-sm text-gray-300 font-medium">{survey.title}</p>
+          <div className="grid grid-cols-1 gap-2">{STATUS_OPTS.map(([k,l])=>(<button key={k} onClick={()=>setStatus(k)} className={`py-3 rounded-xl text-sm font-semibold ${status===k?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{l}</button>))}</div>
+          <div><label className="text-[11px] text-gray-500 block mb-1">其他</label><input value={otherText} onChange={e=>setOtherText(e.target.value)} placeholder="自行填寫狀況" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/></div>
+          {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
+          <button onClick={submit} disabled={busy||(!status&&!otherText.trim())} className="w-full py-3 rounded-xl bg-red-600 text-white font-bold disabled:opacity-50">{busy?'…':'送出回報'}</button>
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-xs text-gray-500">已回報人員</p>
+          {reports===null?<p className="text-xs text-gray-600 text-center py-3">載入中…</p>:reports.length===0?<p className="text-xs text-gray-600 text-center py-3">尚無人回報</p>:reports.map((r,i)=>(
+            <div key={i} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-3 py-2"><span className="text-sm text-gray-200">{r.display}: {statusLabel(r.status)}{r.otherText?('、'+r.otherText):''}</span><span className="text-xs text-gray-500 flex-shrink-0">{fmtTime(r.time)}</span></div>
+          ))}
+        </div>
+      </>)}
+    </div>
+  </div>);
+}
+
+function App(){
+  const[phase,setPhase]=useState('liffInit'); // liffInit/needLogin/loading/register/main/error
+  const[profile,setProfile]=useState(null);
+  const[userProfile,setUserProfile]=useState(null);
+  const[liffErr,setLiffErr]=useState('');
+
+  useEffect(()=>{
+    if(!LIFF_ID||LIFF_ID==='PLEASE_FILL_YOUR_LIFF_ID'){setLiffErr('尚未設定 LIFF ID,請聯繫系統管理者');setPhase('error');return}
+    liff.init({liffId:LIFF_ID}).then(()=>{
+      if(!liff.isLoggedIn()){liff.login();return}
+      return liff.getProfile().then(p=>{
+        setProfile(p);
+        setPhase('loading');
+        return sfGetUser(p.userId).then(r=>{
+          if(r&&r.ok&&r.exists){setUserProfile(r.profile);setPhase('main')}
+          else{setPhase('register')}
+        });
+      });
+    }).catch(err=>{setLiffErr(String(err&&err.message||err));setPhase('error')});
+  },[]);
+
+  if(phase==='error')return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{liffErr}</p></div>);
+  if(phase==='liffInit'||phase==='needLogin'||phase==='loading')return(<div className="min-h-screen flex items-center justify-center"><p className="text-sm text-gray-500">載入中…</p></div>);
+  if(phase==='register')return(<RegisterFlow profile={profile} onDone={()=>{sfGetUser(profile.userId).then(r=>{if(r&&r.ok&&r.exists){setUserProfile(r.profile);setPhase('main')}})}}/>);
+  return(<MainPage profile={profile} userProfile={userProfile}/>);
+}
+
+class __EB extends React.Component{constructor(p){super(p);this.state={e:false}}static getDerivedStateFromError(){return{e:true}}componentDidCatch(err){try{window.__showFallback(3,{lineno:0,msg:(err&&err.message)||String(err)})}catch(e){}}render(){return this.state.e?null:this.props.children}}
+ReactDOM.createRoot(document.getElementById('root')).render(<__EB><App/></__EB>);
+})();
+</script>
+</body>
+</html>
