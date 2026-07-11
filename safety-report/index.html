@@ -413,9 +413,9 @@ function DetailPage({profile,userProfile,sid}){
       if(r&&r.ok){
         if(r.noPermission){setNoPermission(true);setSurvey(null);return}
         setSurvey(r.survey||null);
-        if(r.survey)loadReports();
       }else{setSurvey(null)}
     }).catch(()=>setSurvey(null));
+    loadReports(); // 跟上面sfGetSurvey同時發送,不用等它先回來——這兩個request互不依賴,平行打才不會延遲疊加
   };
   useEffect(()=>{loadSurvey()},[]);
   const submit=async()=>{
