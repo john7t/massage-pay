@@ -153,7 +153,7 @@ function RegisterFlow({profile,onDone,sid}){
   const step1Done=langDone&&!!store;
   const canSubmit=(()=>{
     if(!step1Done||!personType)return false;
-    if(personType==='manager')return subType&&name.trim();
+    if(personType==='manager')return subType&&name.trim()&&gender&&shift&&city&&dist;
     if(personType==='frontdesk')return name.trim();
     if(personType==='student')return name.trim();
     if(personType==='teacher')return code.trim()&&gender&&shift&&city&&dist;
@@ -187,6 +187,12 @@ function RegisterFlow({profile,onDone,sid}){
       {personType==='manager'&&(<div className="space-y-3">
         <div><label className="text-sm text-gray-400 block mb-2">{t.chooseSubType}</label><div className="grid grid-cols-2 gap-2">{t.subTypes.map((s,i)=>(<button key={s} onClick={()=>setSubType(SF_T.zh.subTypes[i])} className={`py-2.5 rounded-xl text-xs font-semibold ${subType===SF_T.zh.subTypes[i]?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{s}</button>))}</div></div>
         <div><label className="text-sm text-gray-400 block mb-2">{t.customNameLabel}</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.gender}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setGender('M')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='M'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderM}</button><button onClick={()=>setGender('F')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='F'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderF}</button></div></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.shift}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setShift('day')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='day'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.shiftDay}</button><button onClick={()=>setShift('night')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='night'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.shiftNight}</button></div></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.addr}</label><div className="grid grid-cols-2 gap-2">
+          <select value={city} onChange={e=>{setCity(e.target.value);setDist('')}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100"><option value="">{t.addrCity}</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select>
+          <select value={dist} onChange={e=>setDist(e.target.value)} disabled={!city} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100 disabled:opacity-40"><option value="">{t.addrDist}</option>{(TW_REGIONS&&TW_REGIONS[city]||[]).map(d=><option key={d} value={d}>{d}</option>)}</select>
+        </div></div>
       </div>)}
 
       {personType==='student'&&(<div><label className="text-sm text-gray-400 block mb-2">{t.customNameLabel}</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/></div>)}
@@ -309,21 +315,6 @@ function ListPage({profile,userProfile,liffId}){
     }
     return String(displayNameOf(a)).localeCompare(String(displayNameOf(b)));
   }),[users,storeFilter]);
-  const[editing,setEditing]=useState(false);
-  const[fName,setFName]=useState(userProfile.name||'');
-  const[fGender,setFGender]=useState(userProfile.gender||'');
-  const[fShift,setFShift]=useState(userProfile.shift||'');
-  const[fCity,setFCity]=useState(userProfile.city||'');const[fDist,setFDist]=useState(userProfile.dist||'');
-  const[fSubType,setFSubType]=useState(userProfile.subType||'');
-  const[saveBusy,setSaveBusy]=useState(false);const[savedMsg,setSavedMsg]=useState('');
-  const saveProfile=async()=>{
-    setSaveBusy(true);
-    try{
-      await sfRegister({lineUserId:profile.userId,displayName:profile.displayName,store:userProfile.store,personType:userProfile.personType,subType:userProfile.personType==='manager'?fSubType:userProfile.subType,name:userProfile.personType==='teacher'?userProfile.name:fName.trim(),lang:userProfile.lang,gender:fGender,shift:fShift,city:fCity,dist:fDist});
-      setSavedMsg(t.saved);setEditing(false);setTimeout(()=>setSavedMsg(''),2000);
-    }catch(_e){}
-    setSaveBusy(false);
-  };
   const[myReports,setMyReports]=useState(undefined);
   useEffect(()=>{if(!isManagerLevel)sfMyReportedSurveys(profile.userId).then(r=>{if(r&&r.ok)setMyReports(r.list||[])})},[]);
 
@@ -337,19 +328,11 @@ function ListPage({profile,userProfile,liffId}){
         </div>
       </div>
 
-      <div className="bg-white/[0.03] rounded-xl p-3 space-y-2">
-        <div className="flex items-center justify-between"><p className="text-xs text-gray-500">{t.myProfileTitle}</p>{!editing?<button onClick={()=>setEditing(true)} className="text-xs px-2.5 py-1 rounded-lg bg-white/[0.06] text-gray-300 font-semibold">{t.editBtn}</button>:<div className="flex gap-1.5"><button onClick={()=>setEditing(false)} className="text-xs px-2.5 py-1 rounded-lg bg-white/[0.06] text-gray-400">{t.cancelBtn}</button><button onClick={saveProfile} disabled={saveBusy} className="text-xs px-2.5 py-1 rounded-lg bg-amber-600 text-white font-semibold disabled:opacity-50 flex items-center gap-1">{saveBusy&&<Spinner size={11}/>}{t.saveBtn}</button></div>}</div>
-        {savedMsg&&<p className="text-xs text-emerald-500">✓ {savedMsg}</p>}
-        {!editing?(<div className="text-sm text-gray-300">{userProfile.store} · {personTypeLabel(userProfile)} · {displayNameOf(userProfile)}</div>):(<div className="space-y-2">
-          <p className="text-xs text-gray-600">{userProfile.store} · {personTypeLabel(userProfile)}{userProfile.personType==='teacher'?'（'+t.teacherCode+' '+userProfile.name+'）':''}</p>
-          {userProfile.personType==='manager'&&<div><label className="text-[11px] text-gray-500 block mb-1">{t.chooseSubType}</label><div className="grid grid-cols-2 gap-1.5">{t.subTypes.map((s,i)=>(<button key={s} onClick={()=>setFSubType(SF_T.zh.subTypes[i])} className={`py-1.5 rounded text-[11px] font-semibold ${fSubType===SF_T.zh.subTypes[i]?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{s}</button>))}</div></div>}
-          {(userProfile.personType==='manager'||userProfile.personType==='frontdesk'||userProfile.personType==='student')&&<input value={fName} onChange={e=>setFName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/>}
-          {userProfile.personType==='teacher'&&(<>
-            <div className="grid grid-cols-2 gap-1.5"><button onClick={()=>setFGender('M')} className={`py-1.5 rounded text-xs font-semibold ${fGender==='M'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderM}</button><button onClick={()=>setFGender('F')} className={`py-1.5 rounded text-xs font-semibold ${fGender==='F'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderF}</button></div>
-            <div className="grid grid-cols-2 gap-1.5"><button onClick={()=>setFShift('day')} className={`py-1.5 rounded text-xs font-semibold ${fShift==='day'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.shiftDay}</button><button onClick={()=>setFShift('night')} className={`py-1.5 rounded text-xs font-semibold ${fShift==='night'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.shiftNight}</button></div>
-            <div className="grid grid-cols-2 gap-1.5"><select value={fCity} onChange={e=>{setFCity(e.target.value);setFDist('')}} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200"><option value="">{t.addrCity}</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select><select value={fDist} onChange={e=>setFDist(e.target.value)} disabled={!fCity} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200 disabled:opacity-40"><option value="">{t.addrDist}</option>{(TW_REGIONS&&TW_REGIONS[fCity]||[]).map(d=><option key={d} value={d}>{d}</option>)}</select></div>
-          </>)}
-        </div>)}
+      <div className="bg-white/[0.03] rounded-xl p-3 space-y-1.5">
+        <p className="text-xs text-gray-500">{t.myProfileTitle}</p>
+        <p className="text-sm text-gray-300">{userProfile.store} · {personTypeLabel(userProfile)}{userProfile.personType==='manager'&&userProfile.subType?'（'+userProfile.subType+'）':''}</p>
+        <p className="text-sm text-gray-300">{displayNameOf(userProfile)}</p>
+        {(userProfile.personType==='teacher'||userProfile.personType==='manager')&&<p className="text-sm text-gray-400">{userProfile.gender==='M'?t.genderM:userProfile.gender==='F'?t.genderF:''} {userProfile.shift==='day'?t.shiftDay:userProfile.shift==='night'?t.shiftNight:''} {userProfile.city}{userProfile.dist}</p>}
       </div>
 
       {!isManagerLevel?(<div className="space-y-2">
@@ -501,7 +484,7 @@ function DetailPage({profile,userProfile,sid}){
       ):!survey?(
         <p className="text-base text-gray-500 text-center py-8">{t.noActiveSurvey}</p>
       ):(<>
-        {survey.endDate?(<div className="bg-white/[0.03] rounded-xl p-4"><p className="text-lg text-gray-300 text-center font-bold">{survey.title}（{t.thisSurveyEnded||t.ended}）</p></div>):(
+        {survey.endDate?(<div className="bg-white/[0.03] rounded-2xl p-5"><p className="text-2xl text-gray-200 text-center font-bold leading-snug">{survey.title}</p><p className="text-lg text-gray-400 text-center mt-2">（{t.thisSurveyEnded||t.ended}）</p></div>):(
         <div className="bg-white/[0.03] rounded-2xl p-4 space-y-4">
           <p className="text-2xl text-gray-100 font-bold leading-snug">{survey.title}</p>
           <div className="grid grid-cols-2 gap-3">
@@ -514,9 +497,9 @@ function DetailPage({profile,userProfile,sid}){
         </div>)}
 
         <div className="space-y-2">
-          <div className="flex items-center justify-between flex-wrap gap-2"><p className="text-sm text-gray-400 font-semibold">{t.reportedList}</p><div className="flex gap-1.5 flex-wrap"><button onClick={()=>setSortMode('time')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='time'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByTime}</button><button onClick={()=>setSortMode('code')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='code'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByCode}</button><button onClick={()=>setSortMode('city')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='city'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByCity}</button>{canSeeAllStores&&<button onClick={()=>setSortMode('store')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='store'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByStore}</button>}</div></div>
+          <div className="flex items-center justify-between flex-wrap gap-2"><p className="text-sm text-gray-400 font-semibold">{t.reportedList}</p><div className="flex gap-1.5 flex-wrap"><button onClick={()=>setSortMode('time')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='time'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByTime}</button>{isManagerLevel&&<button onClick={()=>setSortMode('code')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='code'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByCode}</button>}{isManagerLevel&&<button onClick={()=>setSortMode('city')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='city'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByCity}</button>}{canSeeAllStores&&<button onClick={()=>setSortMode('store')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='store'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByStore}</button>}</div></div>
           {sortedReports===null?<p className="text-sm text-gray-600 text-center py-3">{t.loading}</p>:sortedReports.length===0?<p className="text-sm text-gray-600 text-center py-3">{t.noReports}</p>:sortedReports.map((r,i)=>(
-            <div key={i} className="bg-white/[0.04] rounded-xl px-4 py-3.5 border border-white/[0.05]"><div className="flex items-center justify-between gap-2"><span className="text-base text-gray-100 font-semibold">{canSeeAllStores&&r.store?('['+r.store+'] '):''}{r.display}</span><span className="text-xs text-gray-500 flex-shrink-0">{fmtTime(r.time)}</span></div><p className="text-sm text-gray-400 mt-0.5">{statusLabel(r.status)}{r.otherText?('、'+r.otherText):''}</p></div>
+            <div key={i} className="bg-white/[0.04] rounded-xl px-4 py-3.5 border border-white/[0.05]"><div className="flex items-center justify-between gap-2"><span className="text-base text-gray-100 font-semibold">{canSeeAllStores&&r.store?('['+r.store+'] '):''}{r.display}</span><span className="text-xs text-gray-500 flex-shrink-0">{fmtTime(r.time)}</span></div><p className="text-sm text-gray-400 mt-0.5">{statusLabel(r.status)}{r.otherText?('、'+r.otherText):''}{isManagerLevel&&r.city?('　'+r.city):''}</p></div>
           ))}
         </div>
       </>)}
