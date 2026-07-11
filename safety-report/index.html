@@ -51,7 +51,7 @@
 const{useState,useEffect,useMemo}=React;
 const{gasCall,gasCallPost,getGasUrl,setGasUrl,TW_REGIONS,LANG_SCHOOLS}=window.MP||{};
 
-const STORES=['龍山寺店','東門店','古亭店','公館店','本部'];
+const STORES=['龍山寺店','東門店','古亭店','公館店','本部','教學處'];
 const CITY_PRIORITY=['桃園市','新北市','臺北市','宜蘭縣'];
 const CITY_OPTIONS=[...CITY_PRIORITY,...Object.keys(TW_REGIONS||{}).filter(c=>!CITY_PRIORITY.includes(c))];
 
@@ -60,9 +60,9 @@ const SF_T={
   zh:{
     appTitle:'安全回報登記',appSubtitle:'第一次使用請先完成人員登記',
     chooseLang:'選擇語系',chooseStore:'選擇店別',choosePersonType:'選擇人員別',
-    typeManager:'無老師編號的主管',typeFrontdesk:'櫃台',typeTeacher:'老師',
+    typeManager:'主管',typeFrontdesk:'櫃台',typeTeacher:'老師',typeStudent:'教學處學生',
     chooseSubType:'選擇主管別',subTypes:['執行長','區經理','經理','副理','實習副理','櫃台組長'],
-    customNameLabel:'自訂名稱',customNamePh:'請輸入自訂名稱',
+    customNameLabel:'自訂名稱',customNamePh:'請輸入自訂名稱(或直接輸入編號)',
     teacherCode:'老師編號',teacherCodePh:'編號',gender:'性別',genderM:'男',genderF:'女',
     shift:'班別',shiftDay:'早班',shiftNight:'晚班',
     addr:'居住地區',addrCity:'縣市',addrDist:'鄉鎮市區',
@@ -73,16 +73,23 @@ const SF_T={
     selectDay:'選擇天數',endBtn:'結束通報',reportedCount:'已回報',notReportedCount:'未回報',
     reportedList:'已回報人員',noReports:'尚無人回報',loading:'載入中…',noActiveSurvey:'目前沒有進行中的通報',
     historyTitle:'歷史通報(可刪除)',ended:'已結束',
-    centerTitle:'安全回報中心',sortByTime:'時間',sortByCode:'編號',sortByStore:'店名',shareBtn:'分享',
+    centerTitle:'天然災害每日安全回報中心',sortByTime:'時間',sortByCode:'編號',sortByStore:'店名',shareBtn:'分享',
     backHomeBtn:'回主頁',
     listQueryBtn:'查詢',backToList:'← 列表',noSurveys:'目前沒有進行中的通報',
+    myProfileTitle:'我的資料',editBtn:'編輯',saveBtn:'更新',cancelBtn:'取消',saved:'已更新',
+    myReportsSectionTitle:'我回報過的項目',noMyReports:'目前沒有回報過的項目',thisSurveyEnded:'本項安全回報已結束',
+    surveyListTab:'通報列表',userListTab:'人員列表',
+    deleteUserConfirm:'確定要刪除這個人的登記資料嗎？刪除後他可以重新登記。',
+    blockBtn:'封鎖',unblockBtn:'解除封鎖',blockedTag:'已封鎖',
+    invalidParam:'參數錯誤',accountBlocked:'此帳號已被封鎖,無法使用本服務',
+    storeFilterAll:'全部店別',
   },
   vi:{
     appTitle:'Đăng ký báo cáo an toàn',appSubtitle:'Lần đầu sử dụng vui lòng hoàn tất đăng ký',
     chooseLang:'Chọn ngôn ngữ',chooseStore:'Chọn cửa hàng',choosePersonType:'Chọn loại nhân sự',
-    typeManager:'Quản lý không có mã NV',typeFrontdesk:'Lễ tân',typeTeacher:'Nhân viên kỹ thuật',
+    typeManager:'Quản lý',typeFrontdesk:'Lễ tân',typeTeacher:'Nhân viên kỹ thuật',typeStudent:'Học viên phòng đào tạo',
     chooseSubType:'Chọn cấp bậc quản lý',subTypes:['Giám đốc điều hành','Quản lý khu vực','Quản lý','Phó quản lý','Phó quản lý thực tập','Tổ trưởng lễ tân'],
-    customNameLabel:'Tên tùy chỉnh',customNamePh:'Nhập tên tùy chỉnh',
+    customNameLabel:'Tên tùy chỉnh',customNamePh:'Nhập tên tùy chỉnh (hoặc nhập mã số)',
     teacherCode:'Mã nhân viên',teacherCodePh:'Mã số',gender:'Giới tính',genderM:'Nam',genderF:'Nữ',
     shift:'Ca làm',shiftDay:'Ca sáng',shiftNight:'Ca tối',
     addr:'Khu vực sinh sống',addrCity:'Tỉnh/Thành',addrDist:'Quận/Huyện',
@@ -93,9 +100,16 @@ const SF_T={
     selectDay:'Chọn ngày thứ mấy',endBtn:'Kết thúc',reportedCount:'Đã báo cáo',notReportedCount:'Chưa báo cáo',
     reportedList:'Người đã báo cáo',noReports:'Chưa có ai báo cáo',loading:'Đang tải…',noActiveSurvey:'Hiện không có thông báo nào',
     historyTitle:'Lịch sử (có thể xóa)',ended:'Đã kết thúc',
-    centerTitle:'Trung tâm báo cáo an toàn',sortByTime:'Thời gian',sortByCode:'Mã số',sortByStore:'Cửa hàng',shareBtn:'Chia sẻ',
+    centerTitle:'Trung tâm báo cáo an toàn thiên tai hàng ngày',sortByTime:'Thời gian',sortByCode:'Mã số',sortByStore:'Cửa hàng',shareBtn:'Chia sẻ',
     backHomeBtn:'Về trang chính',
     listQueryBtn:'Tra cứu',backToList:'← Danh sách',noSurveys:'Hiện không có thông báo nào',
+    myProfileTitle:'Thông tin của tôi',editBtn:'Sửa',saveBtn:'Cập nhật',cancelBtn:'Hủy',saved:'Đã cập nhật',
+    myReportsSectionTitle:'Các mục tôi đã báo cáo',noMyReports:'Chưa có mục nào',thisSurveyEnded:'Báo cáo an toàn này đã kết thúc',
+    surveyListTab:'Danh sách thông báo',userListTab:'Danh sách nhân sự',
+    deleteUserConfirm:'Xác nhận xóa đăng ký của người này? Sau khi xóa họ có thể đăng ký lại.',
+    blockBtn:'Khóa',unblockBtn:'Mở khóa',blockedTag:'Đã khóa',
+    invalidParam:'Tham số không hợp lệ',accountBlocked:'Tài khoản này đã bị khóa, không thể sử dụng dịch vụ',
+    storeFilterAll:'Tất cả cửa hàng',
   }
 };
 const STATUS_KEYS=['safe','flooded','sick'];
@@ -106,16 +120,21 @@ async function sfRegister(data){const r=await gasCallPost('sfRegister',data,1500
 async function sfCreateSurvey(title,lineUserId){const r=await gasCallPost('sfCreateSurvey',{title,lineUserId},15000);return r||{ok:false,error:'GAS無回應'};}
 async function sfEndSurvey(id){const r=await gasCallPost('sfEndSurvey',{id},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfDeleteSurvey(id,lineUserId){const r=await gasCallPost('sfDeleteSurvey',{id,lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
-async function sfListSurveys(){const r=await gasCall('sfListSurveys',{},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfListSurveys(lineUserId){const r=await gasCall('sfListSurveys',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfGetSurvey(id,lineUserId){const r=await gasCall('sfGetSurvey',{id,lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfListUsers(lineUserId){const r=await gasCall('sfListUsers',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfDeleteUser(lineUserId,targetLineUserId){const r=await gasCallPost('sfDeleteUser',{lineUserId,targetLineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfBlockUser(lineUserId,targetLineUserId){const r=await gasCallPost('sfBlockUser',{lineUserId,targetLineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfMyReportedSurveys(lineUserId){const r=await gasCall('sfMyReportedSurveys',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfSubmitReport(surveyId,lineUserId,status,otherText){const r=await gasCallPost('sfSubmitReport',{surveyId,lineUserId,status,otherText},15000);return r||{ok:false,error:'GAS無回應'};}
 async function sfTodayReports(surveyId,lineUserId){const r=await gasCall('sfTodayReports',{surveyId,lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfDayStatus(surveyId,date,lineUserId){const r=await gasCall('sfDayStatus',{surveyId,date,lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
 
-function RegisterFlow({profile,onDone}){
+function RegisterFlow({profile,onDone,sid}){
   const[lang,setLang]=useState('');
   const t=SF_T[lang||'zh'];
   const[store,setStore]=useState('');
-  const[personType,setPersonType]=useState(''); // manager/frontdesk/teacher(admin不開放自選,只能後台改)
+  const[personType,setPersonType]=useState(''); // manager/frontdesk/teacher/student(admin不開放自選,只能後台改)
   const[subType,setSubType]=useState('');
   const[name,setName]=useState('');
   const[code,setCode]=useState('');
@@ -129,6 +148,7 @@ function RegisterFlow({profile,onDone}){
     if(!step1Done||!personType)return false;
     if(personType==='manager')return subType&&name.trim();
     if(personType==='frontdesk')return name.trim();
+    if(personType==='student')return name.trim();
     if(personType==='teacher')return code.trim()&&gender&&shift&&city&&dist;
     return false;
   })();
@@ -154,12 +174,15 @@ function RegisterFlow({profile,onDone}){
         <button onClick={()=>setPersonType('manager')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='manager'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.typeManager}</button>
         <button onClick={()=>setPersonType('frontdesk')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='frontdesk'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.typeFrontdesk}</button>
         <button onClick={()=>setPersonType('teacher')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='teacher'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.typeTeacher}</button>
+        {store==='教學處'&&<button onClick={()=>setPersonType('student')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='student'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.typeStudent}</button>}
       </div></div>)}
 
       {personType==='manager'&&(<div className="space-y-3">
         <div><label className="text-sm text-gray-400 block mb-2">{t.chooseSubType}</label><div className="grid grid-cols-2 gap-2">{t.subTypes.map((s,i)=>(<button key={s} onClick={()=>setSubType(SF_T.zh.subTypes[i])} className={`py-2.5 rounded-xl text-xs font-semibold ${subType===SF_T.zh.subTypes[i]?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{s}</button>))}</div></div>
         <div><label className="text-sm text-gray-400 block mb-2">{t.customNameLabel}</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/></div>
       </div>)}
+
+      {personType==='student'&&(<div><label className="text-sm text-gray-400 block mb-2">{t.customNameLabel}</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/></div>)}
 
       {personType==='frontdesk'&&(<div><label className="text-sm text-gray-400 block mb-2">{t.customNameLabel}</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/></div>)}
 
@@ -179,24 +202,31 @@ function RegisterFlow({profile,onDone}){
   </div>);
 }
 
-function ListPage({profile,userProfile}){
+function ListPage({profile,userProfile,liffId}){
   const t=SF_T[userProfile.lang||'zh'];
   const isManagerLevel=userProfile.personType==='manager'||userProfile.personType==='admin';
   const isAdmin=userProfile.personType==='admin';
+  const canSeeAllStores=userProfile.personType==='admin'||(userProfile.personType==='manager'&&(userProfile.subType==='執行長'||userProfile.subType==='區經理'));
+  const[tab,setTab]=useState('survey'); // survey/users
   const[list,setList]=useState(undefined);
   const[showCreate,setShowCreate]=useState(false);
   const[newTitle,setNewTitle]=useState('');const[createBusy,setCreateBusy]=useState(false);
   const[queryOpenId,setQueryOpenId]=useState('');const[queryResult,setQueryResult]=useState(null);
   const[history,setHistory]=useState(null);const[showHistory,setShowHistory]=useState(false);
+  const[users,setUsers]=useState(undefined);const[storeFilter,setStoreFilter]=useState('');
+  const[busyUser,setBusyUser]=useState('');
   const load=()=>{
-    sfListSurveys().then(r=>{
+    sfListSurveys(profile.userId).then(r=>{
       if(r&&r.ok&&Array.isArray(r.list)){
         setList(r.list.filter(s=>!s.endDate));
         if(isAdmin)setHistory(r.list.filter(s=>s.endDate));
       }else{setList([])}
     }).catch(()=>setList([]));
   };
-  useEffect(()=>{if(isManagerLevel)load()},[]);
+  const loadUsers=()=>{
+    sfListUsers(profile.userId).then(r=>{if(r&&r.ok)setUsers(r.list||[]);else setUsers([])}).catch(()=>setUsers([]));
+  };
+  useEffect(()=>{if(isManagerLevel){load();loadUsers()}},[]);
   const doCreate=async()=>{
     if(!newTitle.trim())return;
     setCreateBusy(true);
@@ -205,6 +235,16 @@ function ListPage({profile,userProfile}){
   };
   const doEnd=async(id)=>{try{await sfEndSurvey(id);load()}catch(_e){}};
   const doDeleteHistory=async(id)=>{try{await sfDeleteSurvey(id,profile.userId);load()}catch(_e){}};
+  const doDeleteUser=async(targetId)=>{
+    setBusyUser(targetId);
+    try{await sfDeleteUser(profile.userId,targetId);loadUsers()}catch(_e){}
+    setBusyUser('');
+  };
+  const doBlockUser=async(targetId)=>{
+    setBusyUser(targetId);
+    try{await sfBlockUser(profile.userId,targetId);loadUsers()}catch(_e){}
+    setBusyUser('');
+  };
   const dayOptions=(s)=>{
     const start=new Date(s.createdAt||Date.now());start.setHours(0,0,0,0);
     const now=new Date();now.setHours(0,0,0,0);
@@ -225,12 +265,32 @@ function ListPage({profile,userProfile}){
   };
   const statusLabel=(k)=>t['status'+k[0].toUpperCase()+k.slice(1)]||k;
   const fmtTime=(tm)=>{try{const d=new Date(tm);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}catch(_e){return ''}};
-  const detailUrl=(id)=>location.href.split('?')[0]+'?sid='+id;
+  const detailUrl=(id)=>'https://liff.line.me/'+liffId+'?sid='+id; // 用LIFF專屬網址格式,確保LINE登入導轉不會弄丟參數
   const shareSurvey=(s)=>{
     const msg=s.title+'\n'+detailUrl(s.id);
     location.href='https://line.me/R/share?text='+encodeURIComponent(msg);
   };
   const openDetail=(id)=>{location.href=location.href.split('?')[0]+'?sid='+id};
+  const displayUsers=(users||[]).filter(u=>!storeFilter||u.store===storeFilter);
+  const personTypeLabel=(u)=>u.personType==='manager'?(u.subType||t.typeManager):u.personType==='frontdesk'?t.typeFrontdesk:u.personType==='student'?t.typeStudent:u.personType==='admin'?t.typeManager:t.typeTeacher;
+  const displayNameOf=(u)=>u.personType==='teacher'?u.name:(u.name||u.displayName);
+  const[editing,setEditing]=useState(false);
+  const[fName,setFName]=useState(userProfile.name||'');
+  const[fGender,setFGender]=useState(userProfile.gender||'');
+  const[fShift,setFShift]=useState(userProfile.shift||'');
+  const[fCity,setFCity]=useState(userProfile.city||'');const[fDist,setFDist]=useState(userProfile.dist||'');
+  const[fSubType,setFSubType]=useState(userProfile.subType||'');
+  const[saveBusy,setSaveBusy]=useState(false);const[savedMsg,setSavedMsg]=useState('');
+  const saveProfile=async()=>{
+    setSaveBusy(true);
+    try{
+      await sfRegister({lineUserId:profile.userId,displayName:profile.displayName,store:userProfile.store,personType:userProfile.personType,subType:userProfile.personType==='manager'?fSubType:userProfile.subType,name:userProfile.personType==='teacher'?userProfile.name:fName.trim(),lang:userProfile.lang,gender:fGender,shift:fShift,city:fCity,dist:fDist});
+      setSavedMsg(t.saved);setEditing(false);setTimeout(()=>setSavedMsg(''),2000);
+    }catch(_e){}
+    setSaveBusy(false);
+  };
+  const[myReports,setMyReports]=useState(undefined);
+  useEffect(()=>{if(!isManagerLevel)sfMyReportedSurveys(profile.userId).then(r=>{if(r&&r.ok)setMyReports(r.list||[])})},[]);
 
   return(<div className="min-h-screen p-4 pb-10">
     <div className="max-w-md mx-auto space-y-4">
@@ -239,7 +299,30 @@ function ListPage({profile,userProfile}){
         {isManagerLevel&&<button onClick={()=>setShowCreate(v=>!v)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold flex-shrink-0">{t.createNewBtn}</button>}
       </div>
 
-      {!isManagerLevel?null:(<>
+      <div className="bg-white/[0.03] rounded-xl p-3 space-y-2">
+        <div className="flex items-center justify-between"><p className="text-xs text-gray-500">{t.myProfileTitle}</p>{!editing?<button onClick={()=>setEditing(true)} className="text-xs px-2.5 py-1 rounded-lg bg-white/[0.06] text-gray-300 font-semibold">{t.editBtn}</button>:<div className="flex gap-1.5"><button onClick={()=>setEditing(false)} className="text-xs px-2.5 py-1 rounded-lg bg-white/[0.06] text-gray-400">{t.cancelBtn}</button><button onClick={saveProfile} disabled={saveBusy} className="text-xs px-2.5 py-1 rounded-lg bg-amber-600 text-white font-semibold disabled:opacity-50">{saveBusy?'…':t.saveBtn}</button></div>}</div>
+        {savedMsg&&<p className="text-xs text-emerald-500">✓ {savedMsg}</p>}
+        {!editing?(<div className="text-sm text-gray-300">{userProfile.store} · {personTypeLabel(userProfile)} · {displayNameOf(userProfile)}</div>):(<div className="space-y-2">
+          <p className="text-xs text-gray-600">{userProfile.store} · {personTypeLabel(userProfile)}{userProfile.personType==='teacher'?'（'+t.teacherCode+' '+userProfile.name+'）':''}</p>
+          {userProfile.personType==='manager'&&<div><label className="text-[11px] text-gray-500 block mb-1">{t.chooseSubType}</label><div className="grid grid-cols-2 gap-1.5">{t.subTypes.map((s,i)=>(<button key={s} onClick={()=>setFSubType(SF_T.zh.subTypes[i])} className={`py-1.5 rounded text-[11px] font-semibold ${fSubType===SF_T.zh.subTypes[i]?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{s}</button>))}</div></div>}
+          {(userProfile.personType==='manager'||userProfile.personType==='frontdesk'||userProfile.personType==='student')&&<input value={fName} onChange={e=>setFName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/>}
+          {userProfile.personType==='teacher'&&(<>
+            <div className="grid grid-cols-2 gap-1.5"><button onClick={()=>setFGender('M')} className={`py-1.5 rounded text-xs font-semibold ${fGender==='M'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderM}</button><button onClick={()=>setFGender('F')} className={`py-1.5 rounded text-xs font-semibold ${fGender==='F'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderF}</button></div>
+            <div className="grid grid-cols-2 gap-1.5"><button onClick={()=>setFShift('day')} className={`py-1.5 rounded text-xs font-semibold ${fShift==='day'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.shiftDay}</button><button onClick={()=>setFShift('night')} className={`py-1.5 rounded text-xs font-semibold ${fShift==='night'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.shiftNight}</button></div>
+            <div className="grid grid-cols-2 gap-1.5"><select value={fCity} onChange={e=>{setFCity(e.target.value);setFDist('')}} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200"><option value="">{t.addrCity}</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select><select value={fDist} onChange={e=>setFDist(e.target.value)} disabled={!fCity} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200 disabled:opacity-40"><option value="">{t.addrDist}</option>{(TW_REGIONS&&TW_REGIONS[fCity]||[]).map(d=><option key={d} value={d}>{d}</option>)}</select></div>
+          </>)}
+        </div>)}
+      </div>
+
+      {!isManagerLevel?(<div className="space-y-2">
+        <p className="text-xs text-gray-500">{t.myReportsSectionTitle}</p>
+        {myReports===undefined?<p className="text-xs text-gray-600 text-center py-3">{t.loading}</p>:myReports.length===0?<p className="text-xs text-gray-600 text-center py-3">{t.noMyReports}</p>:myReports.map(s=>(
+          <div key={s.id} onClick={()=>openDetail(s.id)} className="bg-white/[0.03] rounded-lg px-3 py-2.5 cursor-pointer flex items-center justify-between"><span className="text-sm text-gray-200">{s.title}</span>{s.endDate&&<span className="text-[10px] text-gray-500 flex-shrink-0">{t.ended}</span>}</div>
+        ))}
+      </div>):(<>
+        <div className="flex gap-2"><button onClick={()=>setTab('survey')} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${tab==='survey'?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-400'}`}>{t.surveyListTab}</button><button onClick={()=>setTab('users')} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${tab==='users'?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-400'}`}>{t.userListTab}</button></div>
+
+        {tab==='survey'&&(<>
         {showCreate&&(<div className="bg-white/[0.03] border border-amber-500/20 rounded-xl p-3 space-y-2">
           <label className="text-xs text-gray-500 block">{t.createTitleLabel}</label>
           <input value={newTitle} onChange={e=>setNewTitle(e.target.value)} placeholder={t.createTitlePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-gray-100"/>
@@ -264,6 +347,20 @@ function ListPage({profile,userProfile}){
           <button onClick={()=>setShowHistory(v=>!v)} className="text-xs text-gray-500">{t.historyTitle}（{history.length}）{showHistory?'▲':'▼'}</button>
           {showHistory&&history.map(s=>(<div key={s.id} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-3 py-2"><span className="text-xs text-gray-400">{s.title}（{t.ended}）</span><button onClick={()=>doDeleteHistory(s.id)} className="text-[10px] px-2 py-1 rounded bg-red-600/20 text-red-400 font-bold flex-shrink-0">✕</button></div>))}
         </div>)}
+        </>)}
+
+        {tab==='users'&&(<div className="space-y-2">
+          {canSeeAllStores&&<select value={storeFilter} onChange={e=>setStoreFilter(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200"><option value="">{t.storeFilterAll}</option>{STORES.map(s=><option key={s} value={s}>{s}</option>)}</select>}
+          {users===undefined?<p className="text-sm text-gray-600 text-center py-8">{t.loading}</p>:displayUsers.map(u=>(
+            <div key={u.lineUserId} className={`flex items-center justify-between bg-white/[0.03] rounded-lg px-3 py-2 ${u.blocked?'opacity-40':''}`}>
+              <span className="text-sm text-gray-200">{canSeeAllStores?'['+u.store+'] ':''}{personTypeLabel(u)} · {displayNameOf(u)}{u.blocked?'（'+t.blockedTag+'）':''}</span>
+              <div className="flex gap-1.5 flex-shrink-0">
+                <button onClick={()=>doDeleteUser(u.lineUserId)} disabled={busyUser===u.lineUserId} className="text-[10px] px-2 py-1 rounded bg-white/[0.08] text-gray-400 font-bold disabled:opacity-50">✕</button>
+                <button onClick={()=>doBlockUser(u.lineUserId)} disabled={busyUser===u.lineUserId} className={`text-[10px] px-2 py-1 rounded font-bold disabled:opacity-50 ${u.blocked?'bg-emerald-600/20 text-emerald-400':'bg-red-600/20 text-red-400'}`}>🚫</button>
+              </div>
+            </div>
+          ))}
+        </div>)}
       </>)}
     </div>
   </div>);
@@ -280,13 +377,14 @@ function DetailPage({profile,userProfile,sid}){
   const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
   const[reports,setReports]=useState(null);
   const[sortMode,setSortMode]=useState('time'); // time/code
+  const[noPermission,setNoPermission]=useState(false);
   const loadReports=()=>sfTodayReports(sid,profile.userId).then(r=>{if(r&&r.ok)setReports(r.list||[])});
   const loadSurvey=()=>{
-    sfListSurveys().then(r=>{
-      if(r&&r.ok&&Array.isArray(r.list)){
-        const target=r.list.find(s=>s.id===sid);
-        setSurvey(target||null);
-        if(target)loadReports();
+    sfGetSurvey(sid,profile.userId).then(r=>{
+      if(r&&r.ok){
+        if(r.noPermission){setNoPermission(true);setSurvey(null);return}
+        setSurvey(r.survey||null);
+        if(r.survey)loadReports();
       }else{setSurvey(null)}
     }).catch(()=>setSurvey(null));
   };
@@ -327,10 +425,12 @@ function DetailPage({profile,userProfile,sid}){
         {isManagerLevel&&<a href={location.href.split('?')[0]} className="text-xs px-3 py-1.5 rounded-lg bg-white/[0.06] text-gray-300 font-semibold flex-shrink-0">{t.backHomeBtn}</a>}
       </div>
 
-      {survey===undefined?<p className="text-sm text-gray-600 text-center py-8">{t.loading}</p>:!survey?(
+      {survey===undefined?<p className="text-sm text-gray-600 text-center py-8">{t.loading}</p>:noPermission?(
+        <p className="text-sm text-red-400 text-center py-8">{t.invalidParam}</p>
+      ):!survey?(
         <p className="text-sm text-gray-500 text-center py-8">{t.noActiveSurvey}</p>
       ):(<>
-        {survey.endDate?(<div className="bg-white/[0.03] rounded-xl p-3"><p className="text-sm text-gray-400 text-center">{survey.title}（{t.ended}）</p></div>):(
+        {survey.endDate?(<div className="bg-white/[0.03] rounded-xl p-3"><p className="text-sm text-gray-400 text-center">{survey.title}（{t.thisSurveyEnded||t.ended}）</p></div>):(
         <div className="bg-white/[0.03] rounded-xl p-3 space-y-3">
           <p className="text-sm text-gray-300 font-medium">{survey.title}</p>
           <div className="grid grid-cols-1 gap-2">{STATUS_OPTS.map(([k,l])=>(<button key={k} onClick={()=>setStatus(k)} className={`py-3 rounded-xl text-sm font-semibold ${status===k?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{l}</button>))}</div>
@@ -355,18 +455,22 @@ function App(){
   const[profile,setProfile]=useState(null);
   const[userProfile,setUserProfile]=useState(null);
   const[liffErr,setLiffErr]=useState('');
+  const[blocked,setBlocked]=useState(false);
+  const[liffId,setLiffId]=useState('');
   const sid=new URLSearchParams(location.search).get('sid')||''; // 網址帶?sid=SF0001時直接顯示該筆通報,沒帶就顯示目前進行中的列表頁
 
   useEffect(()=>{
     sfConfig().then(cfg=>{
-      const liffId=cfg&&cfg.ok?cfg.liffId:'';
-      if(!liffId){setLiffErr('尚未在GAS指令碼屬性設定LIFF_ID,請聯繫系統管理者');setPhase('error');return}
-      return liff.init({liffId}).then(()=>{
-        if(!liff.isLoggedIn()){liff.login();return}
+      const id=cfg&&cfg.ok?cfg.liffId:'';
+      if(!id){setLiffErr('尚未在GAS指令碼屬性設定LIFF_ID,請聯繫系統管理者');setPhase('error');return}
+      setLiffId(id);
+      return liff.init({liffId:id}).then(()=>{
+        if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return} // 明確帶目前完整網址(含?sid=...),避免LINE登入導轉過程弄丟參數
         return liff.getProfile().then(p=>{
           setProfile(p);
           setPhase('loading');
           return sfGetUser(p.userId).then(r=>{
+            if(r&&r.ok&&r.blocked){setBlocked(true);setPhase('main');return}
             if(r&&r.ok&&r.exists){setUserProfile(r.profile);setPhase('main')}
             else{setPhase('register')}
           });
@@ -377,8 +481,13 @@ function App(){
 
   if(phase==='error')return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{liffErr}</p></div>);
   if(phase==='liffInit'||phase==='loading')return(<div className="min-h-screen flex items-center justify-center"><p className="text-sm text-gray-500">載入中…</p></div>);
-  if(phase==='register')return(<RegisterFlow profile={profile} onDone={()=>{sfGetUser(profile.userId).then(r=>{if(r&&r.ok&&r.exists){setUserProfile(r.profile);setPhase('main')}})}}/>);
-  return sid?(<DetailPage profile={profile} userProfile={userProfile} sid={sid}/>):(<ListPage profile={profile} userProfile={userProfile}/>);
+  if(blocked)return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{SF_T.zh.accountBlocked} / {SF_T.vi.accountBlocked}</p></div>);
+  if(phase==='register')return(<RegisterFlow profile={profile} sid={sid} onDone={()=>{sfGetUser(profile.userId).then(r=>{if(r&&r.ok&&r.exists){
+    // 登記完成導回原本帶的sid頁面(不然使用者原本是要去回報某一項,卻被丟到看不到那項的首頁)
+    if(sid){location.href=location.href.split('?')[0]+'?sid='+sid;return}
+    setUserProfile(r.profile);setPhase('main');
+  }})}}/>);
+  return sid?(<DetailPage profile={profile} userProfile={userProfile} sid={sid}/>):(<ListPage profile={profile} userProfile={userProfile} liffId={liffId}/>);
 }
 
 class __EB extends React.Component{constructor(p){super(p);this.state={e:false}}static getDerivedStateFromError(){return{e:true}}componentDidCatch(err){try{window.__showFallback(3,{lineno:0,msg:(err&&err.message)||String(err)})}catch(e){}}render(){return this.state.e?null:this.props.children}}
@@ -386,4 +495,4 @@ ReactDOM.createRoot(document.getElementById('root')).render(<__EB><App/></__EB>)
 })();
 </script>
 </body>
-</html>`
+</html>
