@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-034</title>
+<title>薪資追蹤 v1.12-035</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -710,8 +710,9 @@ function GroupBuyModal({t,settings,onClose}){
   const[newAmount,setNewAmount]=useState('');const[newDeadline,setNewDeadline]=useState('');const[newScope,setNewScope]=useState('');
   const[createBusy,setCreateBusy]=useState(false);const[createErr,setCreateErr]=useState('');
   const[detailBuy,setDetailBuy]=useState(null);const[detail,setDetail]=useState(null);
-  const loadList=()=>{gasListGroupBuys().then(r=>{if(r&&r.ok){setList(r.list||[]);(r.list||[]).filter(g=>g.status==='open').forEach(g=>{try{gasLogGroupBuyOpen(g.id,code)}catch(_e){}})}})};
-  const loadMine=()=>{gasMyGroupBuyOrders(code).then(r=>{if(r&&r.ok)setMine(r.list||[])})};
+  const[listErr,setListErr]=useState('');
+  const loadList=()=>{gasListGroupBuys().then(r=>{if(r&&r.ok){setList(r.list||[]);setListErr('');(r.list||[]).filter(g=>g.status==='open').forEach(g=>{try{gasLogGroupBuyOpen(g.id,code)}catch(_e){}})}else{setList([]);setListErr((r&&r.error)||'讀取失敗')}}).catch(e=>{setList([]);setListErr(String(e))})};
+  const loadMine=()=>{gasMyGroupBuyOrders(code).then(r=>{if(r&&r.ok)setMine(r.list||[]);else setMine([])}).catch(()=>setMine([]))};
   useEffect(()=>{loadList();loadMine()},[]);
   const joinedIds=useMemo(()=>new Set((mine||[]).map(o=>o.buyId)),[mine]);
   const doJoin=async(g)=>{
@@ -778,6 +779,7 @@ function GroupBuyModal({t,settings,onClose}){
           <button onClick={doCreate} disabled={createBusy} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50">{createBusy?'…':t.groupBuyCreateBtn}</button>
         </div>)}
         {sizePromptBuy&&(<div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 space-y-2"><p className="text-xs text-amber-400">{t.gloveSize}</p><div className="grid grid-cols-5 gap-1.5">{['XS','S','M','L','XL'].map(g=>(<button key={g} onClick={()=>setJoinSize(g)} className={`py-2 rounded-lg text-xs font-semibold ${joinSize===g?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{g}</button>))}</div><button onClick={()=>confirmJoinWithSize(sizePromptBuy)} disabled={busy===sizePromptBuy.id} className="w-full py-2 rounded-lg bg-amber-600 text-white text-xs font-bold disabled:opacity-50">{busy===sizePromptBuy.id?'…':t.groupBuyJoinBtn}</button></div>)}
+        {listErr&&<p className="text-xs text-red-400 text-center">{listErr}</p>}
         {list===null?<p className="text-xs text-gray-600 text-center py-4">{t.loading||'載入中…'}</p>:list.filter(g=>g.status==='open').length===0?<p className="text-xs text-gray-600 text-center py-4">{t.groupBuyEmpty}</p>:list.filter(g=>g.status==='open').map(g=>(
           <div key={g.id} className="bg-white/[0.03] rounded-xl p-3 space-y-2">
             <div onClick={()=>openDetail(g)} className="flex items-center justify-between gap-2 cursor-pointer"><p className="text-sm text-gray-200 font-medium">{g.title}（由{g.creator}發起）</p><span className="text-xs text-amber-400 font-semibold flex-shrink-0">{fmtCountdown(g.deadline)}</span></div>
@@ -809,9 +811,9 @@ function DisasterReportModal({t,settings,onClose,onSaved}){
       if(r&&r.ok&&Array.isArray(r.list)){
         const active=r.list.find(s=>!s.endDate);
         setSurvey(active||null);
-        if(active)gasMyDisasterReports(active.id,code).then(mr=>{if(mr&&mr.ok)setMyReports(mr.list||[])});
+        if(active)gasMyDisasterReports(active.id,code).then(mr=>{if(mr&&mr.ok)setMyReports(mr.list||[])}).catch(()=>{});
       }else{setSurvey(null)}
-    });
+    }).catch(()=>{setSurvey(null)});
   },[]);
   const alreadyToday=myReports&&myReports.some(r=>r.date===today);
   const submit=async()=>{

@@ -18,6 +18,7 @@
 </head>
 <body>
 <h1>🔧 部署診斷頁</h1>
+<p id="testTime" style="color:#6b7280;font-size:12px;margin:-8px 0 12px"></p>
 <button onclick="location.reload()">重新檢查</button>
 <button onclick="copyMarkdown()" style="background:#0891b2">📋 複製診斷結果(Markdown)</button>
 <span id="copyMsg" style="font-size:12px;color:#10b981;margin-left:8px"></span>
@@ -188,7 +189,7 @@ async function checkLoads() {
 
 function copyMarkdown() {
   const d = window.__diag;
-  let md = '### 部署診斷結果\n\n**檔案版本**\n\n';
+  let md = '### 部署診斷結果\n\n測試時間：' + new Date().toLocaleString('zh-TW', { hour12: false }) + '\n\n**檔案版本**\n\n';
   d.versions.forEach(([name, ver]) => { md += `- ${name}: \`${ver}\`\n`; });
   md += '\n**逐一載入腳本**\n\n';
   d.loads.forEach(([name, status, detail]) => {
@@ -212,6 +213,7 @@ function copyMarkdown() {
   } else { fail(); }
 }
 
+document.getElementById('testTime').textContent = '測試時間：' + new Date().toLocaleString('zh-TW', { hour12: false });
 checkVersions();
 checkLoads();
 </script>
