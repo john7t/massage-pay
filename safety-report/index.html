@@ -51,7 +51,7 @@
 const{useState,useEffect,useMemo}=React;
 const{gasCall,gasCallPost,getGasUrl,setGasUrl,TW_REGIONS,LANG_SCHOOLS}=window.MP||{};
 
-const STORES=['龍山寺店','東門店','古亭店','公館店'];
+const STORES=['龍山寺店','東門店','古亭店','公館店','本部'];
 const CITY_PRIORITY=['桃園市','新北市','臺北市','宜蘭縣'];
 const CITY_OPTIONS=[...CITY_PRIORITY,...Object.keys(TW_REGIONS||{}).filter(c=>!CITY_PRIORITY.includes(c))];
 
@@ -73,7 +73,8 @@ const SF_T={
     selectDay:'選擇天數',endBtn:'結束通報',reportedCount:'已回報',notReportedCount:'未回報',
     reportedList:'已回報人員',noReports:'尚無人回報',loading:'載入中…',noActiveSurvey:'目前沒有進行中的通報',
     historyTitle:'歷史通報(可刪除)',ended:'已結束',
-    centerTitle:'安全回報中心',sortByTime:'時間',sortByCode:'編號',shareBtn:'分享',
+    centerTitle:'安全回報中心',sortByTime:'時間',sortByCode:'編號',sortByStore:'店名',shareBtn:'分享',
+    backHomeBtn:'回主頁',
     listQueryBtn:'查詢',backToList:'← 列表',noSurveys:'目前沒有進行中的通報',
   },
   vi:{
@@ -92,7 +93,8 @@ const SF_T={
     selectDay:'Chọn ngày thứ mấy',endBtn:'Kết thúc',reportedCount:'Đã báo cáo',notReportedCount:'Chưa báo cáo',
     reportedList:'Người đã báo cáo',noReports:'Chưa có ai báo cáo',loading:'Đang tải…',noActiveSurvey:'Hiện không có thông báo nào',
     historyTitle:'Lịch sử (có thể xóa)',ended:'Đã kết thúc',
-    centerTitle:'Trung tâm báo cáo an toàn',sortByTime:'Thời gian',sortByCode:'Mã số',shareBtn:'Chia sẻ',
+    centerTitle:'Trung tâm báo cáo an toàn',sortByTime:'Thời gian',sortByCode:'Mã số',sortByStore:'Cửa hàng',shareBtn:'Chia sẻ',
+    backHomeBtn:'Về trang chính',
     listQueryBtn:'Tra cứu',backToList:'← Danh sách',noSurveys:'Hiện không có thông báo nào',
   }
 };
@@ -106,8 +108,8 @@ async function sfEndSurvey(id){const r=await gasCallPost('sfEndSurvey',{id},1000
 async function sfDeleteSurvey(id,lineUserId){const r=await gasCallPost('sfDeleteSurvey',{id,lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfListSurveys(){const r=await gasCall('sfListSurveys',{},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfSubmitReport(surveyId,lineUserId,status,otherText){const r=await gasCallPost('sfSubmitReport',{surveyId,lineUserId,status,otherText},15000);return r||{ok:false,error:'GAS無回應'};}
-async function sfTodayReports(surveyId){const r=await gasCall('sfTodayReports',{surveyId},10000);return r||{ok:false,error:'GAS無回應'};}
-async function sfDayStatus(surveyId,date){const r=await gasCall('sfDayStatus',{surveyId,date},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfTodayReports(surveyId,lineUserId){const r=await gasCall('sfTodayReports',{surveyId,lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfDayStatus(surveyId,date,lineUserId){const r=await gasCall('sfDayStatus',{surveyId,date,lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
 
 function RegisterFlow({profile,onDone}){
   const[lang,setLang]=useState('');
@@ -218,7 +220,7 @@ function ListPage({profile,userProfile}){
   const doQuery=async(surveyId,date)=>{
     setQueryOpenId(surveyId);setQueryResult(null);
     if(!date)return;
-    const r=await sfDayStatus(surveyId,date);
+    const r=await sfDayStatus(surveyId,date,profile.userId);
     if(r&&r.ok)setQueryResult(r);
   };
   const statusLabel=(k)=>t['status'+k[0].toUpperCase()+k.slice(1)]||k;
@@ -278,7 +280,7 @@ function DetailPage({profile,userProfile,sid}){
   const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
   const[reports,setReports]=useState(null);
   const[sortMode,setSortMode]=useState('time'); // time/code
-  const loadReports=()=>sfTodayReports(sid).then(r=>{if(r&&r.ok)setReports(r.list||[])});
+  const loadReports=()=>sfTodayReports(sid,profile.userId).then(r=>{if(r&&r.ok)setReports(r.list||[])});
   const loadSurvey=()=>{
     sfListSurveys().then(r=>{
       if(r&&r.ok&&Array.isArray(r.list)){
@@ -303,18 +305,26 @@ function DetailPage({profile,userProfile,sid}){
   const sortedReports=useMemo(()=>{
     if(!reports)return null;
     if(sortMode==='time')return [...reports].sort((a,b)=>new Date(b.time)-new Date(a.time));
+    if(sortMode==='store')return [...reports].sort((a,b)=>{
+      const sc=String(a.store||'').localeCompare(String(b.store||''));
+      if(sc!==0)return sc;
+      const oa=PERSON_ORDER[a.personType]??9;const ob=PERSON_ORDER[b.personType]??9;
+      return oa-ob;
+    });
     return [...reports].sort((a,b)=>{
       const oa=PERSON_ORDER[a.personType]??9;const ob=PERSON_ORDER[b.personType]??9;
       if(oa!==ob)return oa-ob;
       return String(a.display).localeCompare(String(b.display));
     });
   },[reports,sortMode]);
+  const canSeeAllStores=userProfile.personType==='admin'||(userProfile.personType==='manager'&&(userProfile.subType==='執行長'||userProfile.subType==='區經理'));
 
+  const isManagerLevel=userProfile.personType==='manager'||userProfile.personType==='admin';
   return(<div className="min-h-screen p-4 pb-10">
     <div className="max-w-md mx-auto space-y-4">
       <div className="flex items-center justify-between pt-2">
-        <a href={location.href.split('?')[0]} className="text-xs text-gray-500">{t.backToList}</a>
         <p className="text-xs text-gray-500">{userProfile.store} · {displayName}</p>
+        {isManagerLevel&&<a href={location.href.split('?')[0]} className="text-xs px-3 py-1.5 rounded-lg bg-white/[0.06] text-gray-300 font-semibold flex-shrink-0">{t.backHomeBtn}</a>}
       </div>
 
       {survey===undefined?<p className="text-sm text-gray-600 text-center py-8">{t.loading}</p>:!survey?(
@@ -330,9 +340,9 @@ function DetailPage({profile,userProfile,sid}){
         </div>)}
 
         <div className="space-y-2">
-          <div className="flex items-center justify-between"><p className="text-xs text-gray-500">{t.reportedList}</p><div className="flex gap-1"><button onClick={()=>setSortMode('time')} className={`text-[11px] px-2 py-1 rounded ${sortMode==='time'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByTime}</button><button onClick={()=>setSortMode('code')} className={`text-[11px] px-2 py-1 rounded ${sortMode==='code'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByCode}</button></div></div>
+          <div className="flex items-center justify-between"><p className="text-xs text-gray-500">{t.reportedList}</p><div className="flex gap-1"><button onClick={()=>setSortMode('time')} className={`text-[11px] px-2 py-1 rounded ${sortMode==='time'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByTime}</button><button onClick={()=>setSortMode('code')} className={`text-[11px] px-2 py-1 rounded ${sortMode==='code'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByCode}</button>{canSeeAllStores&&<button onClick={()=>setSortMode('store')} className={`text-[11px] px-2 py-1 rounded ${sortMode==='store'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByStore}</button>}</div></div>
           {sortedReports===null?<p className="text-xs text-gray-600 text-center py-3">{t.loading}</p>:sortedReports.length===0?<p className="text-xs text-gray-600 text-center py-3">{t.noReports}</p>:sortedReports.map((r,i)=>(
-            <div key={i} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-3 py-2"><span className="text-sm text-gray-200">{r.display}: {statusLabel(r.status)}{r.otherText?('、'+r.otherText):''}</span><span className="text-xs text-gray-500 flex-shrink-0">{fmtTime(r.time)}</span></div>
+            <div key={i} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-3 py-2"><span className="text-sm text-gray-200">{canSeeAllStores&&r.store?('['+r.store+'] '):''}{r.display}: {statusLabel(r.status)}{r.otherText?('、'+r.otherText):''}</span><span className="text-xs text-gray-500 flex-shrink-0">{fmtTime(r.time)}</span></div>
           ))}
         </div>
       </>)}
@@ -376,4 +386,4 @@ ReactDOM.createRoot(document.getElementById('root')).render(<__EB><App/></__EB>)
 })();
 </script>
 </body>
-</html>
+</html>`
