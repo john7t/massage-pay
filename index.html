@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-035</title>
+<title>薪資追蹤 v1.12-039</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -802,42 +802,58 @@ function DisasterReportModal({t,settings,onClose,onSaved}){
   const[statuses,setStatuses]=useState([]);
   const[otherText,setOtherText]=useState('');
   const[city,setCity]=useState(settings.addrCity||'');const[dist,setDist]=useState(settings.addrDist||'');
-  const[busy,setBusy]=useState(false);const[done,setDone]=useState(false);const[err,setErr]=useState('');
+  const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
   const[myReports,setMyReports]=useState(null);
+  const[showForm,setShowForm]=useState(false); // true=顯示填寫表單,false=顯示回報記錄(有回報過時預設這個)
   const needAddr=!city||!dist;
+  const statusLabel=(k)=>({safe:t.drSafe,cantLeave:t.drCantLeave,vehicleDamaged:t.drVehicleDamaged,sick:t.drSick}[k]||k);
+  const fmtReportLine=(r)=>{
+    const parts=(r.type?r.type.split(','):[]).map(statusLabel).filter(Boolean);
+    if(r.otherText)parts.push(r.otherText);
+    let dt=r.date;
+    if(r.time){try{const d=new Date(r.time);dt=r.date+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}catch(_e){}}
+    return dt+' '+parts.join('、');
+  };
   const toggleStatus=(s)=>setStatuses(prev=>prev.includes(s)?prev.filter(x=>x!==s):[...prev,s]);
+  const loadMine=(surveyId)=>gasMyDisasterReports(surveyId,code).then(mr=>{if(mr&&mr.ok){setMyReports(mr.list||[]);setShowForm(!(mr.list&&mr.list.some(r=>r.date===today)))}}).catch(()=>{});
   useEffect(()=>{
     gasListDisasterSurveys().then(r=>{
       if(r&&r.ok&&Array.isArray(r.list)){
         const active=r.list.find(s=>!s.endDate);
         setSurvey(active||null);
-        if(active)gasMyDisasterReports(active.id,code).then(mr=>{if(mr&&mr.ok)setMyReports(mr.list||[])}).catch(()=>{});
-      }else{setSurvey(null)}
-    }).catch(()=>{setSurvey(null)});
+        if(active)loadMine(active.id);else setShowForm(true);
+      }else{setSurvey(null);setShowForm(true)}
+    }).catch(()=>{setSurvey(null);setShowForm(true)});
   },[]);
-  const alreadyToday=myReports&&myReports.some(r=>r.date===today);
   const submit=async()=>{
     if(needAddr||(statuses.length===0&&!otherText.trim())||!survey)return;
     setBusy(true);setErr('');
     try{
       const r=await gasSubmitDisasterReport({surveyId:survey.id,code,date:today,type:statuses.join(','),otherText,city,dist});
       if(r&&r.ok){
-        setDone(true);
         if(onSaved)onSaved({addrCity:city,addrDist:dist});
-        gasMyDisasterReports(survey.id,code).then(mr=>{if(mr&&mr.ok)setMyReports(mr.list||[])});
+        setStatuses([]);setOtherText('');
+        loadMine(survey.id);
       }else{setErr((r&&r.error)||t.drSubmitFail)}
     }catch(e){setErr(t.drSubmitFail)}
     setBusy(false);
   };
+  const todayReports=(myReports||[]).filter(r=>r.date===today);
   return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}><div className="bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
-    <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{survey?survey.name:t.drTitle}</h3><button onClick={onClose} className="text-gray-500 text-sm">✕</button></div>
+    <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{showForm?(survey?survey.name:t.drTitle):t.drReportRecordTitle}</h3><button onClick={onClose} className="text-gray-500 text-sm">✕</button></div>
     {survey===undefined?<p className="p-8 text-xs text-gray-600 text-center">{t.loading||'載入中…'}</p>:!survey?(
       <p className="p-8 text-sm text-gray-500 text-center">{t.drNoActiveSurvey}</p>
-    ):(done||alreadyToday)?(<div className="p-4 space-y-4">
-      <p className="text-sm text-emerald-500 text-center font-semibold">✓ {t.drSubmitOk}</p>
-      {myReports&&myReports.length>0&&(<div className="space-y-2"><p className="text-xs text-gray-500">{t.drMyReportsTitle}</p>{myReports.map((r,i)=>(<div key={i} className="bg-white/[0.03] rounded-lg p-2.5 flex items-center justify-between"><span className="text-xs text-gray-300">{r.date}</span><span className="text-xs text-gray-400">{[r.type,r.otherText].filter(Boolean).join('、')}</span></div>))}</div>)}
+    ):!showForm?(<div className="p-4 space-y-4">
+      {survey.message&&<p className="text-xs text-gray-400 bg-white/[0.03] rounded-lg p-2.5">{survey.message}</p>}
+      <div className="space-y-2">
+        <p className="text-xs text-gray-500">{t.drTodayReported}</p>
+        {todayReports.map((r,i)=>(<p key={i} className="text-sm text-emerald-500 font-semibold">{fmtReportLine(r)}</p>))}
+      </div>
+      {myReports&&myReports.length>todayReports.length&&(<div className="space-y-2 pt-2 border-t border-white/[0.06]"><p className="text-xs text-gray-500">{t.drMyReportsTitle}</p>{myReports.filter(r=>r.date!==today).map((r,i)=>(<p key={i} className="text-xs text-gray-400">{fmtReportLine(r)}</p>))}</div>)}
+      <button onClick={()=>setShowForm(true)} className="w-full py-3 rounded-xl bg-white/[0.06] text-amber-400 text-sm font-semibold">+ {t.drAddMoreBtn}</button>
     </div>):(
     <div className="p-4 space-y-4">
+      {myReports&&myReports.length>0&&<button onClick={()=>setShowForm(false)} className="text-xs text-gray-500">← {t.drReportRecordTitle}</button>}
       <div className="flex justify-between text-sm"><span className="text-gray-500">{t.drDateLabel}</span><span className="text-gray-300">{today}</span></div>
       {needAddr&&(<div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 space-y-2"><p className="text-xs text-amber-400">{t.drNeedAddrHint}</p><div className="grid grid-cols-2 gap-2"><select value={city} onChange={e=>{setCity(e.target.value);setDist('')}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-sm text-gray-200"><option value="">-</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select><select value={dist} onChange={e=>setDist(e.target.value)} disabled={!city} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-sm text-gray-200 disabled:opacity-40"><option value="">-</option>{(TW_REGIONS[city]||[]).map(d=><option key={d} value={d}>{d}</option>)}</select></div></div>)}
       <div><label className="text-xs text-gray-500 block mb-1.5">{t.drStatusLabel}</label><div className="grid grid-cols-2 gap-2">{[['safe',t.drSafe],['cantLeave',t.drCantLeave],['vehicleDamaged',t.drVehicleDamaged],['sick',t.drSick]].map(([k,l])=>(<button key={k} onClick={()=>toggleStatus(k)} className={`py-2.5 rounded-xl text-sm font-semibold ${statuses.includes(k)?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{l}</button>))}</div>

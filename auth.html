@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.12-038</title>
+<title>薪資追蹤 · 管理 v1.12-039</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -252,6 +252,7 @@ function KeyDiagBlock({t}){
 function DisasterSurveyBlock({t,myCode}){
   const[list,setList]=useState(null);
   const[name,setName]=useState('');const[startDate,setStartDate]=useState(new Date().toISOString().slice(0,10));
+  const[message,setMessage]=useState('');const[scope,setScope]=useState(''); // ''=不主動通報,'store'=單店,'all'=全店
   const[busy,setBusy]=useState(false);
   const[queryId,setQueryId]=useState('');const[queryDate,setQueryDate]=useState('');
   const[dayResult,setDayResult]=useState(null);
@@ -261,7 +262,7 @@ function DisasterSurveyBlock({t,myCode}){
   const create=async()=>{
     if(!name.trim())return;
     setBusy(true);
-    try{const r=await gasCreateDisasterSurvey(name.trim(),startDate,myCode);if(r&&r.ok){setName('');load()}}catch(_e){}
+    try{const r=await gasCreateDisasterSurvey(name.trim(),startDate,myCode,scope,message.trim());if(r&&r.ok){setName('');setMessage('');setScope('');load()}}catch(_e){}
     setBusy(false);
   };
   const end=async(id)=>{
@@ -275,10 +276,12 @@ function DisasterSurveyBlock({t,myCode}){
     const r=await gasDisasterDayStatus(id,queryDate);
     if(r&&r.ok)setDayResult(r);
   };
-  const copyNotReported=()=>{
+  const copyNotReported=(s)=>{
     if(!dayResult)return;
-    const url='https://john7t.github.io/massage-pay/index.html';
-    const text=dayResult.notDid.join('、')+'\n'+url;
+    const url='https://john7t.github.io/massage-pay/';
+    const d=new Date(queryDate||Date.now());const md=(d.getMonth()+1)+'/'+d.getDate();
+    const header=s.name+(s.message?(' '+s.message):'');
+    const text=header+'\n以下是今日（'+md+'）尚未回報名單：\n'+dayResult.notDid.join('、')+'\n安全回報平台\n'+url;
     try{navigator.clipboard.writeText(text).then(()=>{setCopyMsg(t.drCopiedMsg||'已複製');setTimeout(()=>setCopyMsg(''),2000)}).catch(()=>{})}catch(_e){}
   };
   return(<div className="space-y-2 bg-white/[0.02] border border-red-500/20 rounded-xl p-3">
@@ -286,12 +289,14 @@ function DisasterSurveyBlock({t,myCode}){
     <div className="space-y-1.5">
       <input value={name} onChange={e=>setName(e.target.value)} placeholder={t.drSurveyNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-sm text-gray-100"/>
       <div><label className="text-[10px] text-gray-500 block mb-0.5">{t.drSurveyStartLabel}</label><input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-sm text-gray-100"/></div>
+      <div><label className="text-[10px] text-gray-500 block mb-0.5">{t.drMessageLabel||'通知內容(選填,會出現在通報彈窗與複製訊息裡)'}</label><textarea value={message} onChange={e=>setMessage(e.target.value)} rows={2} placeholder={t.drMessagePh||'例如：請老師每日進行安全回報'} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-sm text-gray-100 resize-none"/></div>
+      <div><label className="text-[10px] text-gray-500 block mb-0.5">{t.drScopeLabel||'主動通報範圍(預設不主動通報)'}</label><div className="grid grid-cols-2 gap-1.5"><button onClick={()=>setScope(scope==='store'?'':'store')} className={`py-2 rounded-lg text-xs font-semibold ${scope==='store'?'bg-red-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.drScopeStore||'單店主動通報'}</button><button onClick={()=>setScope(scope==='all'?'':'all')} className={`py-2 rounded-lg text-xs font-semibold ${scope==='all'?'bg-red-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.drScopeAll||'全店主動通報'}</button></div></div>
       <button onClick={create} disabled={busy||!name.trim()} className="w-full py-2 rounded-lg bg-red-600 text-white text-xs font-semibold disabled:opacity-50">{t.drCreateSurveyBtn}</button>
     </div>
     {list&&list.map(s=>(<div key={s.id} className="bg-white/[0.03] rounded-lg p-2 space-y-1.5">
       <div className="flex items-center justify-between"><span className="text-xs text-gray-300">{s.name}{s.endDate?'（'+(t.drSurveyEndedTag||'已結束')+'）':''}</span>{!s.endDate&&<button onClick={()=>end(s.id)} className="text-[10px] px-2 py-1 rounded bg-white/[0.08] text-gray-400">{t.drEndSurveyBtn}</button>}</div>
       <div className="flex gap-1.5"><input type="date" onChange={e=>setQueryDate(e.target.value)} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded px-2 py-1.5 text-[11px] text-gray-200"/><button onClick={()=>query(s.id)} className="px-2 py-1.5 rounded bg-white/[0.08] text-[11px] text-gray-300">{t.drQueryDayTitle}</button></div>
-      {dayResult&&queryId===s.id&&(<div className="text-[11px] text-gray-400 space-y-1"><p>{t.drDidReport}：{dayResult.did.length}｜{t.drNotReport}：{dayResult.notDid.length}</p><button onClick={copyNotReported} className="w-full py-1.5 rounded bg-amber-600/20 text-amber-400 text-[11px] font-semibold">{copyMsg||t.drCopyNotReportBtn}</button></div>)}
+      {dayResult&&queryId===s.id&&(<div className="text-[11px] text-gray-400 space-y-1"><p>{t.drDidReport}：{dayResult.did.length}｜{t.drNotReport}：{dayResult.notDid.length}</p><button onClick={()=>copyNotReported(s)} className="w-full py-1.5 rounded bg-amber-600/20 text-amber-400 text-[11px] font-semibold">{copyMsg||t.drCopyNotReportBtn}</button></div>)}
     </div>))}
   </div>);
 }
