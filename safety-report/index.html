@@ -48,41 +48,77 @@
 <script src="../common.js"></script>
 <script type="text/babel">
 (function(){
-// ══════════ LIFF 設定 ══════════
-// 請到 LINE Developers Console 建立 LIFF App(Login channel → LIFF → Add),
-// Endpoint URL 填這個頁面的網址,然後把拿到的 LIFF ID 貼在下面這行。
-const LIFF_ID = "2010673151-kemVP4Pi"; // 例如 "1234567890-AbCdEfGh"
-
 const{useState,useEffect}=React;
-const{gasCall,gasCallPost,getGasUrl,setGasUrl,TW_REGIONS,LANG_SCHOOLS,T}=window.MP||{};
+const{gasCall,gasCallPost,getGasUrl,setGasUrl,TW_REGIONS,LANG_SCHOOLS}=window.MP||{};
 
 const STORES=['龍山寺店','東門店','古亭店','公館店'];
-const MANAGER_SUBTYPES=['執行長','區經理','經理','副理','實習副理','櫃台組長'];
 const CITY_PRIORITY=['桃園市','新北市','臺北市','宜蘭縣'];
 const CITY_OPTIONS=[...CITY_PRIORITY,...Object.keys(TW_REGIONS||{}).filter(c=>!CITY_PRIORITY.includes(c))];
-const STATUS_OPTS=[['safe','我很安全'],['flooded','道路積水封路'],['sick','人不舒服']];
 
+// 這個頁面獨立於主系統,自己帶一份輕量翻譯字典(語系選擇是進頁面第一步,選了之後全程套用)
+const SF_T={
+  zh:{
+    appTitle:'安全回報登記',appSubtitle:'第一次使用請先完成人員登記',
+    chooseLang:'選擇語系',chooseStore:'選擇店別',choosePersonType:'選擇人員別',
+    typeManager:'無老師編號的主管',typeFrontdesk:'櫃台',typeTeacher:'老師',
+    chooseSubType:'選擇主管別',subTypes:['執行長','區經理','經理','副理','實習副理','櫃台組長'],
+    customNameLabel:'自訂名稱',customNamePh:'請輸入自訂名稱',
+    teacherCode:'老師編號',teacherCodePh:'編號',gender:'性別',genderM:'男',genderF:'女',
+    shift:'班別',shiftDay:'早班',shiftNight:'晚班',
+    addr:'居住地區',addrCity:'縣市',addrDist:'鄉鎮市區',
+    submitBtn:'完成登記',submitting:'處理中…',
+    statusSafe:'我很安全',statusFlooded:'道路積水封路',statusSick:'人不舒服',
+    otherLabel:'其他',otherPh:'自行填寫狀況',submitReportBtn:'送出回報',submitting2:'…',
+    createNewBtn:'發起新的',createTitleLabel:'發起通報標題',createTitlePh:'例如：0710強颱安全回報',createBtn:'發起',
+    selectDay:'選擇天數',endBtn:'結束通報',reportedCount:'已回報',notReportedCount:'未回報',
+    reportedList:'已回報人員',noReports:'尚無人回報',loading:'載入中…',noActiveSurvey:'目前沒有進行中的通報',
+    historyTitle:'歷史通報(可刪除)',ended:'已結束',
+  },
+  vi:{
+    appTitle:'Đăng ký báo cáo an toàn',appSubtitle:'Lần đầu sử dụng vui lòng hoàn tất đăng ký',
+    chooseLang:'Chọn ngôn ngữ',chooseStore:'Chọn cửa hàng',choosePersonType:'Chọn loại nhân sự',
+    typeManager:'Quản lý không có mã NV',typeFrontdesk:'Lễ tân',typeTeacher:'Nhân viên kỹ thuật',
+    chooseSubType:'Chọn cấp bậc quản lý',subTypes:['Giám đốc điều hành','Quản lý khu vực','Quản lý','Phó quản lý','Phó quản lý thực tập','Tổ trưởng lễ tân'],
+    customNameLabel:'Tên tùy chỉnh',customNamePh:'Nhập tên tùy chỉnh',
+    teacherCode:'Mã nhân viên',teacherCodePh:'Mã số',gender:'Giới tính',genderM:'Nam',genderF:'Nữ',
+    shift:'Ca làm',shiftDay:'Ca sáng',shiftNight:'Ca tối',
+    addr:'Khu vực sinh sống',addrCity:'Tỉnh/Thành',addrDist:'Quận/Huyện',
+    submitBtn:'Hoàn tất đăng ký',submitting:'Đang xử lý…',
+    statusSafe:'Tôi an toàn',statusFlooded:'Đường ngập/tắc',statusSick:'Không khỏe',
+    otherLabel:'Khác',otherPh:'Tự điền tình trạng',submitReportBtn:'Gửi báo cáo',submitting2:'…',
+    createNewBtn:'Phát động mới',createTitleLabel:'Tiêu đề thông báo',createTitlePh:'VD: Báo cáo an toàn bão 0710',createBtn:'Phát động',
+    selectDay:'Chọn ngày thứ mấy',endBtn:'Kết thúc',reportedCount:'Đã báo cáo',notReportedCount:'Chưa báo cáo',
+    reportedList:'Người đã báo cáo',noReports:'Chưa có ai báo cáo',loading:'Đang tải…',noActiveSurvey:'Hiện không có thông báo nào',
+    historyTitle:'Lịch sử (có thể xóa)',ended:'Đã kết thúc',
+  }
+};
+const STATUS_KEYS=['safe','flooded','sick'];
+
+async function sfConfig(){const r=await gasCall('sfConfig',{},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfGetUser(lineUserId){const r=await gasCall('sfGetUser',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfRegister(data){const r=await gasCallPost('sfRegister',data,15000);return r||{ok:false,error:'GAS無回應'};}
 async function sfCreateSurvey(title,lineUserId){const r=await gasCallPost('sfCreateSurvey',{title,lineUserId},15000);return r||{ok:false,error:'GAS無回應'};}
 async function sfEndSurvey(id){const r=await gasCallPost('sfEndSurvey',{id},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfDeleteSurvey(id,lineUserId){const r=await gasCallPost('sfDeleteSurvey',{id,lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfListSurveys(){const r=await gasCall('sfListSurveys',{},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfSubmitReport(surveyId,lineUserId,status,otherText){const r=await gasCallPost('sfSubmitReport',{surveyId,lineUserId,status,otherText},15000);return r||{ok:false,error:'GAS無回應'};}
 async function sfTodayReports(surveyId){const r=await gasCall('sfTodayReports',{surveyId},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfDayStatus(surveyId,date){const r=await gasCall('sfDayStatus',{surveyId,date},10000);return r||{ok:false,error:'GAS無回應'};}
 
 function RegisterFlow({profile,onDone}){
+  const[lang,setLang]=useState('');
+  const t=SF_T[lang||'zh'];
   const[store,setStore]=useState('');
-  const[personType,setPersonType]=useState(''); // manager/frontdesk/teacher
+  const[personType,setPersonType]=useState(''); // manager/frontdesk/teacher(admin不開放自選,只能後台改)
   const[subType,setSubType]=useState('');
   const[name,setName]=useState('');
-  const[lang,setLang]=useState('zh');
   const[code,setCode]=useState('');
   const[gender,setGender]=useState('');
   const[shift,setShift]=useState('');
   const[city,setCity]=useState('');const[dist,setDist]=useState('');
   const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
-  const step1Done=!!store;
+  const langDone=!!lang;
+  const step1Done=langDone&&!!store;
   const canSubmit=(()=>{
     if(!step1Done||!personType)return false;
     if(personType==='manager')return subType&&name.trim();
@@ -101,43 +137,47 @@ function RegisterFlow({profile,onDone}){
   };
   return(<div className="min-h-screen flex items-center justify-center p-4">
     <div className="w-full max-w-md bg-gray-900 rounded-2xl border border-white/[0.08] p-5 space-y-5">
-      <div className="text-center"><h1 className="text-lg font-bold text-gray-100">安全回報登記</h1><p className="text-xs text-gray-500 mt-1">第一次使用請先完成人員登記</p></div>
+      <div className="text-center"><h1 className="text-lg font-bold text-gray-100">{t.appTitle}</h1><p className="text-xs text-gray-500 mt-1">{t.appSubtitle}</p></div>
 
-      <div><label className="text-sm text-gray-400 block mb-2">選擇店別</label><div className="grid grid-cols-2 gap-2">{STORES.map(s=>(<button key={s} onClick={()=>setStore(s)} className={`py-3 rounded-xl text-sm font-semibold ${store===s?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{s}</button>))}</div></div>
+      <div><label className="text-sm text-gray-400 block mb-2">{SF_T.zh.chooseLang} / {SF_T.vi.chooseLang}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setLang('zh')} className={`py-3 rounded-xl text-sm font-semibold ${lang==='zh'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>中文</button><button onClick={()=>setLang('vi')} className={`py-3 rounded-xl text-sm font-semibold ${lang==='vi'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>Tiếng Việt</button></div></div>
 
-      {step1Done&&(<div><label className="text-sm text-gray-400 block mb-2">選擇人員別</label><div className="grid grid-cols-1 gap-2">
-        <button onClick={()=>setPersonType('manager')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='manager'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>無老師編號的主管</button>
-        <button onClick={()=>setPersonType('frontdesk')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='frontdesk'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>櫃台</button>
-        <button onClick={()=>setPersonType('teacher')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='teacher'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>老師</button>
+      {langDone&&(<div><label className="text-sm text-gray-400 block mb-2">{t.chooseStore}</label><div className="grid grid-cols-2 gap-2">{STORES.map(s=>(<button key={s} onClick={()=>setStore(s)} className={`py-3 rounded-xl text-sm font-semibold ${store===s?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{s}</button>))}</div></div>)}
+
+      {step1Done&&(<div><label className="text-sm text-gray-400 block mb-2">{t.choosePersonType}</label><div className="grid grid-cols-1 gap-2">
+        <button onClick={()=>setPersonType('manager')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='manager'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.typeManager}</button>
+        <button onClick={()=>setPersonType('frontdesk')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='frontdesk'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.typeFrontdesk}</button>
+        <button onClick={()=>setPersonType('teacher')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='teacher'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.typeTeacher}</button>
       </div></div>)}
 
       {personType==='manager'&&(<div className="space-y-3">
-        <div><label className="text-sm text-gray-400 block mb-2">選擇主管別</label><div className="grid grid-cols-2 gap-2">{MANAGER_SUBTYPES.map(s=>(<button key={s} onClick={()=>setSubType(s)} className={`py-2.5 rounded-xl text-xs font-semibold ${subType===s?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{s}</button>))}</div></div>
-        <div><label className="text-sm text-gray-400 block mb-2">姓名</label><input value={name} onChange={e=>setName(e.target.value)} placeholder="請輸入姓名" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.chooseSubType}</label><div className="grid grid-cols-2 gap-2">{t.subTypes.map((s,i)=>(<button key={s} onClick={()=>setSubType(SF_T.zh.subTypes[i])} className={`py-2.5 rounded-xl text-xs font-semibold ${subType===SF_T.zh.subTypes[i]?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{s}</button>))}</div></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.customNameLabel}</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/></div>
       </div>)}
 
-      {personType==='frontdesk'&&(<div><label className="text-sm text-gray-400 block mb-2">姓名</label><input value={name} onChange={e=>setName(e.target.value)} placeholder="請輸入姓名" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/></div>)}
+      {personType==='frontdesk'&&(<div><label className="text-sm text-gray-400 block mb-2">{t.customNameLabel}</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/></div>)}
 
       {personType==='teacher'&&(<div className="space-y-3">
-        <div><label className="text-sm text-gray-400 block mb-2">語系</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setLang('zh')} className={`py-2.5 rounded-xl text-sm font-semibold ${lang==='zh'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>中文</button><button onClick={()=>setLang('vi')} className={`py-2.5 rounded-xl text-sm font-semibold ${lang==='vi'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>Tiếng Việt</button></div></div>
-        <div><label className="text-sm text-gray-400 block mb-2">老師編號</label><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder="編號" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 text-center tracking-widest"/></div>
-        <div><label className="text-sm text-gray-400 block mb-2">性別</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setGender('M')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='M'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>男</button><button onClick={()=>setGender('F')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='F'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>女</button></div></div>
-        <div><label className="text-sm text-gray-400 block mb-2">班別</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setShift('day')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='day'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>早班</button><button onClick={()=>setShift('night')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='night'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>晚班</button></div></div>
-        <div><label className="text-sm text-gray-400 block mb-2">居住地區</label><div className="grid grid-cols-2 gap-2">
-          <select value={city} onChange={e=>{setCity(e.target.value);setDist('')}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100"><option value="">縣市</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select>
-          <select value={dist} onChange={e=>setDist(e.target.value)} disabled={!city} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100 disabled:opacity-40"><option value="">鄉鎮市區</option>{(TW_REGIONS&&TW_REGIONS[city]||[]).map(d=><option key={d} value={d}>{d}</option>)}</select>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.teacherCode}</label><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={t.teacherCodePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 text-center tracking-widest"/></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.gender}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setGender('M')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='M'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderM}</button><button onClick={()=>setGender('F')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='F'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderF}</button></div></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.shift}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setShift('day')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='day'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.shiftDay}</button><button onClick={()=>setShift('night')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='night'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.shiftNight}</button></div></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.addr}</label><div className="grid grid-cols-2 gap-2">
+          <select value={city} onChange={e=>{setCity(e.target.value);setDist('')}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100"><option value="">{t.addrCity}</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select>
+          <select value={dist} onChange={e=>setDist(e.target.value)} disabled={!city} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100 disabled:opacity-40"><option value="">{t.addrDist}</option>{(TW_REGIONS&&TW_REGIONS[city]||[]).map(d=><option key={d} value={d}>{d}</option>)}</select>
         </div></div>
       </div>)}
 
       {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
-      {personType&&<button onClick={submit} disabled={!canSubmit||busy} className={`w-full py-3.5 rounded-xl font-bold transition-all ${canSubmit&&!busy?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{busy?'處理中…':'完成登記'}</button>}
+      {personType&&<button onClick={submit} disabled={!canSubmit||busy} className={`w-full py-3.5 rounded-xl font-bold transition-all ${canSubmit&&!busy?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{busy?t.submitting:t.submitBtn}</button>}
     </div>
   </div>);
 }
 
 function MainPage({profile,userProfile}){
-  const isManager=userProfile.personType==='manager';
+  const t=SF_T[userProfile.lang||'zh'];
+  const isManagerLevel=userProfile.personType==='manager'||userProfile.personType==='admin';
+  const isAdmin=userProfile.personType==='admin';
   const displayName=userProfile.personType==='teacher'?userProfile.name:(userProfile.name||userProfile.displayName);
+  const STATUS_OPTS=STATUS_KEYS.map(k=>[k,t['status'+k[0].toUpperCase()+k.slice(1)]]);
   const[survey,setSurvey]=useState(undefined);
   const[status,setStatus]=useState('');
   const[otherText,setOtherText]=useState('');
@@ -146,6 +186,7 @@ function MainPage({profile,userProfile}){
   const[showCreate,setShowCreate]=useState(false);
   const[newTitle,setNewTitle]=useState('');const[createBusy,setCreateBusy]=useState(false);
   const[queryDate,setQueryDate]=useState('');const[queryResult,setQueryResult]=useState(null);
+  const[history,setHistory]=useState(null);const[showHistory,setShowHistory]=useState(false);
   const loadReports=(sid)=>sfTodayReports(sid).then(r=>{if(r&&r.ok)setReports(r.list||[])});
   const loadSurvey=()=>{
     sfListSurveys().then(r=>{
@@ -153,6 +194,7 @@ function MainPage({profile,userProfile}){
         const active=r.list.find(s=>!s.endDate);
         setSurvey(active||null);
         if(active)loadReports(active.id);
+        if(isAdmin)setHistory(r.list.filter(s=>s.endDate));
       }else{setSurvey(null)}
     }).catch(()=>setSurvey(null));
   };
@@ -176,6 +218,9 @@ function MainPage({profile,userProfile}){
     if(!survey)return;
     try{await sfEndSurvey(survey.id);loadSurvey()}catch(_e){}
   };
+  const doDeleteHistory=async(id)=>{
+    try{await sfDeleteSurvey(id,profile.userId);loadSurvey()}catch(_e){}
+  };
   const dayOptions=(()=>{
     if(!survey)return[];
     const start=new Date(survey.createdAt||Date.now());start.setHours(0,0,0,0);
@@ -195,75 +240,83 @@ function MainPage({profile,userProfile}){
     const r=await sfDayStatus(survey.id,date);
     if(r&&r.ok)setQueryResult(r);
   };
-  const statusLabel=(k)=>({safe:'我很安全',flooded:'道路積水封路',sick:'人不舒服'}[k]||k);
-  const fmtTime=(t)=>{try{const d=new Date(t);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}catch(_e){return ''}};
+  const statusLabel=(k)=>t['status'+k[0].toUpperCase()+k.slice(1)]||k;
+  const fmtTime=(tm)=>{try{const d=new Date(tm);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}catch(_e){return ''}};
   const pageUrl=location.href.split('?')[0];
 
   return(<div className="min-h-screen p-4 pb-10">
     <div className="max-w-md mx-auto space-y-4">
       <div className="flex items-center justify-between pt-2">
-        <div><h1 className="text-base font-bold text-gray-100">安全回報</h1><p className="text-xs text-gray-500">{userProfile.store} · {displayName}</p></div>
-        {isManager&&<button onClick={()=>setShowCreate(v=>!v)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold flex-shrink-0">發起新的</button>}
+        <div><h1 className="text-base font-bold text-gray-100">{SF_T.zh.appTitle.replace('登記','')}</h1><p className="text-xs text-gray-500">{userProfile.store} · {displayName}</p></div>
+        {isManagerLevel&&<button onClick={()=>setShowCreate(v=>!v)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold flex-shrink-0">{t.createNewBtn}</button>}
       </div>
 
       {showCreate&&(<div className="bg-white/[0.03] border border-amber-500/20 rounded-xl p-3 space-y-2">
-        <label className="text-xs text-gray-500 block">發起通報標題</label>
-        <input value={newTitle} onChange={e=>setNewTitle(e.target.value)} placeholder="例如：0710強颱安全回報" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-gray-100"/>
-        <button onClick={doCreate} disabled={createBusy||!newTitle.trim()} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50">{createBusy?'…':'發起'}</button>
+        <label className="text-xs text-gray-500 block">{t.createTitleLabel}</label>
+        <input value={newTitle} onChange={e=>setNewTitle(e.target.value)} placeholder={t.createTitlePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-gray-100"/>
+        <button onClick={doCreate} disabled={createBusy||!newTitle.trim()} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50">{createBusy?t.submitting2:t.createBtn}</button>
       </div>)}
 
-      {survey===undefined?<p className="text-sm text-gray-600 text-center py-8">載入中…</p>:!survey?(
-        <p className="text-sm text-gray-500 text-center py-8">目前沒有進行中的通報</p>
+      {survey===undefined?<p className="text-sm text-gray-600 text-center py-8">{t.loading}</p>:!survey?(
+        <p className="text-sm text-gray-500 text-center py-8">{t.noActiveSurvey}</p>
       ):(<>
-        {isManager&&(<div className="bg-white/[0.03] rounded-xl p-3 space-y-2">
+        {isManagerLevel&&(<div className="bg-white/[0.03] rounded-xl p-3 space-y-2">
           <p className="text-sm text-gray-200 font-semibold">{survey.title}</p>
           <p className="text-[11px] text-gray-500 break-all">{pageUrl}</p>
-          <div className="flex gap-2"><select onChange={e=>doQuery(e.target.value)} defaultValue="" className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200"><option value="" disabled>選擇天數</option>{dayOptions.map(o=>(<option key={o.n} value={o.date}>{'day'+o.n+': '+o.date}</option>))}</select><button onClick={doEnd} className="px-3 py-2 rounded-lg bg-red-600/20 text-red-400 text-xs font-semibold flex-shrink-0">結束通報</button></div>
-          {queryResult&&(<div className="space-y-1.5 pt-1"><p className="text-[11px] text-gray-500">已回報 {queryResult.did.length}｜未回報 {queryResult.notDid.length}</p>{queryResult.did.map((r,i)=>(<div key={i} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-2.5 py-1.5"><span className="text-xs text-gray-300">{r.display} {statusLabel(r.status)}{r.otherText?('、'+r.otherText):''}</span><span className="text-[10px] text-gray-500 flex-shrink-0">{fmtTime(r.time)}</span></div>))}</div>)}
+          <div className="flex gap-2"><select onChange={e=>doQuery(e.target.value)} defaultValue="" className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200"><option value="" disabled>{t.selectDay}</option>{dayOptions.map(o=>(<option key={o.n} value={o.date}>{'day'+o.n+': '+o.date}</option>))}</select><button onClick={doEnd} className="px-3 py-2 rounded-lg bg-red-600/20 text-red-400 text-xs font-semibold flex-shrink-0">{t.endBtn}</button></div>
+          {queryResult&&(<div className="space-y-1.5 pt-1"><p className="text-[11px] text-gray-500">{t.reportedCount} {queryResult.did.length}｜{t.notReportedCount} {queryResult.notDid.length}</p>{queryResult.did.map((r,i)=>(<div key={i} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-2.5 py-1.5"><span className="text-xs text-gray-300">{r.display} {statusLabel(r.status)}{r.otherText?('、'+r.otherText):''}</span><span className="text-[10px] text-gray-500 flex-shrink-0">{fmtTime(r.time)}</span></div>))}</div>)}
         </div>)}
 
         <div className="bg-white/[0.03] rounded-xl p-3 space-y-3">
           <p className="text-sm text-gray-300 font-medium">{survey.title}</p>
           <div className="grid grid-cols-1 gap-2">{STATUS_OPTS.map(([k,l])=>(<button key={k} onClick={()=>setStatus(k)} className={`py-3 rounded-xl text-sm font-semibold ${status===k?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{l}</button>))}</div>
-          <div><label className="text-[11px] text-gray-500 block mb-1">其他</label><input value={otherText} onChange={e=>setOtherText(e.target.value)} placeholder="自行填寫狀況" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/></div>
+          <div><label className="text-[11px] text-gray-500 block mb-1">{t.otherLabel}</label><input value={otherText} onChange={e=>setOtherText(e.target.value)} placeholder={t.otherPh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/></div>
           {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
-          <button onClick={submit} disabled={busy||(!status&&!otherText.trim())} className="w-full py-3 rounded-xl bg-red-600 text-white font-bold disabled:opacity-50">{busy?'…':'送出回報'}</button>
+          <button onClick={submit} disabled={busy||(!status&&!otherText.trim())} className="w-full py-3 rounded-xl bg-red-600 text-white font-bold disabled:opacity-50">{busy?t.submitting2:t.submitReportBtn}</button>
         </div>
 
         <div className="space-y-2">
-          <p className="text-xs text-gray-500">已回報人員</p>
-          {reports===null?<p className="text-xs text-gray-600 text-center py-3">載入中…</p>:reports.length===0?<p className="text-xs text-gray-600 text-center py-3">尚無人回報</p>:reports.map((r,i)=>(
+          <p className="text-xs text-gray-500">{t.reportedList}</p>
+          {reports===null?<p className="text-xs text-gray-600 text-center py-3">{t.loading}</p>:reports.length===0?<p className="text-xs text-gray-600 text-center py-3">{t.noReports}</p>:reports.map((r,i)=>(
             <div key={i} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-3 py-2"><span className="text-sm text-gray-200">{r.display}: {statusLabel(r.status)}{r.otherText?('、'+r.otherText):''}</span><span className="text-xs text-gray-500 flex-shrink-0">{fmtTime(r.time)}</span></div>
           ))}
         </div>
       </>)}
+
+      {isAdmin&&history&&history.length>0&&(<div className="space-y-2 pt-2 border-t border-white/[0.06]">
+        <button onClick={()=>setShowHistory(v=>!v)} className="text-xs text-gray-500">{t.historyTitle}（{history.length}）{showHistory?'▲':'▼'}</button>
+        {showHistory&&history.map(s=>(<div key={s.id} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-3 py-2"><span className="text-xs text-gray-400">{s.title}（{t.ended}）</span><button onClick={()=>doDeleteHistory(s.id)} className="text-[10px] px-2 py-1 rounded bg-red-600/20 text-red-400 font-bold flex-shrink-0">✕</button></div>))}
+      </div>)}
     </div>
   </div>);
 }
 
 function App(){
-  const[phase,setPhase]=useState('liffInit'); // liffInit/needLogin/loading/register/main/error
+  const[phase,setPhase]=useState('liffInit'); // liffInit/loading/register/main/error
   const[profile,setProfile]=useState(null);
   const[userProfile,setUserProfile]=useState(null);
   const[liffErr,setLiffErr]=useState('');
 
   useEffect(()=>{
-    if(!LIFF_ID||LIFF_ID==='PLEASE_FILL_YOUR_LIFF_ID'){setLiffErr('尚未設定 LIFF ID,請聯繫系統管理者');setPhase('error');return}
-    liff.init({liffId:LIFF_ID}).then(()=>{
-      if(!liff.isLoggedIn()){liff.login();return}
-      return liff.getProfile().then(p=>{
-        setProfile(p);
-        setPhase('loading');
-        return sfGetUser(p.userId).then(r=>{
-          if(r&&r.ok&&r.exists){setUserProfile(r.profile);setPhase('main')}
-          else{setPhase('register')}
+    sfConfig().then(cfg=>{
+      const liffId=cfg&&cfg.ok?cfg.liffId:'';
+      if(!liffId){setLiffErr('尚未在GAS指令碼屬性設定LIFF_ID,請聯繫系統管理者');setPhase('error');return}
+      return liff.init({liffId}).then(()=>{
+        if(!liff.isLoggedIn()){liff.login();return}
+        return liff.getProfile().then(p=>{
+          setProfile(p);
+          setPhase('loading');
+          return sfGetUser(p.userId).then(r=>{
+            if(r&&r.ok&&r.exists){setUserProfile(r.profile);setPhase('main')}
+            else{setPhase('register')}
+          });
         });
       });
     }).catch(err=>{setLiffErr(String(err&&err.message||err));setPhase('error')});
   },[]);
 
   if(phase==='error')return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{liffErr}</p></div>);
-  if(phase==='liffInit'||phase==='needLogin'||phase==='loading')return(<div className="min-h-screen flex items-center justify-center"><p className="text-sm text-gray-500">載入中…</p></div>);
+  if(phase==='liffInit'||phase==='loading')return(<div className="min-h-screen flex items-center justify-center"><p className="text-sm text-gray-500">載入中…</p></div>);
   if(phase==='register')return(<RegisterFlow profile={profile} onDone={()=>{sfGetUser(profile.userId).then(r=>{if(r&&r.ok&&r.exists){setUserProfile(r.profile);setPhase('main')}})}}/>);
   return(<MainPage profile={profile} userProfile={userProfile}/>);
 }
