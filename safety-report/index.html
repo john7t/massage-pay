@@ -83,6 +83,9 @@ const SF_T={
     blockBtn:'封鎖',unblockBtn:'解除封鎖',blockedTag:'已封鎖',
     invalidParam:'參數錯誤',accountBlocked:'此帳號已被封鎖,無法使用本服務',
     storeFilterAll:'全部店別',
+    copyDayBtn:'複製當天回報名單',copiedMsg:'已複製',
+    notReportedShareBtn:'未回報人員',
+    switchRoleLabel:'切換角色',roleManager:'主管',roleFrontdesk:'櫃台',roleTeacher:'老師',
   },
   vi:{
     appTitle:'Đăng ký báo cáo an toàn',appSubtitle:'Lần đầu sử dụng vui lòng hoàn tất đăng ký',
@@ -110,9 +113,13 @@ const SF_T={
     blockBtn:'Khóa',unblockBtn:'Mở khóa',blockedTag:'Đã khóa',
     invalidParam:'Tham số không hợp lệ',accountBlocked:'Tài khoản này đã bị khóa, không thể sử dụng dịch vụ',
     storeFilterAll:'Tất cả cửa hàng',
+    copyDayBtn:'Sao chép DS báo cáo ngày này',copiedMsg:'Đã sao chép',
+    notReportedShareBtn:'Người chưa báo cáo',
+    switchRoleLabel:'Chuyển vai trò',roleManager:'Quản lý',roleFrontdesk:'Lễ tân',roleTeacher:'Nhân viên',
   }
 };
 const STATUS_KEYS=['safe','flooded','sick'];
+const Spinner=({size})=>(<svg className="animate-spin" width={size||14} height={size||14} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>);
 
 async function sfConfig(){const r=await gasCall('sfConfig',{},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfGetUser(lineUserId){const r=await gasCall('sfGetUser',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
@@ -197,16 +204,19 @@ function RegisterFlow({profile,onDone,sid}){
       </div>)}
 
       {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
-      {personType&&<button onClick={submit} disabled={!canSubmit||busy} className={`w-full py-3.5 rounded-xl font-bold transition-all ${canSubmit&&!busy?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{busy?t.submitting:t.submitBtn}</button>}
+      {personType&&<button onClick={submit} disabled={!canSubmit||busy} className={`w-full py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${canSubmit&&!busy?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{busy&&<Spinner/>}{busy?t.submitting:t.submitBtn}</button>}
     </div>
   </div>);
 }
 
 function ListPage({profile,userProfile,liffId}){
   const t=SF_T[userProfile.lang||'zh'];
-  const isManagerLevel=userProfile.personType==='manager'||userProfile.personType==='admin';
-  const isAdmin=userProfile.personType==='admin';
-  const canSeeAllStores=userProfile.personType==='admin'||(userProfile.personType==='manager'&&(userProfile.subType==='執行長'||userProfile.subType==='區經理'));
+  const isRealAdmin=userProfile.personType==='admin';
+  const[viewAsRole,setViewAsRole]=useState(''); // admin專用:模擬用其他身分瀏覽,純前端切換,不影響GAS上真正的身分
+  const effType=isRealAdmin&&viewAsRole?viewAsRole:userProfile.personType;
+  const isManagerLevel=effType==='manager'||effType==='admin';
+  const isAdmin=effType==='admin';
+  const canSeeAllStores=effType==='admin'||(effType==='manager'&&(userProfile.subType==='執行長'||userProfile.subType==='區經理'));
   const[tab,setTab]=useState('survey'); // survey/users
   const[list,setList]=useState(undefined);
   const[showCreate,setShowCreate]=useState(false);
@@ -233,8 +243,10 @@ function ListPage({profile,userProfile,liffId}){
     try{const r=await sfCreateSurvey(newTitle.trim(),profile.userId);if(r&&r.ok){setShowCreate(false);setNewTitle('');load()}}catch(_e){}
     setCreateBusy(false);
   };
-  const doEnd=async(id)=>{try{await sfEndSurvey(id);load()}catch(_e){}};
-  const doDeleteHistory=async(id)=>{try{await sfDeleteSurvey(id,profile.userId);load()}catch(_e){}};
+  const[busyEnd,setBusyEnd]=useState('');
+  const doEnd=async(id)=>{setBusyEnd(id);try{await sfEndSurvey(id);load()}catch(_e){}setBusyEnd('')};
+  const[busyDelHist,setBusyDelHist]=useState('');
+  const doDeleteHistory=async(id)=>{setBusyDelHist(id);try{await sfDeleteSurvey(id,profile.userId);load()}catch(_e){}setBusyDelHist('')};
   const doDeleteUser=async(targetId)=>{
     setBusyUser(targetId);
     try{await sfDeleteUser(profile.userId,targetId);loadUsers()}catch(_e){}
@@ -263,6 +275,20 @@ function ListPage({profile,userProfile,liffId}){
     const r=await sfDayStatus(surveyId,date,profile.userId);
     if(r&&r.ok)setQueryResult(r);
   };
+  const[histQueryOpenId,setHistQueryOpenId]=useState('');
+  const[histQueryResult,setHistQueryResult]=useState(null);
+  const[histQueryDay,setHistQueryDay]=useState({n:0,date:''});
+  const[copyDayMsg,setCopyDayMsg]=useState('');
+  const doHistQuery=async(surveyId,dayObj)=>{
+    setHistQueryOpenId(surveyId);setHistQueryResult(null);setHistQueryDay(dayObj);
+    const r=await sfDayStatus(surveyId,dayObj.date,profile.userId);
+    if(r&&r.ok)setHistQueryResult(r);
+  };
+  const copyDayText=()=>{
+    if(!histQueryResult)return;
+    const text='day '+histQueryDay.n+' :'+histQueryDay.date+'\n'+t.reportedCount+'：'+histQueryResult.did.length+'人 分別是：'+histQueryResult.did.map(r=>r.display).join('、')+'\n'+t.notReportedCount+'：'+histQueryResult.notDid.length+'人 分別是：'+histQueryResult.notDid.join('、');
+    try{navigator.clipboard.writeText(text).then(()=>{setCopyDayMsg(t.copiedMsg);setTimeout(()=>setCopyDayMsg(''),2000)}).catch(()=>{})}catch(_e){}
+  };
   const statusLabel=(k)=>t['status'+k[0].toUpperCase()+k.slice(1)]||k;
   const fmtTime=(tm)=>{try{const d=new Date(tm);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}catch(_e){return ''}};
   const detailUrl=(id)=>'https://liff.line.me/'+liffId+'?sid='+id; // 用LIFF專屬網址格式,確保LINE登入導轉不會弄丟參數
@@ -271,9 +297,18 @@ function ListPage({profile,userProfile,liffId}){
     location.href='https://line.me/R/share?text='+encodeURIComponent(msg);
   };
   const openDetail=(id)=>{location.href=location.href.split('?')[0]+'?sid='+id};
-  const displayUsers=(users||[]).filter(u=>!storeFilter||u.store===storeFilter);
-  const personTypeLabel=(u)=>u.personType==='manager'?(u.subType||t.typeManager):u.personType==='frontdesk'?t.typeFrontdesk:u.personType==='student'?t.typeStudent:u.personType==='admin'?t.typeManager:t.typeTeacher;
+  const personTypeLabel=(u)=>u.personType==='manager'?(u.subType||t.typeManager):u.personType==='frontdesk'?t.typeFrontdesk:u.personType==='student'?t.typeStudent:u.personType==='admin'?t.typeTeacher:t.typeTeacher;
   const displayNameOf=(u)=>u.personType==='teacher'?u.name:(u.name||u.displayName);
+  const USER_TYPE_ORDER={manager:0,admin:0,frontdesk:1,student:2,teacher:3};
+  const displayUsers=useMemo(()=>(users||[]).filter(u=>!storeFilter||u.store===storeFilter).slice().sort((a,b)=>{
+    const oa=USER_TYPE_ORDER[a.personType]??9;const ob=USER_TYPE_ORDER[b.personType]??9;
+    if(oa!==ob)return oa-ob;
+    if(a.personType==='teacher'&&b.personType==='teacher'){
+      const na=parseInt(String(a.name).replace('-',''),10);const nb=parseInt(String(b.name).replace('-',''),10);
+      if(!isNaN(na)&&!isNaN(nb))return na-nb;
+    }
+    return String(displayNameOf(a)).localeCompare(String(displayNameOf(b)));
+  }),[users,storeFilter]);
   const[editing,setEditing]=useState(false);
   const[fName,setFName]=useState(userProfile.name||'');
   const[fGender,setFGender]=useState(userProfile.gender||'');
@@ -296,11 +331,14 @@ function ListPage({profile,userProfile,liffId}){
     <div className="max-w-md mx-auto space-y-4">
       <div className="flex items-center justify-between pt-2">
         <h1 className="text-lg font-bold text-gray-100">{t.centerTitle}</h1>
-        {isManagerLevel&&<button onClick={()=>setShowCreate(v=>!v)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold flex-shrink-0">{t.createNewBtn}</button>}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {isRealAdmin&&<select value={viewAsRole} onChange={e=>setViewAsRole(e.target.value)} className="text-xs px-2 py-2 rounded-lg bg-white/[0.06] border border-white/[0.08] text-gray-300"><option value="">{t.switchRoleLabel}</option><option value="manager">{t.roleManager}</option><option value="frontdesk">{t.roleFrontdesk}</option><option value="teacher">{t.roleTeacher}</option></select>}
+          {isManagerLevel&&<button onClick={()=>setShowCreate(v=>!v)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold flex-shrink-0">{t.createNewBtn}</button>}
+        </div>
       </div>
 
       <div className="bg-white/[0.03] rounded-xl p-3 space-y-2">
-        <div className="flex items-center justify-between"><p className="text-xs text-gray-500">{t.myProfileTitle}</p>{!editing?<button onClick={()=>setEditing(true)} className="text-xs px-2.5 py-1 rounded-lg bg-white/[0.06] text-gray-300 font-semibold">{t.editBtn}</button>:<div className="flex gap-1.5"><button onClick={()=>setEditing(false)} className="text-xs px-2.5 py-1 rounded-lg bg-white/[0.06] text-gray-400">{t.cancelBtn}</button><button onClick={saveProfile} disabled={saveBusy} className="text-xs px-2.5 py-1 rounded-lg bg-amber-600 text-white font-semibold disabled:opacity-50">{saveBusy?'…':t.saveBtn}</button></div>}</div>
+        <div className="flex items-center justify-between"><p className="text-xs text-gray-500">{t.myProfileTitle}</p>{!editing?<button onClick={()=>setEditing(true)} className="text-xs px-2.5 py-1 rounded-lg bg-white/[0.06] text-gray-300 font-semibold">{t.editBtn}</button>:<div className="flex gap-1.5"><button onClick={()=>setEditing(false)} className="text-xs px-2.5 py-1 rounded-lg bg-white/[0.06] text-gray-400">{t.cancelBtn}</button><button onClick={saveProfile} disabled={saveBusy} className="text-xs px-2.5 py-1 rounded-lg bg-amber-600 text-white font-semibold disabled:opacity-50 flex items-center gap-1">{saveBusy&&<Spinner size={11}/>}{t.saveBtn}</button></div>}</div>
         {savedMsg&&<p className="text-xs text-emerald-500">✓ {savedMsg}</p>}
         {!editing?(<div className="text-sm text-gray-300">{userProfile.store} · {personTypeLabel(userProfile)} · {displayNameOf(userProfile)}</div>):(<div className="space-y-2">
           <p className="text-xs text-gray-600">{userProfile.store} · {personTypeLabel(userProfile)}{userProfile.personType==='teacher'?'（'+t.teacherCode+' '+userProfile.name+'）':''}</p>
@@ -326,7 +364,7 @@ function ListPage({profile,userProfile,liffId}){
         {showCreate&&(<div className="bg-white/[0.03] border border-amber-500/20 rounded-xl p-3 space-y-2">
           <label className="text-xs text-gray-500 block">{t.createTitleLabel}</label>
           <input value={newTitle} onChange={e=>setNewTitle(e.target.value)} placeholder={t.createTitlePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-gray-100"/>
-          <button onClick={doCreate} disabled={createBusy||!newTitle.trim()} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50">{createBusy?t.submitting2:t.createBtn}</button>
+          <button onClick={doCreate} disabled={createBusy||!newTitle.trim()} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{createBusy&&<Spinner/>}{t.createBtn}</button>
         </div>)}
 
         {list===undefined?<p className="text-sm text-gray-600 text-center py-8">{t.loading}</p>:list.length===0?<p className="text-sm text-gray-500 text-center py-8">{t.noSurveys}</p>:list.map(s=>(
@@ -337,7 +375,7 @@ function ListPage({profile,userProfile,liffId}){
             </div>
             <div className="flex gap-2">
               <select onChange={e=>doQuery(s.id,e.target.value)} defaultValue="" className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-gray-200"><option value="" disabled>{t.selectDay}</option>{dayOptions(s).map(o=>(<option key={o.n} value={o.date}>{'day'+o.n+': '+o.date}</option>))}</select>
-              <button onClick={()=>doEnd(s.id)} className="px-3 py-1.5 rounded-lg bg-red-600/20 text-red-400 text-xs font-semibold flex-shrink-0">{t.endBtn}</button>
+              <button onClick={()=>doEnd(s.id)} disabled={busyEnd===s.id} className="px-3 py-1.5 rounded-lg bg-red-600/20 text-red-400 text-xs font-semibold flex-shrink-0 disabled:opacity-50 flex items-center gap-1">{busyEnd===s.id&&<Spinner/>}{t.endBtn}</button>
             </div>
             {queryOpenId===s.id&&queryResult&&(<div className="space-y-1.5 pt-1"><p className="text-[11px] text-gray-500">{t.reportedCount} {queryResult.did.length}｜{t.notReportedCount} {queryResult.notDid.length}</p>{queryResult.did.map((r,i)=>(<div key={i} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-2.5 py-1.5"><span className="text-xs text-gray-300">{r.display} {statusLabel(r.status)}{r.otherText?('、'+r.otherText):''}</span><span className="text-[10px] text-gray-500 flex-shrink-0">{fmtTime(r.time)}</span></div>))}</div>)}
           </div>
@@ -345,7 +383,14 @@ function ListPage({profile,userProfile,liffId}){
 
         {isAdmin&&history&&history.length>0&&(<div className="space-y-2 pt-2 border-t border-white/[0.06]">
           <button onClick={()=>setShowHistory(v=>!v)} className="text-xs text-gray-500">{t.historyTitle}（{history.length}）{showHistory?'▲':'▼'}</button>
-          {showHistory&&history.map(s=>(<div key={s.id} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-3 py-2"><span className="text-xs text-gray-400">{s.title}（{t.ended}）</span><button onClick={()=>doDeleteHistory(s.id)} className="text-[10px] px-2 py-1 rounded bg-red-600/20 text-red-400 font-bold flex-shrink-0">✕</button></div>))}
+          {showHistory&&history.map(s=>(<div key={s.id} className="bg-white/[0.03] rounded-lg p-2.5 space-y-1.5">
+            <div className="flex items-center justify-between"><span className="text-xs text-gray-400">{s.title}（{t.ended}）</span><button onClick={()=>doDeleteHistory(s.id)} disabled={busyDelHist===s.id} className="text-[10px] px-2 py-1 rounded bg-red-600/20 text-red-400 font-bold flex-shrink-0 disabled:opacity-50 flex items-center gap-1">{busyDelHist===s.id&&<Spinner size={10}/>}✕</button></div>
+            <div className="flex gap-1.5"><select onChange={e=>{const o=JSON.parse(e.target.value);doHistQuery(s.id,o)}} defaultValue="" className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-[11px] text-gray-200"><option value="" disabled>{t.selectDay}</option>{dayOptions(s).map(o=>(<option key={o.n} value={JSON.stringify(o)}>{'day'+o.n+': '+o.date}</option>))}</select></div>
+            {histQueryOpenId===s.id&&histQueryResult&&(<div className="space-y-1.5 pt-1">
+              <p className="text-[11px] text-gray-500">{t.reportedCount} {histQueryResult.did.length}｜{t.notReportedCount} {histQueryResult.notDid.length}</p>
+              <button onClick={copyDayText} className="w-full py-1.5 rounded bg-amber-600/20 text-amber-400 text-[11px] font-semibold">{copyDayMsg||t.copyDayBtn}</button>
+            </div>)}
+          </div>))}
         </div>)}
         </>)}
 
@@ -355,8 +400,8 @@ function ListPage({profile,userProfile,liffId}){
             <div key={u.lineUserId} className={`flex items-center justify-between bg-white/[0.03] rounded-lg px-3 py-2 ${u.blocked?'opacity-40':''}`}>
               <span className="text-sm text-gray-200">{canSeeAllStores?'['+u.store+'] ':''}{personTypeLabel(u)} · {displayNameOf(u)}{u.blocked?'（'+t.blockedTag+'）':''}</span>
               <div className="flex gap-1.5 flex-shrink-0">
-                <button onClick={()=>doDeleteUser(u.lineUserId)} disabled={busyUser===u.lineUserId} className="text-[10px] px-2 py-1 rounded bg-white/[0.08] text-gray-400 font-bold disabled:opacity-50">✕</button>
-                <button onClick={()=>doBlockUser(u.lineUserId)} disabled={busyUser===u.lineUserId} className={`text-[10px] px-2 py-1 rounded font-bold disabled:opacity-50 ${u.blocked?'bg-emerald-600/20 text-emerald-400':'bg-red-600/20 text-red-400'}`}>🚫</button>
+                <button onClick={()=>doDeleteUser(u.lineUserId)} disabled={busyUser===u.lineUserId} className="text-[10px] px-2 py-1 rounded bg-white/[0.08] text-gray-400 font-bold disabled:opacity-50 flex items-center gap-1">{busyUser===u.lineUserId?<Spinner size={10}/>:'✕'}</button>
+                <button onClick={()=>doBlockUser(u.lineUserId)} disabled={busyUser===u.lineUserId} className={`text-[10px] px-2 py-1 rounded font-bold disabled:opacity-50 flex items-center gap-1 ${u.blocked?'bg-emerald-600/20 text-emerald-400':'bg-red-600/20 text-red-400'}`}>{busyUser===u.lineUserId?<Spinner size={10}/>:'🚫'}</button>
               </div>
             </div>
           ))}
@@ -416,14 +461,33 @@ function DetailPage({profile,userProfile,sid}){
     });
   },[reports,sortMode]);
   const canSeeAllStores=userProfile.personType==='admin'||(userProfile.personType==='manager'&&(userProfile.subType==='執行長'||userProfile.subType==='區經理'));
-
   const isManagerLevel=userProfile.personType==='manager'||userProfile.personType==='admin';
+  const[shareBusy,setShareBusy]=useState(false);
+  const shareNotReported=async()=>{
+    if(!survey)return;
+    setShareBusy(true);
+    try{
+      const today=new Date().toISOString().slice(0,10);
+      const r=await sfDayStatus(survey.id,today,profile.userId);
+      if(r&&r.ok){
+        const msg=survey.title+'\n未回報人數 '+r.notDid.length+'人：'+r.notDid.join('、')+'\n請儘速至回報網頁進行回報';
+        if(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker')){
+          await liff.shareTargetPicker([{type:'text',text:msg}]);
+        }else{
+          location.href='https://line.me/R/share?text='+encodeURIComponent(msg);
+        }
+      }
+    }catch(_e){}
+    setShareBusy(false);
+  };
   return(<div className="min-h-screen p-4 pb-10">
     <div className="max-w-md mx-auto space-y-4">
       <div className="flex items-center justify-between pt-2">
         <p className="text-xs text-gray-500">{userProfile.store} · {displayName}</p>
         {isManagerLevel&&<a href={location.href.split('?')[0]} className="text-xs px-3 py-1.5 rounded-lg bg-white/[0.06] text-gray-300 font-semibold flex-shrink-0">{t.backHomeBtn}</a>}
       </div>
+
+      {isManagerLevel&&survey&&!survey.endDate&&(<button onClick={shareNotReported} disabled={shareBusy} className="w-full py-2.5 rounded-xl bg-[#06C755] text-white text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">{shareBusy&&<Spinner/>}{t.notReportedShareBtn}</button>)}
 
       {survey===undefined?<p className="text-sm text-gray-600 text-center py-8">{t.loading}</p>:noPermission?(
         <p className="text-sm text-red-400 text-center py-8">{t.invalidParam}</p>
@@ -436,7 +500,7 @@ function DetailPage({profile,userProfile,sid}){
           <div className="grid grid-cols-1 gap-2">{STATUS_OPTS.map(([k,l])=>(<button key={k} onClick={()=>setStatus(k)} className={`py-3 rounded-xl text-sm font-semibold ${status===k?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{l}</button>))}</div>
           <div><label className="text-[11px] text-gray-500 block mb-1">{t.otherLabel}</label><input value={otherText} onChange={e=>setOtherText(e.target.value)} placeholder={t.otherPh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/></div>
           {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
-          <button onClick={submit} disabled={busy||(!status&&!otherText.trim())} className="w-full py-3 rounded-xl bg-red-600 text-white font-bold disabled:opacity-50">{busy?t.submitting2:t.submitReportBtn}</button>
+          <button onClick={submit} disabled={busy||(!status&&!otherText.trim())} className="w-full py-3 rounded-xl bg-red-600 text-white font-bold disabled:opacity-50 flex items-center justify-center gap-2">{busy&&<Spinner/>}{t.submitReportBtn}</button>
         </div>)}
 
         <div className="space-y-2">
