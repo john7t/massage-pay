@@ -17,7 +17,7 @@
 </style>
 </head>
 <body>
-<h1>🔧 安全回報 部署診斷頁 <span style="color:#6b7280;font-size:14px">v6</span></h1>
+<h1>🔧 安全回報 部署診斷頁 <span style="color:#6b7280;font-size:14px">v7</span></h1>
 <p id="testTime" style="color:#6b7280;font-size:12px;margin:-8px 0 12px"></p>
 <button onclick="location.reload()">重新檢查</button>
 <button onclick="copyMarkdown()" style="background:#0891b2">📋 複製診斷結果(Markdown)</button>
@@ -135,13 +135,13 @@ async function checkBabelScript(url, label) {
     const res = await fetch(url + '?t=' + Date.now(), { cache: 'no-store' });
     if (!res.ok) return { ok: false, msg: 'HTTP ' + res.status };
     const html = await res.text();
-    // 從整份HTML裡擷取出<script type="text/babel">...</script>的內容,不能把整份HTML(含DOCTYPE/head等)直接丟給Babel轉譯,那一定會被當成語法錯誤
+    // 從整份HTML裡擷取出<script type="text/babel">...(結尾標籤)的內容,不能把整份HTML(含DOCTYPE/head等)直接丟給Babel轉譯,那一定會被當成語法錯誤
     const startTag = '<script type="text/babel">';
     const startIdx = html.lastIndexOf(startTag);
     if (startIdx < 0) return { ok: false, msg: '找不到 <script type="text/babel"> 區塊' };
     const bodyStart = startIdx + startTag.length;
     const endIdx = html.indexOf('<' + '/script>', bodyStart);
-    if (endIdx < 0) return { ok: false, msg: '找不到對應的 </script> 結尾' };
+    if (endIdx < 0) return { ok: false, msg: '找不到對應的結尾標籤' };
     const source = html.slice(bodyStart, endIdx);
     let transformed;
     try {
