@@ -134,6 +134,7 @@ async function sfGetUser(lineUserId){const r=await gasCall('sfGetUser',{lineUser
 async function sfRegister(data){const r=await gasCallPost('sfRegister',data,15000);return r||{ok:false,error:'GAS無回應'};}
 async function sfCreateSurvey(title,lineUserId){const r=await gasCallPost('sfCreateSurvey',{title,lineUserId},15000);return r||{ok:false,error:'GAS無回應'};}
 async function sfPushFlexToMe(id,lineUserId){const r=await gasCallPost('sfPushFlexToMe',{id,lineUserId},15000);return r||{ok:false,error:'GAS無回應'};}
+async function sfGetFlexContent(id,liffId){const r=await gasCall('sfGetFlexContent',{id,liffId},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfEndSurvey(id){const r=await gasCallPost('sfEndSurvey',{id},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfDeleteSurvey(id,lineUserId){const r=await gasCallPost('sfDeleteSurvey',{id,lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfListSurveys(lineUserId){const r=await gasCall('sfListSurveys',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
@@ -318,8 +319,15 @@ function ListPage({profile,userProfile,liffId}){
     setBusyPush('');
   };
   const shareSurvey=(s)=>{
-    const msg=s.title+'\n'+detailUrl(s.id);
-    location.href='https://line.me/R/share?text='+encodeURIComponent(msg);
+    sfGetFlexContent(s.id,liffId).then(r=>{
+      if(!r||!r.ok)return;
+      if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){
+        // 不支援的環境(例如非LINE App內開啟)才退回純文字連結分享
+        location.href='https://line.me/R/share?text='+encodeURIComponent(s.title+'\n'+detailUrl(s.id));
+        return;
+      }
+      liff.shareTargetPicker([{type:'flex',altText:r.title,contents:r.flex}]).catch(()=>{});
+    }).catch(()=>{});
   };
   const openDetail=(id)=>{location.href=location.href.split('?')[0]+'?sid='+id};
   const personTypeLabel=(u)=>u.personType==='manager'?(u.subType||t.typeManager):u.personType==='frontdesk'?t.typeFrontdesk:u.personType==='student'?t.typeStudent:u.personType==='admin'?t.typeTeacher:t.typeTeacher;
@@ -528,6 +536,29 @@ function DetailPage({profile,userProfile,sid}){
   </div>);
 }
 
+function ShareFlow({sid,liffId}){
+  const[status,setStatus]=useState('loading'); // loading/picking/done/cancelled/error
+  const[err,setErr]=useState('');
+  useEffect(()=>{
+    sfGetFlexContent(sid,liffId).then(r=>{
+      if(!r||!r.ok){setStatus('error');setErr((r&&r.error)||'讀取失敗');return}
+      setStatus('picking');
+      if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setStatus('error');setErr('此環境不支援分享功能，請在LINE App內開啟');return}
+      liff.shareTargetPicker([{type:'flex',altText:r.title,contents:r.flex}]).then(res=>{
+        setStatus(res?'done':'cancelled');
+      }).catch(e=>{setStatus('error');setErr(String(e&&e.message||e))});
+    }).catch(e=>{setStatus('error');setErr(String(e))});
+  },[]);
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+    {status==='loading'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">準備分享內容…</p></>)}
+    {status==='picking'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">請選擇要分享的對象…</p></>)}
+    {status==='done'&&(<p className="text-base text-emerald-500 font-semibold">✓ 已分享</p>)}
+    {status==='cancelled'&&(<p className="text-sm text-gray-500">已取消分享</p>)}
+    {status==='error'&&(<p className="text-sm text-red-400">{err}</p>)}
+    {(status==='done'||status==='cancelled'||status==='error')&&<button onClick={()=>{try{liff.closeWindow()}catch(_e){location.href=location.href.split('?')[0]}}} className="px-6 py-3 rounded-xl bg-white/[0.06] text-gray-300 text-sm font-semibold">關閉</button>}
+  </div>);
+}
+
 function App(){
   const[phase,setPhase]=useState('liffInit'); // liffInit/loading/register/main/error
   const[profile,setProfile]=useState(null);
@@ -536,12 +567,14 @@ function App(){
   const[blocked,setBlocked]=useState(false);
   const[liffId,setLiffId]=useState('');
   const sid=new URLSearchParams(location.search).get('sid')||''; // 網址帶?sid=SF0001時直接顯示該筆通報,沒帶就顯示目前進行中的列表頁
+  const action=new URLSearchParams(location.search).get('action')||''; // action=share時,Flex卡片上的分享按鈕點進來,直接跳shareTargetPicker
 
   useEffect(()=>{
     const initLiff=(id)=>{
       setLiffId(id);
       return liff.init({liffId:id}).then(()=>{
         if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return} // 明確帶目前完整網址(含?sid=...),避免LINE登入導轉過程弄丟參數
+        if(action==='share'){setPhase('share');return} // 分享模式不用先查有沒有登記過,直接進分享流程
         return liff.getProfile().then(p=>{
           setProfile(p);
           setPhase('loading');
@@ -566,6 +599,7 @@ function App(){
 
   if(phase==='error')return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{liffErr}</p></div>);
   if(phase==='liffInit'||phase==='loading')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><div className="text-amber-500"><Spinner size={40}/></div><p className="text-base text-gray-400">載入中…</p></div>);
+  if(phase==='share')return(<ShareFlow sid={sid} liffId={liffId}/>);
   if(blocked)return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{SF_T.zh.accountBlocked} / {SF_T.vi.accountBlocked}</p></div>);
   if(phase==='register')return(<RegisterFlow profile={profile} sid={sid} onDone={()=>{sfGetUser(profile.userId).then(r=>{if(r&&r.ok&&r.exists){
     // 登記完成導回原本帶的sid頁面(不然使用者原本是要去回報某一項,卻被丟到看不到那項的首頁)
