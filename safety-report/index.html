@@ -67,6 +67,8 @@ const SF_T={
     chooseSubType:'選擇主管別',subTypes:['執行長','區經理','經理','副理','實習副理','櫃台組長'],
     customNameLabel:'自訂名稱',customNamePh:'請輸入自訂名稱(或直接輸入編號)',
     teacherCode:'老師編號',teacherCodePh:'編號',gender:'性別',genderM:'男',genderF:'女',
+    codeHintForNonTeacher:'這欄填的是老師編號，如果你同時有老師的身分就可以填上，編號跟名稱建議擇一填寫',
+    codeOrNameHint:'編號跟名稱可以擇一填寫，都填的話兩個都會顯示',
     shift:'班別',shiftDay:'早班',shiftNight:'晚班',
     addr:'居住地區',addrCity:'縣市',addrDist:'鄉鎮市區',
     submitBtn:'完成登記',submitting:'處理中…',
@@ -98,6 +100,8 @@ const SF_T={
     chooseSubType:'Chọn cấp bậc quản lý',subTypes:['Giám đốc điều hành','Quản lý khu vực','Quản lý','Phó quản lý','Phó quản lý thực tập','Tổ trưởng lễ tân'],
     customNameLabel:'Tên tùy chỉnh',customNamePh:'Nhập tên tùy chỉnh (hoặc nhập mã số)',
     teacherCode:'Mã nhân viên',teacherCodePh:'Mã số',gender:'Giới tính',genderM:'Nam',genderF:'Nữ',
+    codeHintForNonTeacher:'Mục này là mã nhân viên kỹ thuật, nếu bạn cũng có thân phận nhân viên kỹ thuật thì có thể điền vào, nên chọn 1 trong 2 (mã số hoặc tên)',
+    codeOrNameHint:'Có thể chỉ điền 1 trong 2 (mã số hoặc tên), nếu điền cả 2 thì cả 2 đều hiển thị',
     shift:'Ca làm',shiftDay:'Ca sáng',shiftNight:'Ca tối',
     addr:'Khu vực sinh sống',addrCity:'Tỉnh/Thành',addrDist:'Quận/Huyện',
     submitBtn:'Hoàn tất đăng ký',submitting:'Đang xử lý…',
@@ -128,6 +132,8 @@ const STATUS_KEYS=['safe','flooded','sick'];
 // 留空的話會照原本方式去問GAS的指令碼屬性(多一次來回,但LIFF ID要改的話不用重新部署前端)。
 const LIFF_ID_HARDCODED='2010673151-kemVP4Pi';
 const Spinner=({size})=>(<svg className="animate-spin" width={size||14} height={size||14} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>);
+// 主管的自訂名稱如果純數字(例如管理者直接輸入編號當識別碼),自動補上「號」讀起來才順(例如「5」顯示成「5號」);如果是打真的名字就照原樣顯示
+const fmtManagerName=(name)=>/^\d+$/.test(String(name||''))?(name+'號'):name;
 
 async function sfConfig(){const r=await gasCall('sfConfig',{},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfGetUser(lineUserId){const r=await gasCall('sfGetUser',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
@@ -163,9 +169,9 @@ function RegisterFlow({profile,onDone,sid}){
   const step1Done=langDone&&!!store;
   const canSubmit=(()=>{
     if(!step1Done||!personType)return false;
-    if(personType==='manager')return subType&&name.trim()&&gender&&shift&&city&&dist;
-    if(personType==='frontdesk')return name.trim();
-    if(personType==='student')return name.trim();
+    if(personType==='manager')return subType&&(code.trim()||name.trim())&&gender&&shift&&city&&dist;
+    if(personType==='frontdesk')return code.trim()||name.trim();
+    if(personType==='student')return code.trim()||name.trim();
     if(personType==='teacher')return code.trim()&&gender&&shift&&city&&dist;
     return false;
   })();
@@ -173,7 +179,7 @@ function RegisterFlow({profile,onDone,sid}){
     if(!canSubmit)return;
     setBusy(true);setErr('');
     try{
-      const r=await sfRegister({lineUserId:profile.userId,displayName:profile.displayName,store,personType,subType,name:personType==='teacher'?code.trim():name.trim(),lang,gender,shift,city,dist});
+      const r=await sfRegister({lineUserId:profile.userId,displayName:profile.displayName,store,personType,subType,name:personType==='teacher'?code.trim():name.trim(),code:personType==='teacher'?'':code.trim(),lang,gender,shift,city,dist});
       if(r&&r.ok){onDone();return} // 成功就不把busy設回false,按鈕保持灰色直到頁面跳轉,避免誤點兩次
       setErr((r&&r.error)||'登記失敗');
     }catch(e){setErr(String(e))}
@@ -196,7 +202,8 @@ function RegisterFlow({profile,onDone,sid}){
 
       {personType==='manager'&&(<div className="space-y-3">
         <div><label className="text-sm text-gray-400 block mb-2">{t.chooseSubType}</label><div className="grid grid-cols-2 gap-2">{t.subTypes.map((s,i)=>(<button key={s} onClick={()=>setSubType(SF_T.zh.subTypes[i])} className={`py-2.5 rounded-xl text-xs font-semibold ${subType===SF_T.zh.subTypes[i]?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{s}</button>))}</div></div>
-        <div><label className="text-sm text-gray-400 block mb-2">{t.customNameLabel}</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.teacherCode}</label><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={t.teacherCodePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 text-center tracking-widest"/><p className="text-xs text-red-400 mt-1">{t.codeHintForNonTeacher}</p></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.customNameLabel}</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/><p className="text-xs text-gray-600 mt-1">{t.codeOrNameHint}</p></div>
         <div><label className="text-sm text-gray-400 block mb-2">{t.gender}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setGender('M')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='M'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderM}</button><button onClick={()=>setGender('F')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='F'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderF}</button></div></div>
         <div><label className="text-sm text-gray-400 block mb-2">{t.shift}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setShift('day')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='day'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.shiftDay}</button><button onClick={()=>setShift('night')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='night'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.shiftNight}</button></div></div>
         <div><label className="text-sm text-gray-400 block mb-2">{t.addr}</label><div className="grid grid-cols-2 gap-2">
@@ -205,9 +212,15 @@ function RegisterFlow({profile,onDone,sid}){
         </div></div>
       </div>)}
 
-      {personType==='student'&&(<div><label className="text-sm text-gray-400 block mb-2">{t.customNameLabel}</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/></div>)}
+      {personType==='student'&&(<div className="space-y-3">
+        <div><label className="text-sm text-gray-400 block mb-2">{t.teacherCode}</label><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={t.teacherCodePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 text-center tracking-widest"/><p className="text-xs text-red-400 mt-1">{t.codeHintForNonTeacher}</p></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.customNameLabel}</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/><p className="text-xs text-gray-600 mt-1">{t.codeOrNameHint}</p></div>
+      </div>)}
 
-      {personType==='frontdesk'&&(<div><label className="text-sm text-gray-400 block mb-2">{t.customNameLabel}</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/></div>)}
+      {personType==='frontdesk'&&(<div className="space-y-3">
+        <div><label className="text-sm text-gray-400 block mb-2">{t.teacherCode}</label><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={t.teacherCodePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 text-center tracking-widest"/><p className="text-xs text-red-400 mt-1">{t.codeHintForNonTeacher}</p></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.customNameLabel}</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/><p className="text-xs text-gray-600 mt-1">{t.codeOrNameHint}</p></div>
+      </div>)}
 
       {personType==='teacher'&&(<div className="space-y-3">
         <div><label className="text-sm text-gray-400 block mb-2">{t.teacherCode}</label><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={t.teacherCodePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 text-center tracking-widest"/></div>
@@ -331,7 +344,14 @@ function ListPage({profile,userProfile,liffId}){
   };
   const openDetail=(id)=>{location.href=location.href.split('?')[0]+'?sid='+id};
   const personTypeLabel=(u)=>u.personType==='manager'?(u.subType||t.typeManager):u.personType==='frontdesk'?t.typeFrontdesk:u.personType==='student'?t.typeStudent:u.personType==='admin'?t.typeTeacher:t.typeTeacher;
-  const displayNameOf=(u)=>u.personType==='teacher'?u.name:(u.name||u.displayName);
+  const displayNameOf=(u)=>{
+    if(u.personType==='teacher')return u.name;
+    const code=String(u.code||'').trim();const name=String(u.name||'').trim();
+    if(code&&name)return code+'號 '+name;
+    if(code)return code+'號';
+    if(name)return name;
+    return u.displayName||'';
+  };
   const USER_TYPE_ORDER={manager:0,admin:0,frontdesk:1,student:2,teacher:3};
   const displayUsers=useMemo(()=>(users||[]).filter(u=>!storeFilter||u.store===storeFilter).slice().sort((a,b)=>{
     const oa=USER_TYPE_ORDER[a.personType]??9;const ob=USER_TYPE_ORDER[b.personType]??9;
@@ -344,6 +364,20 @@ function ListPage({profile,userProfile,liffId}){
   }),[users,storeFilter]);
   const[myReports,setMyReports]=useState(undefined);
   const[showProfileDetail,setShowProfileDetail]=useState(false);
+  const[localOverride,setLocalOverride]=useState({});
+  const effProfile=useMemo(()=>({...userProfile,...localOverride}),[userProfile,localOverride]);
+  const[editing,setEditing]=useState(false);
+  const[fCode,setFCode]=useState('');const[fName,setFName]=useState('');const[fCity,setFCity]=useState('');const[fDist,setFDist]=useState('');
+  const[saveBusy,setSaveBusy]=useState(false);const[savedMsg,setSavedMsg]=useState('');
+  const saveProfile=async()=>{
+    if(!fCode.trim()&&!fName.trim())return;
+    setSaveBusy(true);
+    try{
+      const r=await sfRegister({lineUserId:profile.userId,displayName:userProfile.displayName,store:userProfile.store,personType:userProfile.personType,subType:userProfile.subType,name:fName.trim(),code:fCode.trim(),lang:userProfile.lang,gender:userProfile.gender,shift:userProfile.shift,city:fCity,dist:fDist});
+      if(r&&r.ok){setLocalOverride({name:fName.trim(),code:fCode.trim(),city:fCity,dist:fDist});setSavedMsg(t.saved);setEditing(false);setTimeout(()=>setSavedMsg(''),2000)}
+    }catch(_e){}
+    setSaveBusy(false);
+  };
   useEffect(()=>{if(!isManagerLevel)sfMyReportedSurveys(profile.userId).then(r=>{if(r&&r.ok)setMyReports(r.list||[])})},[]);
 
   return(<div className="min-h-screen p-4 pb-10">
@@ -357,9 +391,23 @@ function ListPage({profile,userProfile,liffId}){
       </div>
 
       <div className="bg-white/[0.03] rounded-xl p-3 space-y-1.5">
-        <p className="text-xs text-gray-500">{t.myProfileTitle}</p>
-        <p onClick={()=>setShowProfileDetail(v=>!v)} className="text-sm text-gray-300 cursor-pointer">{userProfile.store} · {personTypeLabel(userProfile)}{userProfile.personType==='manager'&&userProfile.subType?'（'+userProfile.subType+'）':''} · {displayNameOf(userProfile)} <span className="text-gray-600">{showProfileDetail?'▲':'▼'}</span></p>
-        {showProfileDetail&&(userProfile.personType==='teacher'||userProfile.personType==='manager')&&<p className="text-sm text-gray-400">{userProfile.gender==='M'?t.genderM:userProfile.gender==='F'?t.genderF:''} {userProfile.shift==='day'?t.shiftDay:userProfile.shift==='night'?t.shiftNight:''} {userProfile.city}{userProfile.dist}</p>}
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-gray-500">{t.myProfileTitle}</p>
+          {userProfile.personType==='manager'&&!editing&&<button onClick={()=>{setFCode(effProfile.code||'');setFName(effProfile.name||'');setFCity(effProfile.city||'');setFDist(effProfile.dist||'');setEditing(true)}} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-400 font-semibold">{t.editBtn}</button>}
+        </div>
+        {!editing?(<>
+          <p onClick={()=>setShowProfileDetail(v=>!v)} className="text-sm text-gray-300 cursor-pointer">{effProfile.store} · {effProfile.personType==='manager'?(effProfile.subType||t.typeManager):personTypeLabel(effProfile)} · {displayNameOf(effProfile)} <span className="text-gray-600">{showProfileDetail?'▲':'▼'}</span></p>
+          {showProfileDetail&&(effProfile.personType==='teacher'||effProfile.personType==='manager')&&<p className="text-sm text-gray-400">{effProfile.gender==='M'?t.genderM:effProfile.gender==='F'?t.genderF:''} {effProfile.shift==='day'?t.shiftDay:effProfile.shift==='night'?t.shiftNight:''} {effProfile.city}{effProfile.dist}</p>}
+        </>):(<div className="space-y-2 pt-1">
+          <input value={fCode} onChange={e=>setFCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={t.teacherCodePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100 text-center tracking-widest"/>
+          <input value={fName} onChange={e=>setFName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/>
+          <div className="grid grid-cols-2 gap-2">
+            <select value={fCity} onChange={e=>{setFCity(e.target.value);setFDist('')}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200"><option value="">{t.addrCity}</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select>
+            <select value={fDist} onChange={e=>setFDist(e.target.value)} disabled={!fCity} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200 disabled:opacity-40"><option value="">{t.addrDist}</option>{(TW_REGIONS&&TW_REGIONS[fCity]||[]).map(d=><option key={d} value={d}>{d}</option>)}</select>
+          </div>
+          {savedMsg&&<p className="text-xs text-emerald-500">✓ {savedMsg}</p>}
+          <div className="flex gap-2"><button onClick={()=>setEditing(false)} className="flex-1 py-2 rounded-lg bg-white/[0.06] text-gray-400 text-xs font-semibold">{t.cancelBtn}</button><button onClick={saveProfile} disabled={saveBusy||!fName.trim()} className="flex-1 py-2 rounded-lg bg-amber-600 text-white text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1">{saveBusy&&<Spinner size={11}/>}{t.saveBtn}</button></div>
+        </div>)}
       </div>
 
       {!isManagerLevel?(<div className="space-y-2">
@@ -431,7 +479,6 @@ function DetailPage({profile,userProfile,sid}){
   const[survey,setSurvey]=useState(undefined);
   const[status,setStatus]=useState('');
   const[otherText,setOtherText]=useState('');
-  const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
   const[reports,setReports]=useState(null);
   const[sortMode,setSortMode]=useState('time'); // time/code/city/store
   const[showOther,setShowOther]=useState(false);
@@ -447,14 +494,15 @@ function DetailPage({profile,userProfile,sid}){
     loadReports(); // 跟上面sfGetSurvey同時發送,不用等它先回來——這兩個request互不依賴,平行打才不會延遲疊加
   };
   useEffect(()=>{loadSurvey()},[]);
-  const submit=async()=>{
+  const[submitted,setSubmitted]=useState(false);
+  const[submitting,setSubmitting]=useState(false);
+  const submit=()=>{
     if(!survey||(!status&&!otherText.trim()))return;
-    setBusy(true);setErr('');
-    try{
-      const r=await sfSubmitReport(survey.id,profile.userId,status,otherText.trim());
-      if(r&&r.ok){setStatus('');setOtherText('');setShowOther(false);loadReports()}else{setErr((r&&r.error)||'送出失敗')}
-    }catch(e){setErr(String(e))}
-    setBusy(false);
+    // 請求送出後GAS會在伺服器端繼續執行完成,就算使用者馬上關閉分頁也不影響資料寫入。
+    // 畫面上先跑1秒轉圈圈再顯示完成訊息,純粹是給使用者一個「有在處理」的感覺,不是真的在等GAS回應。
+    setSubmitting(true);
+    sfSubmitReport(survey.id,profile.userId,status,otherText.trim()).catch(()=>{});
+    setTimeout(()=>{setSubmitting(false);setSubmitted(true)},1000);
   };
   const statusLabel=(k)=>t['status'+k[0].toUpperCase()+k.slice(1)]||k;
   const fmtTime=(tm)=>{try{const d=new Date(tm);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}catch(_e){return ''}};
@@ -499,6 +547,12 @@ function DetailPage({profile,userProfile,sid}){
     }catch(_e){}
     setShareBusy(false);
   };
+  if(submitting)return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6"><div className="text-amber-500"><Spinner size={36}/></div><p className="text-base text-gray-400">送出中…</p></div>);
+  if(submitted)return(<div className="min-h-screen flex flex-col items-center justify-center gap-3 p-6 text-center">
+    <p className="text-2xl">✅</p>
+    <p className="text-lg text-gray-100 font-bold">已收到你的回報</p>
+    <p className="text-sm text-gray-400">可關閉此頁面，謝謝</p>
+  </div>);
   return(<div className="min-h-screen p-4 pb-10">
     <div className="max-w-md mx-auto space-y-4">
       <div className="flex items-center justify-between pt-2">
@@ -521,14 +575,13 @@ function DetailPage({profile,userProfile,sid}){
             <button onClick={()=>{setShowOther(true);setStatus('')}} className={`py-7 rounded-2xl text-lg font-bold transition-all ${showOther?'bg-amber-600 text-white':'bg-white/[0.07] text-gray-200'}`}>{t.otherLabel}</button>
           </div>
           {showOther&&<input value={otherText} onChange={e=>setOtherText(e.target.value)} placeholder={t.otherPh} autoFocus className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-4 text-lg text-gray-100"/>}
-          {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
-          <button onClick={submit} disabled={busy||(!status&&!otherText.trim())} className="w-full py-5 rounded-2xl bg-red-600 text-white text-xl font-bold disabled:opacity-50 flex items-center justify-center gap-2">{busy&&<Spinner size={20}/>}{t.submitReportBtn}</button>
+          <button onClick={submit} disabled={!status&&!otherText.trim()} className="w-full py-5 rounded-2xl bg-red-600 text-white text-xl font-bold disabled:opacity-50">{t.submitReportBtn}</button>
         </div>)}
 
         <div className="space-y-2">
           <div className="flex items-center justify-between flex-wrap gap-2"><p className="text-sm text-gray-400 font-semibold">{(()=>{const d=new Date();return (d.getMonth()+1)+'/'+d.getDate()})()} {t.reportedList}</p><div className="flex gap-1.5 flex-wrap"><button onClick={()=>setSortMode('time')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='time'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByTime}</button>{isManagerLevel&&<button onClick={()=>setSortMode('code')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='code'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByCode}</button>}{isManagerLevel&&<button onClick={()=>setSortMode('city')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='city'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByCity}</button>}{canSeeAllStores&&<button onClick={()=>setSortMode('store')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='store'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByStore}</button>}</div></div>
           {sortedReports===null?<p className="text-sm text-gray-600 text-center py-3">{t.loading}</p>:sortedReports.length===0?<p className="text-sm text-gray-600 text-center py-3">{t.noReports}</p>:sortedReports.map((r,i)=>(
-            <div key={i} className="bg-white/[0.04] rounded-xl px-4 py-3.5 border border-white/[0.05]"><div className="flex items-center justify-between gap-2"><span className="text-base text-gray-100 font-semibold">{canSeeAllStores&&r.store?('['+r.store+'] '):''}{r.display}</span><span className="text-xs text-gray-500 flex-shrink-0">{fmtTime(r.time)}</span></div><p className="text-sm text-gray-400 mt-0.5">{statusLabel(r.status)}{r.otherText?('、'+r.otherText):''}{isManagerLevel&&r.city?('　'+r.city):''}</p></div>
+            <div key={i} className="bg-white/[0.04] rounded-xl px-4 py-3.5 border border-white/[0.05]"><div className="flex items-center justify-between gap-2"><span className="text-base text-gray-100 font-semibold">{canSeeAllStores&&r.store?('['+r.store+'] '):''}{r.display}{r.personType==='manager'&&r.subType?(' '+r.subType):''}</span><span className="text-xs text-gray-500 flex-shrink-0">{fmtTime(r.time)}</span></div><p className="text-sm text-gray-400 mt-0.5">{statusLabel(r.status)}{r.otherText?('、'+r.otherText):''}{isManagerLevel&&r.city?('　'+r.city+(r.dist||'')):''}</p></div>
           ))}
         </div>
       </>)}
