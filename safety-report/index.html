@@ -558,22 +558,18 @@ function DetailPage({profile,userProfile,sid,liffId}){
     const shareRecord=()=>{
       const now=new Date();
       const p=x=>String(x).padStart(2,'0');
-      const footerText=now.getFullYear()+'/'+(now.getMonth()+1)+'/'+now.getDate()+' '+p(now.getHours())+':'+p(now.getMinutes())+':'+p(now.getSeconds());
-      const contentLine=displayName+' 安全回報 '+(now.getMonth()+1)+'月'+now.getDate()+'日：'+statusLabel(status)+(otherText?('、'+otherText):'');
-      const reportUrl='https://liff.line.me/'+liffId+'?sid='+sid;
-      const shareUrl='https://liff.line.me/'+liffId+'?sid='+sid+'&action=share';
+      const timeText=now.getFullYear()+'-'+p(now.getMonth()+1)+'-'+p(now.getDate())+' '+p(now.getHours())+':'+p(now.getMinutes());
+      const statusText=statusLabel(status)+(otherText?('、'+otherText):'');
+      const statusColor=status==='safe'?'#2ECC71':'#E67E22'; // 安全是綠色,其他狀況(積水/不舒服/其他)用橘色提醒
       const flex={
-        type:'bubble',
-        body:{type:'box',layout:'vertical',spacing:'md',paddingAll:'lg',contents:[
-          {type:'text',text:survey?survey.title:'',weight:'bold',size:'lg',wrap:true,color:'#111111'},
-          {type:'text',text:contentLine,size:'md',color:'#333333',margin:'md',wrap:true}
+        type:'bubble',size:'giga',
+        header:{type:'box',layout:'vertical',backgroundColor:'#096acb',paddingAll:'md',contents:[
+          {type:'text',text:'🚨 '+(survey?survey.title:''),weight:'bold',color:'#FFFFFF',wrap:true}
         ]},
-        footer:{type:'box',layout:'vertical',spacing:'sm',paddingAll:'lg',contents:[
-          {type:'box',layout:'horizontal',spacing:'sm',contents:[
-            {type:'button',style:'primary',color:'#dc2626',height:'sm',action:{type:'uri',label:'回報平台',uri:reportUrl}},
-            {type:'button',style:'secondary',height:'sm',action:{type:'uri',label:'分享',uri:shareUrl}}
-          ]},
-          {type:'text',text:footerText,size:'xxs',color:'#999999',align:'end',margin:'md'}
+        body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',spacing:'md',contents:[
+          {type:'text',text:'回報時間：'+timeText+' - '+userProfile.store+' - '+displayName,color:'#555555',size:'sm',align:'start',wrap:true},
+          {type:'text',text:statusText,color:statusColor,size:'xxl',weight:'bold',align:'center',margin:'lg'},
+          {type:'button',action:{type:'uri',label:'天災安全回報平台',uri:'https://liff.line.me/'+liffId+'?sid='+sid},style:'link',height:'sm',color:'#eeeeff',margin:'none'}
         ]}
       };
       if(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker')){
