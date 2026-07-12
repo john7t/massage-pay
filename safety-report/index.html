@@ -321,13 +321,13 @@ function ListPage({profile,userProfile,liffId}){
   const statusLabel=(k)=>t['status'+k[0].toUpperCase()+k.slice(1)]||k;
   const fmtTime=(tm)=>{try{const d=new Date(tm);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}catch(_e){return ''}};
   const detailUrl=(id)=>'https://liff.line.me/'+liffId+'?sid='+id; // 用LIFF專屬網址格式,確保LINE登入導轉不會弄丟參數
-  const[busyPush,setBusyPush]=useState('');const[pushMsg,setPushMsg]=useState('');const[pushErr,setPushErr]=useState('');
+  const[busyPush,setBusyPush]=useState('');const[pushMsg,setPushMsg]=useState('');const[pushErr,setPushErr]=useState('');const[pushAddFriendUrl,setPushAddFriendUrl]=useState('');
   const doPushFlex=async(id)=>{
-    setBusyPush(id);setPushErr('');
+    setBusyPush(id);setPushErr('');setPushAddFriendUrl('');
     try{
       const r=await sfPushFlexToMe(id,profile.userId);
       if(r&&r.ok){setPushMsg(id);setTimeout(()=>setPushMsg(''),2500)}
-      else{setPushErr(id+':'+((r&&r.error)||'推播失敗'))}
+      else{setPushErr(id+':'+((r&&r.error)||'推播失敗'));if(r&&r.addFriendUrl)setPushAddFriendUrl(r.addFriendUrl)}
     }catch(e){setPushErr(id+':'+String(e))}
     setBusyPush('');
   };
@@ -436,7 +436,13 @@ function ListPage({profile,userProfile,liffId}){
               <select onChange={e=>doQuery(s.id,e.target.value)} defaultValue="" className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-gray-200"><option value="" disabled>{t.selectDay}</option>{dayOptions(s).map(o=>(<option key={o.n} value={o.date}>{'day'+o.n+': '+o.date}</option>))}</select>
               <button onClick={()=>doEnd(s.id)} disabled={busyEnd===s.id} className="px-3 py-1.5 rounded-lg bg-red-600/20 text-red-400 text-xs font-semibold flex-shrink-0 disabled:opacity-50 flex items-center gap-1">{busyEnd===s.id&&<Spinner/>}{t.endBtn}</button>
             </div>
-            {pushErr.startsWith(s.id+':')&&<p className="text-[11px] text-red-400">{pushErr.slice(s.id.length+1)}</p>}
+            {pushErr.startsWith(s.id+':')&&(<div className="space-y-1.5">
+              {pushAddFriendUrl?(<>
+                <p className="text-[11px] text-amber-400">推播失敗，可能是你還沒把安全回報 Bot 加為好友</p>
+                <a href={pushAddFriendUrl} target="_blank" rel="noreferrer" className="block w-full py-2 rounded-lg bg-[#06C755] text-white text-xs font-semibold text-center">➕ 一鍵加好友</a>
+              </>):null}
+              <p className="text-[10px] text-gray-600">{pushErr.slice(s.id.length+1)}</p>
+            </div>)}
             {queryOpenId===s.id&&queryResult&&(<div className="space-y-1.5 pt-1"><p className="text-[11px] text-gray-500">{t.reportedCount} {queryResult.did.length}｜{t.notReportedCount} {queryResult.notDid.length}</p>{queryResult.did.map((r,i)=>(<div key={i} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-2.5 py-1.5"><span className="text-xs text-gray-300">{r.display} {statusLabel(r.status)}{r.otherText?('、'+r.otherText):''}</span><span className="text-[10px] text-gray-500 flex-shrink-0">{fmtTime(r.time)}</span></div>))}</div>)}
           </div>
         ))}
