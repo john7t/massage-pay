@@ -57,7 +57,7 @@ function getGasUrlFromStorage() {
 
 async function checkVersions() {
   const files = [
-    { name: 'safety-report/index.html', patterns: [/<title>[^<]*<\/title>/] },
+    { name: 'index.html', patterns: [/<title>[^<]*<\/title>/] },
     { name: '../common.js', patterns: [/v(\d+\.\d+-\d+(?:\.\d+)?)\s*\//] },
   ];
   let html = '';
@@ -134,7 +134,15 @@ async function checkBabelScript(url, label) {
   try {
     const res = await fetch(url + '?t=' + Date.now(), { cache: 'no-store' });
     if (!res.ok) return { ok: false, msg: 'HTTP ' + res.status };
-    const source = await res.text();
+    const html = await res.text();
+    // 從整份HTML裡擷取出<script type="text/babel">...</script>的內容,不能把整份HTML(含DOCTYPE/head等)直接丟給Babel轉譯,那一定會被當成語法錯誤
+    const startTag = '<script type="text/babel">';
+    const startIdx = html.lastIndexOf(startTag);
+    if (startIdx < 0) return { ok: false, msg: '找不到 <script type="text/babel"> 區塊' };
+    const bodyStart = startIdx + startTag.length;
+    const endIdx = html.indexOf('</script>', bodyStart);
+    if (endIdx < 0) return { ok: false, msg: '找不到對應的 </script> 結尾' };
+    const source = html.slice(bodyStart, endIdx);
     let transformed;
     try {
       transformed = Babel.transform(source, { presets: ['react'], filename: label }).code;
