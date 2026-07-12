@@ -471,7 +471,7 @@ function ListPage({profile,userProfile,liffId}){
   </div>);
 }
 
-function DetailPage({profile,userProfile,sid}){
+function DetailPage({profile,userProfile,sid,liffId}){
   const t=SF_T[userProfile.lang||'zh'];
   const displayName=userProfile.personType==='teacher'?userProfile.name:(userProfile.name||userProfile.displayName);
   const STATUS_OPTS=STATUS_KEYS.map(k=>[k,t['status'+k[0].toUpperCase()+k.slice(1)]]);
@@ -548,11 +548,39 @@ function DetailPage({profile,userProfile,sid}){
     setShareBusy(false);
   };
   if(submitting)return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6"><div className="text-amber-500"><Spinner size={36}/></div><p className="text-base text-gray-400">送出中…</p></div>);
-  if(submitted)return(<div className="min-h-screen flex flex-col items-center justify-center gap-3 p-6 text-center">
-    <p className="text-2xl">✅</p>
-    <p className="text-lg text-gray-100 font-bold">已收到你的回報</p>
-    <p className="text-sm text-gray-400">可關閉此頁面，謝謝</p>
-  </div>);
+  if(submitted){
+    const shareRecord=()=>{
+      const now=new Date();
+      const p=x=>String(x).padStart(2,'0');
+      const footerText=now.getFullYear()+'/'+(now.getMonth()+1)+'/'+now.getDate()+' '+p(now.getHours())+':'+p(now.getMinutes())+':'+p(now.getSeconds());
+      const contentLine=displayName+' 安全回報 '+(now.getMonth()+1)+'月'+now.getDate()+'日：'+statusLabel(status)+(otherText?('、'+otherText):'');
+      const reportUrl='https://liff.line.me/'+liffId+'?sid='+sid;
+      const shareUrl='https://liff.line.me/'+liffId+'?sid='+sid+'&action=share';
+      const flex={
+        type:'bubble',
+        body:{type:'box',layout:'vertical',spacing:'md',paddingAll:'lg',contents:[
+          {type:'text',text:survey?survey.title:'',weight:'bold',size:'lg',wrap:true,color:'#111111'},
+          {type:'text',text:contentLine,size:'md',color:'#333333',margin:'md',wrap:true}
+        ]},
+        footer:{type:'box',layout:'vertical',spacing:'sm',paddingAll:'lg',contents:[
+          {type:'box',layout:'horizontal',spacing:'sm',contents:[
+            {type:'button',style:'primary',color:'#dc2626',height:'sm',action:{type:'uri',label:'回報平台',uri:reportUrl}},
+            {type:'button',style:'secondary',height:'sm',action:{type:'uri',label:'分享',uri:shareUrl}}
+          ]},
+          {type:'text',text:footerText,size:'xxs',color:'#999999',align:'end',margin:'md'}
+        ]}
+      };
+      if(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker')){
+        liff.shareTargetPicker([{type:'flex',altText:survey?survey.title:'安全回報',contents:flex}]).catch(()=>{});
+      }
+    };
+    return(<div className="min-h-screen flex flex-col items-center justify-center gap-3 p-6 text-center">
+      <p className="text-2xl">✅</p>
+      <p className="text-lg text-gray-100 font-bold">已收到你的回報</p>
+      <p className="text-sm text-gray-400">可關閉此頁面，謝謝</p>
+      <button onClick={shareRecord} className="mt-4 px-6 py-3 rounded-xl bg-[#06C755] text-white text-sm font-semibold">分享完成回報的紀錄</button>
+    </div>);
+  }
   return(<div className="min-h-screen p-4 pb-10">
     <div className="max-w-md mx-auto space-y-4">
       <div className="flex items-center justify-between pt-2">
@@ -659,7 +687,7 @@ function App(){
     if(sid){location.href=location.href.split('?')[0]+'?sid='+sid;return}
     setUserProfile(r.profile);setPhase('main');
   }})}}/>);
-  return sid?(<DetailPage profile={profile} userProfile={userProfile} sid={sid}/>):(<ListPage profile={profile} userProfile={userProfile} liffId={liffId}/>);
+  return sid?(<DetailPage profile={profile} userProfile={userProfile} sid={sid} liffId={liffId}/>):(<ListPage profile={profile} userProfile={userProfile} liffId={liffId}/>);
 }
 
 class __EB extends React.Component{constructor(p){super(p);this.state={e:false}}static getDerivedStateFromError(){return{e:true}}componentDidCatch(err){try{window.__showFallback(3,{lineno:0,msg:(err&&err.message)||String(err)})}catch(e){}}render(){return this.state.e?null:this.props.children}}
