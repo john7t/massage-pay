@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>公告 v1.0-001</title>
+<title>公告 v1.0-005</title>
 <meta property="og:title" content="公告通知">
 <meta property="og:description" content="請點擊連結查看公告內容">
 <meta property="og:type" content="website">
@@ -29,7 +29,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<style>body{background:#0a0a0f;color:#e5e7eb;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}#root{min-height:100vh}</style>
+<style>
+body{background:#0a0a0f;color:#e5e7eb;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+#root{min-height:100vh}
+/* NoticeDetailModal本來是設計成從螢幕下方浮出的浮層(用在有背景畫面的主系統裡),
+   這個頁面本身背景是空的,所以改成從最上面開始顯示,不留一大片黑色空白在上方 */
+#root>div.fixed.inset-0{align-items:flex-start !important;padding-top:0 !important}
+#root>div.fixed.inset-0>div{border-radius:0 !important;max-height:100vh !important;min-height:100vh}
+</style>
 </head>
 <body>
 <div id="root"></div>
@@ -58,12 +65,21 @@ const CITY_OPTIONS=[...CITY_PRIORITY,...Object.keys(TW_REGIONS||{}).filter(c=>!C
 const SUBTYPES_ZH=['執行長','區經理','經理','副理','實習副理','櫃台組長'];
 const SUBTYPES_VI=['Giám đốc điều hành','Quản lý khu vực','Quản lý','Phó quản lý','Phó quản lý thực tập','Tổ trưởng lễ tân'];
 
-async function sfConfig(){const r=await gasCall('sfConfig',{},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfConfig(){const r=await gasCall('sfConfig',{app:'notice'},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfGetUser(lineUserId){const r=await gasCall('sfGetUser',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfRegister(data){const r=await window.MP.gasCallPost('sfRegister',data,15000);return r||{ok:false,error:'GAS無回應'};}
 async function checkStaffCode(code){const r=await gasCall('checkStaffCode',{code},10000);return r||{ok:false,error:'GAS無回應'};}
 
 const Spinner=({size})=>(<svg className="animate-spin" width={size||14} height={size||14} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>);
+// LIFF的access token過期/被撤銷是LINE平台常見的行為(關閉LIFF App當下token就會失效),不是我們程式碼能完全避免的問題,
+// 但可以偵測到這種情況時給明確的中文指引,不要讓使用者看到一串看不懂的英文錯誤訊息。
+function _fmtLiffErr(err){
+  const msg=String((err&&err.message)||err||'');
+  if(/access token|token expired|token revoked/i.test(msg)){
+    return '登入狀態已過期，請完全關閉LINE App後重新開啟再試一次\n（技術訊息：'+msg+'）';
+  }
+  return msg;
+}
 
 function RegisterFlow({profile,onDone}){
   const[lang,setLang]=useState('');
@@ -168,7 +184,7 @@ function NoticeView({nid,userProfile}){
   const settingsObj={code:code,lang:lang};
   if(notice===undefined)return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><Spinner size={32}/><p className="text-sm text-gray-500">載入中…</p></div>);
   if(!notice)return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-gray-500 text-center">找不到這則公告，可能已經下架或連結有誤</p></div>);
-  return(<div className="min-h-screen">{window.NoticeDetailModal&&<window.NoticeDetailModal notice={notice} settings={settingsObj} t={t} onClose={()=>{try{liff.closeWindow()}catch(_e){}}} onMore={()=>{}}/>}</div>);
+  return window.NoticeDetailModal?(<window.NoticeDetailModal notice={notice} settings={settingsObj} t={t} onClose={()=>{try{liff.closeWindow()}catch(_e){}}} onMore={()=>{}}/>):null;
 }
 
 function App(){
@@ -189,12 +205,12 @@ function App(){
         });
       });
     });
-    if(LIFF_ID_HARDCODED){initLiff(LIFF_ID_HARDCODED).catch(err=>{setLiffErr(String(err&&err.message||err));setPhase('error')});return;}
+    if(LIFF_ID_HARDCODED){initLiff(LIFF_ID_HARDCODED).catch(err=>{setLiffErr(_fmtLiffErr(err));setPhase('error')});return;}
     sfConfig().then(cfg=>{
       const id=cfg&&cfg.ok?cfg.liffId:'';
       if(!id){setLiffErr('尚未設定LIFF_ID');setPhase('error');return}
       return initLiff(id);
-    }).catch(err=>{setLiffErr(String(err&&err.message||err));setPhase('error')});
+    }).catch(err=>{setLiffErr(_fmtLiffErr(err));setPhase('error')});
   },[]);
 
   if(phase==='error')return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{liffErr}</p></div>);
