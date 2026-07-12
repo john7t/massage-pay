@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>公告 v1.0-005</title>
+<title>公告 v1.0-007</title>
 <meta property="og:title" content="公告通知">
 <meta property="og:description" content="請點擊連結查看公告內容">
 <meta property="og:type" content="website">
@@ -66,6 +66,7 @@ const SUBTYPES_ZH=['執行長','區經理','經理','副理','實習副理','櫃
 const SUBTYPES_VI=['Giám đốc điều hành','Quản lý khu vực','Quản lý','Phó quản lý','Phó quản lý thực tập','Tổ trưởng lễ tân'];
 
 async function sfConfig(){const r=await gasCall('sfConfig',{app:'notice'},10000);return r||{ok:false,error:'GAS無回應'};}
+async function getNoticeFlexContent(noticeId,liffId){const r=await gasCall('getNoticeFlexContent',{noticeId,liffId},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfGetUser(lineUserId){const r=await gasCall('sfGetUser',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfRegister(data){const r=await window.MP.gasCallPost('sfRegister',data,15000);return r||{ok:false,error:'GAS無回應'};}
 async function checkStaffCode(code){const r=await gasCall('checkStaffCode',{code},10000);return r||{ok:false,error:'GAS無回應'};}
@@ -182,9 +183,40 @@ function NoticeView({nid,userProfile}){
   const t=(T&&T[lang])||{};
   const code=userProfile.personType==='teacher'?userProfile.name:(userProfile.code||userProfile.name||'');
   const settingsObj={code:code,lang:lang};
+  useEffect(()=>{
+    // 這個LIFF頁面已經走過LINE登入確認身分,notice-modal.js的本機PIN鎖(設計給主系統那種免登入情境用的)在這裡是多餘的關卡。
+    // 預先在本機localStorage寫入「已設定+已通過」的狀態,直接跳過那道關卡,不用修改notice-modal.js本身(主系統那邊的PIN鎖不受影響)。
+    if(!code)return;
+    try{
+      const s=(window.MP&&window.MP.LS&&window.MP.LS.get('app-settings'))||{};
+      window.MP.LS.set('app-settings',Object.assign({},s,{code:code,lockPwd:'0000',lockAutoTime:99999999}));
+      localStorage.setItem('notice-pwd-unlock-'+code,String(Date.now()));
+    }catch(_e){}
+  },[code]);
   if(notice===undefined)return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><Spinner size={32}/><p className="text-sm text-gray-500">載入中…</p></div>);
   if(!notice)return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-gray-500 text-center">找不到這則公告，可能已經下架或連結有誤</p></div>);
   return window.NoticeDetailModal?(<window.NoticeDetailModal notice={notice} settings={settingsObj} t={t} onClose={()=>{try{liff.closeWindow()}catch(_e){}}} onMore={()=>{}}/>):null;
+}
+
+function ShareFlow({nid}){
+  const[status,setStatus]=useState('loading');
+  const[err,setErr]=useState('');
+  useEffect(()=>{
+    getNoticeFlexContent(nid,LIFF_ID_HARDCODED).then(r=>{
+      if(!r||!r.ok){setStatus('error');setErr((r&&r.error)||'讀取失敗');return}
+      setStatus('picking');
+      if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setStatus('error');setErr('此環境不支援分享功能，請在LINE App內開啟');return}
+      liff.shareTargetPicker([{type:'flex',altText:r.title,contents:r.flex}]).then(res=>{setStatus(res?'done':'cancelled')}).catch(e=>{setStatus('error');setErr(String(e&&e.message||e))});
+    }).catch(e=>{setStatus('error');setErr(String(e))});
+  },[]);
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+    {status==='loading'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">準備分享內容…</p></>)}
+    {status==='picking'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">請選擇要分享的對象…</p></>)}
+    {status==='done'&&(<p className="text-base text-emerald-500 font-semibold">✓ 已分享</p>)}
+    {status==='cancelled'&&(<p className="text-sm text-gray-500">已取消分享</p>)}
+    {status==='error'&&(<p className="text-sm text-red-400">{err}</p>)}
+    {(status==='done'||status==='cancelled'||status==='error')&&<button onClick={()=>{try{liff.closeWindow()}catch(_e){location.href=location.href.split('?')[0]}}} className="px-6 py-3 rounded-xl bg-white/[0.06] text-gray-300 text-sm font-semibold">關閉</button>}
+  </div>);
 }
 
 function App(){
@@ -193,10 +225,12 @@ function App(){
   const[userProfile,setUserProfile]=useState(null);
   const[liffErr,setLiffErr]=useState('');
   const nid=new URLSearchParams(location.search).get('nid')||'';
+  const action=new URLSearchParams(location.search).get('action')||'';
 
   useEffect(()=>{
     const initLiff=(id)=>liff.init({liffId:id}).then(()=>{
       if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return}
+      if(action==='share'){setPhase('share');return}
       return liff.getProfile().then(p=>{
         setProfile(p);setPhase('loading');
         return sfGetUser(p.userId).then(r=>{
@@ -215,6 +249,7 @@ function App(){
 
   if(phase==='error')return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{liffErr}</p></div>);
   if(phase==='liffInit'||phase==='loading')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><div className="text-amber-500"><Spinner size={40}/></div><p className="text-base text-gray-400">載入中…</p></div>);
+  if(phase==='share')return(<ShareFlow nid={nid}/>);
   if(phase==='register')return(<RegisterFlow profile={profile} onDone={()=>{sfGetUser(profile.userId).then(r=>{if(r&&r.ok&&r.exists){setUserProfile(r.profile);setPhase('main')}})}}/>);
   return(<NoticeView nid={nid} userProfile={userProfile}/>);
 }
