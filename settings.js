@@ -1,8 +1,8 @@
 // settings.js — 設定頁相關元件(從 index.html 抽離,降低 index 體積)
-// v1.12-030 / 公告分類分頁改用完整8分類清單:不再從現有公告資料推導(避免有分類還沒被用過就不會出現在分頁),改讀GAS發布時一併附上的mainCats(含中越文對照),固定顯示「全部」+8個主分類共9個按鈕(3x3排列),依語系自動切換中文/越南文標籤 | 前: v1.12-029 / 首頁設定新增「保護密碼」區塊:關閉首頁密碼要求的開關+自動上鎖時間(可調整,最小5分鐘,預設60分鐘,取代原本寫死的5分鐘) | 前: v1.12-028 / 公告列表細部調整+憑證狀態整合:(1)分類分頁改3欄(原4欄文字被吃),點主分類後下方多一列子分類可再篩選(2)公告編號從第一排移到分類標籤之後(3)本機優先(還沒發布)的公告加綠底白字「本機」標籤(4)CredentialCard整合進既有「老師專屬憑證」那行,不再是獨立卡片,加憑證期限+離職日/已逾期原因顯示,展期按鈕改成到期前7天就會出現(不用等真的失效),移除卡片裡的離職按鈕(離職移到店資彈窗) | 前: v1.12-027 / 公告列表大改版:(1)標題下方加分類分頁(全部+最多6個主分類,從現有公告資料取不重複主分類,不用另外查Categories表)(2)每則公告第一排最前面加公告編號(3)加下架/上架:編輯頁下方新增按鈕,呼叫GAS toggleNoticeStatus,下架後列表仍看得到但灰字+加下架標籤,一般老師端(notices.json實際發布內容)會被過濾掉(4)editNotice核准後,GAS回傳最終欄位值(含AI產生的越南文),前端直接套用到本機列表,不用等下次發布就能看到完整結果 | 前: v1.12-025 / 重新正確加入離職+憑證展期功能(CredentialCard元件):上一版(v023)bridge匯入清單裡`buildReqLink`重複宣告(跟後面既有的申請碼系統匯入撞名),導致Babel轉譯整個檔案失敗、index.html跟著崩潰(白畫面"網站更新中")。這次改成只加缺少的識別字(gasVerifyKey/gasLeaveTeacher/gasSubmitAction/gasCheckAction/getMyKey),不重複加已存在的(buildReqLink/hasMyKey),並額外做了「解構清單重複識別字」專門檢查(TypeScript語法檢查器抓不到這種錯誤,只有真的用Babel轉譯才會抓到) | 前: v1.12-022 / 公告列表照新規格重排:第二排依序👤發布人/👁開啟次數(依主管選的人數或人次)/👍已讀人數/主子分類(受顯示開關控制)/時間(置右)。第一排文字改用主管選的標題或摘要(listText設定) | 前: v1.12-021 / 公告列表版面調整:第一排只留摘要+編輯鈕(主分類移出);第二排右側改放主/子分類(合併顯示,如"薪資・調整")+開啟次數(👁圖示+數字,取代原本的已讀人數,開啟次數是更寬鬆的被動記錄指標) | 前: 語系選項從基資分頁移到首頁設定的主題下方(語系是個人偏好,不屬於需要主管審核的基資,放首頁設定更直覺) | 前: 版次對齊(內容未變動):跟隨common.js/index.html/auth.html/notice-modal.js這次的整理點同步版號,方便日後從標題/檔頭確認全套部署是否一致 | 前: 公告分頁:移除進入公告頁後的提示文字段落(點右上新增公告...那句)。新增公告的權限限制(限主管supervisor+admin)在v034已完成(canManage判斷),此次確認沿用 | 前:hotfix:公告編輯權限判斷修正(admin查admin.cfg雜湊,不是staff.json role) | 前: 新增公告完整流程接功能(033)
+// v1.12-032 / 新建公告接LINE推播:發布成功後不再自動關閉視窗,改成留在頁面上顯示「推播到我的LINE」按鈕(用code查安全回報那邊收集到的LINE身分,查不到會提示先去登記)+「查誰還沒看」按鈕(沿用既有的noticeUnread動作) | 前: v1.12-031 / 首頁圖示改版+建議功能實作:(1)自約/公告/圖表/建議/違規5個分頁按鈕從TABS移除,改用首頁圖示進入(2)SuggestPage移除假資料,改接真正的GAS(submitSuggestion/listSuggestions),送出建議會真的存進Sheet,清單真的從GAS撈 | 前: v1.12-030 / 公告分類分頁改用完整8分類清單:不再從現有公告資料推導(避免有分類還沒被用過就不會出現在分頁),改讀GAS發布時一併附上的mainCats(含中越文對照),固定顯示「全部」+8個主分類共9個按鈕(3x3排列),依語系自動切換中文/越南文標籤 | 前: v1.12-029 / 首頁設定新增「保護密碼」區塊:關閉首頁密碼要求的開關+自動上鎖時間(可調整,最小5分鐘,預設60分鐘,取代原本寫死的5分鐘) | 前: v1.12-028 / 公告列表細部調整+憑證狀態整合:(1)分類分頁改3欄(原4欄文字被吃),點主分類後下方多一列子分類可再篩選(2)公告編號從第一排移到分類標籤之後(3)本機優先(還沒發布)的公告加綠底白字「本機」標籤(4)CredentialCard整合進既有「老師專屬憑證」那行,不再是獨立卡片,加憑證期限+離職日/已逾期原因顯示,展期按鈕改成到期前7天就會出現(不用等真的失效),移除卡片裡的離職按鈕(離職移到店資彈窗) | 前: v1.12-027 / 公告列表大改版:(1)標題下方加分類分頁(全部+最多6個主分類,從現有公告資料取不重複主分類,不用另外查Categories表)(2)每則公告第一排最前面加公告編號(3)加下架/上架:編輯頁下方新增按鈕,呼叫GAS toggleNoticeStatus,下架後列表仍看得到但灰字+加下架標籤,一般老師端(notices.json實際發布內容)會被過濾掉(4)editNotice核准後,GAS回傳最終欄位值(含AI產生的越南文),前端直接套用到本機列表,不用等下次發布就能看到完整結果 | 前: v1.12-025 / 重新正確加入離職+憑證展期功能(CredentialCard元件):上一版(v023)bridge匯入清單裡`buildReqLink`重複宣告(跟後面既有的申請碼系統匯入撞名),導致Babel轉譯整個檔案失敗、index.html跟著崩潰(白畫面"網站更新中")。這次改成只加缺少的識別字(gasVerifyKey/gasLeaveTeacher/gasSubmitAction/gasCheckAction/getMyKey),不重複加已存在的(buildReqLink/hasMyKey),並額外做了「解構清單重複識別字」專門檢查(TypeScript語法檢查器抓不到這種錯誤,只有真的用Babel轉譯才會抓到) | 前: v1.12-022 / 公告列表照新規格重排:第二排依序👤發布人/👁開啟次數(依主管選的人數或人次)/👍已讀人數/主子分類(受顯示開關控制)/時間(置右)。第一排文字改用主管選的標題或摘要(listText設定) | 前: v1.12-021 / 公告列表版面調整:第一排只留摘要+編輯鈕(主分類移出);第二排右側改放主/子分類(合併顯示,如"薪資・調整")+開啟次數(👁圖示+數字,取代原本的已讀人數,開啟次數是更寬鬆的被動記錄指標) | 前: 語系選項從基資分頁移到首頁設定的主題下方(語系是個人偏好,不屬於需要主管審核的基資,放首頁設定更直覺) | 前: 版次對齊(內容未變動):跟隨common.js/index.html/auth.html/notice-modal.js這次的整理點同步版號,方便日後從標題/檔頭確認全套部署是否一致 | 前: 公告分頁:移除進入公告頁後的提示文字段落(點右上新增公告...那句)。新增公告的權限限制(限主管supervisor+admin)在v034已完成(canManage判斷),此次確認沿用 | 前:hotfix:公告編輯權限判斷修正(admin查admin.cfg雜湊,不是staff.json role) | 前: 新增公告完整流程接功能(033)
 // 注意:此檔為 type="text/babel",獨立作用域,需自行宣告 hooks 與 bridge
 const{useState,useEffect,useCallback,useMemo}=React;
-const{gasAnalyze,gasAddNotice,gasEditNotice,noticeSummary,noticeTitle,getNoticeReadCount,getNoticeShow,getNoticeListText,getNoticeCountType,getNoticeMainCats,getNoticesLocal,fetchNotices,gasVerifyKey,gasLeaveTeacher,gasSubmitAction,gasCheckAction,gasToggleNoticeStatus,getMyKey,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,getGasUrl,setGasUrl,gasCall,hasMyKey,issueKey,claimMyKey,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{gasAnalyze,gasAddNotice,gasEditNotice,noticeSummary,noticeTitle,getNoticeReadCount,getNoticeShow,getNoticeListText,getNoticeCountType,getNoticeMainCats,getNoticesLocal,fetchNotices,gasVerifyKey,gasLeaveTeacher,gasSubmitAction,gasCheckAction,gasToggleNoticeStatus,gasSubmitSuggestion,gasListSuggestions,getMyKey,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,getGasUrl,setGasUrl,gasCall,hasMyKey,issueKey,claimMyKey,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 function fmtSyncTime(iso){try{const d=new Date(iso);const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"/"+p(d.getMonth()+1)+"/"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes())}catch(_e){return ""}}
 
 function ChartPage({t,settings}){
@@ -97,25 +97,33 @@ function SuggestPage({t,settings}){
   const[body,setBody]=React.useState('');
   const[anon,setAnon]=React.useState(false);
   const[status,setStatus]=React.useState('');
-  // 假資料範例(之後接GAS/Sheet)
-  const demo=[
-    {id:1,title:'休息室可以加個飲水機嗎',body:'四樓休息室夏天很熱，希望能加個飲水機，大家輪班時比較方便。',author:'251',anon:false,time:'07-05 14:20'},
-    {id:2,title:'排班表希望能提早一週公布',body:'現在有時候前兩天才知道班表，比較難安排自己的事情，希望能提早一點。',author:'',anon:true,time:'07-04 22:10'},
-    {id:3,title:'建議增加毛巾數量',body:'尖峰時段毛巾常常不夠用，要等洗好，會影響服務速度。',author:'308',anon:false,time:'07-03 19:45'}
-  ];
+  const[busy,setBusy]=React.useState(false);
+  const[list,setList]=React.useState(undefined);
+  const load=()=>{gasListSuggestions().then(r=>{if(r&&r.ok)setList(r.list||[]);else setList([])}).catch(()=>setList([]))};
+  React.useEffect(()=>{load()},[]);
   const closeAdd=()=>{setShowAdd(false);setTitle('');setBody('');setAnon(false);setStatus('')};
-  const submit=()=>{setStatus('wip')}; // 先不功能
+  const submit=async()=>{
+    if(!title.trim()||!body.trim())return;
+    setBusy(true);setStatus('');
+    try{
+      const r=await gasSubmitSuggestion(title.trim(),body.trim(),settings.code||'',anon);
+      if(r&&r.ok){closeAdd();load()}else{setStatus('err')}
+    }catch(_e){setStatus('err')}
+    setBusy(false);
+  };
   return(<div className="fi">
     <div className="flex items-center justify-between mb-3"><h2 className="text-lg font-bold text-gray-100">{t.suggestBox||'建議'}</h2><button onClick={()=>setShowAdd(true)} className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold active:bg-amber-700">+ {t.suggestAdd||'新建議'}</button></div>
-    <div className="space-y-2">{demo.map(s=>(<div key={s.id} className="bg-white/[0.03] border border-white/[0.05] rounded-xl px-3 py-2.5"><div className="flex items-center justify-between gap-2"><p className="text-sm text-gray-200 font-medium truncate flex-1">{s.title}</p><span className="text-[10px] text-gray-500 flex-shrink-0">{s.anon?(t.suggestAnon||'發布人：隱藏'):('發布人：'+s.author)}</span></div><div className="flex items-center justify-between gap-2 mt-1"><p className="text-[11px] text-gray-500 truncate flex-1">{s.body}</p><span className="text-[10px] text-gray-600 flex-shrink-0">{s.time}</span></div></div>))}</div>
+    {list===undefined?<p className="text-xs text-gray-600 text-center py-6">{t.loading||'載入中…'}</p>:list.length===0?<p className="text-xs text-gray-600 text-center py-6">{t.suggestEmpty||'目前沒有建議'}</p>:(
+    <div className="space-y-2">{list.map(s=>(<div key={s.id} className="bg-white/[0.03] border border-white/[0.05] rounded-xl px-3 py-2.5"><div className="flex items-center justify-between gap-2"><p className="text-sm text-gray-200 font-medium truncate flex-1">{s.title}</p><span className="text-[10px] text-gray-500 flex-shrink-0">{s.anon?(t.suggestAnon||'發布人：隱藏'):('發布人：'+s.author)}</span></div><div className="flex items-center justify-between gap-2 mt-1"><p className="text-[11px] text-gray-500 truncate flex-1">{s.body}</p><span className="text-[10px] text-gray-600 flex-shrink-0">{s.time}</span></div></div>))}</div>
+    )}
     {showAdd&&(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={closeAdd}><div className="bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[88vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
       <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{t.suggestAdd||'新建議'}</h3><button onClick={closeAdd} className="text-gray-500 text-sm">✕</button></div>
       <div className="p-4 space-y-4">
         <div><label className="text-xs text-gray-400 mb-1 block">{t.suggestTitle||'標題'}</label><input value={title} onChange={e=>setTitle(e.target.value)} placeholder={t.suggestTitlePh||'一句話說明你的建議'} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500" style={{boxSizing:'border-box'}}/></div>
         <div><label className="text-xs text-gray-400 mb-1 block">{t.suggestContent||'內容'}</label><textarea value={body} onChange={e=>setBody(e.target.value)} rows={5} placeholder={t.suggestContentPh||'詳細說明你的想法…'} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 resize-none" style={{boxSizing:'border-box'}}/></div>
         <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={anon} onChange={e=>setAnon(e.target.checked)} className="w-4 h-4 rounded accent-amber-500"/><span className="text-sm text-gray-300">{t.suggestAnonOpt||'匿名發布（不顯示我的編號）'}</span></label>
-        {status==='wip'&&<p className="text-[11px] text-amber-500 text-center">{t.noticeFeatureWip||'功能建置中，敬請期待'}</p>}
-        <button onClick={submit} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold active:bg-emerald-700">{t.suggestSubmit||'送出建議'}</button>
+        {status==='err'&&<p className="text-[11px] text-red-400 text-center">{t.suggestSubmitFail||'送出失敗，請再試一次'}</p>}
+        <button onClick={submit} disabled={busy||!title.trim()||!body.trim()} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold active:bg-emerald-700 disabled:opacity-50">{busy?'…':(t.suggestSubmit||'送出建議')}</button>
       </div>
     </div></div>)}
   </div>);
@@ -191,9 +199,26 @@ function NoticeManagePage({t,settings}){
     setAiStatus('publishing');
     try{
       const r=await gasAddNotice({cat:aiResult.cat,subcat:aiResult.subcat,title:aiResult.title,summary:aiResult.summary,body:aiResult.body||content,bodyVi:aiResult.bodyVi,tags:aiResult.tags,titleVi:aiResult.titleVi,summaryVi:aiResult.summaryVi,author:myCode,code:myCode});
-      if(r&&r.ok){setAiStatus('done:'+r.id);setTimeout(()=>closeAdd(),3500);}
+      if(r&&r.ok){setAiStatus('done:'+r.id);} // 不再自動關閉,留在頁面上讓主管可以推播到LINE+查誰還沒看
       else{setAiStatus('發布失敗：'+((r&&r.error)||'?'));}
     }catch(e){setAiStatus('錯誤：'+e);}
+  };
+  const[pushBusy,setPushBusy]=React.useState(false);const[pushMsg,setPushMsg]=React.useState('');
+  const doPushNotice=async(noticeId)=>{
+    setPushBusy(true);setPushMsg('');
+    try{
+      const r=await gasPushNoticeFlexToMe(noticeId,myCode);
+      if(r&&r.ok)setPushMsg('✓ 已推播到你的LINE');
+      else if(r&&r.needBind)setPushMsg('尚未綁定LINE帳號，請先到安全回報頁面登記一次');
+      else setPushMsg('推播失敗：'+((r&&r.error)||'?'));
+    }catch(e){setPushMsg('推播失敗：'+e)}
+    setPushBusy(false);
+  };
+  const[unreadInfo,setUnreadInfo]=React.useState(null);const[unreadBusy,setUnreadBusy]=React.useState(false);
+  const checkUnread=async(noticeId)=>{
+    setUnreadBusy(true);
+    try{const r=await gasCall('noticeUnread',{noticeId},10000);if(r&&r.ok)setUnreadInfo(r)}catch(_e){}
+    setUnreadBusy(false);
   };
   const upd=(k,v)=>setAiResult(p=>Object.assign({},p,{[k]:v}));
   const[catTab,setCatTab]=React.useState('all');
@@ -284,7 +309,14 @@ function NoticeManagePage({t,settings}){
           <div><label className="text-[10px] text-emerald-600">越南文標題</label><input value={aiResult.titleVi||''} onChange={e=>upd('titleVi',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-emerald-500" style={{boxSizing:'border-box'}}/></div>
           <div><label className="text-[10px] text-emerald-600">越南文內容</label><textarea value={aiResult.bodyVi||''} onChange={e=>upd('bodyVi',e.target.value)} rows={3} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-emerald-500 resize-none" style={{boxSizing:'border-box'}}/></div>
         </div>)}
-        {aiStatus&&aiStatus.startsWith('done:')&&<p className="text-[11px] text-emerald-500 text-center font-semibold">✓ 已發布（{aiStatus.slice(5)}號）。公告頁是快取，需等下次更新才會顯示，當下沒變是正常的。</p>}
+        {aiStatus&&aiStatus.startsWith('done:')&&(<div className="space-y-2">
+          <p className="text-[11px] text-emerald-500 text-center font-semibold">✓ 已發布（{aiStatus.slice(5)}號）。公告頁是快取，需等下次更新才會顯示，當下沒變是正常的。</p>
+          <button onClick={()=>doPushNotice(aiStatus.slice(5))} disabled={pushBusy} className="w-full py-2.5 rounded-xl bg-[#06C755] text-white text-sm font-semibold active:bg-[#05a648] disabled:opacity-50">{pushBusy?'推播中…':'📲 推播到我的LINE'}</button>
+          {pushMsg&&<p className="text-[11px] text-center text-gray-400">{pushMsg}</p>}
+          <button onClick={()=>checkUnread(aiStatus.slice(5))} disabled={unreadBusy} className="w-full py-2 rounded-xl bg-white/[0.06] text-gray-400 text-xs font-semibold disabled:opacity-50">{unreadBusy?'查詢中…':'查誰還沒看'}</button>
+          {unreadInfo&&(<div className="bg-white/[0.03] rounded-lg p-2.5 space-y-1"><p className="text-[11px] text-gray-500">未讀共{unreadInfo.total}人</p>{unreadInfo.day.length>0&&<p className="text-[11px] text-gray-400">早班：{unreadInfo.day.join('、')}</p>}{unreadInfo.night.length>0&&<p className="text-[11px] text-gray-400">晚班：{unreadInfo.night.join('、')}</p>}{unreadInfo.other.length>0&&<p className="text-[11px] text-gray-400">其他：{unreadInfo.other.join('、')}</p>}</div>)}
+          <button onClick={closeAdd} className="w-full py-2 rounded-xl bg-white/[0.04] text-gray-500 text-xs">關閉</button>
+        </div>)}
         <div className="pt-2 border-t border-white/[0.06]"><button onClick={publish} disabled={!aiResult||aiStatus==='publishing'} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold active:bg-emerald-700 disabled:opacity-50">{aiStatus==='publishing'?'發布中…':(t.noticePublishBtn||'發布公告')}</button></div>
       </div>
     </div></div>)}
@@ -389,7 +421,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
     if(!hasPerm){try{const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),4000);const res=await fetch('./admin.cfg',{cache:'no-store',signal:ctrl.signal});clearTimeout(timer);if(res.ok){const text=(await res.text()).trim();const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));const myHash=adminHash(settings.code);hasPerm=lines.some(l=>{const parts=l.split(':');const h=parts.length>=2?parts[parts.length-1]:parts[0];return h===myHash})}}catch(_e){}}
     location.href='./auth.html#lang='+(settings.lang||'zh')+(hasPerm?'&auto=1':'');
   };
-  const TABS=[['home',t.tabHome2],['basic',t.tabBasic],['store',t.tabStore],['book',t.tabBook2],['cust',t.tabCust],['notice',t.tabNotice],['chart',t.tabChart],['suggest',t.tabSuggest],['backup',t.tabBackup],['violation',t.tabViolation],['manage',t.tabManage]];
+  const TABS=[['home',t.tabHome2],['basic',t.tabBasic],['store',t.tabStore],['cust',t.tabCust],['backup',t.tabBackup],['manage',t.tabManage]];
   const fld=(label,key,opt)=>(<div><label className="text-xs text-gray-400 mb-1 block">{label}{opt&&<span className="text-[10px] text-gray-600 ml-1">({t.optional})</span>}</label><input value={form[key]||''} onChange={e=>upd({[key]:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>);
   const Construction=()=>(<div className="flex flex-col items-center justify-center py-20 text-center"><svg className="w-12 h-12 text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/></svg><p className="text-sm text-gray-500">{t.underConstruction}</p></div>);
   // 產生申請碼:把欄位加密,標記變動
