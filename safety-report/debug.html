@@ -17,7 +17,7 @@
 </style>
 </head>
 <body>
-<h1>🔧 安全回報 部署診斷頁 <span style="color:#6b7280;font-size:14px">v7</span></h1>
+<h1>🔧 安全回報 部署診斷頁 <span style="color:#6b7280;font-size:14px">v8</span></h1>
 <p id="testTime" style="color:#6b7280;font-size:12px;margin:-8px 0 12px"></p>
 <button onclick="location.reload()">重新檢查</button>
 <button onclick="copyMarkdown()" style="background:#0891b2">📋 複製診斷結果(Markdown)</button>
@@ -57,7 +57,7 @@ function getGasUrlFromStorage() {
 
 async function checkVersions() {
   const files = [
-    { name: 'index.html', patterns: [/<title>[^<]*<\/title>/] },
+    { name: 'index.html', patterns: [/<title>([^<]*)<\/title>/] },
     { name: '../common.js', patterns: [/v(\d+\.\d+-\d+(?:\.\d+)?)\s*\//] },
   ];
   let html = '';
@@ -150,6 +150,27 @@ async function checkBabelScript(url, label) {
       return { ok: false, msg: '【轉譯失敗(語法錯誤)】' + e.message };
     }
     try {
+      // 真正的頁面有<div id="root">跟LIFF SDK,這裡補一份最小模擬環境,避免因為「找不到root容器」「liff未定義」這種跟程式碼本身無關的環境差異誤判成bug
+      if (!document.getElementById('__diag_root')) {
+        const rootDiv = document.createElement('div');
+        rootDiv.id = 'root';
+        rootDiv.style.display = 'none';
+        document.body.appendChild(rootDiv);
+        const wrap = document.createElement('div');
+        wrap.id = '__diag_root';
+        wrap.style.display = 'none';
+        document.body.appendChild(wrap);
+      }
+      if (typeof window.liff === 'undefined') {
+        window.liff = {
+          init: () => Promise.resolve(),
+          isLoggedIn: () => false,
+          login: () => {},
+          getProfile: () => Promise.resolve({ userId: '__diag_test__', displayName: '診斷測試' }),
+          isApiAvailable: () => false,
+          shareTargetPicker: () => Promise.resolve(),
+        };
+      }
       const fn = new Function(transformed);
       fn();
     } catch (e) {
