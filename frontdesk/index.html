@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>櫃台差勤 v1.0-001</title>
+<title>櫃台差勤 v1.0-002</title>
 <meta property="og:title" content="櫃台差勤管理">
 <meta property="og:description" content="排休、請假、特休管理">
 <meta property="og:type" content="website">
@@ -50,7 +50,7 @@ body{background:#0a0a0f;color:#e5e7eb;margin:0;font-family:-apple-system,BlinkMa
 (function(){
 const{useState,useEffect,useMemo}=React;
 
-const LIFF_ID_HARDCODED='2010673151-OMHcBUjJ'; // 需要另外申請一個LIFF App,Endpoint URL指到這個頁面的網址,填進來
+const LIFF_ID_HARDCODED=''; // 需要另外申請一個LIFF App,Endpoint URL指到這個頁面的網址,填進來
 
 const SHIFTS={
   A1:{name:'早班1',time:'08:00–18:00',pair:'A2',group:'morning'},
@@ -72,11 +72,11 @@ async function fdGetSelf(lineUserId){return gasCall('fdGetSelf',{lineUserId});}
 async function fdRegister(data){return gasCallPost('fdRegister',data);}
 async function fdCheckApproval(lineUserId){return gasCall('fdCheckApproval',{lineUserId});}
 async function fdSubmitLeave(data){return gasCallPost('fdSubmitLeave',data);}
-async function fdApproveLeave(id,approve,approver){return gasCallPost('fdApproveLeave',{id,approve,approver});}
-async function fdListPendingLeaves(){return gasCall('fdListPendingLeaves',{});}
-async function fdListPendingStaff(){return gasCall('fdListPendingStaff',{});}
-async function fdApproveStaff(staffId,approve){return gasCallPost('fdApproveStaff',{staffId,approve});}
-async function fdSetSupervisor(staffId,isSupervisor){return gasCallPost('fdSetSupervisor',{staffId,isSupervisor});}
+async function fdApproveLeave(id,approve,approver,lineUserId){return gasCallPost('fdApproveLeave',{id,approve,approver,lineUserId});}
+async function fdListPendingLeaves(lineUserId){return gasCall('fdListPendingLeaves',{lineUserId});}
+async function fdListPendingStaff(lineUserId){return gasCall('fdListPendingStaff',{lineUserId});}
+async function fdApproveStaff(staffId,approve,lineUserId){return gasCallPost('fdApproveStaff',{staffId,approve,lineUserId});}
+async function fdSetSupervisor(staffId,isSupervisor,lineUserId){return gasCallPost('fdSetSupervisor',{staffId,isSupervisor,lineUserId});}
 async function fdAnnualUsage(staffId){return gasCall('fdAnnualUsage',{staffId});}
 async function fdAnnualUsageAll(){return gasCall('fdAnnualUsageAll',{});}
 async function fdSetScheduleOff(staffId,date,off){return gasCallPost('fdSetScheduleOff',{staffId,date,off});}
@@ -356,10 +356,10 @@ function AnnualAllTab(){
 function ApprovalTab({myStaff}){
   const[pendingStaff,setPendingStaff]=useState(null);
   const[pendingLeaves,setPendingLeaves]=useState(null);
-  const load=()=>{fdListPendingStaff().then(r=>{if(r&&r.ok)setPendingStaff(r.list)});fdListPendingLeaves().then(r=>{if(r&&r.ok)setPendingLeaves(r.list)})};
+  const load=()=>{fdListPendingStaff(myStaff.lineUserId).then(r=>{if(r&&r.ok)setPendingStaff(r.list)});fdListPendingLeaves(myStaff.lineUserId).then(r=>{if(r&&r.ok)setPendingLeaves(r.list)})};
   useEffect(()=>{load()},[]);
-  const doStaff=(id,ok)=>{fdApproveStaff(id,ok).then(load)};
-  const doLeave=(id,ok)=>{fdApproveLeave(id,ok,myStaff.nickname).then(load)};
+  const doStaff=(id,ok)=>{fdApproveStaff(id,ok,myStaff.lineUserId).then(load)};
+  const doLeave=(id,ok)=>{fdApproveLeave(id,ok,myStaff.nickname,myStaff.lineUserId).then(load)};
   return(<div className="space-y-4">
     <div>
       <p className="text-sm text-gray-300 font-semibold mb-2">待審核帳號（{pendingStaff?pendingStaff.length:0}）</p>
@@ -435,7 +435,13 @@ function App(){
 
   if(phase==='error')return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{liffErr}</p></div>);
   if(phase==='liffInit'||phase==='loading')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><div className="text-amber-500"><Spinner size={40}/></div><p className="text-base text-gray-400">載入中…</p></div>);
-  if(phase==='register')return(<RegisterFlow profile={profile} onDone={()=>{setPhase('pinSetup')}}/>);
+  if(phase==='register')return(<RegisterFlow profile={profile} onDone={()=>{
+    setPhase('loading');
+    fdGetSelf(profile.userId).then(r=>{
+      if(r&&r.ok&&r.exists){setMyStaff(r.profile);setPhase('pending')} // 剛登記完一定是pending狀態,先進待審核畫面
+      else{setPhase('register')} // 萬一查不到,退回登記頁重試
+    }).catch(()=>setPhase('register'));
+  }}/>);
   if(phase==='pending')return(<PendingScreen profile={profile} onApproved={()=>{fdGetSelf(profile.userId).then(r=>{if(r&&r.ok&&r.exists){setMyStaff(r.profile);setPhase('pinSetup')}})}}/>);
   if(phase==='pinSetup')return(<PinSetup onDone={()=>setPhase('main')}/>);
   if(locked)return(<LockScreen onUnlock={()=>setLocked(false)}/>);
