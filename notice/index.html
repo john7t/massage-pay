@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>公告 v1.0-007</title>
+<title>公告 v1.0-009</title>
 <meta property="og:title" content="公告通知">
 <meta property="og:description" content="請點擊連結查看公告內容">
 <meta property="og:type" content="website">
@@ -67,6 +67,7 @@ const SUBTYPES_VI=['Giám đốc điều hành','Quản lý khu vực','Quản l
 
 async function sfConfig(){const r=await gasCall('sfConfig',{app:'notice'},10000);return r||{ok:false,error:'GAS無回應'};}
 async function getNoticeFlexContent(noticeId,liffId){const r=await gasCall('getNoticeFlexContent',{noticeId,liffId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function noticeLiffMarkRead(noticeId,lineUserId){const r=await window.MP.gasCallPost('noticeLiffMarkRead',{noticeId,lineUserId},15000);return r||{ok:false,error:'GAS無回應'};}
 async function sfGetUser(lineUserId){const r=await gasCall('sfGetUser',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfRegister(data){const r=await window.MP.gasCallPost('sfRegister',data,15000);return r||{ok:false,error:'GAS無回應'};}
 async function checkStaffCode(code){const r=await gasCall('checkStaffCode',{code},10000);return r||{ok:false,error:'GAS無回應'};}
@@ -82,7 +83,7 @@ function _fmtLiffErr(err){
   return msg;
 }
 
-function RegisterFlow({profile,onDone}){
+function RegisterFlow({profile,onDone,staticMode}){
   const[lang,setLang]=useState('');
   const[store,setStore]=useState('');
   const[personType,setPersonType]=useState('');
@@ -117,17 +118,25 @@ function RegisterFlow({profile,onDone}){
     }catch(_e){setCheckMsg('查詢失敗')}
     setCheckBusy(false);
   };
+  const submitData={lineUserId:profile.userId,displayName:profile.displayName,store,personType,subType,name:personType==='teacher'?code.trim():name.trim(),code:personType==='teacher'?'':code.trim(),lang,gender,shift,city,dist};
   const submit=async()=>{
     if(!canSubmit)return;
     setBusy(true);setErr('');
+    if(staticMode){
+      // 靜態模式:送出後不等GAS回應,GAS會在伺服器端繼續執行完成,就算提前關閉分頁也不影響資料寫入。
+      // 短暫轉圈圈純粹是給使用者「有在處理」的感覺。
+      sfRegister(submitData).catch(()=>{});
+      setTimeout(()=>{onDone()},800);
+      return;
+    }
     try{
-      const r=await sfRegister({lineUserId:profile.userId,displayName:profile.displayName,store,personType,subType,name:personType==='teacher'?code.trim():name.trim(),code:personType==='teacher'?'':code.trim(),lang,gender,shift,city,dist});
+      const r=await sfRegister(submitData);
       if(r&&r.ok){onDone();return}
       setErr((r&&r.error)||'登記失敗');
     }catch(e){setErr(String(e))}
     setBusy(false);
   };
-  const tt=lang==='vi'?{appTitle:'Đăng ký',chooseLang:'Chọn ngôn ngữ',chooseStore:'Chọn cửa hàng',choosePersonType:'Chọn loại nhân sự',typeManager:'Quản lý',typeFrontdesk:'Lễ tân',typeTeacher:'Nhân viên kỹ thuật',typeStudent:'Học viên',chooseSubType:'Chọn cấp bậc',customNameLabel:'Tên tùy chỉnh',customNamePh:'Nhập tên (hoặc mã số)',teacherCode:'Mã nhân viên',teacherCodePh:'Mã số',checkBtn:'Kiểm tra',gender:'Giới tính',genderM:'Nam',genderF:'Nữ',shift:'Ca làm',shiftDay:'Ca sáng',shiftNight:'Ca tối',addr:'Khu vực',addrCity:'Tỉnh/Thành',addrDist:'Quận/Huyện',submitBtn:'Hoàn tất',submitting:'Đang xử lý…'}:{appTitle:'公告通知登記',chooseLang:'選擇語系',chooseStore:'選擇店別',choosePersonType:'選擇人員別',typeManager:'主管',typeFrontdesk:'櫃台',typeTeacher:'老師',typeStudent:'教學處學生',chooseSubType:'選擇主管別',customNameLabel:'自訂名稱',customNamePh:'請輸入自訂名稱(或直接輸入編號)',teacherCode:'老師編號',teacherCodePh:'編號',checkBtn:'檢查',gender:'性別',genderM:'男',genderF:'女',shift:'班別',shiftDay:'早班',shiftNight:'晚班',addr:'居住地區',addrCity:'縣市',addrDist:'鄉鎮市區',submitBtn:'完成登記',submitting:'處理中…'};
+  const tt=lang==='vi'?{appTitle:'Đăng ký',chooseLang:'Chọn ngôn ngữ',chooseStore:'Chọn cửa hàng',choosePersonType:'Chọn loại nhân sự',typeManager:'Quản lý',typeFrontdesk:'Lễ tân',typeTeacher:'Nhân viên kỹ thuật',typeStudent:'Học viên',chooseSubType:'Chọn cấp bậc',customNameLabel:'Tên tùy chỉnh',customNamePh:'Nhập tên (hoặc mã số)',teacherCode:'Mã nhân viên',teacherCodePh:'Mã số',checkBtn:'Kiểm tra',gender:'Giới tính',genderM:'Nam',genderF:'Nữ',shift:'Ca làm',shiftDay:'Ca sáng',shiftNight:'Ca tối',addr:'Khu vực',addrCity:'Tỉnh/Thành',addrDist:'Quận/Huyện',submitBtn:'Hoàn tất',submitting:'Đang xử lý…'}:{appTitle:'人員登記',chooseLang:'選擇語系',chooseStore:'選擇店別',choosePersonType:'選擇人員別',typeManager:'主管',typeFrontdesk:'櫃台',typeTeacher:'老師',typeStudent:'教學處學生',chooseSubType:'選擇主管別',customNameLabel:'自訂名稱',customNamePh:'請輸入自訂名稱(或直接輸入編號)',teacherCode:'老師編號',teacherCodePh:'編號',checkBtn:'檢查',gender:'性別',genderM:'男',genderF:'女',shift:'班別',shiftDay:'早班',shiftNight:'晚班',addr:'居住地區',addrCity:'縣市',addrDist:'鄉鎮市區',submitBtn:'完成登記',submitting:'處理中…'};
 
   return(<div className="min-h-screen flex items-center justify-center p-4">
     <div className="w-full max-w-md bg-gray-900 rounded-2xl border border-white/[0.08] p-5 space-y-5">
@@ -167,6 +176,31 @@ function RegisterFlow({profile,onDone}){
       {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
       {personType&&<button onClick={submit} disabled={!canSubmit||busy} className={`w-full py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 ${canSubmit&&!busy?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600'}`}>{busy&&<Spinner/>}{busy?tt.submitting:tt.submitBtn}</button>}
     </div>
+  </div>);
+}
+
+function ReadFlow({nid,profile}){
+  const[phase,setPhase]=useState('checking'); // checking/register/done
+  useEffect(()=>{
+    sfGetUser(profile.userId).then(r=>{
+      if(r&&r.ok&&r.exists){
+        noticeLiffMarkRead(nid,profile.userId).catch(()=>{}); // 不等回應,GAS會繼續在伺服器端執行完成
+        setPhase('done');
+      }else{
+        setPhase('register');
+      }
+    }).catch(()=>setPhase('register'));
+  },[]);
+  const onRegisterDone=()=>{
+    noticeLiffMarkRead(nid,profile.userId).catch(()=>{});
+    setPhase('done');
+  };
+  if(phase==='checking')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><Spinner size={32}/><p className="text-sm text-gray-500">載入中…</p></div>);
+  if(phase==='register')return(<RegisterFlow profile={profile} onDone={onRegisterDone} staticMode={true}/>);
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-3 p-6 text-center">
+    <p className="text-2xl">✅</p>
+    <p className="text-lg text-gray-100 font-bold">已完成已讀登記</p>
+    <p className="text-sm text-gray-400">可關閉此頁面，謝謝</p>
   </div>);
 }
 
@@ -231,6 +265,9 @@ function App(){
     const initLiff=(id)=>liff.init({liffId:id}).then(()=>{
       if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return}
       if(action==='share'){setPhase('share');return}
+      if(action==='read'){
+        return liff.getProfile().then(p=>{setProfile(p);setPhase('read')});
+      }
       return liff.getProfile().then(p=>{
         setProfile(p);setPhase('loading');
         return sfGetUser(p.userId).then(r=>{
@@ -250,6 +287,7 @@ function App(){
   if(phase==='error')return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{liffErr}</p></div>);
   if(phase==='liffInit'||phase==='loading')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><div className="text-amber-500"><Spinner size={40}/></div><p className="text-base text-gray-400">載入中…</p></div>);
   if(phase==='share')return(<ShareFlow nid={nid}/>);
+  if(phase==='read')return(<ReadFlow nid={nid} profile={profile}/>);
   if(phase==='register')return(<RegisterFlow profile={profile} onDone={()=>{sfGetUser(profile.userId).then(r=>{if(r&&r.ok&&r.exists){setUserProfile(r.profile);setPhase('main')}})}}/>);
   return(<NoticeView nid={nid} userProfile={userProfile}/>);
 }
