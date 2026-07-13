@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-042</title>
+<title>薪資追蹤 v1.12-044</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -938,7 +938,8 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
       (async()=>{
         try{
           const r=await gasListGroupBuys();
-          const open=(r&&r.ok&&Array.isArray(r.list))?r.list.find(g=>g.status==='open'):null;
+          const now=Date.now();
+          const open=(r&&r.ok&&Array.isArray(r.list))?r.list.find(g=>g.status==='open'&&(!g.deadline||new Date(g.deadline).getTime()>now)):null;
           if(open){
             const mr=await gasMyGroupBuyOrders(settings.code);
             const mine=(mr&&mr.ok&&Array.isArray(mr.list))?mr.list:[];
@@ -953,13 +954,18 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
     if(pwdInput===settings.lockPwd){setPwdInput('');setPwdErr('');advanceQueue()}
     else{setPwdErr(t.noticePwdWrong||'密碼錯誤')}
   };
-  const joinGbPrompt=async()=>{
-    if(gbPromptData){try{await gasJoinGroupBuy(gbPromptData.id,settings.code,gbPromptData.item==='glove'?(settings.gloveSize||'M'):'',1)}catch(_e){}}
-    advanceQueue();
+  const[gbBusy,setGbBusy]=useState(false);
+  const joinGbPrompt=()=>{
+    if(gbBusy)return;
+    setGbBusy(true);
+    if(gbPromptData){gasJoinGroupBuy(gbPromptData.id,settings.code,gbPromptData.item==='glove'?(settings.gloveSize||'M'):'',1).catch(()=>{})}
+    setTimeout(()=>{setGbBusy(false);advanceQueue()},500);
   };
-  const declineGbPrompt=async()=>{
-    if(gbPromptData){try{await gasDeclineGroupBuy(gbPromptData.id,settings.code)}catch(_e){}}
-    advanceQueue();
+  const declineGbPrompt=()=>{
+    if(gbBusy)return;
+    setGbBusy(true);
+    if(gbPromptData){gasDeclineGroupBuy(gbPromptData.id,settings.code).catch(()=>{})}
+    setTimeout(()=>{setGbBusy(false);advanceQueue()},500);
   };
   const load=()=>{const md=LS.get(dk(settings.code,ty,tm));if(md&&migrateMonthGroups(md)){LS.set(dk(settings.code,ty,tm),md)}setData(md);let found=false;if(md?.days){for(let d=td-1;d>=1;d--){const day=md.days[d];if(day&&(day.total>0||day.status>0)){setPrev({day:d,month:tm,year:ty,...day});found=true;break}}}if(!found){for(let pm=tm-1;pm>=1;pm--){const pmd=LS.get(dk(settings.code,ty,pm));if(!pmd)continue;for(let d=dim(ty,pm);d>=1;d--){const day=pmd.days?.[d];if(day&&(day.total>0||day.status>0)){setPrev({day:d,month:pm,year:ty,...day});found=true;break}}if(found)break}}if(!found)setPrev(null)};
   useEffect(load,[settings.code,refreshKey]);
@@ -1036,7 +1042,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
       <div className="p-4 space-y-4">
         <p className="text-sm text-gray-400 text-center">{gbPromptData.title}</p>
         <p className="text-xs text-gray-500 text-center">{t.groupBuyPopupBody}</p>
-        <div className="flex gap-2"><button onClick={declineGbPrompt} className="flex-1 py-3 rounded-xl bg-white/[0.06] text-gray-400 font-semibold">{t.groupBuyPopupSkip}</button><button onClick={joinGbPrompt} className="flex-1 py-3 rounded-xl bg-amber-600 text-white font-bold">{t.groupBuyPopupJoin}</button></div>
+        <div className="flex gap-2"><button onClick={declineGbPrompt} disabled={gbBusy} className="flex-1 py-3 rounded-xl bg-white/[0.06] text-gray-400 font-semibold disabled:opacity-50 flex items-center justify-center gap-2">{gbBusy&&<svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>}{t.groupBuyPopupSkip}</button><button onClick={joinGbPrompt} disabled={gbBusy} className="flex-1 py-3 rounded-xl bg-amber-600 text-white font-bold disabled:opacity-50 flex items-center justify-center gap-2">{gbBusy&&<svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>}{t.groupBuyPopupJoin}</button></div>
       </div>
     </div></div>)}
     {editPrev&&prev&&(<DayEditor day={{groups:prev.groups||[],total:prev.total,laodian:prev.laodian,status:prev.status,skills:prev.skills||{},slips:prev.slips||[]}} d={prev.day} y={prev.year} m={prev.month} t={t} up={settings.unitPrice} sk={settings.skills} code={settings.code} onSave={savePrevDay} onCancel={()=>setEditPrev(false)}/>)}
