@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-044</title>
+<title>薪資追蹤 v1.12-045</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -697,6 +697,7 @@ function fmtCountdown(deadline){
   if(hours>0)return hours+'時'+mins+'分';
   return mins+'分';
 }
+const Spinner=({size})=>(<svg className="animate-spin" width={size||14} height={size||14} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>);
 function GroupBuyModal({t,settings,onClose}){
   const code=settings.code;
   const[tab,setTab]=useState('list'); // list/mine/created
@@ -711,6 +712,7 @@ function GroupBuyModal({t,settings,onClose}){
   const[createBusy,setCreateBusy]=useState(false);const[createErr,setCreateErr]=useState('');
   const[detailBuy,setDetailBuy]=useState(null);const[detail,setDetail]=useState(null);
   const[listErr,setListErr]=useState('');
+  const[showEnded,setShowEnded]=useState(false);
   const loadList=()=>{gasListGroupBuys().then(r=>{if(r&&r.ok){setList(r.list||[]);setListErr('');(r.list||[]).filter(g=>g.status==='open').forEach(g=>{try{gasLogGroupBuyOpen(g.id,code)}catch(_e){}})}else{setList([]);setListErr((r&&r.error)||'讀取失敗')}}).catch(e=>{setList([]);setListErr(String(e))})};
   const loadMine=()=>{gasMyGroupBuyOrders(code).then(r=>{if(r&&r.ok)setMine(r.list||[]);else setMine([])}).catch(()=>setMine([]))};
   useEffect(()=>{loadList();loadMine()},[]);
@@ -741,6 +743,14 @@ function GroupBuyModal({t,settings,onClose}){
     setCreateBusy(false);
   };
   const openDetail=(g)=>{setDetailBuy(g);setDetail(null);gasGroupBuyDetail(g.id).then(r=>{if(r&&r.ok)setDetail(r)})};
+  const[statusBusy,setStatusBusy]=useState('');
+  const toggleOrderStatus=async(field)=>{
+    if(!detailBuy||statusBusy)return;
+    setStatusBusy(field);
+    try{await gasSetGroupBuyOrderStatus(detailBuy.id,code,field)}catch(_e){}
+    setStatusBusy('');
+    gasGroupBuyDetail(detailBuy.id).then(r=>{if(r&&r.ok)setDetail(r)});
+  };
   const doClose=async(g)=>{
     setBusy(g.id);
     try{await gasCloseGroupBuy(g.id,code);}catch(_e){}
@@ -765,9 +775,13 @@ function GroupBuyModal({t,settings,onClose}){
           <div><p className="text-xs text-gray-500 mb-1.5 mt-2">{t.groupBuyViewDeclined}（{detail.declined.length}）</p><div className="flex flex-wrap gap-1.5">{detail.declined.map((o,i)=>(<span key={i} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-500">{o.code}</span>))}</div></div>
           <div><p className="text-xs text-gray-500 mb-1.5">{t.groupBuyViewOpens}（{detail.opens.length}）</p><div className="flex flex-wrap gap-1.5">{detail.opens.map((o,i)=>(<span key={i} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-500">{o.code}</span>))}</div></div>
           {detailBuy.status==='open'&&<button onClick={()=>doClose(detailBuy)} disabled={busy===detailBuy.id} className="w-full py-2.5 rounded-xl bg-red-600/20 text-red-400 text-sm font-semibold disabled:opacity-50">{busy===detailBuy.id?'…':t.groupBuyCloseBtn}</button>}
-        </>):(
+        </>):(<>
           <div><p className="text-xs text-gray-500 mb-1.5">{t.groupBuyViewJoined}（{detail.joined.length}）</p><div className="flex flex-wrap gap-1.5">{detail.joined.map((o,i)=>(<span key={i} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-300">{o.code}{o.size?'('+o.size+')':''}</span>))}</div></div>
-        )}
+          {(()=>{const mine=detail.joined.find(o=>o.code===code);if(!mine)return null;return(<div className="flex gap-2 pt-2 border-t border-white/[0.06]">
+            <button onClick={()=>toggleOrderStatus('paid')} disabled={statusBusy==='paid'} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold disabled:opacity-50 flex items-center justify-center gap-1.5 ${mine.paid?'bg-emerald-600/20 text-emerald-400':'bg-white/[0.06] text-gray-400'}`}>{statusBusy==='paid'&&<Spinner size={11}/>}{mine.paid?'✓ ':''}{t.groupBuyPaidBtn||'已交錢'}</button>
+            <button onClick={()=>toggleOrderStatus('arrived')} disabled={statusBusy==='arrived'} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold disabled:opacity-50 flex items-center justify-center gap-1.5 ${mine.arrived?'bg-emerald-600/20 text-emerald-400':'bg-white/[0.06] text-gray-400'}`}>{statusBusy==='arrived'&&<Spinner size={11}/>}{mine.arrived?'✓ ':''}{t.groupBuyArrivedBtn||'已到貨'}</button>
+          </div>);})()}
+        </>)}
       </>)}
     </div>):(<>
     <div className="flex gap-2 p-3 pb-0"><button onClick={()=>setTab('list')} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${tab==='list'?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-400'}`}>{t.groupBuyTabList}</button><button onClick={()=>setTab('mine')} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${tab==='mine'?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-400'}`}>{t.groupBuyTabMine}</button><button onClick={()=>setTab('created')} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${tab==='created'?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-400'}`}>{t.groupBuyTabCreated}</button></div>
@@ -783,26 +797,35 @@ function GroupBuyModal({t,settings,onClose}){
           <button onClick={doCreate} disabled={createBusy} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50">{createBusy?'…':t.groupBuyCreateBtn}</button>
         </div>)}
         {listErr&&<p className="text-xs text-red-400 text-center">{listErr}</p>}
-        {list===null?<p className="text-xs text-gray-600 text-center py-4">{t.loading||'載入中…'}</p>:list.filter(g=>g.status==='open').length===0?<p className="text-xs text-gray-600 text-center py-4">{t.groupBuyEmpty}</p>:list.filter(g=>g.status==='open').map(g=>(
+        {list===null?<p className="text-xs text-gray-600 text-center py-4">{t.loading||'載入中…'}</p>:(<>
+        {list.filter(g=>g.status==='open').length===0?<p className="text-xs text-gray-600 text-center py-4">{t.groupBuyEmpty}</p>:list.filter(g=>g.status==='open').map(g=>(
           <div key={g.id} className="bg-white/[0.03] rounded-xl p-3 space-y-2">
-            <div onClick={()=>openDetail(g)} className="flex items-center justify-between gap-2 cursor-pointer"><p className="text-sm text-gray-200 font-medium">{g.title}（由{g.creator}發起）</p><span className="text-xs text-amber-400 font-semibold flex-shrink-0">{fmtCountdown(g.deadline)}</span></div>
+            <div onClick={()=>openDetail(g)} className="flex items-center justify-between gap-2 cursor-pointer"><p className="text-sm text-gray-200 font-medium flex items-center gap-1.5"><span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-mono flex-shrink-0">{g.id}</span>{g.title}（由{g.creator}發起）</p><span className="text-xs text-amber-400 font-semibold flex-shrink-0">{fmtCountdown(g.deadline)}</span></div>
             <p className="text-[11px] text-gray-500">{t.groupBuyAmountLabel}：{g.amount}｜{g.orderCount}{t.groupBuyOrderCount}{g.declineCount?('｜'+t.groupBuyDeclineCountLabel+'：'+g.declineCount+'人'):''}</p>
             {regBuy&&regBuy.id===g.id?(<div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2.5 space-y-2">
               {g.item==='glove'&&<div><label className="text-[11px] text-gray-500 block mb-1">{t.gloveSize}</label><div className="grid grid-cols-5 gap-1">{['XS','S','M','L','XL'].map(sz=>(<button key={sz} onClick={()=>setRegSize(sz)} className={`py-1.5 rounded text-[11px] font-semibold ${regSize===sz?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{sz}</button>))}</div></div>}
               <div><label className="text-[11px] text-gray-500 block mb-1">{t.groupBuyQtyLabel}</label><input value={regQty} onChange={e=>setRegQty(e.target.value.replace(/[^\d]/g,'')||'1')} inputMode="numeric" className="w-20 bg-white/[0.06] border border-white/[0.08] rounded px-2 py-1.5 text-sm text-gray-100 text-center"/></div>
-              <div className="flex gap-2"><button onClick={()=>setRegBuy(null)} className="flex-1 py-2 rounded-lg bg-white/[0.06] text-gray-400 text-xs font-semibold">{t.infoCancelBtn}</button><button onClick={confirmRegister} disabled={busy===g.id} className="flex-1 py-2 rounded-lg bg-amber-600 text-white text-xs font-bold disabled:opacity-50">{busy===g.id?'…':t.groupBuyConfirmBtn}</button></div>
+              <div className="flex gap-2"><button onClick={()=>setRegBuy(null)} className="flex-1 py-2 rounded-lg bg-white/[0.06] text-gray-400 text-xs font-semibold">{t.infoCancelBtn}</button><button onClick={confirmRegister} disabled={busy===g.id} className="flex-1 py-2 rounded-lg bg-amber-600 text-white text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1.5">{busy===g.id&&<Spinner size={11}/>}{t.groupBuyConfirmBtn}</button></div>
             </div>):(
-              <div className="flex gap-2"><button onClick={()=>startRegister(g)} disabled={busy===g.id||joinedIds.has(g.id)||declinedIds.has(g.id)} className={`flex-1 py-2 rounded-lg text-xs font-bold disabled:opacity-50 ${joinedIds.has(g.id)?'bg-white/[0.06] text-gray-500':'bg-amber-600 text-white'}`}>{joinedIds.has(g.id)?(t.groupBuyJoinOk||'已登記'):t.groupBuyJoinBtn}</button><button onClick={()=>doDecline(g)} disabled={busy===g.id||joinedIds.has(g.id)||declinedIds.has(g.id)} className={`flex-1 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 ${declinedIds.has(g.id)?'bg-white/[0.03] text-gray-600':'bg-white/[0.06] text-gray-400'}`}>{declinedIds.has(g.id)?(t.groupBuyDeclinedOk||'已標記不需要'):t.groupBuyDeclineBtn}</button></div>
+              <div className="flex gap-2"><button onClick={()=>startRegister(g)} disabled={busy===g.id||joinedIds.has(g.id)||declinedIds.has(g.id)} className={`flex-1 py-2 rounded-lg text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1.5 ${joinedIds.has(g.id)?'bg-white/[0.06] text-gray-500':'bg-amber-600 text-white'}`}>{busy===g.id&&<Spinner size={11}/>}{joinedIds.has(g.id)?(t.groupBuyJoinOk||'已登記'):t.groupBuyJoinBtn}</button><button onClick={()=>doDecline(g)} disabled={busy===g.id||joinedIds.has(g.id)||declinedIds.has(g.id)} className={`flex-1 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 flex items-center justify-center gap-1.5 ${declinedIds.has(g.id)?'bg-white/[0.03] text-gray-600':'bg-white/[0.06] text-gray-400'}`}>{busy===g.id&&<Spinner size={11}/>}{declinedIds.has(g.id)?(t.groupBuyDeclinedOk||'已標記不需要'):t.groupBuyDeclineBtn}</button></div>
             )}
           </div>
         ))}
+        {(()=>{const ended=list.filter(g=>g.status!=='open');return ended.length>0&&(<div className="pt-2 border-t border-white/[0.06]">
+          <button onClick={()=>setShowEnded(v=>!v)} className="text-xs text-gray-500 flex items-center gap-1">{t.groupBuyEndedTitle||'已結束'}（{ended.length}）{showEnded?'▲':'▼'}</button>
+          {showEnded&&ended.map(g=>(<div key={g.id} onClick={()=>openDetail(g)} className="bg-white/[0.02] rounded-lg px-3 py-2 mt-2 cursor-pointer"><p className="text-xs text-gray-500 flex items-center gap-1.5"><span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-gray-500 font-mono flex-shrink-0">{g.id}</span>{g.title}（由{g.creator}發起）</p></div>))}
+        </div>);})()}
+        </>)}
       </>)}
       {tab==='mine'&&(mine===null?<p className="text-xs text-gray-600 text-center py-4">{t.loading||'載入中…'}</p>:(mine.filter(o=>o.response!=='decline').length===0)?<p className="text-xs text-gray-600 text-center py-4">{t.groupBuyMineEmpty}</p>:mine.filter(o=>o.response!=='decline').map((o,i)=>(
-        <div key={i} className="bg-white/[0.03] rounded-xl p-3 flex items-center justify-between"><p className="text-sm text-gray-200">{o.title}（{o.creator}發起）</p><span className="text-xs text-amber-400 font-semibold flex-shrink-0">{o.size?(t.gloveSize+' '+o.size+' '):''}{t.groupBuyQtyLabel}{o.qty}{o.amount?('　'+t.groupBuyAmountLabel+o.amount):''}</span></div>
+        <div key={i} onClick={()=>openDetail({id:o.buyId,title:o.title,creator:o.creator,amount:o.amount,item:o.size?'glove':'',deadline:o.deadline,status:o.status})} className="bg-white/[0.03] rounded-xl p-3 flex items-center justify-between cursor-pointer active:bg-white/[0.05]"><p className="text-sm text-gray-200">{o.title}（{o.creator}發起）</p><span className="text-xs text-amber-400 font-semibold flex-shrink-0">{o.size?(t.gloveSize+' '+o.size+' '):''}{t.groupBuyQtyLabel}{o.qty}{o.amount?('　'+t.groupBuyAmountLabel+o.amount):''}</span></div>
       )))}
-      {tab==='created'&&(created.length===0?<p className="text-xs text-gray-600 text-center py-4">{t.groupBuyMineCreatedEmpty}</p>:created.map(g=>(
-        <div key={g.id} onClick={()=>openDetail(g)} className="bg-white/[0.03] rounded-xl p-3 flex items-center justify-between cursor-pointer"><p className="text-sm text-gray-200">{g.title}</p><span className="text-xs text-gray-500 flex-shrink-0">{fmtLog(t.groupBuyCreatedCount,[String(g.orderCount)])}</span></div>
-      )))}
+      {tab==='created'&&(created.length===0?<p className="text-xs text-gray-600 text-center py-4">{t.groupBuyMineCreatedEmpty}</p>:(<>
+        {created.map(g=>{const amt=parseFloat(g.amount)||0;const sub=amt*(g.orderCount||0);return(
+          <div key={g.id} onClick={()=>openDetail(g)} className="bg-white/[0.03] rounded-xl p-3 flex items-center justify-between cursor-pointer"><p className="text-sm text-gray-200">{g.title}</p><div className="text-right flex-shrink-0"><p className="text-xs text-gray-500">{fmtLog(t.groupBuyCreatedCount,[String(g.orderCount)])}</p>{sub>0&&<p className="text-xs text-amber-400 font-semibold">{g.orderCount}×{amt}＝{sub.toLocaleString()}</p>}</div></div>
+        );})}
+        {(()=>{const total=created.reduce((s,g)=>s+(parseFloat(g.amount)||0)*(g.orderCount||0),0);return total>0&&(<div className="flex items-center justify-between pt-2 border-t border-white/[0.08]"><span className="text-sm text-gray-400 font-semibold">{t.groupBuySubtotalLabel||'小計'}</span><span className="text-base text-amber-400 font-bold">{total.toLocaleString()}</span></div>);})()}
+      </>))}
     </div>
     </>)}
   </div></div>);
