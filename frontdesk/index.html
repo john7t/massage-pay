@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>櫃台差勤 v1.0-006</title>
+<title>櫃台差勤 v1.0-007</title>
 <meta property="og:title" content="櫃台差勤管理">
 <meta property="og:description" content="排休、請假、特休管理">
 <meta property="og:type" content="website">
@@ -62,6 +62,7 @@ const SHIFTS={
   NONE:{name:'無班別',time:'',pair:null,group:null}
 };
 const SHIFT_ORDER=['A1','A2','B','C1','C2','D'];
+const SHIFT_SHORT_LABEL={A1:'早1',A2:'早2',B:'中',C1:'小夜1',C2:'小夜2',D:'大夜'};
 const LEAVE_TYPE_LABEL={personal:'事假',sick:'病假',annual:'特休'};
 const WEEKDAY_LABEL=['日','一','二','三','四','五','六'];
 
@@ -189,7 +190,7 @@ function RegisterFlow({profile,onDone}){
       <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={mgmtOnly} onChange={e=>setMgmtOnly(e.target.checked)} className="w-4 h-4 rounded accent-amber-500"/><span className="text-sm text-gray-300">此帳號僅用於管理，不需排班／排休</span></label>
       {!mgmtOnly&&(<>
         <div><label className="text-xs text-gray-500 block mb-1">到職日</label><input type="date" value={hireDate} onChange={e=>setHireDate(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3 text-sm text-gray-100"/></div>
-        <div><label className="text-xs text-gray-500 block mb-1">班別</label><div className="grid grid-cols-3 gap-2">{SHIFT_ORDER.map(s=>(<button key={s} onClick={()=>setShift(s)} className={`py-2.5 rounded-xl text-xs font-semibold ${shift===s?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{s} {SHIFTS[s].name}</button>))}</div></div>
+        <div><label className="text-xs text-gray-500 block mb-1">班別</label><div className="grid grid-cols-3 gap-2">{SHIFT_ORDER.map(s=>(<button key={s} onClick={()=>setShift(s)} className={`py-2.5 rounded-xl text-xs font-semibold ${shift===s?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{SHIFT_SHORT_LABEL[s]}</button>))}</div></div>
       </>)}
       {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
       <button onClick={submit} disabled={!canSubmit||busy} className="w-full py-3.5 rounded-xl bg-amber-600 text-white font-bold disabled:opacity-50 flex items-center justify-center gap-2">{busy&&<Spinner/>}完成登記</button>
@@ -244,6 +245,9 @@ function CalendarTab({myStaff}){
   const[year,setYear]=useState(now.getFullYear());
   const[month,setMonth]=useState(now.getMonth()+1);
   const[data,setData]=useState(null);
+  const[lastUpdated,setLastUpdated]=useState('');
+  const[updateBusy,setUpdateBusy]=useState(false);
+  const[cooldown,setCooldown]=useState(0);
   const[filter,setFilter]=useState('all'); // all/morning/night/staffId
   const[threshold,setThreshold]=useState(3);
   const[monthlyLimit,setMonthlyLimit]=useState(4);
@@ -253,9 +257,34 @@ function CalendarTab({myStaff}){
   const[submitBusy,setSubmitBusy]=useState(false);const[submitMsg,setSubmitMsg]=useState('');
   const[lockBusy,setLockBusy]=useState(false);
   const isPrivileged=myStaff&&(myStaff.role==='supervisor'||myStaff.isManagementOnly);
-  const load=()=>{setData(null);fdMonthData(year,month).then(r=>{if(r&&r.ok)setData(r)})};
-  useEffect(()=>{load();setScheduleMode(false);setPending(new Set())},[year,month]);
+  const cacheKey=()=>'fd-cal-cache-'+year+'-'+month;
+  const fetchFresh=async()=>{
+    setUpdateBusy(true);
+    try{
+      const r=await fdMonthData(year,month);
+      if(r&&r.ok){
+        const d=new Date();
+        const ts=d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()+' '+pad2(d.getHours())+':'+pad2(d.getMinutes())+':'+pad2(d.getSeconds());
+        setData(r);setLastUpdated(ts);
+        try{localStorage.setItem(cacheKey(),JSON.stringify({data:r,ts:ts}))}catch(_e){}
+      }
+    }catch(_e){}
+    setUpdateBusy(false);setCooldown(60);
+  };
+  useEffect(()=>{
+    setScheduleMode(false);setPending(new Set());setData(null);
+    try{
+      const cached=localStorage.getItem(cacheKey());
+      if(cached){const obj=JSON.parse(cached);setData(obj.data);setLastUpdated(obj.ts);return}
+    }catch(_e){}
+    fetchFresh();
+  },[year,month]);
   useEffect(()=>{fdGetConfig().then(r=>{if(r&&r.ok)setMonthlyLimit(r.monthlyOffLimit)})},[]);
+  useEffect(()=>{
+    if(cooldown<=0)return;
+    const t=setTimeout(()=>setCooldown(c=>c-1),1000);
+    return()=>clearTimeout(t);
+  },[cooldown]);
   const grid=useMemo(()=>buildGrid(year,month),[year,month]);
   const filteredStaff=useMemo(()=>{
     if(!data)return [];
@@ -285,7 +314,7 @@ function CalendarTab({myStaff}){
       const support=data.supportMap[supportKey];
       let label='';
       if(isOff)label='休';else if(isApprovedAnnual)label='特';else if(isPendingAnnual)label='待';
-      if(support)label=(label?label+' ':'')+'支'+support;
+      if(support)label=(label?label+' ':'')+'支'+SHIFT_SHORT_LABEL[support];
       return {staff:s,label};
     }).filter(e=>e.label);
     return {count:countIds.size,entries:entries};
@@ -313,14 +342,14 @@ function CalendarTab({myStaff}){
     setSubmitBusy(true);setSubmitMsg('');
     try{
       const r=await fdSetScheduleOffBatch(myStaff.id,Array.from(pending));
-      if(r&&r.ok){setSubmitMsg('✓ 已送出');setPending(new Set());setScheduleMode(false);load()}
+      if(r&&r.ok){setSubmitMsg('✓ 已送出');setPending(new Set());setScheduleMode(false);fetchFresh()}
       else{setSubmitMsg(r&&r.error||'送出失敗')}
     }catch(e){setSubmitMsg(String(e))}
     setSubmitBusy(false);
   };
   const toggleLock=async()=>{
     setLockBusy(true);
-    try{await fdSetScheduleLock(year,month,!data.locked,myStaff.lineUserId);load()}catch(_e){}
+    try{await fdSetScheduleLock(year,month,!data.locked,myStaff.lineUserId);fetchFresh()}catch(_e){}
     setLockBusy(false);
   };
   const saveLimit=async()=>{
@@ -330,14 +359,21 @@ function CalendarTab({myStaff}){
   };
   return(<div className="space-y-3">
     <div className="flex items-center justify-between"><button onClick={()=>changeMonth(-1)} className="px-3 py-1.5 rounded-lg bg-white/[0.06] text-gray-300">‹</button><p className="text-base font-bold text-gray-100">{year}年{month}月</p><button onClick={()=>changeMonth(1)} className="px-3 py-1.5 rounded-lg bg-white/[0.06] text-gray-300">›</button></div>
-    <select value={filter} onChange={e=>setFilter(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200">
-      <option value="all">所有人</option><option value="morning">早上組（A1+A2）</option><option value="night">晚上組（C2+D）</option>
-      {data&&data.staff.map(s=>(<option key={s.id} value={s.id}>{s.nickname||s.firstName}</option>))}
-    </select>
-    <div className="flex items-center justify-between gap-2">
-      <div className="flex items-center gap-1"><span className="text-[10px] text-gray-500">月休</span><input type="number" value={monthlyLimit} onChange={e=>setMonthlyLimit(parseInt(e.target.value,10)||1)} disabled={!isPrivileged} className="w-12 bg-white/[0.06] border border-white/[0.08] rounded-lg px-1 py-1.5 text-xs text-gray-200 text-center disabled:opacity-60"/><span className="text-[10px] text-gray-500">天</span>{isPrivileged&&<button onClick={saveLimit} disabled={limitBusy} className="text-[10px] px-1.5 py-1 rounded bg-white/[0.06] text-gray-400">{limitBusy?<Spinner size={9}/>:'儲存'}</button>}</div>
-      <div className="flex items-center gap-1"><span className="text-[10px] text-gray-500">警示</span><input type="number" value={threshold} onChange={e=>setThreshold(parseInt(e.target.value,10)||1)} className="w-12 bg-white/[0.06] border border-white/[0.08] rounded-lg px-1 py-1.5 text-xs text-gray-200 text-center"/></div>
+    <div className="flex items-center gap-2">
+      <select value={filter} onChange={e=>setFilter(e.target.value)} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200">
+        <option value="all">所有人</option><option value="morning">早上組（早1+早2）</option><option value="night">晚上組（小夜2+大夜）</option>
+        {data&&data.staff.map(s=>(<option key={s.id} value={s.id}>{s.nickname||s.firstName}</option>))}
+      </select>
+      <button onClick={fetchFresh} disabled={updateBusy||cooldown>0} className="text-[11px] px-2.5 py-2 rounded-lg bg-white/[0.06] text-gray-400 disabled:opacity-50 flex items-center gap-1 flex-shrink-0">{updateBusy&&<Spinner size={10}/>}{cooldown>0?cooldown+'s':'更新'}</button>
     </div>
+    {isPrivileged?(
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1"><span className="text-[10px] text-gray-500">月休</span><input type="number" value={monthlyLimit} onChange={e=>setMonthlyLimit(parseInt(e.target.value,10)||1)} className="w-12 bg-white/[0.06] border border-white/[0.08] rounded-lg px-1 py-1.5 text-xs text-gray-200 text-center"/><span className="text-[10px] text-gray-500">天</span><button onClick={saveLimit} disabled={limitBusy} className="text-[10px] px-1.5 py-1 rounded bg-white/[0.06] text-gray-400">{limitBusy?<Spinner size={9}/>:'儲存'}</button></div>
+        <div className="flex items-center gap-1"><span className="text-[10px] text-gray-500">超休</span><input type="number" value={threshold} onChange={e=>setThreshold(parseInt(e.target.value,10)||1)} className="w-12 bg-white/[0.06] border border-white/[0.08] rounded-lg px-1 py-1.5 text-xs text-gray-200 text-center"/><span className="text-[10px] text-gray-500">人警示</span></div>
+      </div>
+    ):(
+      data&&<p className="text-[11px] text-center text-gray-500">{data.locked?'本月份已鎖定，不可排休':'本月份可排休'}</p>
+    )}
     {!data?<p className="text-xs text-gray-600 text-center py-8"><Spinner size={20}/></p>:(<>
     {data.locked&&<p className="text-[11px] text-amber-400 text-center bg-amber-500/10 rounded-lg py-1.5">🔒 本月排休已被組長關閉，暫時無法調整</p>}
     <div className="grid grid-cols-7 gap-1 text-center">{WEEKDAY_LABEL.map(w=>(<div key={w} className="text-[11px] text-gray-500 py-1">{w}</div>))}</div>
@@ -370,48 +406,29 @@ function CalendarTab({myStaff}){
     {isPrivileged&&(<div className="pt-2 border-t border-white/[0.06]">
       <button onClick={toggleLock} disabled={lockBusy} className={`w-full py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 ${data.locked?'bg-emerald-600/20 text-emerald-400':'bg-red-600/20 text-red-400'}`}>{lockBusy&&<Spinner size={12}/>}{data.locked?'開放排班':'關閉排休'}</button>
     </div>)}
+    <p className="text-[10px] text-gray-600 text-center pt-1">最後更新日期：{lastUpdated||'（尚未載入）'}</p>
     </>)}
   </div>);
 }
 
-function LeaveTab({myStaff}){
+const LEAVE_CACHE_KEY='fd-leave-cache';
+function LeaveModal({myStaff,onClose,onSubmitted}){
   const[type,setType]=useState('personal');
   const[date,setDate]=useState(todayYmd());
   const[hours,setHours]=useState('8');
   const[reason,setReason]=useState('');
   const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');
-  const[usage,setUsage]=useState(null);
-  const[myLeaves,setMyLeaves]=useState(null);
-  const[sortMode,setSortMode]=useState('time'); // time/type
-  const loadAll=()=>{
-    fdAnnualUsage(myStaff.id).then(r=>{if(r&&r.ok)setUsage(r.usage)});
-    fdListMyLeaves(myStaff.id).then(r=>{if(r&&r.ok)setMyLeaves(r.list)});
-  };
-  useEffect(()=>{if(myStaff)loadAll()},[myStaff]);
   const submit=async()=>{
     setBusy(true);setMsg('');
     try{
       const r=await fdSubmitLeave({staffId:myStaff.id,type,date,hours:parseFloat(hours)||8,reason});
-      if(r&&r.ok){setMsg('✓ 已送出，等候核准');setReason('');loadAll()}else{setMsg(r&&r.error||'送出失敗')}
+      if(r&&r.ok){setMsg('✓ 已送出，等候核准');setTimeout(()=>{onSubmitted();onClose()},800)}else{setMsg(r&&r.error||'送出失敗')}
     }catch(e){setMsg(String(e))}
     setBusy(false);
   };
-  const STATUS_LABEL={pending:'待審核',approved:'已核准',rejected:'已拒絕'};
-  const sortedByTime=useMemo(()=>myLeaves?[...myLeaves].sort((a,b)=>new Date(b.submittedAt)-new Date(a.submittedAt)):[],[myLeaves]);
-  const groupedByType=useMemo(()=>{
-    if(!myLeaves)return [];
-    const groups={};
-    myLeaves.forEach(l=>{(groups[l.type]=groups[l.type]||[]).push(l)});
-    return Object.keys(LEAVE_TYPE_LABEL).filter(k=>groups[k]).map(k=>{
-      const items=groups[k].sort((a,b)=>new Date(b.submittedAt)-new Date(a.submittedAt));
-      const totalHours=items.reduce((s,l)=>s+(l.hours||8),0);
-      return {type:k,items:items,totalDays:(totalHours/8),totalHours:totalHours};
-    });
-  },[myLeaves]);
-  return(<div className="space-y-4">
-    {usage&&<div className="bg-white/[0.03] rounded-xl p-3"><p className="text-xs text-gray-500">特休剩餘</p><p className="text-lg text-amber-400 font-bold">{usage.remaining} <span className="text-xs text-gray-500">/ {usage.total} 天</span></p></div>}
-    <div className="bg-white/[0.03] rounded-xl p-3 space-y-3">
-      <p className="text-sm text-gray-300 font-semibold">請假申請</p>
+  return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}>
+    <div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl p-4 space-y-3" onClick={e=>e.stopPropagation()}>
+      <div className="flex items-center justify-between"><h3 className="text-base font-bold text-gray-100">請假申請</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
       <div className="grid grid-cols-3 gap-2">{Object.keys(LEAVE_TYPE_LABEL).map(k=>(<button key={k} onClick={()=>setType(k)} className={`py-2 rounded-lg text-xs font-semibold ${type===k?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{LEAVE_TYPE_LABEL[k]}</button>))}</div>
       <input type="date" value={date} onChange={e=>setDate(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/>
       <div><label className="text-xs text-gray-500 block mb-1">時數（整天填8）</label><input type="number" value={hours} onChange={e=>setHours(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/></div>
@@ -419,14 +436,82 @@ function LeaveTab({myStaff}){
       {msg&&<p className="text-xs text-center text-amber-400">{msg}</p>}
       <button onClick={submit} disabled={busy} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{busy&&<Spinner/>}送出申請</button>
     </div>
+  </div>);
+}
+
+function LeaveTab({myStaff}){
+  const[usage,setUsage]=useState(null);
+  const[myLeaves,setMyLeaves]=useState(null);
+  const[lastUpdated,setLastUpdated]=useState('');
+  const[updateBusy,setUpdateBusy]=useState(false);
+  const[cooldown,setCooldown]=useState(0);
+  const[sortMode,setSortMode]=useState('occur'); // occur(發生時間)/submit(申請時間)/type(假別)
+  const[showModal,setShowModal]=useState(false);
+  const fetchFresh=async()=>{
+    setUpdateBusy(true);
+    try{
+      fdAnnualUsage(myStaff.id).then(r=>{if(r&&r.ok)setUsage(r.usage)});
+      const r=await fdListMyLeaves(myStaff.id);
+      if(r&&r.ok){
+        const d=new Date();
+        const ts=d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()+' '+pad2(d.getHours())+':'+pad2(d.getMinutes())+':'+pad2(d.getSeconds());
+        setMyLeaves(r.list);setLastUpdated(ts);
+        try{localStorage.setItem(LEAVE_CACHE_KEY,JSON.stringify({list:r.list,ts:ts}))}catch(_e){}
+      }
+    }catch(_e){}
+    setUpdateBusy(false);setCooldown(60);
+  };
+  useEffect(()=>{
+    if(!myStaff)return;
+    fdAnnualUsage(myStaff.id).then(r=>{if(r&&r.ok)setUsage(r.usage)});
+    try{
+      const cached=localStorage.getItem(LEAVE_CACHE_KEY);
+      if(cached){const obj=JSON.parse(cached);setMyLeaves(obj.list);setLastUpdated(obj.ts);return}
+    }catch(_e){}
+    fetchFresh();
+  },[myStaff]);
+  useEffect(()=>{
+    if(cooldown<=0)return;
+    const t=setTimeout(()=>setCooldown(c=>c-1),1000);
+    return()=>clearTimeout(t);
+  },[cooldown]);
+  const STATUS_LABEL={pending:'待審核',approved:'已核准',rejected:'已拒絕'};
+  const sortedByOccur=useMemo(()=>myLeaves?[...myLeaves].sort((a,b)=>new Date(b.date)-new Date(a.date)):[],[myLeaves]);
+  const sortedBySubmit=useMemo(()=>myLeaves?[...myLeaves].sort((a,b)=>new Date(b.submittedAt)-new Date(a.submittedAt)):[],[myLeaves]);
+  const groupedByType=useMemo(()=>{
+    if(!myLeaves)return [];
+    const groups={};
+    myLeaves.forEach(l=>{(groups[l.type]=groups[l.type]||[]).push(l)});
+    return Object.keys(LEAVE_TYPE_LABEL).filter(k=>groups[k]).map(k=>{
+      const items=groups[k].sort((a,b)=>new Date(b.date)-new Date(a.date));
+      const totalHours=items.reduce((s,l)=>s+(l.hours||8),0);
+      return {type:k,items:items,totalDays:(totalHours/8),totalHours:totalHours};
+    });
+  },[myLeaves]);
+  const renderItem=(l)=>(<div key={l.id} className="bg-white/[0.03] rounded-lg px-3 py-2"><div className="flex items-center justify-between"><span className="text-sm text-gray-200">{LEAVE_TYPE_LABEL[l.type]}・{l.date}</span><span className={`text-[11px] ${l.status==='approved'?'text-emerald-400':l.status==='rejected'?'text-red-400':'text-amber-400'}`}>{STATUS_LABEL[l.status]}</span></div><p className="text-[10px] text-gray-600 mt-0.5">{l.hours}小時・申請於 {l.submittedAt}</p></div>);
+  return(<div className="space-y-4">
+    <div className="flex items-center justify-between"><p className="text-base font-bold text-gray-100">請假</p><button onClick={()=>setShowModal(true)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold">請假申請</button></div>
+    {usage&&<div className="bg-white/[0.03] rounded-xl p-3"><p className="text-xs text-gray-500">特休剩餘</p><p className="text-lg text-amber-400 font-bold">{usage.remaining} <span className="text-xs text-gray-500">/ {usage.total} 天</span></p></div>}
     <div className="space-y-2">
-      <div className="flex items-center justify-between"><p className="text-sm text-gray-300 font-semibold">請假明細</p><div className="flex gap-1.5"><button onClick={()=>setSortMode('time')} className={`text-[11px] px-2.5 py-1.5 rounded-lg font-semibold ${sortMode==='time'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>時間</button><button onClick={()=>setSortMode('type')} className={`text-[11px] px-2.5 py-1.5 rounded-lg font-semibold ${sortMode==='type'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>假別</button></div></div>
-      {myLeaves===null?<Spinner size={16}/>:myLeaves.length===0?<p className="text-xs text-gray-600 text-center py-3">目前沒有請假紀錄</p>:sortMode==='time'?(
-        sortedByTime.map(l=>(<div key={l.id} className="bg-white/[0.03] rounded-lg px-3 py-2"><div className="flex items-center justify-between"><span className="text-sm text-gray-200">{LEAVE_TYPE_LABEL[l.type]}・{l.date}</span><span className={`text-[11px] ${l.status==='approved'?'text-emerald-400':l.status==='rejected'?'text-red-400':'text-amber-400'}`}>{STATUS_LABEL[l.status]}</span></div><p className="text-[10px] text-gray-600 mt-0.5">{l.hours}小時・送出於 {l.submittedAt}</p></div>))
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <p className="text-sm text-gray-300 font-semibold">請假明細</p>
+        <div className="flex gap-1.5 items-center flex-wrap">
+          <button onClick={()=>setSortMode('occur')} className={`text-[11px] px-2.5 py-1.5 rounded-lg font-semibold ${sortMode==='occur'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>發生時間</button>
+          <button onClick={()=>setSortMode('submit')} className={`text-[11px] px-2.5 py-1.5 rounded-lg font-semibold ${sortMode==='submit'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>申請時間</button>
+          <button onClick={()=>setSortMode('type')} className={`text-[11px] px-2.5 py-1.5 rounded-lg font-semibold ${sortMode==='type'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>假別</button>
+          <button onClick={fetchFresh} disabled={updateBusy||cooldown>0} className="text-[11px] px-2.5 py-1.5 rounded-lg bg-white/[0.06] text-gray-400 disabled:opacity-50 flex items-center gap-1">{updateBusy&&<Spinner size={10}/>}{cooldown>0?cooldown+'s':'更新'}</button>
+        </div>
+      </div>
+      {myLeaves===null?<Spinner size={16}/>:myLeaves.length===0?<p className="text-xs text-gray-600 text-center py-3">目前沒有請假紀錄</p>:sortMode==='occur'?(
+        sortedByOccur.map(renderItem)
+      ):sortMode==='submit'?(
+        sortedBySubmit.map(renderItem)
       ):(
-        groupedByType.map(g=>(<div key={g.type} className="space-y-1.5"><p className="text-xs text-gray-400 font-semibold">{LEAVE_TYPE_LABEL[g.type]}（共 {g.totalDays} 天／{g.totalHours} 小時）</p>{g.items.map(l=>(<div key={l.id} className="bg-white/[0.03] rounded-lg px-3 py-2 ml-2"><div className="flex items-center justify-between"><span className="text-sm text-gray-200">{l.date}</span><span className={`text-[11px] ${l.status==='approved'?'text-emerald-400':l.status==='rejected'?'text-red-400':'text-amber-400'}`}>{STATUS_LABEL[l.status]}</span></div><p className="text-[10px] text-gray-600 mt-0.5">{l.hours}小時・送出於 {l.submittedAt}</p></div>))}</div>))
+        groupedByType.map(g=>(<div key={g.type} className="space-y-1.5"><p className="text-xs text-gray-400 font-semibold">{LEAVE_TYPE_LABEL[g.type]}（共 {g.totalDays} 天／{g.totalHours} 小時）</p>{g.items.map(l=>(<div key={l.id} className="ml-2">{renderItem(l)}</div>))}</div>))
       )}
+      <p className="text-[10px] text-gray-600 text-center pt-1">最後更新日期：{lastUpdated||'（尚未載入）'}</p>
     </div>
+    {showModal&&<LeaveModal myStaff={myStaff} onClose={()=>setShowModal(false)} onSubmitted={fetchFresh}/>}
   </div>);
 }
 
@@ -575,7 +660,7 @@ function ProfileView({myStaff,onClose,onSaved}){
 
         {!myStaff.isManagementOnly&&(<div className="pt-3 border-t border-white/[0.06] space-y-3">
           <p className="text-[11px] text-gray-600">以下兩項調整需送櫃台組長審核，核准後才會生效</p>
-          <div><label className="text-[11px] text-gray-500 block mb-1">班別</label><div className="grid grid-cols-3 gap-1.5">{SHIFT_ORDER.map(s=>(<button key={s} onClick={()=>setShift(s)} className={`py-2 rounded-lg text-[11px] font-semibold ${shift===s?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{s}</button>))}</div>
+          <div><label className="text-[11px] text-gray-500 block mb-1">班別</label><div className="grid grid-cols-3 gap-1.5">{SHIFT_ORDER.map(s=>(<button key={s} onClick={()=>setShift(s)} className={`py-2 rounded-lg text-[11px] font-semibold ${shift===s?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{SHIFT_SHORT_LABEL[s]}</button>))}</div>
             {shift!==myStaff.shift&&<button onClick={submitShiftChange} disabled={shiftBusy} className="w-full mt-2 py-2 rounded-lg bg-white/[0.08] text-gray-300 text-xs font-semibold disabled:opacity-50 flex items-center justify-center gap-2">{shiftBusy&&<Spinner size={11}/>}送出班別變更申請</button>}
             {shiftMsg&&<p className="text-[11px] text-center text-amber-400 mt-1">{shiftMsg}</p>}
           </div>
