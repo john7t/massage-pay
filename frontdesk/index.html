@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>櫃台差勤 v1.0-003</title>
+<title>櫃台差勤 v1.0-004</title>
 <meta property="og:title" content="櫃台差勤管理">
 <meta property="og:description" content="排休、請假、特休管理">
 <meta property="og:type" content="website">
@@ -82,6 +82,7 @@ async function fdAnnualUsageAll(){return gasCall('fdAnnualUsageAll',{});}
 async function fdSetScheduleOff(staffId,date,off){return gasCallPost('fdSetScheduleOff',{staffId,date,off});}
 async function fdMonthData(year,month){return gasCall('fdMonthData',{year,month});}
 async function fdUpdateProfile(data){return gasCallPost('fdUpdateProfile',data);}
+async function fdSetNotifyPref(lineUserId,notify){return gasCallPost('fdSetNotifyPref',{lineUserId,notify});}
 
 const Spinner=({size})=>(<svg className="animate-spin" width={size||14} height={size||14} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>);
 const pad2=(n)=>String(n).padStart(2,'0');
@@ -384,6 +385,7 @@ function ProfileView({myStaff,onClose,onSaved}){
   const[phone,setPhone]=useState(myStaff.phone||'');
   const[editing,setEditing]=useState(false);
   const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');
+  const[notifyBusy,setNotifyBusy]=useState(false);
   const submit=async()=>{
     if(!lastName.trim()||!firstName.trim())return;
     setBusy(true);setMsg('');
@@ -394,6 +396,12 @@ function ProfileView({myStaff,onClose,onSaved}){
     }catch(e){setMsg(String(e))}
     setBusy(false);
   };
+  const toggleNotify=async()=>{
+    setNotifyBusy(true);
+    const next=!myStaff.notifyOptIn;
+    try{const r=await fdSetNotifyPref(myStaff.lineUserId,next);if(r&&r.ok)onSaved({...myStaff,notifyOptIn:next})}catch(_e){}
+    setNotifyBusy(false);
+  };
   return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}>
     <div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl p-4 space-y-3" onClick={e=>e.stopPropagation()}>
       <div className="flex items-center justify-between"><h3 className="text-base font-bold text-gray-100">我的資料</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
@@ -401,6 +409,7 @@ function ProfileView({myStaff,onClose,onSaved}){
         <p className="text-sm text-gray-300">{myStaff.lastName}{myStaff.firstName}（{myStaff.nickname}）</p>
         <p className="text-xs text-gray-500">{myStaff.phone||'（未填手機）'}</p>
         <p className="text-xs text-gray-500">{myStaff.isManagementOnly?'管理專用帳號':((SHIFTS[myStaff.shift]||{}).name+'・到職日 '+myStaff.hireDate)}</p>
+        {myStaff.isSuperAdmin&&(<label className="flex items-center justify-between gap-2 py-1 cursor-pointer"><span className="text-xs text-gray-400">接收請假申請通知</span><button onClick={toggleNotify} disabled={notifyBusy} className={`w-10 h-6 rounded-full flex items-center px-0.5 transition-colors ${myStaff.notifyOptIn?'bg-amber-600 justify-end':'bg-white/[0.1] justify-start'}`}><span className="w-5 h-5 rounded-full bg-white block"></span></button></label>)}
         <button onClick={()=>setEditing(true)} className="w-full py-2 rounded-xl bg-white/[0.06] text-gray-300 text-sm font-semibold">編輯</button>
       </>):(<>
         <div className="grid grid-cols-2 gap-2"><input value={lastName} onChange={e=>setLastName(e.target.value)} placeholder="姓" className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/><input value={firstName} onChange={e=>setFirstName(e.target.value)} placeholder="名" className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/></div>
