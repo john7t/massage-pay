@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>公告 v1.0-009</title>
+<title>公告 v1.0-010</title>
 <meta property="og:title" content="公告通知">
 <meta property="og:description" content="請點擊連結查看公告內容">
 <meta property="og:type" content="website">
@@ -67,6 +67,8 @@ const SUBTYPES_VI=['Giám đốc điều hành','Quản lý khu vực','Quản l
 
 async function sfConfig(){const r=await gasCall('sfConfig',{app:'notice'},10000);return r||{ok:false,error:'GAS無回應'};}
 async function getNoticeFlexContent(noticeId,liffId){const r=await gasCall('getNoticeFlexContent',{noticeId,liffId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function gasAnalyzeNotice(content,code){const r=await window.MP.gasCallPost('analyzeNotice',{content,code,feature:'LIFF新增公告'},20000);return r||{ok:false,error:'GAS無回應'};}
+async function gasAddNoticeLiff(data){const r=await window.MP.gasCallPost('addNotice',data,15000);return r||{ok:false,error:'GAS無回應'};}
 async function noticeLiffMarkRead(noticeId,lineUserId){const r=await window.MP.gasCallPost('noticeLiffMarkRead',{noticeId,lineUserId},15000);return r||{ok:false,error:'GAS無回應'};}
 async function sfGetUser(lineUserId){const r=await gasCall('sfGetUser',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfRegister(data){const r=await window.MP.gasCallPost('sfRegister',data,15000);return r||{ok:false,error:'GAS無回應'};}
@@ -204,9 +206,77 @@ function ReadFlow({nid,profile}){
   </div>);
 }
 
+function ManagerCreateNotice({code,onClose,onPublished}){
+  const[content,setContent]=useState('');
+  const[aiResult,setAiResult]=useState(null);
+  const[status,setStatus]=useState(''); // ''/analyzing/publishing/done/error
+  const[errMsg,setErrMsg]=useState('');
+  const runAI=async()=>{
+    if(!content.trim())return;
+    setStatus('analyzing');setErrMsg('');
+    try{
+      const r=await gasAnalyzeNotice(content.trim(),code);
+      if(r&&r.ok){setAiResult(Object.assign({body:content.trim()},r.result));setStatus('')}
+      else{setStatus('error');setErrMsg((r&&r.error)||'AI分析失敗')}
+    }catch(e){setStatus('error');setErrMsg(String(e))}
+  };
+  const upd=(k,v)=>setAiResult(p=>Object.assign({},p,{[k]:v}));
+  const publish=async()=>{
+    if(!aiResult)return;
+    setStatus('publishing');setErrMsg('');
+    try{
+      const r=await gasAddNoticeLiff({cat:aiResult.cat,subcat:aiResult.subcat,title:aiResult.title,summary:aiResult.summary,body:aiResult.body||content,bodyVi:aiResult.bodyVi,tags:aiResult.tags,titleVi:aiResult.titleVi,summaryVi:aiResult.summaryVi,author:code,code:code});
+      if(r&&r.ok){setStatus('done');onPublished()}
+      else{setStatus('error');setErrMsg((r&&r.error)||'發布失敗')}
+    }catch(e){setStatus('error');setErrMsg(String(e))}
+  };
+  return(<div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center" onClick={onClose}>
+    <div className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl p-4 space-y-3 max-h-[85vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+      <div className="flex items-center justify-between"><h3 className="text-base font-bold text-gray-900">新增公告</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
+      {!aiResult?(<>
+        <textarea value={content} onChange={e=>setContent(e.target.value)} placeholder="輸入公告內容，AI會自動分類、產生標題摘要並翻成越南文" rows={6} className="w-full bg-gray-100 border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 resize-none"/>
+        {status==='error'&&<p className="text-xs text-red-500 text-center">{errMsg}</p>}
+        <button onClick={runAI} disabled={!content.trim()||status==='analyzing'} className="w-full py-3 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{status==='analyzing'&&<Spinner size={14}/>}{status==='analyzing'?'AI 分析中…':'AI 分析'}</button>
+      </>):status==='done'?(
+        <p className="text-sm text-emerald-600 text-center py-6">✓ 已發布</p>
+      ):(<>
+        <div><label className="text-[11px] text-gray-500 block mb-1">主分類</label><input value={aiResult.cat||''} onChange={e=>upd('cat',e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/></div>
+        <div><label className="text-[11px] text-gray-500 block mb-1">子分類</label><input value={aiResult.subcat||''} onChange={e=>upd('subcat',e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/></div>
+        <div><label className="text-[11px] text-gray-500 block mb-1">標題</label><input value={aiResult.title||''} onChange={e=>upd('title',e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/></div>
+        <div><label className="text-[11px] text-gray-500 block mb-1">摘要</label><input value={aiResult.summary||''} onChange={e=>upd('summary',e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/></div>
+        <div><label className="text-[11px] text-gray-500 block mb-1">內容</label><textarea value={aiResult.body||''} onChange={e=>upd('body',e.target.value)} rows={4} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 resize-none"/></div>
+        {status==='error'&&<p className="text-xs text-red-500 text-center">{errMsg}</p>}
+        <div className="flex gap-2"><button onClick={()=>setAiResult(null)} className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-600 text-sm font-semibold">重新輸入</button><button onClick={publish} disabled={status==='publishing'} className="flex-1 py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{status==='publishing'&&<Spinner size={12}/>}發布</button></div>
+      </>)}
+    </div>
+  </div>);
+}
+
+function ManagerNoticeList({userProfile}){
+  const[list,setList]=useState(null);
+  const[viewing,setViewing]=useState(null);
+  const[showCreate,setShowCreate]=useState(false);
+  const lang=userProfile.lang||'zh';
+  const t=(T&&T[lang])||{};
+  const code=userProfile.code||userProfile.name||'';
+  const load=()=>{fetch('../notices.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(data=>{setList(Array.isArray(data)?data:(data&&data.notices)||[])}).catch(()=>setList([]))};
+  useEffect(()=>{load()},[]);
+  if(viewing)return(<window.NoticeDetailModal notice={viewing} settings={{code,lang}} t={t} onClose={()=>setViewing(null)} onMore={()=>{}}/>);
+  return(<div className="min-h-screen p-4">
+    <div className="max-w-md mx-auto space-y-3">
+      <div className="flex items-center justify-between"><h1 className="text-base font-bold text-gray-900">公告列表</h1><button onClick={()=>setShowCreate(true)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold">新增公告</button></div>
+      {list===null?<p className="text-center py-8"><Spinner size={20}/></p>:list.length===0?<p className="text-sm text-gray-500 text-center py-8">目前沒有公告</p>:list.map(n=>(
+        <div key={n.id} onClick={()=>setViewing(n)} className="bg-white border border-gray-200 rounded-xl px-3 py-2.5 cursor-pointer active:bg-gray-50"><p className="text-sm text-gray-900 font-medium truncate">{n.title}</p><p className="text-[11px] text-gray-500 mt-0.5">{n.id}・{n.cat}{n.subcat?('・'+n.subcat):''}</p></div>
+      ))}
+    </div>
+    {showCreate&&<ManagerCreateNotice code={code} onClose={()=>setShowCreate(false)} onPublished={()=>{load()}}/>}
+  </div>);
+}
+
 function NoticeView({nid,userProfile}){
   const[notice,setNotice]=useState(undefined);
   useEffect(()=>{
+    if(!nid)return;
     fetch('../notices.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(data=>{
       const list=Array.isArray(data)?data:(data&&data.notices)||[];
       const found=list.find(n=>String(n.id)===String(nid));
@@ -227,6 +297,7 @@ function NoticeView({nid,userProfile}){
       localStorage.setItem('notice-pwd-unlock-'+code,String(Date.now()));
     }catch(_e){}
   },[code]);
+  if(!nid&&userProfile.personType==='manager')return(<ManagerNoticeList userProfile={userProfile}/>);
   if(notice===undefined)return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><Spinner size={32}/><p className="text-sm text-gray-500">載入中…</p></div>);
   if(!notice)return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-gray-500 text-center">找不到這則公告，可能已經下架或連結有誤</p></div>);
   return window.NoticeDetailModal?(<window.NoticeDetailModal notice={notice} settings={settingsObj} t={t} onClose={()=>{try{liff.closeWindow()}catch(_e){}}} onMore={()=>{}}/>):null;
