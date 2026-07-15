@@ -1,4 +1,4 @@
-/* notice-modal.js v1.12-040 — 共用公告詳情彈窗元件(index與公告頁共用)
+/* notice-modal.js v1.12-041 — 共用公告詳情彈窗元件(index與公告頁共用)
    用法:<NoticeDetailModal notice={n} settings={settings} t={t} onClose={()=>...} onMore={()=>...}/>
    依賴 window.MP 的:noticeBody,hasMyKey,markNoticeRead,autoClaimKey,isNoticeRead,getNoticeReadCount,getNoticeReaders,getNoticeShow,isValidPin,lockPwdCred,gasSetInitialPwd,gasVerifyKey,getMyKey,LS
    v1.12-019:密碼關卡通過後,再背景驗證金鑰是否有效(離職時金鑰會被設過期/停用)。金鑰失效→即使密碼對也擋內容,顯示「憑證已失效」;沒有金鑰或網路失敗時不擋(容錯優先,避免誤傷正常老師) */
@@ -103,7 +103,7 @@
       }
     };
     if(gate==='setup'){
-      return(<div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center gap-6 p-6" onClick={onClose}>
+      return(<div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 p-6" style={{background:'rgba(0,0,0,0.9)'}} onClick={onClose}>
         <div onClick={e=>e.stopPropagation()} className="flex flex-col items-center gap-6">
           <p className="text-base font-bold text-gray-100 text-center">{setupStep===1?(t.noticePwdSetupTitle||'設定4位數密碼'):(t.lockPwdConfirm||'再輸入一次確認')}</p>
           {setupStep===1&&<p className="text-xs text-gray-500 text-center max-w-xs -mt-3">{t.noticePwdSetupBody}</p>}
@@ -115,7 +115,7 @@
       </div>);
     }
     if(gate==='locked'){
-      return(<div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center gap-6 p-6" onClick={onClose}>
+      return(<div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 p-6" style={{background:'rgba(0,0,0,0.9)'}} onClick={onClose}>
         <div onClick={e=>e.stopPropagation()} className="flex flex-col items-center gap-6">
           <p className="text-base font-bold text-gray-100 text-center">{t.noticePwdLockedTitle||'請輸入密碼'}</p>
           <p className="text-xs text-gray-500 text-center max-w-xs -mt-3">{t.noticePwdLockedBody}</p>
