@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>櫃台差勤 v1.0-012</title>
+<title>櫃台差勤 v1.0-013</title>
 <meta property="og:title" content="櫃台差勤管理">
 <meta property="og:description" content="排休、請假、特休管理">
 <meta property="og:type" content="website">
@@ -552,12 +552,13 @@ function DayView({myStaff,dateStr}){
       )}
       <LeaveLegend/>
     </div>
+    <hr className="border-gray-200"/>
     <div>
       <p className="text-xs text-gray-500 mb-1">櫃台交接事項</p>
-      <div className="flex gap-2 mb-2"><input value={noteText} onChange={e=>setNoteText(e.target.value)} placeholder="留言給下一班…" className="flex-1 bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/><button onClick={submitNote} disabled={busy||!noteText.trim()} className="px-3 py-2 rounded-lg bg-amber-600 text-white text-xs font-semibold disabled:opacity-50 flex-shrink-0">{busy?<Spinner size={11}/>:'送出'}</button></div>
       {notes===null?<Spinner size={14}/>:notes.length===0?<p className="text-xs text-gray-500">目前沒有交接事項</p>:(
         <div className="space-y-1.5">{notes.map((n,i)=>(<div key={n.id} className={`rounded-lg px-3 py-2 ${i%2===0?'bg-white':'bg-gray-100'}`}><p className="text-sm text-gray-800">{n.text}</p><p className="text-[10px] text-gray-500 mt-0.5">{n.staffName}・{n.createdAt}</p></div>))}</div>
       )}
+      <div className="flex gap-2 mt-2"><input value={noteText} onChange={e=>setNoteText(e.target.value)} placeholder="留言給下一班…" className="flex-1 bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/><button onClick={submitNote} disabled={busy||!noteText.trim()} className="px-3 py-2 rounded-lg bg-amber-600 text-white text-xs font-semibold disabled:opacity-50 flex-shrink-0">{busy?<Spinner size={11}/>:'送出'}</button></div>
     </div>
     <p className="text-[10px] text-gray-500 text-center pt-1">最後更新日期：{lastUpdated||'（尚未載入）'}</p>
   </div>);
