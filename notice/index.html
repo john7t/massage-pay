@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>公告 v1.0-011</title>
+<title>公告 v1.0-012</title>
 <meta property="og:title" content="公告通知">
 <meta property="og:description" content="請點擊連結查看公告內容">
 <meta property="og:type" content="website">
@@ -69,6 +69,7 @@ async function sfConfig(){const r=await gasCall('sfConfig',{app:'notice'},10000)
 async function getNoticeFlexContent(noticeId,liffId){const r=await gasCall('getNoticeFlexContent',{noticeId,liffId},10000);return r||{ok:false,error:'GAS無回應'};}
 async function gasAnalyzeNotice(content,code){const r=await window.MP.gasCallPost('analyzeNotice',{content,code,feature:'LIFF新增公告'},20000);return r||{ok:false,error:'GAS無回應'};}
 async function gasAddNoticeLiff(data){const r=await window.MP.gasCallPost('addNotice',data,15000);return r||{ok:false,error:'GAS無回應'};}
+async function gasNoticeUnread(noticeId){const r=await gasCall('noticeUnread',{noticeId},10000);return r||{ok:false,error:'GAS無回應'};}
 async function noticeLiffMarkRead(noticeId,lineUserId){const r=await window.MP.gasCallPost('noticeLiffMarkRead',{noticeId,lineUserId},15000);return r||{ok:false,error:'GAS無回應'};}
 async function sfGetUser(lineUserId){const r=await gasCall('sfGetUser',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfRegister(data){const r=await window.MP.gasCallPost('sfRegister',data,15000);return r||{ok:false,error:'GAS無回應'};}
@@ -256,20 +257,62 @@ function ManagerNoticeList({userProfile}){
   const[list,setList]=useState(null);
   const[viewing,setViewing]=useState(null);
   const[showCreate,setShowCreate]=useState(false);
+  const[shareBusy,setShareBusy]=useState('');
   const lang=userProfile.lang||'zh';
   const t=(T&&T[lang])||{};
   const code=userProfile.code||userProfile.name||'';
-  const load=()=>{fetch('../notices.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(data=>{setList(Array.isArray(data)?data:(data&&data.notices)||[])}).catch(()=>setList([]))};
+  const load=()=>{fetch('../notices.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(data=>{
+    const arr=Array.isArray(data)?data:(data&&data.notices)||[];
+    arr.sort((a,b)=>String(b.id).localeCompare(String(a.id))); // 倒序:最新的公告排最前面
+    setList(arr);
+  }).catch(()=>setList([]))};
   useEffect(()=>{load()},[]);
+  const doShare=async(n,ev)=>{
+    ev.stopPropagation();
+    if(shareBusy)return;
+    setShareBusy(n.id);
+    try{
+      const r=await getNoticeFlexContent(n.id,LIFF_ID_HARDCODED);
+      if(r&&r.ok&&liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker')){
+        await liff.shareTargetPicker([{type:'flex',altText:r.title,contents:r.flex}]);
+      }
+    }catch(_e){}
+    setShareBusy('');
+  };
   if(viewing)return(<window.NoticeDetailModal notice={viewing} settings={{code,lang}} t={t} onClose={()=>setViewing(null)} onMore={()=>{}}/>);
   return(<div className="min-h-screen p-4">
     <div className="max-w-md mx-auto space-y-3">
       <div className="flex items-center justify-between"><h1 className="text-base font-bold text-gray-900">公告列表</h1><button onClick={()=>setShowCreate(true)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold">新增公告</button></div>
       {list===null?<p className="text-center py-8"><Spinner size={20}/></p>:list.length===0?<p className="text-sm text-gray-500 text-center py-8">目前沒有公告</p>:list.map(n=>(
-        <div key={n.id} onClick={()=>setViewing(n)} className="bg-white border border-gray-200 rounded-xl px-3 py-2.5 cursor-pointer active:bg-gray-50"><p className="text-sm text-gray-900 font-medium truncate">{n.title}</p><p className="text-[11px] text-gray-500 mt-0.5">{n.id}・{n.cat}{n.subcat?('・'+n.subcat):''}</p></div>
+        <div key={n.id} className="bg-white border border-gray-200 rounded-xl px-3 py-2.5">
+          <div onClick={()=>setViewing(n)} className="cursor-pointer active:bg-gray-50"><p className="text-sm text-gray-900 font-medium truncate">{n.title}</p><p className="text-[11px] text-gray-500 mt-0.5">{n.id}・{n.cat}{n.subcat?('・'+n.subcat):''}</p></div>
+          <button onClick={(ev)=>doShare(n,ev)} disabled={shareBusy===n.id} className="mt-2 w-full py-2 rounded-lg bg-[#06C755] text-white text-xs font-semibold disabled:opacity-50 flex items-center justify-center gap-1.5">
+            {shareBusy===n.id?<Spinner size={11}/>:<svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.5 2 2 5.6 2 10c0 3.9 3.6 7.2 8.4 7.9.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1.1 1 .6 1.1-.5 6.2-3.7 8.5-6.3C22.1 12.6 22 11.3 22 10c0-4.4-4.5-8-10-8z"/></svg>}
+            分享到LINE
+          </button>
+        </div>
       ))}
     </div>
     {showCreate&&<ManagerCreateNotice code={code} onClose={()=>setShowCreate(false)} onPublished={()=>{load()}}/>}
+  </div>);
+}
+
+function UnreadListView({nid}){
+  const[data,setData]=useState(null);
+  useEffect(()=>{gasNoticeUnread(nid).then(r=>{if(r&&r.ok)setData(r);else setData({error:(r&&r.error)||'查詢失敗'})})},[nid]);
+  return(<div className="min-h-screen p-4">
+    <div className="max-w-md mx-auto space-y-3">
+      <h1 className="text-base font-bold text-gray-900">誰還沒閱讀（{nid}）</h1>
+      {data===null?<p className="text-center py-8"><Spinner size={20}/></p>:data.error?(
+        <p className="text-sm text-red-500 text-center py-8">{data.error}</p>
+      ):(<>
+        <p className="text-sm text-gray-600">共 {data.total} 人尚未閱讀</p>
+        {data.day.length>0&&<div><p className="text-xs text-gray-500 mb-1">早班</p><div className="flex flex-wrap gap-1.5">{data.day.map(c=>(<span key={c} className="text-xs px-2 py-1 rounded-lg bg-gray-100 text-gray-700">{c}</span>))}</div></div>}
+        {data.night.length>0&&<div><p className="text-xs text-gray-500 mb-1">晚班</p><div className="flex flex-wrap gap-1.5">{data.night.map(c=>(<span key={c} className="text-xs px-2 py-1 rounded-lg bg-gray-100 text-gray-700">{c}</span>))}</div></div>}
+        {data.other.length>0&&<div><p className="text-xs text-gray-500 mb-1">其他</p><div className="flex flex-wrap gap-1.5">{data.other.map(c=>(<span key={c} className="text-xs px-2 py-1 rounded-lg bg-gray-100 text-gray-700">{c}</span>))}</div></div>}
+        {data.total===0&&<p className="text-sm text-emerald-600 text-center py-4">✓ 全部人都已經閱讀了</p>}
+      </>)}
+    </div>
   </div>);
 }
 
@@ -298,9 +341,14 @@ function NoticeView({nid,userProfile}){
     }catch(_e){}
   },[code]);
   if(!nid&&userProfile.personType==='manager')return(<ManagerNoticeList userProfile={userProfile}/>);
+  const isManagerWithNid=nid&&userProfile.personType==='manager';
+  const backToList=()=>{location.href=location.href.split('?')[0]};
   if(notice===undefined)return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><Spinner size={32}/><p className="text-sm text-gray-500">載入中…</p></div>);
   if(!notice)return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-gray-500 text-center">找不到這則公告，可能已經下架或連結有誤</p></div>);
-  return window.NoticeDetailModal?(<window.NoticeDetailModal notice={notice} settings={settingsObj} t={t} onClose={()=>{try{liff.closeWindow()}catch(_e){}}} onMore={()=>{}}/>):null;
+  return(<div className="relative min-h-screen">
+    {isManagerWithNid&&<button onClick={backToList} className="fixed top-3 right-3 z-[60] text-xs px-3 py-1.5 rounded-full bg-gray-900/80 text-white font-semibold">← 回列表</button>}
+    {window.NoticeDetailModal&&<window.NoticeDetailModal notice={notice} settings={settingsObj} t={t} onClose={()=>{try{liff.closeWindow()}catch(_e){}}} onMore={()=>{}}/>}
+  </div>);
 }
 
 function ShareFlow({nid}){
@@ -336,6 +384,7 @@ function App(){
     const initLiff=(id)=>liff.init({liffId:id}).then(()=>{
       if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return}
       if(action==='share'){setPhase('share');return}
+      if(action==='unread'){setPhase('unread');return}
       if(action==='read'){
         return liff.getProfile().then(p=>{setProfile(p);setPhase('read')});
       }
@@ -358,6 +407,7 @@ function App(){
   if(phase==='error')return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{liffErr}</p></div>);
   if(phase==='liffInit'||phase==='loading')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><div className="text-amber-500"><Spinner size={40}/></div><p className="text-base text-gray-400">載入中…</p></div>);
   if(phase==='share')return(<ShareFlow nid={nid}/>);
+  if(phase==='unread')return(<UnreadListView nid={nid}/>);
   if(phase==='read')return(<ReadFlow nid={nid} profile={profile}/>);
   if(phase==='register')return(<RegisterFlow profile={profile} onDone={()=>{sfGetUser(profile.userId).then(r=>{if(r&&r.ok&&r.exists){setUserProfile(r.profile);setPhase('main')}})}}/>);
   return(<NoticeView nid={nid} userProfile={userProfile}/>);
