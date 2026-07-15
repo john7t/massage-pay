@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>櫃台差勤 v1.0-011</title>
+<title>櫃台差勤 v1.0-012</title>
 <meta property="og:title" content="櫃台差勤管理">
 <meta property="og:description" content="排休、請假、特休管理">
 <meta property="og:type" content="website">
@@ -465,9 +465,12 @@ function MonthView({myStaff,year,month}){
       <button onClick={()=>setShowOffModal(true)} className="w-full py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold">排休</button>
     )}
     {isPrivileged&&(
-      <div className="flex items-center justify-between gap-2 bg-gray-50 rounded-xl px-3 py-2.5">
-        <span className="text-sm text-gray-700">鎖定本月排休：{data.locked?'鎖定':'開放'}</span>
-        <button onClick={toggleLock} disabled={lockBusy} className={`w-12 h-7 rounded-full flex items-center px-1 transition-colors flex-shrink-0 ${data.locked?'bg-red-500 justify-end':'bg-emerald-500 justify-start'}`}>{lockBusy?<Spinner size={12}/>:<span className="w-5 h-5 rounded-full bg-white block"></span>}</button>
+      <div className="bg-gray-50 rounded-xl px-3 py-2.5 space-y-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-sm text-gray-700">本月排休調整：{data.locked?'鎖定':'開放'}</span>
+          <button onClick={toggleLock} disabled={lockBusy} className={`w-12 h-7 rounded-full flex items-center px-1 transition-colors flex-shrink-0 ${data.locked?'bg-red-500 justify-end':'bg-emerald-500 justify-start'}`}>{lockBusy?<Spinner size={12}/>:<span className="w-5 h-5 rounded-full bg-white block"></span>}</button>
+        </div>
+        {data.lockedBy&&<p className="text-[10px] text-gray-500">鎖定操作人：{data.lockedBy}・鎖定操作時間：{data.lockedAt}</p>}
       </div>
     )}
     <p className="text-[10px] text-gray-500 text-center pt-1">最後更新日期：{lastUpdated||'（尚未載入）'}</p>
@@ -553,7 +556,7 @@ function DayView({myStaff,dateStr}){
       <p className="text-xs text-gray-500 mb-1">櫃台交接事項</p>
       <div className="flex gap-2 mb-2"><input value={noteText} onChange={e=>setNoteText(e.target.value)} placeholder="留言給下一班…" className="flex-1 bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/><button onClick={submitNote} disabled={busy||!noteText.trim()} className="px-3 py-2 rounded-lg bg-amber-600 text-white text-xs font-semibold disabled:opacity-50 flex-shrink-0">{busy?<Spinner size={11}/>:'送出'}</button></div>
       {notes===null?<Spinner size={14}/>:notes.length===0?<p className="text-xs text-gray-500">目前沒有交接事項</p>:(
-        <div className="space-y-1.5">{notes.map(n=>(<div key={n.id} className="bg-gray-50 rounded-lg px-3 py-2"><p className="text-sm text-gray-800">{n.text}</p><p className="text-[10px] text-gray-500 mt-0.5">{n.staffName}・{n.createdAt}</p></div>))}</div>
+        <div className="space-y-1.5">{notes.map((n,i)=>(<div key={n.id} className={`rounded-lg px-3 py-2 ${i%2===0?'bg-white':'bg-gray-100'}`}><p className="text-sm text-gray-800">{n.text}</p><p className="text-[10px] text-gray-500 mt-0.5">{n.staffName}・{n.createdAt}</p></div>))}</div>
       )}
     </div>
     <p className="text-[10px] text-gray-500 text-center pt-1">最後更新日期：{lastUpdated||'（尚未載入）'}</p>
@@ -612,12 +615,12 @@ function MultiDayView({dates}){
   };
   return(<div className="space-y-2">
     <div className="flex justify-end"><button onClick={fetchFresh} disabled={updateBusy||cooldown>0} className="text-[11px] px-2.5 py-1.5 rounded-lg bg-gray-100 text-gray-500 disabled:opacity-50 flex items-center gap-1">{updateBusy&&<Spinner size={10}/>}{cooldown>0?cooldown+'s':'更新'}</button></div>
-    {dates.map(d=>{
+    {dates.map((d,i)=>{
       const entries=entriesFor(d);
       const dt=new Date(d);
-      return(<div key={d} className="bg-gray-50 rounded-lg px-3 py-2">
+      return(<div key={d} className={`rounded-lg px-3 py-2 ${i%2===0?'bg-white':'bg-gray-100'}`}>
         <p className="text-xs text-gray-500 font-semibold mb-1">{d.slice(5)}（{WEEKDAY_LABEL[dt.getDay()]}）</p>
-        {entries===null?<Spinner size={12}/>:entries.length===0?<p className="text-[11px] text-gray-500">無人排休/請假</p>:<p className="text-[11px] text-gray-700 flex flex-wrap items-center gap-x-2">{entries.map((e,i)=>(<span key={i}><LeaveDot cls={e.color.cls}/>{e.name}</span>))}</p>}
+        {entries===null?<Spinner size={12}/>:entries.length===0?<p className="text-[11px] text-gray-500">無人排休/請假</p>:<p className="text-[11px] text-gray-700 flex flex-wrap items-center gap-x-2">{entries.map((e,j)=>(<span key={j}><LeaveDot cls={e.color.cls}/>{e.name}</span>))}</p>}
       </div>);
     })}
     <LeaveLegend/>
@@ -787,7 +790,7 @@ function LeaveTab({myStaff}){
       return {type:k,items:items,totalDays:(totalHours/8),totalHours:totalHours};
     });
   },[myLeaves]);
-  const renderItem=(l,i)=>(<div key={l.id} className={`rounded-lg px-3 py-2 ${i%2===0?'bg-gray-50':'bg-white'}`}><div className="flex items-center justify-between"><span className="text-sm text-gray-800">{LEAVE_TYPE_LABEL[l.type]}・{l.date}</span><span className={`text-[11px] ${l.status==='approved'?'text-emerald-400':l.status==='rejected'?'text-red-400':'text-amber-400'}`}>{STATUS_LABEL[l.status]}</span></div><p className="text-[10px] text-gray-500 mt-0.5">{l.hours}小時・申請於 {l.submittedAt}</p></div>);
+  const renderItem=(l,i)=>(<div key={l.id} className={`rounded-lg px-3 py-2 ${i%2===0?'bg-white':'bg-gray-100'}`}><div className="flex items-center justify-between"><span className="text-sm text-gray-800">{LEAVE_TYPE_LABEL[l.type]}・{l.date}</span><span className={`text-[11px] ${l.status==='approved'?'text-emerald-400':l.status==='rejected'?'text-red-400':'text-amber-400'}`}>{STATUS_LABEL[l.status]}</span></div><p className="text-[10px] text-gray-500 mt-0.5">{l.hours}小時・申請於 {l.submittedAt}</p></div>);
   return(<div className="space-y-4">
     <div className="flex items-center justify-between gap-2"><p className="text-base font-bold text-gray-900 flex-shrink-0">請假</p>{viewStaffId===myStaff.id&&<button onClick={()=>setShowModal(true)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold flex-shrink-0">請假申請</button>}</div>
     {canViewOthers&&(<select value={viewStaffId} onChange={e=>setViewStaffId(e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-2 py-2 text-xs text-gray-800">
@@ -904,25 +907,25 @@ function ApprovalTab({myStaff}){
     <div>
       <p className="text-sm text-gray-700 font-semibold mb-2">待審核帳號（{pendingStaff?pendingStaff.length:0}）</p>
       {pendingStaff===null?<Spinner size={16}/>:pendingStaff.length===0?<p className="text-xs text-gray-500">目前沒有待審核帳號</p>:pendingStaff.map((s,i)=>(
-        <div key={s.id} className={`rounded-lg px-3 py-2 flex items-center justify-between mb-1.5 ${i%2===0?'bg-gray-50':'bg-white'}`}><p className="text-sm text-gray-800">{s.lastName}{s.firstName}（{s.nickname}）{s.isManagementOnly?('・'+(s.personType||'管理專用')):('・'+SHIFT_SHORT_LABEL[s.shift])}</p><ActionBtns id={s.id} onAct={(ok)=>doStaff(s.id,ok)}/></div>
+        <div key={s.id} className={`rounded-lg px-3 py-2 flex items-center justify-between mb-1.5 ${i%2===0?'bg-white':'bg-gray-100'}`}><p className="text-sm text-gray-800">{s.lastName}{s.firstName}（{s.nickname}）{s.isManagementOnly?('・'+(s.personType||'管理專用')):('・'+SHIFT_SHORT_LABEL[s.shift])}</p><ActionBtns id={s.id} onAct={(ok)=>doStaff(s.id,ok)}/></div>
       ))}
     </div>
     <div>
       <p className="text-sm text-gray-700 font-semibold mb-2">待審核請假（{pendingLeaves?pendingLeaves.length:0}）</p>
       {pendingLeaves===null?<Spinner size={16}/>:pendingLeaves.length===0?<p className="text-xs text-gray-500">目前沒有待審核請假</p>:pendingLeaves.map((l,i)=>(
-        <div key={l.id} className={`rounded-lg px-3 py-2 mb-1.5 ${i%2===0?'bg-gray-50':'bg-white'}`}><div className="flex items-center justify-between"><p className="text-sm text-gray-800">{l.staffName}・{LEAVE_TYPE_LABEL[l.type]}・{l.date}</p><ActionBtns id={l.id} onAct={(ok)=>doLeave(l.id,ok)}/></div>{l.reason&&<p className="text-[11px] text-gray-500 mt-1">{l.reason}</p>}</div>
+        <div key={l.id} className={`rounded-lg px-3 py-2 mb-1.5 ${i%2===0?'bg-white':'bg-gray-100'}`}><div className="flex items-center justify-between"><p className="text-sm text-gray-800">{l.staffName}・{LEAVE_TYPE_LABEL[l.type]}・{l.date}</p><ActionBtns id={l.id} onAct={(ok)=>doLeave(l.id,ok)}/></div>{l.reason&&<p className="text-[11px] text-gray-500 mt-1">{l.reason}</p>}</div>
       ))}
     </div>
     <div>
       <p className="text-sm text-gray-700 font-semibold mb-2">待審核資料變更（{pendingChanges?pendingChanges.length:0}）</p>
       {pendingChanges===null?<Spinner size={16}/>:pendingChanges.length===0?<p className="text-xs text-gray-500">目前沒有待審核變更</p>:pendingChanges.map((c,i)=>(
-        <div key={c.id} className={`rounded-lg px-3 py-2 flex items-center justify-between mb-1.5 ${i%2===0?'bg-gray-50':'bg-white'}`}><p className="text-sm text-gray-800">{c.staffName}・{c.field==='shift'?'班別':'到職日'}：{c.oldValue}→{c.newValue}</p><ActionBtns id={c.id} onAct={(ok)=>doChange(c.id,ok)}/></div>
+        <div key={c.id} className={`rounded-lg px-3 py-2 flex items-center justify-between mb-1.5 ${i%2===0?'bg-white':'bg-gray-100'}`}><p className="text-sm text-gray-800">{c.staffName}・{c.field==='shift'?'班別':'到職日'}：{c.oldValue}→{c.newValue}</p><ActionBtns id={c.id} onAct={(ok)=>doChange(c.id,ok)}/></div>
       ))}
     </div>
     <div>
       <p className="text-sm text-gray-700 font-semibold mb-2">歷史審查資料</p>
       {history===null?<Spinner size={16}/>:history.length===0?<p className="text-xs text-gray-500">目前沒有歷史紀錄</p>:history.map((h,i)=>(
-        <div key={i} className={`rounded-lg px-3 py-1.5 mb-1 flex items-center justify-between ${i%2===0?'bg-gray-50':'bg-white'}`}><p className="text-[11px] text-gray-500">{h.kind}・{h.target}</p><p className={`text-[10px] ${h.status==='approved'?'text-emerald-500':'text-red-500'}`}>{STATUS_LABEL_MAP[h.status]}・{h.approver||'?'}・{h.time}</p></div>
+        <div key={i} className={`rounded-lg px-3 py-1.5 mb-1 flex items-center justify-between ${i%2===0?'bg-white':'bg-gray-100'}`}><p className="text-[11px] text-gray-500">{h.kind}・{h.target}</p><p className={`text-[10px] ${h.status==='approved'?'text-emerald-500':'text-red-500'}`}>{STATUS_LABEL_MAP[h.status]}・{h.approver||'?'}・{h.time}</p></div>
       ))}
     </div>
     {myStaff.role==='admin'&&(<div className="pt-3 border-t border-gray-200 space-y-2">
