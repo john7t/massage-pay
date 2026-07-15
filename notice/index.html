@@ -3,13 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>公告 v1.0-010</title>
-<meta property="og:title" content="公告通知">
-<meta property="og:description" content="請點擊連結查看公告內容">
+<title>櫃台差勤 v1.0-011</title>
+<meta property="og:title" content="櫃台差勤管理">
+<meta property="og:description" content="排休、請假、特休管理">
 <meta property="og:type" content="website">
 <script>
-  var PAGE="notice-liff",PCODE="03";
-  window.__fbLang='zh';
+  var PAGE="fd-liff",PCODE="04";
   window.__fbApply=function(){var t=document.getElementById('__fbtitle');if(t)t.textContent='網站更新中';if(window.__fbData){var info=document.getElementById("__fbinfo");if(info)info.textContent=window.__fbData.page+" 網頁 v"+window.__fbData.ver+" 更新中　代碼 "+window.__fbData.code;try{var md=document.getElementById("__fbmsg");if(md&&window.__fbData.msg){md.textContent=window.__fbData.msg;md.style.display="block";}}catch(_e){}}};
   window.__showFallback=function(src,detail){
     if(window.__shownFallback)return;window.__shownFallback=true;
@@ -30,337 +29,1082 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
-body{background:#0a0a0f;color:#e5e7eb;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+body{background:#f9fafb;color:#111827;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 #root{min-height:100vh}
-/* NoticeDetailModal本來是設計成從螢幕下方浮出的浮層(用在有背景畫面的主系統裡),
-   這個頁面本身背景是空的,所以改成從最上面開始顯示,不留一大片黑色空白在上方 */
-#root>div.fixed.inset-0{align-items:flex-start !important;padding-top:0 !important}
-#root>div.fixed.inset-0>div{border-radius:0 !important;max-height:100vh !important;min-height:100vh}
+@keyframes fdBlink{0%,100%{opacity:1}50%{opacity:0.25}}
+.fd-blink{animation:fdBlink 1s infinite}
 </style>
 </head>
 <body>
 <div id="root"></div>
 
-<div id="__fallback" style="display:none;position:fixed;inset:0;z-index:99999;background:#0a0a0f;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;font-family:-apple-system,sans-serif">
+<div id="__fallback" style="display:none;position:fixed;inset:0;z-index:99999;background:#f9fafb;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;font-family:-apple-system,sans-serif">
   <div style="width:64px;height:64px;border-radius:50%;border:3px solid #d97706;display:flex;align-items:center;justify-content:center;margin-bottom:24px">🔧</div>
-  <h1 id="__fbtitle" style="font-size:22px;font-weight:500;color:#f3f4f6;margin:0 0 1rem">網站更新中</h1>
+  <h1 id="__fbtitle" style="font-size:22px;font-weight:500;color:#111827;margin:0 0 1rem">網站更新中</h1>
   <p id="__fbinfo" style="font-size:12px;color:#6b7280;margin:0 0 2rem;font-family:monospace"></p>
-  <div id="__fbmsg" style="display:none;margin:-1rem 0 2rem;padding:10px 12px;background:#1e1b1b;border:1px solid #7f1d1d;border-radius:8px;font-family:monospace;font-size:11px;color:#fca5a5;max-width:90%;word-break:break-all;white-space:pre-wrap"></div>
+  <div id="__fbmsg" style="display:none;margin:-1rem 0 2rem;padding:10px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-family:monospace;font-size:11px;color:#b91c1c;max-width:90%;word-break:break-all;white-space:pre-wrap"></div>
 </div>
 
 <script src="../common.js"></script>
-<script type="text/babel" src="../notice-modal.js"></script>
 <script type="text/babel">
 (function(){
-const{useState,useEffect}=React;
-const{gasCall,TW_REGIONS,T}=window.MP||{};
+const{useState,useEffect,useMemo}=React;
 
-// 測速用:填了就跳過問GAS要LIFF ID那一次來回。這個頁面需要一個「Endpoint URL指到這個頁面網址」的LIFF App,
-// 不能直接沿用安全回報的LIFF ID(那個的Endpoint URL指到別的網址),要另外在LINE Developers Console申請一個。
-const LIFF_ID_HARDCODED='2010673151-PEhuHeqe';
+const LIFF_ID_HARDCODED='2010673151-OMHcBUjJ';
 
-const STORES=['龍山寺店','東門店','古亭店','公館店','本部','教學處'];
-const CITY_PRIORITY=['桃園市','新北市','臺北市','宜蘭縣'];
-const CITY_OPTIONS=[...CITY_PRIORITY,...Object.keys(TW_REGIONS||{}).filter(c=>!CITY_PRIORITY.includes(c))];
-const SUBTYPES_ZH=['執行長','區經理','經理','副理','實習副理','櫃台組長'];
-const SUBTYPES_VI=['Giám đốc điều hành','Quản lý khu vực','Quản lý','Phó quản lý','Phó quản lý thực tập','Tổ trưởng lễ tân'];
+const SHIFTS={
+  A1:{name:'早班1',time:'08:00–18:00',pair:'A2',group:'morning'},
+  A2:{name:'早班2',time:'10:00–20:00',pair:'A1',group:'morning'},
+  B:{name:'中班',time:'12:00–22:00',pair:null,group:'mid'},
+  C1:{name:'小夜1',time:'18:00–次日04:00',pair:null,group:'evening'},
+  C2:{name:'小夜2',time:'18:00–次日04:00',pair:'D',group:'night'},
+  D:{name:'大夜',time:'22:00–次日08:00',pair:'C2',group:'night'},
+  NONE:{name:'無班別',time:'',pair:null,group:null}
+};
+const SHIFT_ORDER=['A1','A2','B','C1','C2','D'];
+const SHIFT_SHORT_LABEL={A1:'早1',A2:'早2',B:'中',C1:'小夜1',C2:'小夜2',D:'大夜'};
+const LEAVE_TYPE_LABEL={personal:'事假',sick:'病假',annual:'特休'};
+const WEEKDAY_LABEL=['日','一','二','三','四','五','六'];
 
-async function sfConfig(){const r=await gasCall('sfConfig',{app:'notice'},10000);return r||{ok:false,error:'GAS無回應'};}
-async function getNoticeFlexContent(noticeId,liffId){const r=await gasCall('getNoticeFlexContent',{noticeId,liffId},10000);return r||{ok:false,error:'GAS無回應'};}
-async function gasAnalyzeNotice(content,code){const r=await window.MP.gasCallPost('analyzeNotice',{content,code,feature:'LIFF新增公告'},20000);return r||{ok:false,error:'GAS無回應'};}
-async function gasAddNoticeLiff(data){const r=await window.MP.gasCallPost('addNotice',data,15000);return r||{ok:false,error:'GAS無回應'};}
-async function noticeLiffMarkRead(noticeId,lineUserId){const r=await window.MP.gasCallPost('noticeLiffMarkRead',{noticeId,lineUserId},15000);return r||{ok:false,error:'GAS無回應'};}
-async function sfGetUser(lineUserId){const r=await gasCall('sfGetUser',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
-async function sfRegister(data){const r=await window.MP.gasCallPost('sfRegister',data,15000);return r||{ok:false,error:'GAS無回應'};}
-async function checkStaffCode(code){const r=await gasCall('checkStaffCode',{code},10000);return r||{ok:false,error:'GAS無回應'};}
+async function gasCall(action,params){const{gasCall:_c}=window.MP||{};const r=await _c(action,params||{},10000);return r||{ok:false,error:'GAS無回應'};}
+async function gasCallPost(action,params){const{gasCallPost:_c}=window.MP||{};const r=await _c(action,params||{},15000);return r||{ok:false,error:'GAS無回應'};}
+async function sfConfig(){return gasCall('sfConfig',{app:'frontdesk'});}
+async function fdGetSelf(lineUserId){return gasCall('fdGetSelf',{lineUserId});}
+async function fdRegister(data){return gasCallPost('fdRegister',data);}
+async function fdCheckApproval(lineUserId){return gasCall('fdCheckApproval',{lineUserId});}
+async function fdSubmitLeave(data){return gasCallPost('fdSubmitLeave',data);}
+async function fdApproveLeave(id,approve,approver,lineUserId){return gasCallPost('fdApproveLeave',{id,approve,approver,lineUserId});}
+async function fdListPendingLeaves(lineUserId){return gasCall('fdListPendingLeaves',{lineUserId});}
+async function fdListPendingStaff(lineUserId){return gasCall('fdListPendingStaff',{lineUserId});}
+async function fdApproveStaff(staffId,approve,lineUserId){return gasCallPost('fdApproveStaff',{staffId,approve,lineUserId});}
+async function fdSetSupervisor(staffId,isSupervisor,lineUserId){return gasCallPost('fdSetSupervisor',{staffId,isSupervisor,lineUserId});}
+async function fdAnnualUsage(staffId){return gasCall('fdAnnualUsage',{staffId});}
+async function fdAnnualUsageAll(){return gasCall('fdAnnualUsageAll',{});}
+async function fdSetScheduleOff(staffId,date,off){return gasCallPost('fdSetScheduleOff',{staffId,date,off});}
+async function fdSetScheduleOffBatch(staffId,dates){return gasCallPost('fdSetScheduleOffBatch',{staffId,dates});}
+async function fdListMyLeaves(staffId,viewerId){return gasCall('fdListMyLeaves',{staffId,viewerId});}
+async function fdGetConfig(){return gasCall('fdGetConfig',{});}
+async function fdSetConfig(fields,lineUserId){return gasCallPost('fdSetConfig',{...fields,lineUserId});}
+async function fdGetScheduleLock(year,month){return gasCall('fdGetScheduleLock',{year,month});}
+async function fdSetScheduleLock(year,month,locked,lineUserId){return gasCallPost('fdSetScheduleLock',{year,month,locked,lineUserId});}
+async function fdSubmitHandover(staffId,date,text){return gasCallPost('fdSubmitHandover',{staffId,date,text});}
+async function fdListHandover(date){return gasCall('fdListHandover',{date});}
+async function fdDayLeaves(date){return gasCall('fdDayLeaves',{date});}
+async function fdListActiveStaff(){return gasCall('fdListActiveStaff',{});}
+async function fdListApprovalHistory(lineUserId){return gasCall('fdListApprovalHistory',{lineUserId});}
+async function fdWipeLeaveAndSchedule(lineUserId){return gasCallPost('fdWipeLeaveAndSchedule',{lineUserId});}
+async function fdSubmitLeaveBatch(staffId,type,entries,reason){return gasCallPost('fdSubmitLeaveBatch',{staffId,type,entries,reason});}
+async function fdMonthData(year,month){return gasCall('fdMonthData',{year,month});}
+async function fdUpdateProfile(data){return gasCallPost('fdUpdateProfile',data);}
+async function fdSetNotifyPref(lineUserId,notify){return gasCallPost('fdSetNotifyPref',{lineUserId,notify});}
+async function fdRequestFieldChange(staffId,field,newValue){return gasCallPost('fdRequestFieldChange',{staffId,field,newValue});}
+async function fdApproveFieldChange(id,approve,approver,lineUserId){return gasCallPost('fdApproveFieldChange',{id,approve,approver,lineUserId});}
+async function fdListPendingFieldChanges(lineUserId){return gasCall('fdListPendingFieldChanges',{lineUserId});}
 
 const Spinner=({size})=>(<svg className="animate-spin" width={size||14} height={size||14} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>);
-// LIFF的access token過期/被撤銷是LINE平台常見的行為(關閉LIFF App當下token就會失效),不是我們程式碼能完全避免的問題,
-// 但可以偵測到這種情況時給明確的中文指引,不要讓使用者看到一串看不懂的英文錯誤訊息。
-function _fmtLiffErr(err){
-  const msg=String((err&&err.message)||err||'');
-  if(/access token|token expired|token revoked/i.test(msg)){
-    return '登入狀態已過期，請完全關閉LINE App後重新開啟再試一次\n（技術訊息：'+msg+'）';
-  }
-  return msg;
+const pad2=(n)=>String(n).padStart(2,'0');
+const fmtPhone=(v)=>{
+  const s=String(v||'').replace(/[^\d]/g,'');
+  if(s.length===10)return s.slice(0,4)+'-'+s.slice(4,7)+'-'+s.slice(7);
+  return s;
+};
+const ymd=(y,m,d)=>y+'-'+pad2(m)+'-'+pad2(d);
+const todayYmd=()=>{const d=new Date();return ymd(d.getFullYear(),d.getMonth()+1,d.getDate())};
+
+// ===== 本機PIN鎖(純本機,不存GAS) =====
+const PIN_KEY='fd-lock-pin';
+const LOCK_TS_KEY='fd-lock-ts';
+const LOCK_AUTO_MIN=5;
+function getPin(){try{return localStorage.getItem(PIN_KEY)||''}catch(_e){return ''}}
+function setPin(p){try{localStorage.setItem(PIN_KEY,p)}catch(_e){}}
+function touchUnlock(){try{localStorage.setItem(LOCK_TS_KEY,String(Date.now()))}catch(_e){}}
+function isLocked(){
+  const pin=getPin();
+  if(!pin)return false;
+  try{
+    const ts=parseInt(localStorage.getItem(LOCK_TS_KEY)||'0',10);
+    return (Date.now()-ts)>LOCK_AUTO_MIN*60*1000;
+  }catch(_e){return false}
 }
 
-function RegisterFlow({profile,onDone,staticMode}){
-  const[lang,setLang]=useState('');
-  const[store,setStore]=useState('');
-  const[personType,setPersonType]=useState('');
-  const[subType,setSubType]=useState('');
-  const[name,setName]=useState('');
-  const[code,setCode]=useState('');
-  const[gender,setGender]=useState('');
-  const[shift,setShift]=useState('');
-  const[city,setCity]=useState('');const[dist,setDist]=useState('');
-  const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
-  const[checkBusy,setCheckBusy]=useState(false);const[checkMsg,setCheckMsg]=useState('');
-  const langDone=!!lang;
-  const step1Done=langDone&&!!store;
-  const canSubmit=(()=>{
-    if(!step1Done||!personType)return false;
-    if(personType==='manager')return subType&&(code.trim()||name.trim())&&gender&&shift&&city&&dist;
-    if(personType==='frontdesk'||personType==='student')return code.trim()||name.trim();
-    if(personType==='teacher')return code.trim()&&gender&&shift&&city&&dist;
-    return false;
-  })();
-  const doCheck=async()=>{
-    if(!code.trim())return;
-    setCheckBusy(true);setCheckMsg('');
-    try{
-      const r=await checkStaffCode(code.trim());
-      if(r&&r.ok&&r.found){
-        if(r.store)setStore(r.store);
-        if(r.gender)setGender(r.gender);
-        if(r.shift)setShift(r.shift);
-        setCheckMsg('✓ 已自動帶出你的資料，請確認居住地');
-      }else{setCheckMsg('查無此編號，請確認輸入正確或手動選擇店別')}
-    }catch(_e){setCheckMsg('查詢失敗')}
-    setCheckBusy(false);
+function LockScreen({onUnlock}){
+  const[input,setInput]=useState('');
+  const[err,setErr]=useState(false);
+  const submit=(val)=>{
+    if(val===getPin()){touchUnlock();onUnlock()}
+    else{setErr(true);setInput('');setTimeout(()=>setErr(false),600)}
   };
-  const submitData={lineUserId:profile.userId,displayName:profile.displayName,store,personType,subType,name:personType==='teacher'?code.trim():name.trim(),code:personType==='teacher'?'':code.trim(),lang,gender,shift,city,dist};
+  const press=(d)=>{
+    const next=(input+d).slice(0,4);
+    setInput(next);
+    if(next.length===4)submit(next);
+  };
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-6 p-6">
+    <p className="text-lg text-gray-700 font-semibold">請輸入密碼解鎖</p>
+    <div className={`flex gap-3 ${err?'text-red-500':''}`}>{[0,1,2,3].map(i=>(<div key={i} className={`w-4 h-4 rounded-full border-2 ${input.length>i?'bg-amber-500 border-amber-500':'border-gray-600'}`}></div>))}</div>
+    <div className="grid grid-cols-3 gap-4">{['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k,i)=>k===''?<div key={i}/>:(
+      <button key={i} onClick={()=>k==='⌫'?setInput(v=>v.slice(0,-1)):press(k)} className="w-16 h-16 rounded-full bg-gray-100 text-gray-800 text-xl font-semibold active:bg-gray-200">{k}</button>
+    ))}</div>
+  </div>);
+}
+
+function PinSetup({onDone}){
+  const[step,setStep]=useState(1);
+  const[first,setFirst]=useState('');
+  const[input,setInput]=useState('');
+  const[err,setErr]=useState('');
+  const press=(d)=>{
+    const next=(input+d).slice(0,4);
+    setInput(next);
+    if(next.length===4){
+      if(step===1){setFirst(next);setStep(2);setInput('')}
+      else{
+        if(next===first){setPin(next);touchUnlock();onDone()}
+        else{setErr('兩次輸入不一致，請重新設定');setStep(1);setInput('');setFirst('')}
+      }
+    }
+  };
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-6 p-6">
+    <p className="text-lg text-gray-700 font-semibold">{step===1?'設定4位數自動鎖屏密碼':'請再輸入一次確認'}</p>
+    {err&&<p className="text-xs text-red-400">{err}</p>}
+    <div className="flex gap-3">{[0,1,2,3].map(i=>(<div key={i} className={`w-4 h-4 rounded-full border-2 ${input.length>i?'bg-amber-500 border-amber-500':'border-gray-600'}`}></div>))}</div>
+    <div className="grid grid-cols-3 gap-4">{['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k,i)=>k===''?<div key={i}/>:(
+      <button key={i} onClick={()=>k==='⌫'?setInput(v=>v.slice(0,-1)):press(k)} className="w-16 h-16 rounded-full bg-gray-100 text-gray-800 text-xl font-semibold active:bg-gray-200">{k}</button>
+    ))}</div>
+  </div>);
+}
+
+function RegisterFlow({profile,onDone}){
+  const[lastName,setLastName]=useState('');
+  const[firstName,setFirstName]=useState('');
+  const[nickname,setNickname]=useState('');
+  const[hireDate,setHireDate]=useState('');
+  const[shift,setShift]=useState('');
+  const[phone,setPhone]=useState('');
+  const[mgmtOnly,setMgmtOnly]=useState(false);
+  const[personType,setPersonType]=useState('');
+  const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
+  const PERSON_TYPES=['執行長','區經理','經理','組長','副理','實習副理'];
+  const canSubmit=lastName.trim()&&firstName.trim()&&(mgmtOnly?!!personType:(hireDate&&shift));
   const submit=async()=>{
     if(!canSubmit)return;
     setBusy(true);setErr('');
-    if(staticMode){
-      // 靜態模式:送出後不等GAS回應,GAS會在伺服器端繼續執行完成,就算提前關閉分頁也不影響資料寫入。
-      // 短暫轉圈圈純粹是給使用者「有在處理」的感覺。
-      sfRegister(submitData).catch(()=>{});
-      setTimeout(()=>{onDone()},800);
-      return;
-    }
     try{
-      const r=await sfRegister(submitData);
-      if(r&&r.ok){onDone();return}
-      setErr((r&&r.error)||'登記失敗');
+      const r=await fdRegister({lineUserId:profile.userId,phone:phone.trim(),lastName:lastName.trim(),firstName:firstName.trim(),nickname:nickname.trim(),hireDate,shift,isManagementOnly:mgmtOnly,personType:mgmtOnly?personType:''});
+      if(r&&r.ok){onDone()}else{setErr((r&&r.error)||'登記失敗')}
     }catch(e){setErr(String(e))}
     setBusy(false);
   };
-  const tt=lang==='vi'?{appTitle:'Đăng ký',chooseLang:'Chọn ngôn ngữ',chooseStore:'Chọn cửa hàng',choosePersonType:'Chọn loại nhân sự',typeManager:'Quản lý',typeFrontdesk:'Lễ tân',typeTeacher:'Nhân viên kỹ thuật',typeStudent:'Học viên',chooseSubType:'Chọn cấp bậc',customNameLabel:'Tên tùy chỉnh',customNamePh:'Nhập tên (hoặc mã số)',teacherCode:'Mã nhân viên',teacherCodePh:'Mã số',checkBtn:'Kiểm tra',gender:'Giới tính',genderM:'Nam',genderF:'Nữ',shift:'Ca làm',shiftDay:'Ca sáng',shiftNight:'Ca tối',addr:'Khu vực',addrCity:'Tỉnh/Thành',addrDist:'Quận/Huyện',submitBtn:'Hoàn tất',submitting:'Đang xử lý…'}:{appTitle:'人員登記',chooseLang:'選擇語系',chooseStore:'選擇店別',choosePersonType:'選擇人員別',typeManager:'主管',typeFrontdesk:'櫃台',typeTeacher:'老師',typeStudent:'教學處學生',chooseSubType:'選擇主管別',customNameLabel:'自訂名稱',customNamePh:'請輸入自訂名稱(或直接輸入編號)',teacherCode:'老師編號',teacherCodePh:'編號',checkBtn:'檢查',gender:'性別',genderM:'男',genderF:'女',shift:'班別',shiftDay:'早班',shiftNight:'晚班',addr:'居住地區',addrCity:'縣市',addrDist:'鄉鎮市區',submitBtn:'完成登記',submitting:'處理中…'};
-
   return(<div className="min-h-screen flex items-center justify-center p-4">
-    <div className="w-full max-w-md bg-gray-900 rounded-2xl border border-white/[0.08] p-5 space-y-5">
-      <div className="text-center"><h1 className="text-lg font-bold text-gray-100">{tt.appTitle}</h1></div>
-      <div><label className="text-sm text-gray-400 block mb-2">選擇語系 / {tt.chooseLang}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setLang('zh')} className={`py-3 rounded-xl text-sm font-semibold ${lang==='zh'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>中文</button><button onClick={()=>setLang('vi')} className={`py-3 rounded-xl text-sm font-semibold ${lang==='vi'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>Tiếng Việt</button></div></div>
-      {langDone&&(<div><label className="text-sm text-gray-400 block mb-2">{tt.chooseStore}</label><div className="grid grid-cols-2 gap-2">{STORES.map(s=>(<button key={s} onClick={()=>setStore(s)} className={`py-3 rounded-xl text-sm font-semibold ${store===s?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{s}</button>))}</div></div>)}
-      {step1Done&&(<div><label className="text-sm text-gray-400 block mb-2">{tt.choosePersonType}</label><div className="grid grid-cols-1 gap-2">
-        <button onClick={()=>setPersonType('manager')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='manager'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{tt.typeManager}</button>
-        <button onClick={()=>setPersonType('frontdesk')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='frontdesk'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{tt.typeFrontdesk}</button>
-        <button onClick={()=>setPersonType('teacher')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='teacher'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{tt.typeTeacher}</button>
-        {store==='教學處'&&<button onClick={()=>setPersonType('student')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='student'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{tt.typeStudent}</button>}
-      </div></div>)}
-
-      {personType==='manager'&&(<div className="space-y-3">
-        <div><label className="text-sm text-gray-400 block mb-2">{tt.chooseSubType}</label><div className="grid grid-cols-2 gap-2">{(lang==='vi'?SUBTYPES_VI:SUBTYPES_ZH).map((s,i)=>(<button key={s} onClick={()=>setSubType(SUBTYPES_ZH[i])} className={`py-2.5 rounded-xl text-xs font-semibold ${subType===SUBTYPES_ZH[i]?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{s}</button>))}</div></div>
-        <div className="flex gap-2"><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={tt.teacherCodePh} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 text-center"/><button onClick={doCheck} disabled={checkBusy||!code.trim()} className="px-4 rounded-xl bg-white/[0.08] text-gray-300 text-sm font-semibold disabled:opacity-50">{checkBusy?<Spinner/>:tt.checkBtn}</button></div>
-        {checkMsg&&<p className="text-xs text-amber-400">{checkMsg}</p>}
-        <input value={name} onChange={e=>setName(e.target.value)} placeholder={tt.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/>
-        <div className="grid grid-cols-2 gap-2"><button onClick={()=>setGender('M')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='M'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{tt.genderM}</button><button onClick={()=>setGender('F')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='F'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{tt.genderF}</button></div>
-        <div className="grid grid-cols-2 gap-2"><button onClick={()=>setShift('day')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='day'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{tt.shiftDay}</button><button onClick={()=>setShift('night')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='night'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{tt.shiftNight}</button></div>
-        <div className="grid grid-cols-2 gap-2"><select value={city} onChange={e=>{setCity(e.target.value);setDist('')}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100"><option value="">{tt.addrCity}</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select><select value={dist} onChange={e=>setDist(e.target.value)} disabled={!city} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100 disabled:opacity-40"><option value="">{tt.addrDist}</option>{(TW_REGIONS&&TW_REGIONS[city]||[]).map(d=><option key={d} value={d}>{d}</option>)}</select></div>
-      </div>)}
-
-      {(personType==='frontdesk'||personType==='student')&&(<div className="space-y-3">
-        <div className="flex gap-2"><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={tt.teacherCodePh} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 text-center"/></div>
-        <input value={name} onChange={e=>setName(e.target.value)} placeholder={tt.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/>
-      </div>)}
-
-      {personType==='teacher'&&(<div className="space-y-3">
-        <div className="flex gap-2"><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={tt.teacherCodePh} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 text-center tracking-widest"/><button onClick={doCheck} disabled={checkBusy||!code.trim()} className="px-4 rounded-xl bg-white/[0.08] text-gray-300 text-sm font-semibold disabled:opacity-50">{checkBusy?<Spinner/>:tt.checkBtn}</button></div>
-        {checkMsg&&<p className="text-xs text-amber-400">{checkMsg}</p>}
-        <div className="grid grid-cols-2 gap-2"><button onClick={()=>setGender('M')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='M'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{tt.genderM}</button><button onClick={()=>setGender('F')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='F'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{tt.genderF}</button></div>
-        <div className="grid grid-cols-2 gap-2"><button onClick={()=>setShift('day')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='day'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{tt.shiftDay}</button><button onClick={()=>setShift('night')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='night'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{tt.shiftNight}</button></div>
-        <div className="grid grid-cols-2 gap-2"><select value={city} onChange={e=>{setCity(e.target.value);setDist('')}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100"><option value="">{tt.addrCity}</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select><select value={dist} onChange={e=>setDist(e.target.value)} disabled={!city} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100 disabled:opacity-40"><option value="">{tt.addrDist}</option>{(TW_REGIONS&&TW_REGIONS[city]||[]).map(d=><option key={d} value={d}>{d}</option>)}</select></div>
-      </div>)}
-
+    <div className="w-full max-w-md bg-white rounded-2xl border border-gray-300 p-5 space-y-4">
+      <h1 className="text-lg font-bold text-gray-900 text-center">櫃台人員登記</h1>
+      <div className="grid grid-cols-2 gap-2"><input value={lastName} onChange={e=>setLastName(e.target.value)} placeholder="姓" className="bg-gray-100 border border-gray-300 rounded-xl px-3 py-3 text-sm text-gray-900"/><input value={firstName} onChange={e=>setFirstName(e.target.value)} placeholder="名" className="bg-gray-100 border border-gray-300 rounded-xl px-3 py-3 text-sm text-gray-900"/></div>
+      <input value={nickname} onChange={e=>setNickname(e.target.value)} placeholder="暱稱（不填自動取名字最後一字）" className="w-full bg-gray-100 border border-gray-300 rounded-xl px-3 py-3 text-sm text-gray-900"/>
+      <input value={phone} onChange={e=>setPhone(e.target.value.replace(/[^\d]/g,''))} inputMode="numeric" placeholder="手機（聯絡用，選填）" className="w-full bg-gray-100 border border-gray-300 rounded-xl px-3 py-3 text-sm text-gray-900"/>
+      <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={mgmtOnly} onChange={e=>setMgmtOnly(e.target.checked)} className="w-4 h-4 rounded accent-amber-500"/><span className="text-sm text-gray-700">此帳號僅用於管理，不需排班／排休</span></label>
+      {mgmtOnly&&(<div><label className="text-xs text-gray-500 block mb-1">人員別</label><div className="grid grid-cols-3 gap-2">{PERSON_TYPES.map(t=>(<button key={t} onClick={()=>setPersonType(t)} className={`py-2.5 rounded-xl text-xs font-semibold ${personType===t?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'}`}>{t}</button>))}</div>{(personType==='副理'||personType==='實習副理')&&<p className="text-[10px] text-gray-500 mt-1">此人員別可查看組長畫面，但沒有核准／拒絕的權限</p>}</div>)}
+      {!mgmtOnly&&(<>
+        <div><label className="text-xs text-gray-500 block mb-1">到職日</label><input type="date" value={hireDate} onChange={e=>setHireDate(e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-xl px-3 py-3 text-sm text-gray-900"/></div>
+        <div><label className="text-xs text-gray-500 block mb-1">班別</label><div className="grid grid-cols-3 gap-2">{SHIFT_ORDER.map(s=>(<button key={s} onClick={()=>setShift(s)} className={`py-2.5 rounded-xl text-xs font-semibold ${shift===s?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'}`}>{SHIFT_SHORT_LABEL[s]}</button>))}</div></div>
+      </>)}
       {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
-      {personType&&<button onClick={submit} disabled={!canSubmit||busy} className={`w-full py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 ${canSubmit&&!busy?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600'}`}>{busy&&<Spinner/>}{busy?tt.submitting:tt.submitBtn}</button>}
+      <button onClick={submit} disabled={!canSubmit||busy} className="w-full py-3.5 rounded-xl bg-amber-600 text-white font-bold disabled:opacity-50 flex items-center justify-center gap-2">{busy&&<Spinner/>}完成登記</button>
     </div>
   </div>);
 }
 
-function ReadFlow({nid,profile}){
-  const[phase,setPhase]=useState('checking'); // checking/register/done
+function PendingScreen({profile,onApproved}){
+  const[msg,setMsg]=useState('');
+  const[busy,setBusy]=useState(false);
+  const[cooldown,setCooldown]=useState(0);
   useEffect(()=>{
-    sfGetUser(profile.userId).then(r=>{
-      if(r&&r.ok&&r.exists){
-        noticeLiffMarkRead(nid,profile.userId).catch(()=>{}); // 不等回應,GAS會繼續在伺服器端執行完成
-        setPhase('done');
-      }else{
-        setPhase('register');
-      }
-    }).catch(()=>setPhase('register'));
-  },[]);
-  const onRegisterDone=()=>{
-    noticeLiffMarkRead(nid,profile.userId).catch(()=>{});
-    setPhase('done');
+    if(cooldown<=0)return;
+    const t=setTimeout(()=>setCooldown(c=>c-1),1000);
+    return()=>clearTimeout(t);
+  },[cooldown]);
+  const check=async()=>{
+    if(cooldown>0||busy)return;
+    setBusy(true);
+    try{
+      const r=await fdCheckApproval(profile.userId);
+      if(r&&r.ok&&r.status==='approved'){onApproved();return}
+      if(r&&r.ok&&r.status==='rejected'){setMsg('很抱歉，你的申請未通過審核，請聯繫櫃台組長')}
+      else{setMsg('尚未核准，請耐心等候')}
+    }catch(_e){setMsg('查詢失敗')}
+    setBusy(false);setCooldown(60);
   };
-  if(phase==='checking')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><Spinner size={32}/><p className="text-sm text-gray-500">載入中…</p></div>);
-  if(phase==='register')return(<RegisterFlow profile={profile} onDone={onRegisterDone} staticMode={true}/>);
-  return(<div className="min-h-screen flex flex-col items-center justify-center gap-3 p-6 text-center">
-    <p className="text-2xl">✅</p>
-    <p className="text-lg text-gray-100 font-bold">已完成已讀登記</p>
-    <p className="text-sm text-gray-400">可關閉此頁面，謝謝</p>
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+    <p className="text-2xl">⏳</p>
+    <p className="text-base text-gray-800 font-semibold">帳號待審核中</p>
+    <p className="text-sm text-gray-500">請等候櫃台組長核准後即可使用完整功能</p>
+    <button onClick={check} disabled={busy||cooldown>0} className="px-6 py-3 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold disabled:opacity-50 flex items-center gap-2">{busy&&<Spinner size={12}/>}{cooldown>0?`請稍候 ${cooldown} 秒`:'檢查審核情形'}</button>
+    {msg&&<p className="text-xs text-amber-400">{msg}</p>}
   </div>);
 }
 
-function ManagerCreateNotice({code,onClose,onPublished}){
-  const[content,setContent]=useState('');
-  const[aiResult,setAiResult]=useState(null);
-  const[status,setStatus]=useState(''); // ''/analyzing/publishing/done/error
-  const[errMsg,setErrMsg]=useState('');
-  const runAI=async()=>{
-    if(!content.trim())return;
-    setStatus('analyzing');setErrMsg('');
-    try{
-      const r=await gasAnalyzeNotice(content.trim(),code);
-      if(r&&r.ok){setAiResult(Object.assign({body:content.trim()},r.result));setStatus('')}
-      else{setStatus('error');setErrMsg((r&&r.error)||'AI分析失敗')}
-    }catch(e){setStatus('error');setErrMsg(String(e))}
+// ===== 月曆元件 =====
+function buildGrid(year,month){
+  const firstWeekday=new Date(year,month-1,1).getDay();
+  const daysInMonth=new Date(year,month,0).getDate();
+  const prevMonthDays=new Date(year,month-1,0).getDate();
+  const cells=[];
+  for(let i=firstWeekday-1;i>=0;i--)cells.push({day:prevMonthDays-i,inMonth:false,dateStr:null});
+  for(let d=1;d<=daysInMonth;d++)cells.push({day:d,inMonth:true,dateStr:ymd(year,month,d)});
+  let nextDay=1;
+  while(cells.length%7!==0){cells.push({day:nextDay,inMonth:false,dateStr:null});nextDay++;}
+  return cells;
+}
+
+function OffScheduleModal({myStaff,onClose,onSubmitted}){
+  const now=new Date();
+  const[year,setYear]=useState(now.getFullYear());
+  const[month,setMonth]=useState(now.getMonth()+1);
+  const[monthData,setMonthData]=useState(null);
+  const[pendingAdd,setPendingAdd]=useState(new Set());
+  const[pendingRemove,setPendingRemove]=useState(new Set());
+  const[monthlyLimit,setMonthlyLimit]=useState(4);
+  const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');
+  const isPrivileged=myStaff.role==='supervisor'||myStaff.role==='admin'||myStaff.isManagementOnly;
+  useEffect(()=>{fdGetConfig().then(r=>{if(r&&r.ok)setMonthlyLimit(r.monthlyOffLimit)})},[]);
+  const loadMonth=()=>{fdMonthData(year,month).then(r=>{if(r&&r.ok)setMonthData(r)})};
+  useEffect(()=>{
+    setMonthData(null);setPendingAdd(new Set());setPendingRemove(new Set());
+    loadMonth();
+  },[year,month]);
+  const grid=useMemo(()=>buildGrid(year,month),[year,month]);
+  const myOffCount=useMemo(()=>{
+    if(!monthData)return 0;
+    let n=0;
+    for(const d in monthData.offMap){if(monthData.offMap[d].includes(myStaff.id))n++;}
+    return n;
+  },[monthData,myStaff]);
+  // 已選(淨變化後的天數) = 目前已排休天數 - 待取消 + 待新增
+  const netSelected=myOffCount-pendingRemove.size+pendingAdd.size;
+  const toggleDay=(dateStr)=>{
+    if(!monthData||monthData.locked)return;
+    const isMine=(monthData.offMap[dateStr]||[]).includes(myStaff.id);
+    if(isMine){
+      // 已排休的日期:綠色跟黃色不會同時存在,直接在「待取消」清單裡切換
+      setPendingRemove(prev=>{const next=new Set(prev);if(next.has(dateStr))next.delete(dateStr);else next.add(dateStr);return next});
+      return;
+    }
+    setPendingAdd(prev=>{
+      const next=new Set(prev);
+      if(next.has(dateStr))next.delete(dateStr);
+      else{
+        if(!isPrivileged&&(netSelected+1)>monthlyLimit)return prev;
+        next.add(dateStr);
+      }
+      return next;
+    });
   };
-  const upd=(k,v)=>setAiResult(p=>Object.assign({},p,{[k]:v}));
-  const publish=async()=>{
-    if(!aiResult)return;
-    setStatus('publishing');setErrMsg('');
+  const submit=async()=>{
+    if(pendingAdd.size===0&&pendingRemove.size===0)return;
+    setBusy(true);setMsg('');
     try{
-      const r=await gasAddNoticeLiff({cat:aiResult.cat,subcat:aiResult.subcat,title:aiResult.title,summary:aiResult.summary,body:aiResult.body||content,bodyVi:aiResult.bodyVi,tags:aiResult.tags,titleVi:aiResult.titleVi,summaryVi:aiResult.summaryVi,author:code,code:code});
-      if(r&&r.ok){setStatus('done');onPublished()}
-      else{setStatus('error');setErrMsg((r&&r.error)||'發布失敗')}
-    }catch(e){setStatus('error');setErrMsg(String(e))}
+      if(pendingAdd.size>0){
+        const r=await fdSetScheduleOffBatch(myStaff.id,Array.from(pendingAdd));
+        if(!r||!r.ok){setMsg((r&&r.error)||'送出失敗');setBusy(false);return}
+      }
+      for(const d of pendingRemove){await fdSetScheduleOff(myStaff.id,d,false);}
+      setMsg('✓ 已送出');onSubmitted();setTimeout(onClose,800);
+    }catch(e){setMsg(String(e))}
+    setBusy(false);
   };
-  return(<div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center" onClick={onClose}>
-    <div className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl p-4 space-y-3 max-h-[85vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
-      <div className="flex items-center justify-between"><h3 className="text-base font-bold text-gray-900">新增公告</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
-      {!aiResult?(<>
-        <textarea value={content} onChange={e=>setContent(e.target.value)} placeholder="輸入公告內容，AI會自動分類、產生標題摘要並翻成越南文" rows={6} className="w-full bg-gray-100 border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 resize-none"/>
-        {status==='error'&&<p className="text-xs text-red-500 text-center">{errMsg}</p>}
-        <button onClick={runAI} disabled={!content.trim()||status==='analyzing'} className="w-full py-3 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{status==='analyzing'&&<Spinner size={14}/>}{status==='analyzing'?'AI 分析中…':'AI 分析'}</button>
-      </>):status==='done'?(
-        <p className="text-sm text-emerald-600 text-center py-6">✓ 已發布</p>
+  const changeMonth=(delta)=>{
+    let m=month+delta,y=year;
+    if(m<1){m=12;y--;} if(m>12){m=1;y++;}
+    setYear(y);setMonth(m);
+  };
+  const totalPending=pendingAdd.size+pendingRemove.size;
+  return(<div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={onClose}>
+    <div className="bg-white w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl p-4 space-y-3 max-h-[85vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+      <div className="flex items-center justify-between"><h3 className="text-base font-bold text-gray-900">排休</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
+      <div className="flex items-center justify-between"><button onClick={()=>changeMonth(-1)} className="px-2 py-1 rounded bg-gray-100 text-gray-700">‹</button><p className="text-sm text-gray-700">{year}年{month}月</p><button onClick={()=>changeMonth(1)} className="px-2 py-1 rounded bg-gray-100 text-gray-700">›</button></div>
+      <p className="text-[10px] text-gray-500 text-center">點黃色（已排休）標記取消／點灰底新增排休，按送出才真正生效</p>
+      {!monthData?<p className="text-center py-6"><Spinner size={20}/></p>:monthData.locked?(
+        <p className="text-xs text-amber-400 text-center py-4">🔒 本月排休已被組長關閉</p>
       ):(<>
-        <div><label className="text-[11px] text-gray-500 block mb-1">主分類</label><input value={aiResult.cat||''} onChange={e=>upd('cat',e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/></div>
-        <div><label className="text-[11px] text-gray-500 block mb-1">子分類</label><input value={aiResult.subcat||''} onChange={e=>upd('subcat',e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/></div>
-        <div><label className="text-[11px] text-gray-500 block mb-1">標題</label><input value={aiResult.title||''} onChange={e=>upd('title',e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/></div>
-        <div><label className="text-[11px] text-gray-500 block mb-1">摘要</label><input value={aiResult.summary||''} onChange={e=>upd('summary',e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/></div>
-        <div><label className="text-[11px] text-gray-500 block mb-1">內容</label><textarea value={aiResult.body||''} onChange={e=>upd('body',e.target.value)} rows={4} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 resize-none"/></div>
-        {status==='error'&&<p className="text-xs text-red-500 text-center">{errMsg}</p>}
-        <div className="flex gap-2"><button onClick={()=>setAiResult(null)} className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-600 text-sm font-semibold">重新輸入</button><button onClick={publish} disabled={status==='publishing'} className="flex-1 py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{status==='publishing'&&<Spinner size={12}/>}發布</button></div>
+        <div className="grid grid-cols-7 gap-1 text-center">{WEEKDAY_LABEL.map(w=>(<div key={w} className="text-[10px] text-gray-500">{w}</div>))}</div>
+        <div className="grid grid-cols-7 gap-1">
+          {grid.map((c,i)=>{
+            const isMine=c.dateStr&&(monthData.offMap[c.dateStr]||[]).includes(myStaff.id);
+            const isAdd=c.dateStr&&pendingAdd.has(c.dateStr);
+            const isRemove=c.dateStr&&pendingRemove.has(c.dateStr);
+            let cls='bg-gray-100 text-gray-700';
+            if(isAdd)cls='bg-emerald-600 text-white';
+            else if(isRemove)cls='bg-gray-400 text-white';
+            else if(isMine)cls='bg-amber-300 text-amber-900';
+            return(<button key={i} disabled={!c.inMonth} onClick={()=>toggleDay(c.dateStr)} className={`rounded py-2 text-xs ${!c.inMonth?'opacity-20':''} ${cls}`}>{c.day}</button>);
+          })}
+        </div>
+        <p className="text-[11px] text-gray-500 text-center">已選 <span className="text-sm font-bold text-amber-600">{netSelected}</span> 天{!isPrivileged?(<>，本月上限 <span className="text-sm font-bold text-amber-600">{monthlyLimit}</span> 天，已排 <span className="text-sm font-bold text-amber-600">{myOffCount}</span> 天</>):''}</p>
+        {msg&&<p className="text-xs text-center text-amber-400">{msg}</p>}
+        <button onClick={submit} disabled={busy||totalPending===0} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{busy&&<Spinner size={12}/>}送出</button>
       </>)}
     </div>
   </div>);
 }
 
-function ManagerNoticeList({userProfile}){
-  const[list,setList]=useState(null);
-  const[viewing,setViewing]=useState(null);
-  const[showCreate,setShowCreate]=useState(false);
-  const lang=userProfile.lang||'zh';
-  const t=(T&&T[lang])||{};
-  const code=userProfile.code||userProfile.name||'';
-  const load=()=>{fetch('../notices.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(data=>{setList(Array.isArray(data)?data:(data&&data.notices)||[])}).catch(()=>setList([]))};
-  useEffect(()=>{load()},[]);
-  if(viewing)return(<window.NoticeDetailModal notice={viewing} settings={{code,lang}} t={t} onClose={()=>setViewing(null)} onMore={()=>{}}/>);
-  return(<div className="min-h-screen p-4">
-    <div className="max-w-md mx-auto space-y-3">
-      <div className="flex items-center justify-between"><h1 className="text-base font-bold text-gray-900">公告列表</h1><button onClick={()=>setShowCreate(true)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold">新增公告</button></div>
-      {list===null?<p className="text-center py-8"><Spinner size={20}/></p>:list.length===0?<p className="text-sm text-gray-500 text-center py-8">目前沒有公告</p>:list.map(n=>(
-        <div key={n.id} onClick={()=>setViewing(n)} className="bg-white border border-gray-200 rounded-xl px-3 py-2.5 cursor-pointer active:bg-gray-50"><p className="text-sm text-gray-900 font-medium truncate">{n.title}</p><p className="text-[11px] text-gray-500 mt-0.5">{n.id}・{n.cat}{n.subcat?('・'+n.subcat):''}</p></div>
-      ))}
+function MonthView({myStaff,year,month}){
+  const[data,setData]=useState(null);
+  const[lastUpdated,setLastUpdated]=useState('');
+  const[updateBusy,setUpdateBusy]=useState(false);
+  const[cooldown,setCooldown]=useState(0);
+  const[filter,setFilter]=useState('all');
+  const[threshold,setThreshold]=useState(3);
+  const[monthlyLimit,setMonthlyLimit]=useState(4);
+  const[limitBusy,setLimitBusy]=useState(false);
+  const[lockBusy,setLockBusy]=useState(false);
+  const[showOffModal,setShowOffModal]=useState(false);
+  const isPrivileged=myStaff&&(myStaff.role==='supervisor'||myStaff.role==='admin'||myStaff.isManagementOnly);
+  const cacheKey=()=>'fd-cal-cache-'+year+'-'+month;
+  const fetchFresh=async()=>{
+    setUpdateBusy(true);
+    try{
+      const r=await fdMonthData(year,month);
+      if(r&&r.ok){
+        const d=new Date();
+        const ts=d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()+' '+pad2(d.getHours())+':'+pad2(d.getMinutes())+':'+pad2(d.getSeconds());
+        setData(r);setLastUpdated(ts);
+        try{localStorage.setItem(cacheKey(),JSON.stringify({data:r,ts:ts}))}catch(_e){}
+      }
+    }catch(_e){}
+    setUpdateBusy(false);setCooldown(60);
+  };
+  useEffect(()=>{
+    setData(null);
+    try{
+      const cached=localStorage.getItem(cacheKey());
+      if(cached){const obj=JSON.parse(cached);setData(obj.data);setLastUpdated(obj.ts);return}
+    }catch(_e){}
+    fetchFresh();
+  },[year,month]);
+  useEffect(()=>{fdGetConfig().then(r=>{if(r&&r.ok)setMonthlyLimit(r.monthlyOffLimit)})},[]);
+  useEffect(()=>{
+    if(cooldown<=0)return;
+    const t=setTimeout(()=>setCooldown(c=>c-1),1000);
+    return()=>clearTimeout(t);
+  },[cooldown]);
+  const grid=useMemo(()=>buildGrid(year,month),[year,month]);
+  const filteredStaff=useMemo(()=>{
+    if(!data)return [];
+    if(filter==='all')return data.staff;
+    if(filter==='morning')return data.staff.filter(s=>s.shift==='A1'||s.shift==='A2');
+    if(filter==='night')return data.staff.filter(s=>s.shift==='C2'||s.shift==='D');
+    return data.staff.filter(s=>s.id===filter);
+  },[data,filter]);
+  const dayInfo=(dateStr)=>{
+    if(!data||!dateStr)return {count:0,entries:[]};
+    const offIds=data.offMap[dateStr]||[];
+    const leaves=(data.leaveMap[dateStr]||[]);
+    const approvedAnnualIds=leaves.filter(l=>l.type==='annual'&&l.status==='approved').map(l=>l.staffId);
+    const pendingAnnualIds=leaves.filter(l=>l.type==='annual'&&l.status==='pending').map(l=>l.staffId);
+    const relevantIds=filteredStaff.map(s=>s.id);
+    const countIds=new Set([...offIds,...approvedAnnualIds].filter(id=>relevantIds.includes(id)));
+    const entries=filteredStaff.map(s=>{
+      const isOff=offIds.includes(s.id);
+      const isApprovedAnnual=approvedAnnualIds.includes(s.id);
+      const isPendingAnnual=pendingAnnualIds.includes(s.id);
+      const supportKey=s.id+'_'+dateStr;
+      const support=data.supportMap[supportKey];
+      let color=null;
+      if(isOff)color=LEAVE_COLOR.off;else if(isApprovedAnnual)color=LEAVE_COLOR.annual_approved;else if(isPendingAnnual)color=LEAVE_COLOR.annual_pending;
+      const suffix=support?(' 支'+SHIFT_SHORT_LABEL[support]):'';
+      return {staff:s,color:color,suffix:suffix};
+    }).filter(e=>e.color||e.suffix);
+    return {count:countIds.size,entries:entries};
+  };
+  const toggleLock=async()=>{
+    setLockBusy(true);
+    try{await fdSetScheduleLock(year,month,!data.locked,myStaff.lineUserId);fetchFresh()}catch(_e){}
+    setLockBusy(false);
+  };
+  const saveLimit=async()=>{
+    setLimitBusy(true);
+    try{await fdSetConfig({monthlyOffLimit:monthlyLimit},myStaff.lineUserId)}catch(_e){}
+    setLimitBusy(false);
+  };
+  return(<div className="space-y-3">
+    <div className="flex items-center gap-2">
+      <select value={filter} onChange={e=>setFilter(e.target.value)} className="flex-1 bg-gray-100 border border-gray-300 rounded-lg px-2 py-2 text-xs text-gray-800">
+        <option value="all">所有人</option><option value="morning">早上組（早1+早2）</option><option value="night">晚上組（小夜2+大夜）</option>
+        {data&&data.staff.map(s=>(<option key={s.id} value={s.id}>{s.nickname||s.firstName}</option>))}
+      </select>
+      <button onClick={fetchFresh} disabled={updateBusy||cooldown>0} className="text-[11px] px-2.5 py-2 rounded-lg bg-gray-100 text-gray-500 disabled:opacity-50 flex items-center gap-1 flex-shrink-0">{updateBusy&&<Spinner size={10}/>}{cooldown>0?cooldown+'s':'更新'}</button>
     </div>
-    {showCreate&&<ManagerCreateNotice code={code} onClose={()=>setShowCreate(false)} onPublished={()=>{load()}}/>}
+    {isPrivileged?(
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1"><span className="text-[10px] text-gray-500">月休</span><input type="number" value={monthlyLimit} onChange={e=>setMonthlyLimit(parseInt(e.target.value,10)||1)} className="w-12 bg-gray-100 border border-gray-300 rounded-lg px-1 py-1.5 text-xs text-gray-800 text-center"/><span className="text-[10px] text-gray-500">天</span><button onClick={saveLimit} disabled={limitBusy} className="text-[10px] px-1.5 py-1 rounded bg-gray-100 text-gray-500">{limitBusy?<Spinner size={9}/>:'儲存'}</button></div>
+        <div className="flex items-center gap-1"><span className="text-[10px] text-gray-500">超休</span><input type="number" value={threshold} onChange={e=>setThreshold(parseInt(e.target.value,10)||1)} className="w-12 bg-gray-100 border border-gray-300 rounded-lg px-1 py-1.5 text-xs text-gray-800 text-center"/><span className="text-[10px] text-gray-500">人警示</span></div>
+      </div>
+    ):(
+      data&&<p className="text-[11px] text-center text-gray-500">{data.locked?'本月已鎖定，不可排休':'開放排休中'}</p>
+    )}
+    {!data?<p className="text-xs text-gray-500 text-center py-8"><Spinner size={20}/></p>:(<>
+    {data.locked&&<p className="text-[11px] text-amber-400 text-center bg-amber-500/10 rounded-lg py-1.5">🔒 本月排休已被組長關閉，暫時無法調整</p>}
+    <div className="grid grid-cols-7 gap-1 text-center">{WEEKDAY_LABEL.map(w=>(<div key={w} className="text-[11px] text-gray-500 py-1">{w}</div>))}</div>
+    <div className="grid grid-cols-7 gap-1">
+      {grid.map((c,i)=>{
+        const info=c.inMonth?dayInfo(c.dateStr):{count:0,entries:[]};
+        const warn=c.inMonth&&info.count>0&&info.count>=threshold;
+        const isMine=myStaff&&c.dateStr&&(data.offMap[c.dateStr]||[]).includes(myStaff.id);
+        return(<div key={i} className={`rounded-lg p-1 min-h-[64px] text-left ${c.inMonth?(warn?'bg-red-500/10':'bg-gray-50'):'opacity-30'} ${isMine?'ring-1 ring-amber-500':''}`}>
+          <p className={`text-[11px] font-semibold ${!c.inMonth?'text-gray-500':warn?'text-red-400 fd-blink':'text-gray-700'}`}>{c.day}</p>
+          <div className="space-y-0.5 mt-0.5">{info.entries.slice(0,4).map((e,j)=>(<p key={j} className="text-[9px] text-gray-500 leading-tight truncate flex items-center">{e.color&&<LeaveDot cls={e.color.cls}/>}{e.staff.nickname}{e.suffix}</p>))}{info.entries.length>4&&<p className="text-[9px] text-gray-500">+{info.entries.length-4}</p>}</div>
+        </div>);
+      })}
+    </div>
+    <div className="space-y-1 pt-2">
+      {grid.filter(c=>c.inMonth).map(c=>{const info=dayInfo(c.dateStr);return (info.count>0&&info.count>=threshold)?(
+        <p key={c.dateStr} className="text-[11px] text-red-400">⚠️ {month}/{c.day} 人力低於最低配置人力：當天排休有 {info.entries.map(e=>e.staff.nickname).join('、')}</p>
+      ):null;})}
+    </div>
+    <LeaveLegend/>
+    {myStaff&&!myStaff.isManagementOnly&&!data.locked&&(
+      <button onClick={()=>setShowOffModal(true)} className="w-full py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold">排休</button>
+    )}
+    {isPrivileged&&(
+      <div className="flex items-center justify-between gap-2 bg-gray-50 rounded-xl px-3 py-2.5">
+        <span className="text-sm text-gray-700">鎖定本月排休：{data.locked?'鎖定':'開放'}</span>
+        <button onClick={toggleLock} disabled={lockBusy} className={`w-12 h-7 rounded-full flex items-center px-1 transition-colors flex-shrink-0 ${data.locked?'bg-red-500 justify-end':'bg-emerald-500 justify-start'}`}>{lockBusy?<Spinner size={12}/>:<span className="w-5 h-5 rounded-full bg-white block"></span>}</button>
+      </div>
+    )}
+    <p className="text-[10px] text-gray-500 text-center pt-1">最後更新日期：{lastUpdated||'（尚未載入）'}</p>
+    </>)}
+    {showOffModal&&<OffScheduleModal myStaff={myStaff} onClose={()=>setShowOffModal(false)} onSubmitted={fetchFresh}/>}
   </div>);
 }
 
-function NoticeView({nid,userProfile}){
-  const[notice,setNotice]=useState(undefined);
-  useEffect(()=>{
-    if(!nid)return;
-    fetch('../notices.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(data=>{
-      const list=Array.isArray(data)?data:(data&&data.notices)||[];
-      const found=list.find(n=>String(n.id)===String(nid));
-      setNotice(found||null);
-    }).catch(()=>setNotice(null));
-  },[]);
-  const lang=userProfile.lang||'zh';
-  const t=(T&&T[lang])||{};
-  const code=userProfile.personType==='teacher'?userProfile.name:(userProfile.code||userProfile.name||'');
-  const settingsObj={code:code,lang:lang};
-  useEffect(()=>{
-    // 這個LIFF頁面已經走過LINE登入確認身分,notice-modal.js的本機PIN鎖(設計給主系統那種免登入情境用的)在這裡是多餘的關卡。
-    // 預先在本機localStorage寫入「已設定+已通過」的狀態,直接跳過那道關卡,不用修改notice-modal.js本身(主系統那邊的PIN鎖不受影響)。
-    if(!code)return;
+const LEAVE_COLOR={
+  off:{cls:'bg-yellow-400',label:'休假'},
+  personal_pending:{cls:'bg-gray-400',label:'事假待審核'},
+  sick_pending:{cls:'bg-gray-400',label:'病假待審核'},
+  annual_pending:{cls:'bg-gray-400',label:'特休假待審核'},
+  personal_approved:{cls:'bg-blue-400',label:'事假'},
+  sick_approved:{cls:'bg-red-400',label:'病假'},
+  annual_approved:{cls:'bg-green-500',label:'特休假'},
+};
+const LeaveDot=({cls})=>(<span className={`inline-block w-2.5 h-2.5 rounded-full ${cls} align-middle mr-1`}></span>);
+const LEGEND_ITEMS=[{cls:'bg-yellow-400',label:'休假'},{cls:'bg-gray-400',label:'待審核'},{cls:'bg-blue-400',label:'事假'},{cls:'bg-red-400',label:'病假'},{cls:'bg-green-500',label:'特休假'}];
+const LeaveLegend=()=>(<div className="flex flex-wrap gap-x-3 gap-y-1 pt-1">{LEGEND_ITEMS.map(c=>(<span key={c.label} className="text-[10px] text-gray-500"><LeaveDot cls={c.cls}/>{c.label}</span>))}</div>);
+
+function DayView({myStaff,dateStr}){
+  const[monthData,setMonthData]=useState(null);
+  const[leaves,setLeaves]=useState(null);
+  const[notes,setNotes]=useState(null);
+  const[noteText,setNoteText]=useState('');
+  const[busy,setBusy]=useState(false);
+  const[lastUpdated,setLastUpdated]=useState('');
+  const[updateBusy,setUpdateBusy]=useState(false);
+  const[cooldown,setCooldown]=useState(0);
+  const[year,month]=dateStr.split('-').map(Number);
+  const cacheKey=()=>'fd-day-cache-'+dateStr;
+  const fetchFresh=async()=>{
+    setUpdateBusy(true);
     try{
-      const s=(window.MP&&window.MP.LS&&window.MP.LS.get('app-settings'))||{};
-      window.MP.LS.set('app-settings',Object.assign({},s,{code:code,lockPwd:'0000',lockAutoTime:99999999}));
-      localStorage.setItem('notice-pwd-unlock-'+code,String(Date.now()));
+      const[mr,lr,nr]=await Promise.all([fdMonthData(year,month),fdDayLeaves(dateStr),fdListHandover(dateStr)]);
+      const md=(mr&&mr.ok)?mr:null;const ll=(lr&&lr.ok)?lr.list:null;const nn=(nr&&nr.ok)?nr.list:null;
+      setMonthData(md);setLeaves(ll);setNotes(nn);
+      const d=new Date();
+      const ts=d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()+' '+pad2(d.getHours())+':'+pad2(d.getMinutes())+':'+pad2(d.getSeconds());
+      setLastUpdated(ts);
+      try{localStorage.setItem(cacheKey(),JSON.stringify({monthData:md,leaves:ll,notes:nn,ts:ts}))}catch(_e){}
     }catch(_e){}
-  },[code]);
-  if(!nid&&userProfile.personType==='manager')return(<ManagerNoticeList userProfile={userProfile}/>);
-  if(notice===undefined)return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><Spinner size={32}/><p className="text-sm text-gray-500">載入中…</p></div>);
-  if(!notice)return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-gray-500 text-center">找不到這則公告，可能已經下架或連結有誤</p></div>);
-  return window.NoticeDetailModal?(<window.NoticeDetailModal notice={notice} settings={settingsObj} t={t} onClose={()=>{try{liff.closeWindow()}catch(_e){}}} onMore={()=>{}}/>):null;
+    setUpdateBusy(false);setCooldown(60);
+  };
+  useEffect(()=>{
+    setMonthData(null);setLeaves(null);setNotes(null);
+    try{
+      const cached=localStorage.getItem(cacheKey());
+      if(cached){const obj=JSON.parse(cached);setMonthData(obj.monthData);setLeaves(obj.leaves);setNotes(obj.notes);setLastUpdated(obj.ts);return}
+    }catch(_e){}
+    fetchFresh();
+  },[dateStr]);
+  useEffect(()=>{
+    if(cooldown<=0)return;
+    const t=setTimeout(()=>setCooldown(c=>c-1),1000);
+    return()=>clearTimeout(t);
+  },[cooldown]);
+  const offList=useMemo(()=>{
+    if(!monthData)return [];
+    const ids=monthData.offMap[dateStr]||[];
+    return monthData.staff.filter(s=>ids.includes(s.id));
+  },[monthData,dateStr]);
+  const submitNote=async()=>{
+    if(!noteText.trim())return;
+    setBusy(true);
+    try{const r=await fdSubmitHandover(myStaff.id,dateStr,noteText.trim());if(r&&r.ok){setNoteText('');fetchFresh()}}catch(_e){}
+    setBusy(false);
+  };
+  return(<div className="space-y-3">
+    <div className="flex justify-end"><button onClick={fetchFresh} disabled={updateBusy||cooldown>0} className="text-[11px] px-2.5 py-1.5 rounded-lg bg-gray-100 text-gray-500 disabled:opacity-50 flex items-center gap-1">{updateBusy&&<Spinner size={10}/>}{cooldown>0?cooldown+'s':'更新'}</button></div>
+    <div>
+      <p className="text-xs text-gray-500 mb-1">今日排休／請假</p>
+      {monthData===null||leaves===null?<Spinner size={14}/>:(offList.length===0&&leaves.length===0)?<p className="text-xs text-gray-500">今天沒有人排休或請假</p>:(
+        <div className="flex flex-wrap gap-1.5">
+          {offList.map(s=>(<span key={'off'+s.id} className="text-xs px-2 py-1 rounded-lg bg-gray-100 text-gray-700"><LeaveDot cls={LEAVE_COLOR.off.cls}/>{s.nickname}</span>))}
+          {leaves.map((l,i)=>{const key=l.type+'_'+l.status;const c=LEAVE_COLOR[key]||LEAVE_COLOR.personal_pending;return(<span key={'lv'+i} className="text-xs px-2 py-1 rounded-lg bg-gray-100 text-gray-700"><LeaveDot cls={c.cls}/>{l.staffName}</span>);})}
+        </div>
+      )}
+      <LeaveLegend/>
+    </div>
+    <div>
+      <p className="text-xs text-gray-500 mb-1">櫃台交接事項</p>
+      <div className="flex gap-2 mb-2"><input value={noteText} onChange={e=>setNoteText(e.target.value)} placeholder="留言給下一班…" className="flex-1 bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/><button onClick={submitNote} disabled={busy||!noteText.trim()} className="px-3 py-2 rounded-lg bg-amber-600 text-white text-xs font-semibold disabled:opacity-50 flex-shrink-0">{busy?<Spinner size={11}/>:'送出'}</button></div>
+      {notes===null?<Spinner size={14}/>:notes.length===0?<p className="text-xs text-gray-500">目前沒有交接事項</p>:(
+        <div className="space-y-1.5">{notes.map(n=>(<div key={n.id} className="bg-gray-50 rounded-lg px-3 py-2"><p className="text-sm text-gray-800">{n.text}</p><p className="text-[10px] text-gray-500 mt-0.5">{n.staffName}・{n.createdAt}</p></div>))}</div>
+      )}
+    </div>
+    <p className="text-[10px] text-gray-500 text-center pt-1">最後更新日期：{lastUpdated||'（尚未載入）'}</p>
+  </div>);
 }
 
-function ShareFlow({nid}){
-  const[status,setStatus]=useState('loading');
-  const[err,setErr]=useState('');
+function MultiDayView({dates}){
+  const monthsNeeded=useMemo(()=>Array.from(new Set(dates.map(d=>d.slice(0,7)))),[dates.join(',')]);
+  const[monthDatas,setMonthDatas]=useState({});
+  const[lastUpdated,setLastUpdated]=useState('');
+  const[updateBusy,setUpdateBusy]=useState(false);
+  const[cooldown,setCooldown]=useState(0);
+  const cacheKey=()=>'fd-multi-cache-'+dates.join('_');
+  const fetchFresh=async()=>{
+    setUpdateBusy(true);
+    try{
+      const results={};
+      await Promise.all(monthsNeeded.map(async ym=>{
+        const parts=ym.split('-').map(Number);
+        const r=await fdMonthData(parts[0],parts[1]);
+        if(r&&r.ok)results[ym]=r;
+      }));
+      setMonthDatas(results);
+      const d=new Date();
+      const ts=d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()+' '+pad2(d.getHours())+':'+pad2(d.getMinutes())+':'+pad2(d.getSeconds());
+      setLastUpdated(ts);
+      try{localStorage.setItem(cacheKey(),JSON.stringify({monthDatas:results,ts:ts}))}catch(_e){}
+    }catch(_e){}
+    setUpdateBusy(false);setCooldown(60);
+  };
   useEffect(()=>{
-    getNoticeFlexContent(nid,LIFF_ID_HARDCODED).then(r=>{
-      if(!r||!r.ok){setStatus('error');setErr((r&&r.error)||'讀取失敗');return}
-      setStatus('picking');
-      if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setStatus('error');setErr('此環境不支援分享功能，請在LINE App內開啟');return}
-      liff.shareTargetPicker([{type:'flex',altText:r.title,contents:r.flex}]).then(res=>{setStatus(res?'done':'cancelled')}).catch(e=>{setStatus('error');setErr(String(e&&e.message||e))});
-    }).catch(e=>{setStatus('error');setErr(String(e))});
+    setMonthDatas({});
+    try{
+      const cached=localStorage.getItem(cacheKey());
+      if(cached){const obj=JSON.parse(cached);setMonthDatas(obj.monthDatas);setLastUpdated(obj.ts);return}
+    }catch(_e){}
+    fetchFresh();
+  },[dates.join(',')]);
+  useEffect(()=>{
+    if(cooldown<=0)return;
+    const t=setTimeout(()=>setCooldown(c=>c-1),1000);
+    return()=>clearTimeout(t);
+  },[cooldown]);
+  const entriesFor=(dateStr)=>{
+    const data=monthDatas[dateStr.slice(0,7)];
+    if(!data)return null;
+    const offIds=data.offMap[dateStr]||[];
+    const leaves=data.leaveMap[dateStr]||[];
+    const out=offIds.map(id=>{const s=data.staff.find(x=>x.id===id);return {name:s?s.nickname:id,color:LEAVE_COLOR.off}});
+    leaves.forEach(l=>{
+      const s=data.staff.find(x=>x.id===l.staffId);
+      const key=l.type+'_'+l.status;
+      out.push({name:s?s.nickname:l.staffId,color:LEAVE_COLOR[key]||LEAVE_COLOR.personal_pending});
+    });
+    return out;
+  };
+  return(<div className="space-y-2">
+    <div className="flex justify-end"><button onClick={fetchFresh} disabled={updateBusy||cooldown>0} className="text-[11px] px-2.5 py-1.5 rounded-lg bg-gray-100 text-gray-500 disabled:opacity-50 flex items-center gap-1">{updateBusy&&<Spinner size={10}/>}{cooldown>0?cooldown+'s':'更新'}</button></div>
+    {dates.map(d=>{
+      const entries=entriesFor(d);
+      const dt=new Date(d);
+      return(<div key={d} className="bg-gray-50 rounded-lg px-3 py-2">
+        <p className="text-xs text-gray-500 font-semibold mb-1">{d.slice(5)}（{WEEKDAY_LABEL[dt.getDay()]}）</p>
+        {entries===null?<Spinner size={12}/>:entries.length===0?<p className="text-[11px] text-gray-500">無人排休/請假</p>:<p className="text-[11px] text-gray-700 flex flex-wrap items-center gap-x-2">{entries.map((e,i)=>(<span key={i}><LeaveDot cls={e.color.cls}/>{e.name}</span>))}</p>}
+      </div>);
+    })}
+    <LeaveLegend/>
+    <p className="text-[10px] text-gray-500 text-center pt-1">最後更新日期：{lastUpdated||'（尚未載入）'}</p>
+  </div>);
+}
+
+function ScheduleTab({myStaff}){
+  const[viewMode,setViewMode]=useState('day'); // day/3day/week/month
+  const[anchorDate,setAnchorDate]=useState(new Date());
+  const now=new Date();
+  const[monthYear,setMonthYear]=useState(now.getFullYear());
+  const[monthMonth,setMonthMonth]=useState(now.getMonth()+1);
+  const shiftAnchor=(delta)=>{
+    const d=new Date(anchorDate);
+    if(viewMode==='day')d.setDate(d.getDate()+delta);
+    else if(viewMode==='3day')d.setDate(d.getDate()+delta*3);
+    else if(viewMode==='week')d.setDate(d.getDate()+delta*7);
+    setAnchorDate(d);
+  };
+  const changeMonth=(delta)=>{
+    let m=monthMonth+delta,y=monthYear;
+    if(m<1){m=12;y--;} if(m>12){m=1;y++;}
+    setMonthYear(y);setMonthMonth(m);
+  };
+  const dayDateStr=ymd(anchorDate.getFullYear(),anchorDate.getMonth()+1,anchorDate.getDate());
+  const rangeDates=useMemo(()=>{
+    if(viewMode==='3day'){
+      return [-1,0,1].map(off=>{const d=new Date(anchorDate);d.setDate(d.getDate()+off);return ymd(d.getFullYear(),d.getMonth()+1,d.getDate())});
+    }
+    if(viewMode==='week'){
+      const d0=new Date(anchorDate);
+      d0.setDate(d0.getDate()-d0.getDay());
+      return Array.from({length:7},(_,i)=>{const d=new Date(d0);d.setDate(d0.getDate()+i);return ymd(d.getFullYear(),d.getMonth()+1,d.getDate())});
+    }
+    return [];
+  },[viewMode,anchorDate]);
+  const label=viewMode==='day'?(anchorDate.getMonth()+1)+'/'+anchorDate.getDate():
+    viewMode==='3day'?rangeDates[0].slice(5)+' ~ '+rangeDates[2].slice(5):
+    viewMode==='week'?rangeDates[0].slice(5)+' ~ '+rangeDates[6].slice(5):
+    monthYear+'年'+monthMonth+'月';
+  return(<div className="space-y-3">
+    <div className="grid grid-cols-4 gap-1.5">
+      {[['day','單日'],['3day','三日'],['week','本週'],['month','本月']].map(([k,l])=>(
+        <button key={k} onClick={()=>setViewMode(k)} className={`py-1.5 rounded-lg text-[11px] font-semibold ${viewMode===k?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'}`}>{l}</button>
+      ))}
+    </div>
+    {viewMode!=='month'?(
+      <div className="flex items-center justify-between"><button onClick={()=>shiftAnchor(-1)} className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700">‹</button><p className="text-sm font-bold text-gray-900">{label}</p><button onClick={()=>shiftAnchor(1)} className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700">›</button></div>
+    ):(
+      <div className="flex items-center justify-between"><button onClick={()=>changeMonth(-1)} className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700">‹</button><p className="text-base font-bold text-gray-900">{label}</p><button onClick={()=>changeMonth(1)} className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700">›</button></div>
+    )}
+    {viewMode==='day'&&<DayView myStaff={myStaff} dateStr={dayDateStr}/>}
+    {(viewMode==='3day'||viewMode==='week')&&<MultiDayView dates={rangeDates}/>}
+    {viewMode==='month'&&<MonthView myStaff={myStaff} year={monthYear} month={monthMonth}/>}
+  </div>);
+}
+
+const LEAVE_CACHE_KEY='fd-leave-cache';
+function LeaveModal({myStaff,onClose,onSubmitted}){
+  const[type,setType]=useState('personal');
+  const[date,setDate]=useState(todayYmd());
+  const[amount,setAmount]=useState('1');
+  const[unit,setUnit]=useState('day'); // day/hour
+  const[reason,setReason]=useState('');
+  const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');
+  const submit=async()=>{
+    setBusy(true);setMsg('');
+    try{
+      let r;
+      if(unit==='hour'){
+        r=await fdSubmitLeave({staffId:myStaff.id,type,date,hours:parseFloat(amount)||8,reason});
+      }else{
+        const days=Math.max(1,parseInt(amount,10)||1);
+        const entries=[];
+        const d0=new Date(date);
+        for(let i=0;i<days;i++){const d=new Date(d0);d.setDate(d0.getDate()+i);entries.push({date:ymd(d.getFullYear(),d.getMonth()+1,d.getDate()),hours:8});}
+        r=await fdSubmitLeaveBatch(myStaff.id,type,entries,reason);
+      }
+      if(r&&r.ok){setMsg('✓ 已送出，等候核准');setTimeout(()=>{onSubmitted();onClose()},800)}else{setMsg(r&&r.error||'送出失敗')}
+    }catch(e){setMsg(String(e))}
+    setBusy(false);
+  };
+  return(<div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={onClose}>
+    <div className="bg-white w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl p-4 space-y-3" onClick={e=>e.stopPropagation()}>
+      <div className="flex items-center justify-between"><h3 className="text-base font-bold text-gray-900">請假申請</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
+      <div className="grid grid-cols-3 gap-2">{Object.keys(LEAVE_TYPE_LABEL).map(k=>(<button key={k} onClick={()=>setType(k)} className={`py-2 rounded-lg text-xs font-semibold ${type===k?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'}`}>{LEAVE_TYPE_LABEL[k]}</button>))}</div>
+      <div><label className="text-xs text-gray-500 block mb-1">{unit==='day'?'起始日期':'日期'}</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/></div>
+      <div className="flex gap-2"><input type="number" value={amount} onChange={e=>setAmount(e.target.value)} className="flex-1 bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/><select value={unit} onChange={e=>setUnit(e.target.value)} className="bg-gray-100 border border-gray-300 rounded-lg px-2 py-2 text-sm text-gray-900"><option value="day">天</option><option value="hour">小時</option></select></div>
+      {unit==='day'&&parseInt(amount,10)>1&&<p className="text-[11px] text-gray-500">將從 {date} 起連續請 {amount} 天</p>}
+      <textarea value={reason} onChange={e=>setReason(e.target.value)} placeholder="事由（選填）" rows={2} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 resize-none"/>
+      {msg&&<p className="text-xs text-center text-amber-400">{msg}</p>}
+      <button onClick={submit} disabled={busy} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{busy&&<Spinner/>}送出申請</button>
+    </div>
+  </div>);
+}
+
+function LeaveTab({myStaff}){
+  const isPrivileged=myStaff&&(myStaff.role==='supervisor'||myStaff.role==='admin'||myStaff.isManagementOnly);
+  const[viewStaffId,setViewStaffId]=useState(myStaff.id);
+  const[staffOptions,setStaffOptions]=useState([]);
+  const[canViewOthers,setCanViewOthers]=useState(false);
+  const[usage,setUsage]=useState(null);
+  const[myLeaves,setMyLeaves]=useState(null);
+  const[lastUpdated,setLastUpdated]=useState('');
+  const[updateBusy,setUpdateBusy]=useState(false);
+  const[cooldown,setCooldown]=useState(0);
+  const[sortMode,setSortMode]=useState('occur'); // occur(發生時間)/submit(申請時間)/type(假別)
+  const[showModal,setShowModal]=useState(false);
+  const[viewErr,setViewErr]=useState('');
+  useEffect(()=>{
+    fdGetConfig().then(r=>{if(r&&r.ok)setCanViewOthers(isPrivileged||!r.restrictLeaveView)});
+    fdListActiveStaff().then(r=>{if(r&&r.ok)setStaffOptions(r.list)});
   },[]);
-  return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
-    {status==='loading'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">準備分享內容…</p></>)}
-    {status==='picking'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">請選擇要分享的對象…</p></>)}
-    {status==='done'&&(<p className="text-base text-emerald-500 font-semibold">✓ 已分享</p>)}
-    {status==='cancelled'&&(<p className="text-sm text-gray-500">已取消分享</p>)}
-    {status==='error'&&(<p className="text-sm text-red-400">{err}</p>)}
-    {(status==='done'||status==='cancelled'||status==='error')&&<button onClick={()=>{try{liff.closeWindow()}catch(_e){location.href=location.href.split('?')[0]}}} className="px-6 py-3 rounded-xl bg-white/[0.06] text-gray-300 text-sm font-semibold">關閉</button>}
+  const fetchFresh=async()=>{
+    setUpdateBusy(true);setViewErr('');
+    try{
+      fdAnnualUsage(viewStaffId).then(r=>{if(r&&r.ok)setUsage(r.usage)});
+      const r=await fdListMyLeaves(viewStaffId,myStaff.lineUserId);
+      if(r&&r.ok){
+        const d=new Date();
+        const ts=d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()+' '+pad2(d.getHours())+':'+pad2(d.getMinutes())+':'+pad2(d.getSeconds());
+        setMyLeaves(r.list);setLastUpdated(ts);
+        if(viewStaffId===myStaff.id){try{localStorage.setItem(LEAVE_CACHE_KEY,JSON.stringify({list:r.list,ts:ts}))}catch(_e){}}
+      }else{setViewErr(r&&r.error||'查詢失敗');setMyLeaves([])}
+    }catch(_e){}
+    setUpdateBusy(false);setCooldown(60);
+  };
+  useEffect(()=>{
+    if(!myStaff)return;
+    if(viewStaffId!==myStaff.id){fetchFresh();return}
+    fdAnnualUsage(myStaff.id).then(r=>{if(r&&r.ok)setUsage(r.usage)});
+    try{
+      const cached=localStorage.getItem(LEAVE_CACHE_KEY);
+      if(cached){const obj=JSON.parse(cached);setMyLeaves(obj.list);setLastUpdated(obj.ts);return}
+    }catch(_e){}
+    fetchFresh();
+  },[myStaff,viewStaffId]);
+  useEffect(()=>{
+    if(cooldown<=0)return;
+    const t=setTimeout(()=>setCooldown(c=>c-1),1000);
+    return()=>clearTimeout(t);
+  },[cooldown]);
+  const STATUS_LABEL={pending:'待審核',approved:'已核准',rejected:'已拒絕'};
+  const[timeRange,setTimeRange]=useState('all'); // all/today/week/month
+  const inRange=(dateStr)=>{
+    if(timeRange==='all')return true;
+    const d=new Date(dateStr);const now=new Date();
+    if(timeRange==='today')return dateStr===todayYmd();
+    if(timeRange==='month')return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();
+    if(timeRange==='week'){
+      const w0=new Date(now);w0.setDate(now.getDate()-now.getDay());w0.setHours(0,0,0,0);
+      const w1=new Date(w0);w1.setDate(w0.getDate()+7);
+      return d>=w0&&d<w1;
+    }
+    return true;
+  };
+  const sortedByOccur=useMemo(()=>myLeaves?[...myLeaves].filter(l=>inRange(l.date)).sort((a,b)=>new Date(b.date)-new Date(a.date)):[],[myLeaves,timeRange]);
+  const sortedBySubmit=useMemo(()=>myLeaves?[...myLeaves].filter(l=>inRange(l.submittedAt.split(' ')[0].replace(/\//g,'-'))).sort((a,b)=>new Date(b.submittedAt)-new Date(a.submittedAt)):[],[myLeaves,timeRange]);
+  const groupedByType=useMemo(()=>{
+    if(!myLeaves)return [];
+    const groups={};
+    myLeaves.forEach(l=>{(groups[l.type]=groups[l.type]||[]).push(l)});
+    return Object.keys(LEAVE_TYPE_LABEL).filter(k=>groups[k]).map(k=>{
+      const items=groups[k].sort((a,b)=>new Date(b.date)-new Date(a.date));
+      const totalHours=items.reduce((s,l)=>s+(l.hours||8),0);
+      return {type:k,items:items,totalDays:(totalHours/8),totalHours:totalHours};
+    });
+  },[myLeaves]);
+  const renderItem=(l,i)=>(<div key={l.id} className={`rounded-lg px-3 py-2 ${i%2===0?'bg-gray-50':'bg-white'}`}><div className="flex items-center justify-between"><span className="text-sm text-gray-800">{LEAVE_TYPE_LABEL[l.type]}・{l.date}</span><span className={`text-[11px] ${l.status==='approved'?'text-emerald-400':l.status==='rejected'?'text-red-400':'text-amber-400'}`}>{STATUS_LABEL[l.status]}</span></div><p className="text-[10px] text-gray-500 mt-0.5">{l.hours}小時・申請於 {l.submittedAt}</p></div>);
+  return(<div className="space-y-4">
+    <div className="flex items-center justify-between gap-2"><p className="text-base font-bold text-gray-900 flex-shrink-0">請假</p>{viewStaffId===myStaff.id&&<button onClick={()=>setShowModal(true)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold flex-shrink-0">請假申請</button>}</div>
+    {canViewOthers&&(<select value={viewStaffId} onChange={e=>setViewStaffId(e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-2 py-2 text-xs text-gray-800">
+      <option value={myStaff.id}>自己</option>
+      {staffOptions.filter(s=>s.id!==myStaff.id).map(s=>(<option key={s.id} value={s.id}>{s.nickname}</option>))}
+    </select>)}
+    {usage&&<div className="bg-gray-50 rounded-xl p-3"><p className="text-xs text-gray-500">特休剩餘</p><p className="text-lg text-amber-400 font-bold">{usage.remaining} <span className="text-xs text-gray-500">/ {usage.total} 天</span></p></div>}
+    <div className="space-y-2">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <p className="text-sm text-gray-700 font-semibold">請假明細</p>
+        <div className="flex gap-1.5 items-center flex-wrap">
+          <button onClick={()=>setSortMode('occur')} className={`text-[11px] px-2.5 py-1.5 rounded-lg font-semibold ${sortMode==='occur'?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'}`}>發生時間</button>
+          <button onClick={()=>setSortMode('submit')} className={`text-[11px] px-2.5 py-1.5 rounded-lg font-semibold ${sortMode==='submit'?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'}`}>申請時間</button>
+          <button onClick={()=>setSortMode('type')} className={`text-[11px] px-2.5 py-1.5 rounded-lg font-semibold ${sortMode==='type'?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'}`}>假別</button>
+          <button onClick={fetchFresh} disabled={updateBusy||cooldown>0} className="text-[11px] px-2.5 py-1.5 rounded-lg bg-gray-100 text-gray-500 disabled:opacity-50 flex items-center gap-1">{updateBusy&&<Spinner size={10}/>}{cooldown>0?cooldown+'s':'更新'}</button>
+        </div>
+      </div>
+      {(sortMode==='occur'||sortMode==='submit')&&(<div className="flex gap-1.5">{[['all','全部'],['today','本日'],['week','本週'],['month','本月']].map(([k,l])=>(<button key={k} onClick={()=>setTimeRange(k)} className={`text-[10px] px-2 py-1 rounded-lg font-semibold ${timeRange===k?'bg-amber-500 text-white':'bg-gray-50 text-gray-500'}`}>{l}</button>))}</div>)}
+      {viewErr&&<p className="text-xs text-red-400 text-center py-2">{viewErr}</p>}
+      {myLeaves===null?<Spinner size={16}/>:myLeaves.length===0?<p className="text-xs text-gray-500 text-center py-3">目前沒有請假紀錄</p>:sortMode==='occur'?(
+        sortedByOccur.map((l,i)=>renderItem(l,i))
+      ):sortMode==='submit'?(
+        sortedBySubmit.map((l,i)=>renderItem(l,i))
+      ):(
+        groupedByType.map(g=>(<div key={g.type} className="space-y-1.5"><p className="text-xs text-gray-500 font-semibold">{LEAVE_TYPE_LABEL[g.type]}（共 {g.totalDays} 天／{g.totalHours} 小時）</p>{g.items.map((l,i)=>(<div key={l.id} className="ml-2">{renderItem(l,i)}</div>))}</div>))
+      )}
+      <p className="text-[10px] text-gray-500 text-center pt-1">最後更新日期：{lastUpdated||'（尚未載入）'}</p>
+    </div>
+    {showModal&&<LeaveModal myStaff={myStaff} onClose={()=>setShowModal(false)} onSubmitted={fetchFresh}/>}
+  </div>);
+}
+
+const ANNUAL_CACHE_KEY='fd-annual-cache';
+function AnnualAllTab(){
+  const[list,setList]=useState(null);
+  const[lastUpdated,setLastUpdated]=useState('');
+  const[updateBusy,setUpdateBusy]=useState(false);
+  const[cooldown,setCooldown]=useState(0);
+  const fetchFresh=async()=>{
+    setUpdateBusy(true);
+    try{
+      const r=await fdAnnualUsageAll();
+      if(r&&r.ok){
+        const now=new Date();
+        const ts=now.getFullYear()+'-'+pad2(now.getMonth()+1)+'-'+pad2(now.getDate())+' '+pad2(now.getHours())+':'+pad2(now.getMinutes());
+        setList(r.list);setLastUpdated(ts);
+        try{localStorage.setItem(ANNUAL_CACHE_KEY,JSON.stringify({list:r.list,ts:ts}))}catch(_e){}
+      }
+    }catch(_e){}
+    setUpdateBusy(false);setCooldown(60);
+  };
+  useEffect(()=>{
+    // 開啟頁面優先用本機快取,快取不存在才第一次去GAS撈
+    try{
+      const cached=localStorage.getItem(ANNUAL_CACHE_KEY);
+      if(cached){const obj=JSON.parse(cached);setList(obj.list);setLastUpdated(obj.ts);return}
+    }catch(_e){}
+    fetchFresh();
+  },[]);
+  useEffect(()=>{
+    if(cooldown<=0)return;
+    const t=setTimeout(()=>setCooldown(c=>c-1),1000);
+    return()=>clearTimeout(t);
+  },[cooldown]);
+  const fmtRow=(u)=>{
+    const mult=u.hasHourly?8:1;
+    const unit=u.hasHourly?'小時':'天';
+    return {total:u.total*mult,pending:u.pending*mult,used:u.used*mult,remaining:u.remaining*mult,unit:unit};
+  };
+  return(<div className="space-y-2">
+    <div className="flex items-center justify-between"><p className="text-sm text-gray-700 font-semibold">特休使用總表</p><button onClick={fetchFresh} disabled={updateBusy||cooldown>0} className="text-[11px] px-2.5 py-1.5 rounded-lg bg-gray-100 text-gray-500 disabled:opacity-50 flex items-center gap-1">{updateBusy&&<Spinner size={10}/>}{cooldown>0?cooldown+'s':'更新'}</button></div>
+    {list===null?<Spinner size={20}/>:list.map(u=>{const f=fmtRow(u);return(
+      <div key={u.id} className="bg-gray-50 rounded-lg px-3 py-2">
+        <p className="text-sm text-gray-800 mb-1">{u.nickname}</p>
+        <p className="text-xs text-gray-500">總共<span className="text-sm text-amber-400 font-bold">{f.total}</span>{f.unit}，申請中<span className="text-sm text-amber-400 font-bold">{f.pending}</span>{f.unit}，已用<span className="text-sm text-amber-400 font-bold">{f.used}</span>{f.unit}，剩<span className="text-sm text-amber-400 font-bold">{f.remaining}</span>{f.unit}</p>
+      </div>
+    );})}
+    <p className="text-[10px] text-gray-500 text-center pt-1">最後更新日期：{lastUpdated||'（尚未載入）'}</p>
+  </div>);
+}
+
+const STATUS_LABEL_MAP={approved:'已核准',rejected:'已拒絕'};
+function ApprovalTab({myStaff}){
+  const[pendingStaff,setPendingStaff]=useState(null);
+  const[pendingLeaves,setPendingLeaves]=useState(null);
+  const[pendingChanges,setPendingChanges]=useState(null);
+  const[history,setHistory]=useState(null);
+  const[busyId,setBusyId]=useState('');
+  const[wipeBusy,setWipeBusy]=useState(false);const[wipeConfirm,setWipeConfirm]=useState(false);const[wipeMsg,setWipeMsg]=useState('');
+  const canApprove=myStaff.canApprove!==false;
+  const load=()=>{
+    fdListPendingStaff(myStaff.lineUserId).then(r=>{if(r&&r.ok)setPendingStaff(r.list)});
+    fdListPendingLeaves(myStaff.lineUserId).then(r=>{if(r&&r.ok)setPendingLeaves(r.list)});
+    fdListPendingFieldChanges(myStaff.lineUserId).then(r=>{if(r&&r.ok)setPendingChanges(r.list)});
+    fdListApprovalHistory(myStaff.lineUserId).then(r=>{if(r&&r.ok)setHistory(r.list)});
+  };
+  useEffect(()=>{load()},[]);
+  const doStaff=async(id,ok)=>{setBusyId(id);await fdApproveStaff(id,ok,myStaff.lineUserId);setBusyId('');load()};
+  const doLeave=async(id,ok)=>{setBusyId(id);await fdApproveLeave(id,ok,myStaff.nickname,myStaff.lineUserId);setBusyId('');load()};
+  const doChange=async(id,ok)=>{setBusyId(id);await fdApproveFieldChange(id,ok,myStaff.nickname,myStaff.lineUserId);setBusyId('');load()};
+  const doWipe=async()=>{
+    if(!wipeConfirm){setWipeConfirm(true);return}
+    setWipeBusy(true);setWipeMsg('');
+    try{const r=await fdWipeLeaveAndSchedule(myStaff.lineUserId);setWipeMsg(r&&r.ok?'✓ 已清空':(r&&r.error)||'清空失敗');if(r&&r.ok)load()}catch(e){setWipeMsg(String(e))}
+    setWipeBusy(false);setWipeConfirm(false);
+  };
+  const ActionBtns=({id,onAct})=>(<div className="flex gap-1.5 flex-shrink-0">
+    {busyId===id&&<Spinner size={12}/>}
+    <button onClick={()=>onAct(false)} disabled={!canApprove||busyId===id} className="text-[11px] px-2 py-1 rounded bg-gray-200 text-gray-500 disabled:opacity-40">拒絕</button>
+    <button onClick={()=>onAct(true)} disabled={!canApprove||busyId===id} className="text-[11px] px-2 py-1 rounded bg-emerald-600/20 text-emerald-400 disabled:opacity-40">核准</button>
+  </div>);
+  return(<div className="space-y-4">
+    {!canApprove&&<p className="text-[11px] text-amber-400 bg-amber-500/10 rounded-lg px-3 py-2">此身分僅能檢視審核狀況，沒有核准／拒絕的權限</p>}
+    <div>
+      <p className="text-sm text-gray-700 font-semibold mb-2">待審核帳號（{pendingStaff?pendingStaff.length:0}）</p>
+      {pendingStaff===null?<Spinner size={16}/>:pendingStaff.length===0?<p className="text-xs text-gray-500">目前沒有待審核帳號</p>:pendingStaff.map((s,i)=>(
+        <div key={s.id} className={`rounded-lg px-3 py-2 flex items-center justify-between mb-1.5 ${i%2===0?'bg-gray-50':'bg-white'}`}><p className="text-sm text-gray-800">{s.lastName}{s.firstName}（{s.nickname}）{s.isManagementOnly?('・'+(s.personType||'管理專用')):('・'+SHIFT_SHORT_LABEL[s.shift])}</p><ActionBtns id={s.id} onAct={(ok)=>doStaff(s.id,ok)}/></div>
+      ))}
+    </div>
+    <div>
+      <p className="text-sm text-gray-700 font-semibold mb-2">待審核請假（{pendingLeaves?pendingLeaves.length:0}）</p>
+      {pendingLeaves===null?<Spinner size={16}/>:pendingLeaves.length===0?<p className="text-xs text-gray-500">目前沒有待審核請假</p>:pendingLeaves.map((l,i)=>(
+        <div key={l.id} className={`rounded-lg px-3 py-2 mb-1.5 ${i%2===0?'bg-gray-50':'bg-white'}`}><div className="flex items-center justify-between"><p className="text-sm text-gray-800">{l.staffName}・{LEAVE_TYPE_LABEL[l.type]}・{l.date}</p><ActionBtns id={l.id} onAct={(ok)=>doLeave(l.id,ok)}/></div>{l.reason&&<p className="text-[11px] text-gray-500 mt-1">{l.reason}</p>}</div>
+      ))}
+    </div>
+    <div>
+      <p className="text-sm text-gray-700 font-semibold mb-2">待審核資料變更（{pendingChanges?pendingChanges.length:0}）</p>
+      {pendingChanges===null?<Spinner size={16}/>:pendingChanges.length===0?<p className="text-xs text-gray-500">目前沒有待審核變更</p>:pendingChanges.map((c,i)=>(
+        <div key={c.id} className={`rounded-lg px-3 py-2 flex items-center justify-between mb-1.5 ${i%2===0?'bg-gray-50':'bg-white'}`}><p className="text-sm text-gray-800">{c.staffName}・{c.field==='shift'?'班別':'到職日'}：{c.oldValue}→{c.newValue}</p><ActionBtns id={c.id} onAct={(ok)=>doChange(c.id,ok)}/></div>
+      ))}
+    </div>
+    <div>
+      <p className="text-sm text-gray-700 font-semibold mb-2">歷史審查資料</p>
+      {history===null?<Spinner size={16}/>:history.length===0?<p className="text-xs text-gray-500">目前沒有歷史紀錄</p>:history.map((h,i)=>(
+        <div key={i} className={`rounded-lg px-3 py-1.5 mb-1 flex items-center justify-between ${i%2===0?'bg-gray-50':'bg-white'}`}><p className="text-[11px] text-gray-500">{h.kind}・{h.target}</p><p className={`text-[10px] ${h.status==='approved'?'text-emerald-500':'text-red-500'}`}>{STATUS_LABEL_MAP[h.status]}・{h.approver||'?'}・{h.time}</p></div>
+      ))}
+    </div>
+    {myStaff.role==='admin'&&(<div className="pt-3 border-t border-gray-200 space-y-2">
+      <p className="text-[11px] text-red-400">危險操作：清空後無法復原</p>
+      {wipeMsg&&<p className="text-xs text-center text-amber-400">{wipeMsg}</p>}
+      <button onClick={doWipe} disabled={wipeBusy} className="w-full py-2.5 rounded-xl bg-red-600/20 text-red-400 text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">{wipeBusy&&<Spinner size={12}/>}{wipeConfirm?'再按一次確認清空':'一鍵刪除所有請假/排休資料'}</button>
+    </div>)}
+  </div>);
+}
+
+function ProfileView({myStaff,onClose,onSaved}){
+  const[lastName,setLastName]=useState(myStaff.lastName);
+  const[firstName,setFirstName]=useState(myStaff.firstName);
+  const[nickname,setNickname]=useState(myStaff.nickname);
+  const[phone,setPhone]=useState(myStaff.phone||'');
+  const[shift,setShift]=useState(myStaff.shift);
+  const[hireDate,setHireDate]=useState(myStaff.hireDate);
+  const[editing,setEditing]=useState(false);
+  const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');
+  const[shiftMsg,setShiftMsg]=useState('');const[shiftBusy,setShiftBusy]=useState(false);
+  const[hireMsg,setHireMsg]=useState('');const[hireBusy,setHireBusy]=useState(false);
+  const submit=async()=>{
+    if(!lastName.trim()||!firstName.trim())return;
+    setBusy(true);setMsg('');
+    try{
+      const r=await fdUpdateProfile({lineUserId:myStaff.lineUserId,lastName:lastName.trim(),firstName:firstName.trim(),nickname:nickname.trim(),phone:phone.trim()});
+      if(r&&r.ok){setMsg('✓ 已更新');setEditing(false);onSaved({...myStaff,lastName:lastName.trim(),firstName:firstName.trim(),nickname:nickname.trim()||firstName.trim().slice(-1),phone:phone.trim()})}
+      else{setMsg(r&&r.error||'更新失敗')}
+    }catch(e){setMsg(String(e))}
+    setBusy(false);
+  };
+  const submitShiftChange=async()=>{
+    if(shift===myStaff.shift)return;
+    setShiftBusy(true);setShiftMsg('');
+    try{const r=await fdRequestFieldChange(myStaff.id,'shift',shift);setShiftMsg(r&&r.ok?'✓ 已送出，等候核准':(r&&r.error)||'送出失敗')}catch(e){setShiftMsg(String(e))}
+    setShiftBusy(false);
+  };
+  const submitHireChange=async()=>{
+    if(hireDate===myStaff.hireDate)return;
+    setHireBusy(true);setHireMsg('');
+    try{const r=await fdRequestFieldChange(myStaff.id,'hireDate',hireDate);setHireMsg(r&&r.ok?'✓ 已送出，等候核准':(r&&r.error)||'送出失敗')}catch(e){setHireMsg(String(e))}
+    setHireBusy(false);
+  };
+  return(<div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={onClose}>
+    <div className="bg-white w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl p-4 space-y-3 max-h-[85vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+      <div className="flex items-center justify-between"><h3 className="text-base font-bold text-gray-900">我的資料</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
+      {!editing?(<>
+        <div><p className="text-[11px] text-gray-500">姓名</p><p className="text-sm text-gray-700">{myStaff.lastName}{myStaff.firstName}（{myStaff.nickname}）</p></div>
+        <div><p className="text-[11px] text-gray-500">手機</p><p className="text-xs text-gray-500">{myStaff.phone?fmtPhone(myStaff.phone):'（未填手機）'}</p></div>
+        {!myStaff.isManagementOnly&&(<>
+          <div><p className="text-[11px] text-gray-500">班別</p><p className="text-xs text-gray-500">{SHIFT_SHORT_LABEL[myStaff.shift]||myStaff.shift}</p></div>
+          <div><p className="text-[11px] text-gray-500">到職日</p><p className="text-xs text-gray-500">{myStaff.hireDate}</p></div>
+        </>)}
+        {myStaff.isManagementOnly&&<div><p className="text-[11px] text-gray-500">身分</p><p className="text-xs text-gray-500">管理專用帳號{myStaff.personType?('・'+myStaff.personType):''}</p></div>}
+        <button onClick={()=>setEditing(true)} className="w-full py-2 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold">編輯</button>
+      </>):(<>
+        <div className="grid grid-cols-2 gap-2">
+          <div><label className="text-[11px] text-gray-500 block mb-1">姓</label><input value={lastName} onChange={e=>setLastName(e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/></div>
+          <div><label className="text-[11px] text-gray-500 block mb-1">名</label><input value={firstName} onChange={e=>setFirstName(e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/></div>
+        </div>
+        <div><label className="text-[11px] text-gray-500 block mb-1">暱稱</label><input value={nickname} onChange={e=>setNickname(e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/></div>
+        <div><label className="text-[11px] text-gray-500 block mb-1">手機</label><input value={phone} onChange={e=>setPhone(e.target.value.replace(/[^\d]/g,''))} inputMode="numeric" className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/></div>
+        {msg&&<p className="text-xs text-center text-amber-400">{msg}</p>}
+        <div className="flex gap-2"><button onClick={()=>setEditing(false)} className="flex-1 py-2 rounded-xl bg-gray-100 text-gray-500 text-sm">取消</button><button onClick={submit} disabled={busy} className="flex-1 py-2 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{busy&&<Spinner size={12}/>}儲存</button></div>
+
+        {!myStaff.isManagementOnly&&(<div className="pt-3 border-t border-gray-200 space-y-3">
+          <p className="text-[11px] text-gray-500">以下兩項調整需送櫃台組長審核，核准後才會生效</p>
+          <div><label className="text-[11px] text-gray-500 block mb-1">班別</label><div className="grid grid-cols-3 gap-1.5">{SHIFT_ORDER.map(s=>(<button key={s} onClick={()=>setShift(s)} className={`py-2 rounded-lg text-[11px] font-semibold ${shift===s?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'}`}>{SHIFT_SHORT_LABEL[s]}</button>))}</div>
+            {shift!==myStaff.shift&&<button onClick={submitShiftChange} disabled={shiftBusy} className="w-full mt-2 py-2 rounded-lg bg-gray-200 text-gray-700 text-xs font-semibold disabled:opacity-50 flex items-center justify-center gap-2">{shiftBusy&&<Spinner size={11}/>}送出班別變更申請</button>}
+            {shiftMsg&&<p className="text-[11px] text-center text-amber-400 mt-1">{shiftMsg}</p>}
+          </div>
+          <div><label className="text-[11px] text-gray-500 block mb-1">到職日</label><input type="date" value={hireDate} onChange={e=>setHireDate(e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/>
+            {hireDate!==myStaff.hireDate&&<button onClick={submitHireChange} disabled={hireBusy} className="w-full mt-2 py-2 rounded-lg bg-gray-200 text-gray-700 text-xs font-semibold disabled:opacity-50 flex items-center justify-center gap-2">{hireBusy&&<Spinner size={11}/>}送出到職日變更申請</button>}
+            {hireMsg&&<p className="text-[11px] text-center text-amber-400 mt-1">{hireMsg}</p>}
+          </div>
+        </div>)}
+      </>)}
+    </div>
+  </div>);
+}
+
+function AttendanceSettingsModal({myStaff,onClose}){
+  const[restrictLeaveView,setRestrictLeaveView]=useState(false);
+  const[busy,setBusy]=useState(false);
+  useEffect(()=>{fdGetConfig().then(r=>{if(r&&r.ok)setRestrictLeaveView(r.restrictLeaveView)})},[]);
+  const toggle=async()=>{
+    setBusy(true);
+    const next=!restrictLeaveView;
+    try{const r=await fdSetConfig({restrictLeaveView:next},myStaff.lineUserId);if(r&&r.ok)setRestrictLeaveView(next)}catch(_e){}
+    setBusy(false);
+  };
+  return(<div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={onClose}>
+    <div className="bg-white w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl p-4 space-y-3" onClick={e=>e.stopPropagation()}>
+      <div className="flex items-center justify-between"><h3 className="text-base font-bold text-gray-900">差勤設定</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
+      <label className="flex items-center justify-between gap-2 py-1 cursor-pointer"><span className="text-sm text-gray-700">限制員工只能查看自己的請假明細</span><button onClick={toggle} disabled={busy} className={`w-10 h-6 rounded-full flex items-center px-0.5 transition-colors flex-shrink-0 ${restrictLeaveView?'bg-amber-600 justify-end':'bg-gray-200 justify-start'}`}><span className="w-5 h-5 rounded-full bg-white block"></span></button></label>
+      <p className="text-[11px] text-gray-500">組長本身不受此設定影響，一律可以查看所有人</p>
+    </div>
+  </div>);
+}
+
+function MainApp({myStaff,onProfileSaved}){
+  const isSupervisor=myStaff.role==='supervisor'||myStaff.role==='admin';
+  const[tab,setTab]=useState('schedule');
+  const[showProfile,setShowProfile]=useState(false);
+  const[showSettings,setShowSettings]=useState(false);
+  const TABS=[['schedule','班表'],['leave','請假'],['annual','特休總表']];
+  if(isSupervisor)TABS.push(['approval','審核']);
+  return(<div className="min-h-screen p-4 pb-10">
+    <div className="max-w-md mx-auto space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {isSupervisor&&<button onClick={()=>setShowSettings(true)} className="text-gray-500 text-base leading-none">⚙️</button>}
+          <h1 className="text-base font-bold text-gray-900">櫃台差勤</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={()=>setShowProfile(true)} className="text-xs text-gray-500 truncate max-w-[120px]">{myStaff.nickname||myStaff.firstName}</button>
+        </div>
+      </div>
+      <div className="grid gap-1.5" style={{gridTemplateColumns:`repeat(${TABS.length},1fr)`}}>{TABS.map(([k,l])=>(<button key={k} onClick={()=>setTab(k)} className={`py-2 rounded-lg text-xs font-semibold ${tab===k?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'}`}>{l}</button>))}</div>
+      {tab==='schedule'&&<ScheduleTab myStaff={myStaff}/>}
+      {tab==='leave'&&<LeaveTab myStaff={myStaff}/>}
+      {tab==='annual'&&<AnnualAllTab/>}
+      {tab==='approval'&&isSupervisor&&<ApprovalTab myStaff={myStaff}/>}
+    </div>
+    {showProfile&&<ProfileView myStaff={myStaff} onClose={()=>setShowProfile(false)} onSaved={(p)=>{onProfileSaved(p);setShowProfile(false)}}/>}
+    {showSettings&&<AttendanceSettingsModal myStaff={myStaff} onClose={()=>setShowSettings(false)}/>}
   </div>);
 }
 
 function App(){
   const[phase,setPhase]=useState('liffInit');
   const[profile,setProfile]=useState(null);
-  const[userProfile,setUserProfile]=useState(null);
+  const[myStaff,setMyStaff]=useState(null);
   const[liffErr,setLiffErr]=useState('');
-  const nid=new URLSearchParams(location.search).get('nid')||'';
-  const action=new URLSearchParams(location.search).get('action')||'';
+  const[locked,setLocked]=useState(false);
 
   useEffect(()=>{
     const initLiff=(id)=>liff.init({liffId:id}).then(()=>{
       if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return}
-      if(action==='share'){setPhase('share');return}
-      if(action==='read'){
-        return liff.getProfile().then(p=>{setProfile(p);setPhase('read')});
-      }
       return liff.getProfile().then(p=>{
         setProfile(p);setPhase('loading');
-        return sfGetUser(p.userId).then(r=>{
-          if(r&&r.ok&&r.exists){setUserProfile(r.profile);setPhase('main')}
-          else{setPhase('register')}
+        return fdGetSelf(p.userId).then(r=>{
+          if(r&&r.ok&&r.exists){
+            setMyStaff(r.profile);
+            if(r.profile.status!=='approved'){setPhase('pending');return}
+            if(!getPin()){setPhase('pinSetup');return}
+            if(isLocked()){setLocked(true)}else{touchUnlock()}
+            setPhase('main');
+          }else{setPhase('register')}
         });
       });
     });
-    if(LIFF_ID_HARDCODED){initLiff(LIFF_ID_HARDCODED).catch(err=>{setLiffErr(_fmtLiffErr(err));setPhase('error')});return;}
+    if(LIFF_ID_HARDCODED){initLiff(LIFF_ID_HARDCODED).catch(err=>{setLiffErr(String(err&&err.message||err));setPhase('error')});return;}
     sfConfig().then(cfg=>{
       const id=cfg&&cfg.ok?cfg.liffId:'';
-      if(!id){setLiffErr('尚未設定LIFF_ID');setPhase('error');return}
+      if(!id){setLiffErr('尚未設定LIFF_ID_FRONTDESK指令碼屬性');setPhase('error');return}
       return initLiff(id);
-    }).catch(err=>{setLiffErr(_fmtLiffErr(err));setPhase('error')});
+    }).catch(err=>{setLiffErr(String(err&&err.message||err));setPhase('error')});
   },[]);
 
+  // 閒置偵測:任何互動時更新解鎖時間戳記,但只在main phase生效
+  useEffect(()=>{
+    if(phase!=='main'||locked)return;
+    const touch=()=>touchUnlock();
+    const iv=setInterval(()=>{if(isLocked())setLocked(true)},15000);
+    window.addEventListener('click',touch);window.addEventListener('touchstart',touch);
+    return()=>{clearInterval(iv);window.removeEventListener('click',touch);window.removeEventListener('touchstart',touch)};
+  },[phase,locked]);
+
   if(phase==='error')return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{liffErr}</p></div>);
-  if(phase==='liffInit'||phase==='loading')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><div className="text-amber-500"><Spinner size={40}/></div><p className="text-base text-gray-400">載入中…</p></div>);
-  if(phase==='share')return(<ShareFlow nid={nid}/>);
-  if(phase==='read')return(<ReadFlow nid={nid} profile={profile}/>);
-  if(phase==='register')return(<RegisterFlow profile={profile} onDone={()=>{sfGetUser(profile.userId).then(r=>{if(r&&r.ok&&r.exists){setUserProfile(r.profile);setPhase('main')}})}}/>);
-  return(<NoticeView nid={nid} userProfile={userProfile}/>);
+  if(phase==='liffInit'||phase==='loading')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><div className="text-amber-500"><Spinner size={40}/></div><p className="text-base text-gray-500">載入中…</p></div>);
+  if(phase==='register')return(<RegisterFlow profile={profile} onDone={()=>{
+    setPhase('loading');
+    fdGetSelf(profile.userId).then(r=>{
+      if(r&&r.ok&&r.exists){setMyStaff(r.profile);setPhase('pending')} // 剛登記完一定是pending狀態,先進待審核畫面
+      else{setPhase('register')} // 萬一查不到,退回登記頁重試
+    }).catch(()=>setPhase('register'));
+  }}/>);
+  if(phase==='pending')return(<PendingScreen profile={profile} onApproved={()=>{fdGetSelf(profile.userId).then(r=>{if(r&&r.ok&&r.exists){setMyStaff(r.profile);setPhase('pinSetup')}})}}/>);
+  if(phase==='pinSetup')return(<PinSetup onDone={()=>setPhase('main')}/>);
+  if(locked)return(<LockScreen onUnlock={()=>setLocked(false)}/>);
+  return(<MainApp myStaff={myStaff} onProfileSaved={setMyStaff}/>);
 }
 
 class __EB extends React.Component{constructor(p){super(p);this.state={e:false}}static getDerivedStateFromError(){return{e:true}}componentDidCatch(err){try{window.__showFallback(3,{lineno:0,msg:(err&&err.message)||String(err)})}catch(e){}}render(){return this.state.e?null:this.props.children}}
