@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>公告 v1.0-010</title>
+<title>公告 v1.0-011</title>
 <meta property="og:title" content="公告通知">
 <meta property="og:description" content="請點擊連結查看公告內容">
 <meta property="og:type" content="website">
@@ -276,7 +276,7 @@ function ManagerNoticeList({userProfile}){
 function NoticeView({nid,userProfile}){
   const[notice,setNotice]=useState(undefined);
   useEffect(()=>{
-    if(!nid)return;
+    if(!nid){setNotice(null);return}
     fetch('../notices.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(data=>{
       const list=Array.isArray(data)?data:(data&&data.notices)||[];
       const found=list.find(n=>String(n.id)===String(nid));
