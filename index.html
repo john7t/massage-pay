@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-046</title>
+<title>薪資追蹤 v1.12-047</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -435,7 +435,8 @@ function infoFieldLabel(key,t){
   const m={nameZh:t.nameZh,nameVi:t.nameVi,gender:t.gender,gloveSize:t.gloveSize||'手套尺寸',phone:t.custPhone||'電話',email:t.email,
     addrCity:'縣市',addrDist:'鄉鎮區',addrDetail:'詳細地址',school:t.school,major:t.major,
     permitNo:t.permitNo,permitDate:t.permitDate,permitExpiry:'工作證到期日',permitOrg:t.permitOrgOpt||'核發單位',
-    storeSel:t.store,shift:t.shiftLabel||'班別',workStart:t.workStart,workEnd:t.workEnd,workNote:t.workNote,techMentor:t.techMentor,lockerNo:t.lockerNo};
+    storeSel:t.store,shift:t.shiftLabel||'班別',workStart:t.workStart,workEnd:t.workEnd,workNote:t.workNote,techMentor:t.techMentor,lockerNo:t.lockerNo,
+    unitPrice:t.unitPrice,preg:t.pregClient,oil:t.oilLabel,skills:t.skills};
   return m[key]||key;
 }
 // 縣市選項:常見的4個(桃園/新北/臺北/宜蘭,店內大部分員工所在地)排前面,其餘照TW_REGIONS完整列出
@@ -443,7 +444,7 @@ const CITY_PRIORITY=['桃園市','新北市','臺北市','宜蘭縣'];
 const CITY_OPTIONS=[...CITY_PRIORITY,...Object.keys(TW_REGIONS).filter(c=>!CITY_PRIORITY.includes(c))];
 const BASIC_FIELD_KEYS=['nameZh','gender','gloveSize','phone','email','addrCity','addrDist','addrDetail','nameVi','permitNo','permitDate','permitExpiry','permitOrg','school','major'];
 const BASIC_FIELD_LAYOUT=['nameZh','gender','gloveSize','phone','email','addrCity','addrDist','addrDetail','__divider_foreign__','nameVi','permitNo','permitDate','permitExpiry','permitOrg','school','major'];
-const STORE_FIELD_KEYS=['storeSel','shift','workStart','workEnd','workNote','techMentor','lockerNo'];
+const STORE_FIELD_KEYS=['storeSel','shift','workStart','workEnd','workNote','unitPrice','skills','preg','oil','techMentor','lockerNo'];
 // 跟App元件settingsAlert(❗提醒)比對用的完整欄位清單一致,核准後要用這份存confirmedProfile/confirmedStore快照
 const PF_ALERT_FIELDS=['gender','nameZh','nameVi','phone','email','addrCity','addrDist','addrDetail','school','major','schoolType','permitNo','permitDate','permitExpiry','permitOrg'];
 const SF_ALERT_FIELDS=['storeSel','shift','workStart','workEnd','workNote','unitPrice','preg','oil','techMentor','lockerNo'];
@@ -561,6 +562,11 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
     if(keyCheck==='invalid'){setErr(t.keyInvalidEditMsg);return}
     const changed={};const changedDisp=[];
     fieldKeys.forEach(k=>{
+      if(k==='skills'){
+        const ov=JSON.stringify(settings.skills||{});const nv=form.skills||{};
+        if(ov!==JSON.stringify(nv)){changed[k]=nv;changedDisp.push({key:k,label:infoFieldLabel(k,t),val:SKILL_KEYS.filter(s=>nv[s]).map(s=>t[s]||s).join('、')||'—'})}
+        return;
+      }
       const ov=settings[k]||'';const nv=(form[k]||'').trim();
       if(ov!==nv){changed[k]=nv;changedDisp.push({key:k,label:infoFieldLabel(k,t),val:nv})}
     });
@@ -659,7 +665,9 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
         }
         const label=infoFieldLabel(k,t);
         if(!isEdit){
-          const v=settings[k]||'';
+          let v=settings[k]||'';
+          if(k==='skills'){const sk=settings.skills||{};v=SKILL_KEYS.filter(s=>sk[s]).map(s=>t[s]||s).join('、')}
+          else if(k==='preg'||k==='oil'){v=settings[k]==='yes'?(t.accept||'接'):settings[k]==='no'?(t.reject||'不接'):''}
           return <div key={k} className="flex justify-between items-start gap-3"><span className="text-xs text-gray-500 flex-shrink-0">{label}</span><span className="text-sm text-gray-200 text-right">{v||'—'}</span></div>;
         }
         if(k==='gender'){
@@ -667,6 +675,16 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
         }
         if(k==='gloveSize'){
           return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><div className="grid grid-cols-5 gap-1.5">{['XS','S','M','L','XL'].map(g=>(<button key={g} onClick={()=>setForm(f=>({...f,gloveSize:g}))} className={`py-2 rounded-lg text-xs font-semibold ${form.gloveSize===g?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{g}</button>))}</div></div>);
+        }
+        if(k==='preg'||k==='oil'){
+          return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><div className="grid grid-cols-2 gap-2">{[['yes',t.accept||'接'],['no',t.reject||'不接']].map(([v,l])=>(<button key={v} onClick={()=>setForm(f=>({...f,[k]:v}))} className={`py-2 rounded-lg text-sm font-semibold ${form[k]===v?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{l}</button>))}</div></div>);
+        }
+        if(k==='skills'){
+          const skillsObj=form.skills||{};
+          return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><div className="grid grid-cols-3 gap-2">{SKILL_KEYS.map((sk,i)=>(<button key={sk} onClick={()=>setForm(f=>({...f,skills:{...(f.skills||{}),[sk]:!(f.skills||{})[sk]}}))} className={`py-2 rounded-lg text-xs font-semibold ${skillsObj[sk]?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t[sk]||sk}</button>))}</div></div>);
+        }
+        if(k==='unitPrice'){
+          return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><input value={form.unitPrice} onChange={e=>setForm(f=>({...f,unitPrice:e.target.value.replace(/\D/g,'')}))} inputMode="numeric" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>);
         }
         if(k==='shift'){
           return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><div className="grid grid-cols-2 gap-2">{[['day',t.shiftDay],['night',t.shiftNight]].map(([sv,l])=>(<button key={sv} onClick={()=>setForm(f=>({...f,shift:sv}))} className={`py-2 rounded-lg text-sm font-semibold ${form.shift===sv?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{l}</button>))}</div></div>);
