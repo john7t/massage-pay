@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-048</title>
+<title>薪資追蹤 v1.12-049</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -559,27 +559,27 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
   const cancelEdit=()=>{setForm(initForm());setMode('view')};
   const backToEditAfterReject=()=>{clearPendingT();const f=initForm();changedList.forEach(c=>{f[c.key]=c.val});setForm(f);setMode('edit');setTicketStatus('');setRejectReason('')};
   const submitEdit=async()=>{
-    if(keyCheck==='invalid'){setErr(t.keyInvalidEditMsg);return}
-    const changed={};const changedDisp=[];
-    fieldKeys.forEach(k=>{
-      if(k==='skills'){
-        const ov=JSON.stringify(settings.skills||{});const nv=form.skills||{};
-        if(ov!==JSON.stringify(nv)){changed[k]=nv;changedDisp.push({key:k,label:infoFieldLabel(k,t),val:SKILL_KEYS.filter(s=>nv[s]).map(s=>t[s]||s).join('、')||'—'})}
-        return;
-      }
-      const ov=settings[k]||'';const nv=(form[k]||'').trim();
-      if(ov!==nv){changed[k]=nv;changedDisp.push({key:k,label:infoFieldLabel(k,t),val:nv})}
-    });
-    if(Object.keys(changed).length===0){setMode('view');return}
-    setBusy(true);setErr('');
     try{
+      if(keyCheck==='invalid'){setErr(t.keyInvalidEditMsg);return}
+      const changed={};const changedDisp=[];
+      fieldKeys.forEach(k=>{
+        if(k==='skills'){
+          const ov=JSON.stringify(settings.skills||{});const nv=form.skills||{};
+          if(ov!==JSON.stringify(nv)){changed[k]=nv;changedDisp.push({key:k,label:infoFieldLabel(k,t),val:SKILL_KEYS.filter(s=>nv[s]).map(s=>t[s]||s).join('、')||'—'})}
+          return;
+        }
+        const ov=settings[k]||'';const nv=(form[k]||'').trim();
+        if(ov!==nv){changed[k]=nv;changedDisp.push({key:k,label:infoFieldLabel(k,t),val:nv})}
+      });
+      if(Object.keys(changed).length===0){setMode('view');return}
+      setBusy(true);setErr('');
       const r=await gasSubmitAction(actionCode,code,changed);
       setBusy(false);
       if(r&&r.ok){
         setTicketSeq(r.seq);setChangedList(changedDisp);setMode('ticket');setTicketStatus('');setCooldown(0);
         savePendingT({seq:r.seq,changed:changedDisp});
       }else{setErr((r&&r.error)||'送出失敗')}
-    }catch(e){setBusy(false);setErr(String(e))}
+    }catch(e){setBusy(false);alert('除錯訊息(請截圖給我):'+String(e&&e.stack||e))}
   };
   const checkTicket=async()=>{
     if(cooldown>0||ticketStatus==='checking')return;
