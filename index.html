@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-047</title>
+<title>薪資追蹤 v1.12-048</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -607,7 +607,7 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
   };
 
   if(gate==='setup'){
-    return(<div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center gap-6 p-6" onClick={onClose}>
+    return(<div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 p-6" style={{background:'rgba(0,0,0,0.9)'}} onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} className="flex flex-col items-center gap-6">
         <p className="text-base font-bold text-gray-100 text-center">{setupStep===1?(t.noticePwdSetupTitle||'設定4位數密碼'):(t.lockPwdConfirm||'再輸入一次確認')}</p>
         {setupStep===1&&<p className="text-xs text-gray-500 text-center max-w-xs -mt-3">{type==='basic'?t.infoPwdSetupBasicBody:t.infoPwdSetupStoreBody}</p>}
@@ -619,7 +619,7 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
     </div>);
   }
   if(gate==='locked'){
-    return(<div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center gap-6 p-6" onClick={onClose}>
+    return(<div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 p-6" style={{background:'rgba(0,0,0,0.9)'}} onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} className="flex flex-col items-center gap-6">
         <p className="text-base font-bold text-gray-100 text-center">{t.noticePwdLockedTitle||'請輸入密碼'}</p>
         <p className="text-xs text-gray-500 text-center max-w-xs -mt-3">{type==='basic'?t.infoPwdLockedBasicBody:t.infoPwdLockedStoreBody}</p>
@@ -1101,7 +1101,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
     </div>
     {showGroupBuy&&<GroupBuyModal t={t} settings={settings} onClose={()=>setShowGroupBuy(false)}/>}
     {showDisasterReport&&<DisasterReportModal t={t} settings={settings} onClose={()=>setShowDisasterReport(false)} onSaved={(patch)=>{if(onUpdateSettings)onUpdateSettings(Object.assign({},settings,patch));try{LS.set('app-settings',Object.assign({},settings,patch))}catch(_e){}}}/>}
-    {dailyQueue[0]==='pwd'&&(<div className="fixed inset-0 z-[70] bg-black/80 flex flex-col items-center justify-center gap-6 p-6">
+    {dailyQueue[0]==='pwd'&&(<div className="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-6 p-6" style={{background:'rgba(0,0,0,0.9)'}}>
       <p className="text-base font-bold text-gray-100 text-center">{t.homePwdPopupTitle}</p>
       <p className="text-xs text-gray-500 text-center max-w-xs -mt-3">{t.homePwdPopupBody}</p>
       <div className={pwdShake?'text-red-500':''}><PinDots length={pwdInput.length}/></div>
