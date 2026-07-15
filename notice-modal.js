@@ -1,4 +1,4 @@
-/* notice-modal.js v1.12-039 — 共用公告詳情彈窗元件(index與公告頁共用)
+/* notice-modal.js v1.12-040 — 共用公告詳情彈窗元件(index與公告頁共用)
    用法:<NoticeDetailModal notice={n} settings={settings} t={t} onClose={()=>...} onMore={()=>...}/>
    依賴 window.MP 的:noticeBody,hasMyKey,markNoticeRead,autoClaimKey,isNoticeRead,getNoticeReadCount,getNoticeReaders,getNoticeShow,isValidPin,lockPwdCred,gasSetInitialPwd,gasVerifyKey,getMyKey,LS
    v1.12-019:密碼關卡通過後,再背景驗證金鑰是否有效(離職時金鑰會被設過期/停用)。金鑰失效→即使密碼對也擋內容,顯示「憑證已失效」;沒有金鑰或網路失敗時不擋(容錯優先,避免誤傷正常老師) */
@@ -8,6 +8,14 @@
   const UNLOCK_KEY_PREFIX='notice-pwd-unlock-';
   function getUnlockTs(code){try{return parseInt(localStorage.getItem(UNLOCK_KEY_PREFIX+code)||'0',10)||0}catch(_e){return 0}}
   function setUnlockTs(code){try{localStorage.setItem(UNLOCK_KEY_PREFIX+code,String(Date.now()))}catch(_e){}}
+  function PinDots({length}){
+    return(<div className="flex gap-3 justify-center">{Array.from({length:4}).map((_,i)=>(<div key={i} className={`w-4 h-4 rounded-full border-2 ${length>i?'bg-amber-500 border-amber-500':'border-white/[0.2]'}`}></div>))}</div>);
+  }
+  function PinKeypad({onDigit,onBackspace}){
+    return(<div className="grid grid-cols-3 gap-4 justify-items-center">{['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k,i)=>k===''?<div key={i}/>:(
+      <button key={i} onClick={()=>k==='⌫'?onBackspace():onDigit(k)} className="w-16 h-16 rounded-full bg-white/[0.06] text-gray-100 text-xl font-semibold active:bg-white/[0.12]">{k}</button>
+    ))}</div>);
+  }
   // 憑證有效性一天只查一次(不用每次開公告都打GAS),同一天內直接用快取結果
   function getCachedKeyCheck(code){
     try{
@@ -32,8 +40,9 @@
     };
     const[gate,setGate]=useState(initGate);
     const[keyCheck,setKeyCheck]=useState(null); // null/checking/ok/invalid
-    const[setupPwd,setSetupPwd]=useState('');const[setupPwd2,setSetupPwd2]=useState('');const[setupErr,setSetupErr]=useState('');const[setupBusy,setSetupBusy]=useState(false);
-    const[unlockInput,setUnlockInput]=useState('');const[unlockErr,setUnlockErr]=useState('');
+    const[setupStep,setSetupStep]=useState(1);
+    const[setupPwd,setSetupPwd]=useState('');const[setupPwd1,setSetupPwd1]=useState('');const[setupErr,setSetupErr]=useState('');const[setupBusy,setSetupBusy]=useState(false);
+    const[unlockInput,setUnlockInput]=useState('');const[unlockErr,setUnlockErr]=useState('');const[unlockShake,setUnlockShake]=useState(false);
     const[nvLang,setNvLang]=useState({zh:!vi,vi:!!vi});
     const[act,setAct]=useState('');
     const[readCount,setReadCount]=useState(()=>{try{return MP.getNoticeReadCount?MP.getNoticeReadCount(notice.id):null}catch(_e){return null}});
@@ -62,43 +71,60 @@
       const tm=setTimeout(()=>{try{MP.gasLogNoticeOpen(notice.id,code)}catch(_e){}},1500);
       return()=>clearTimeout(tm);
     },[gate,keyCheck]);
-    const doSetup=async()=>{
-      if(!MP.isValidPin||!MP.isValidPin(setupPwd)){setSetupErr(t.lockPwdInvalid);return}
-      if(setupPwd!==setupPwd2){setSetupErr(t.lockPwdMismatch);return}
+    const finishSetup=async(pwd)=>{
       setSetupErr('');setSetupBusy(true);
-      const updated=Object.assign({},getFreshSettings(),{lockPwd:setupPwd});
+      const updated=Object.assign({},getFreshSettings(),{lockPwd:pwd});
       try{if(MP.LS)MP.LS.set('app-settings',updated)}catch(_e){}
       setUnlockTs(code);
       setSetupBusy(false);setGate('none');
       // 背景同步一份到GAS(換機密碼登入用),已有密碼GAS會拒絕,不影響本機已設定成功
-      try{if(MP.gasSetInitialPwd&&MP.lockPwdCred){const cred=MP.lockPwdCred(code,setupPwd);MP.gasSetInitialPwd(code,cred)}}catch(_e){}
+      try{if(MP.gasSetInitialPwd&&MP.lockPwdCred){const cred=MP.lockPwdCred(code,pwd);MP.gasSetInitialPwd(code,cred)}}catch(_e){}
     };
-    const doUnlock=()=>{
+    const pressSetupDigit=(d)=>{
+      const next=(setupPwd+d).slice(0,4);
+      setSetupPwd(next);
+      if(next.length===4){
+        if(setupStep===1){
+          if(!MP.isValidPin||!MP.isValidPin(next)){setSetupErr(t.lockPwdInvalid);setSetupPwd('');return}
+          setSetupPwd1(next);setSetupStep(2);setSetupPwd('');setSetupErr('');
+        }else{
+          if(next!==setupPwd1){setSetupErr(t.lockPwdMismatch);setSetupStep(1);setSetupPwd('');setSetupPwd1('');return}
+          finishSetup(next);
+        }
+      }
+    };
+    const pressUnlockDigit=(d)=>{
       const fs=getFreshSettings();
-      if(unlockInput===fs.lockPwd){setUnlockTs(code);setUnlockErr('');setGate('none')}
-      else{setUnlockErr(t.noticePwdWrong||'密碼錯誤')}
+      const next=(unlockInput+d).slice(0,4);
+      setUnlockInput(next);
+      if(next.length===4){
+        if(next===fs.lockPwd){setUnlockTs(code);setUnlockErr('');setGate('none')}
+        else{setUnlockErr(t.noticePwdWrong||'密碼錯誤');setUnlockShake(true);setTimeout(()=>{setUnlockShake(false);setUnlockInput('')},500)}
+      }
     };
     if(gate==='setup'){
-      return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}><div className="bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl" onClick={e=>e.stopPropagation()}>
-        <div className="p-4 border-b border-white/[0.06] flex items-center justify-between"><h3 className="text-base font-bold text-gray-100">{t.noticePwdSetupTitle||'設定4位數密碼'}</h3><button onClick={onClose} className="text-gray-500 text-sm">✕</button></div>
-        <div className="p-4 space-y-4">
-          <p className="text-sm text-gray-300 leading-relaxed">{t.noticePwdSetupBody}</p>
-          <div className="grid grid-cols-2 gap-2"><input value={setupPwd} onChange={e=>{setSetupPwd(e.target.value.replace(/\D/g,'').slice(0,4));setSetupErr('')}} inputMode="numeric" maxLength={4} type="password" placeholder="••••" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3.5 text-xl text-center text-gray-100 tracking-[0.5em] focus:outline-none focus:border-amber-500"/><input value={setupPwd2} onChange={e=>{setSetupPwd2(e.target.value.replace(/\D/g,'').slice(0,4));setSetupErr('')}} inputMode="numeric" maxLength={4} type="password" placeholder={t.lockPwdConfirm} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3.5 text-xl text-center text-gray-100 tracking-[0.5em] focus:outline-none focus:border-amber-500"/></div>
+      return(<div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center gap-6 p-6" onClick={onClose}>
+        <div onClick={e=>e.stopPropagation()} className="flex flex-col items-center gap-6">
+          <p className="text-base font-bold text-gray-100 text-center">{setupStep===1?(t.noticePwdSetupTitle||'設定4位數密碼'):(t.lockPwdConfirm||'再輸入一次確認')}</p>
+          {setupStep===1&&<p className="text-xs text-gray-500 text-center max-w-xs -mt-3">{t.noticePwdSetupBody}</p>}
+          <PinDots length={setupPwd.length}/>
           {setupErr&&<p className="text-xs text-red-400 text-center">{setupErr}</p>}
-          <button onClick={doSetup} disabled={setupBusy||setupPwd.length!==4||setupPwd2.length!==4} className={`w-full py-3.5 rounded-xl font-bold transition-all ${!setupBusy&&setupPwd.length===4&&setupPwd2.length===4?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{t.noticePwdSetupBtn||'設定密碼'}</button>
+          <PinKeypad onDigit={pressSetupDigit} onBackspace={()=>setSetupPwd(v=>v.slice(0,-1))}/>
+          <button onClick={onClose} className="text-xs text-gray-500">✕ 取消</button>
         </div>
-      </div></div>);
+      </div>);
     }
     if(gate==='locked'){
-      return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}><div className="bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl" onClick={e=>e.stopPropagation()}>
-        <div className="p-4 border-b border-white/[0.06] flex items-center justify-between"><h3 className="text-base font-bold text-gray-100">{t.noticePwdLockedTitle||'請輸入密碼'}</h3><button onClick={onClose} className="text-gray-500 text-sm">✕</button></div>
-        <div className="p-4 space-y-4">
-          <p className="text-sm text-gray-300 text-center">{t.noticePwdLockedBody}</p>
-          <input value={unlockInput} onChange={e=>{setUnlockInput(e.target.value.replace(/\D/g,'').slice(0,4));setUnlockErr('')}} inputMode="numeric" maxLength={4} type="password" placeholder="••••" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3.5 text-xl text-center text-gray-100 tracking-[0.5em] focus:outline-none focus:border-amber-500"/>
+      return(<div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center gap-6 p-6" onClick={onClose}>
+        <div onClick={e=>e.stopPropagation()} className="flex flex-col items-center gap-6">
+          <p className="text-base font-bold text-gray-100 text-center">{t.noticePwdLockedTitle||'請輸入密碼'}</p>
+          <p className="text-xs text-gray-500 text-center max-w-xs -mt-3">{t.noticePwdLockedBody}</p>
+          <div className={unlockShake?'text-red-500':''}><PinDots length={unlockInput.length}/></div>
           {unlockErr&&<p className="text-xs text-red-400 text-center">{unlockErr}</p>}
-          <button onClick={doUnlock} disabled={unlockInput.length!==4} className={`w-full py-3.5 rounded-xl font-bold transition-all ${unlockInput.length===4?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{t.noticePwdUnlockBtn||'解鎖'}</button>
+          <PinKeypad onDigit={pressUnlockDigit} onBackspace={()=>setUnlockInput(v=>v.slice(0,-1))}/>
+          <button onClick={onClose} className="text-xs text-gray-500">✕ 取消</button>
         </div>
-      </div></div>);
+      </div>);
     }
     if(keyCheck==='invalid'){
       return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}><div className="bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl" onClick={e=>e.stopPropagation()}>
