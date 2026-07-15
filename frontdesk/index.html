@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>櫃台差勤 v1.0-008</title>
+<title>櫃台差勤 v1.0-009</title>
 <meta property="og:title" content="櫃台差勤管理">
 <meta property="og:description" content="排休、請假、特休管理">
 <meta property="og:type" content="website">
@@ -29,7 +29,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
-body{background:#0a0a0f;color:#e5e7eb;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+body{background:#f9fafb;color:#111827;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 #root{min-height:100vh}
 @keyframes fdBlink{0%,100%{opacity:1}50%{opacity:0.25}}
 .fd-blink{animation:fdBlink 1s infinite}
@@ -38,11 +38,11 @@ body{background:#0a0a0f;color:#e5e7eb;margin:0;font-family:-apple-system,BlinkMa
 <body>
 <div id="root"></div>
 
-<div id="__fallback" style="display:none;position:fixed;inset:0;z-index:99999;background:#0a0a0f;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;font-family:-apple-system,sans-serif">
+<div id="__fallback" style="display:none;position:fixed;inset:0;z-index:99999;background:#f9fafb;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;font-family:-apple-system,sans-serif">
   <div style="width:64px;height:64px;border-radius:50%;border:3px solid #d97706;display:flex;align-items:center;justify-content:center;margin-bottom:24px">🔧</div>
-  <h1 id="__fbtitle" style="font-size:22px;font-weight:500;color:#f3f4f6;margin:0 0 1rem">網站更新中</h1>
+  <h1 id="__fbtitle" style="font-size:22px;font-weight:500;color:#111827;margin:0 0 1rem">網站更新中</h1>
   <p id="__fbinfo" style="font-size:12px;color:#6b7280;margin:0 0 2rem;font-family:monospace"></p>
-  <div id="__fbmsg" style="display:none;margin:-1rem 0 2rem;padding:10px 12px;background:#1e1b1b;border:1px solid #7f1d1d;border-radius:8px;font-family:monospace;font-size:11px;color:#fca5a5;max-width:90%;word-break:break-all;white-space:pre-wrap"></div>
+  <div id="__fbmsg" style="display:none;margin:-1rem 0 2rem;padding:10px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-family:monospace;font-size:11px;color:#b91c1c;max-width:90%;word-break:break-all;white-space:pre-wrap"></div>
 </div>
 
 <script src="../common.js"></script>
@@ -91,6 +91,9 @@ async function fdSubmitHandover(staffId,date,text){return gasCallPost('fdSubmitH
 async function fdListHandover(date){return gasCall('fdListHandover',{date});}
 async function fdDayLeaves(date){return gasCall('fdDayLeaves',{date});}
 async function fdListActiveStaff(){return gasCall('fdListActiveStaff',{});}
+async function fdListApprovalHistory(lineUserId){return gasCall('fdListApprovalHistory',{lineUserId});}
+async function fdWipeLeaveAndSchedule(lineUserId){return gasCallPost('fdWipeLeaveAndSchedule',{lineUserId});}
+async function fdSubmitLeaveBatch(staffId,type,entries,reason){return gasCallPost('fdSubmitLeaveBatch',{staffId,type,entries,reason});}
 async function fdMonthData(year,month){return gasCall('fdMonthData',{year,month});}
 async function fdUpdateProfile(data){return gasCallPost('fdUpdateProfile',data);}
 async function fdSetNotifyPref(lineUserId,notify){return gasCallPost('fdSetNotifyPref',{lineUserId,notify});}
@@ -100,6 +103,11 @@ async function fdListPendingFieldChanges(lineUserId){return gasCall('fdListPendi
 
 const Spinner=({size})=>(<svg className="animate-spin" width={size||14} height={size||14} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>);
 const pad2=(n)=>String(n).padStart(2,'0');
+const fmtPhone=(v)=>{
+  const s=String(v||'').replace(/[^\d]/g,'');
+  if(s.length===10)return s.slice(0,4)+'-'+s.slice(4,7)+'-'+s.slice(7);
+  return s;
+};
 const ymd=(y,m,d)=>y+'-'+pad2(m)+'-'+pad2(d);
 const todayYmd=()=>{const d=new Date();return ymd(d.getFullYear(),d.getMonth()+1,d.getDate())};
 
@@ -132,10 +140,10 @@ function LockScreen({onUnlock}){
     if(next.length===4)submit(next);
   };
   return(<div className="min-h-screen flex flex-col items-center justify-center gap-6 p-6">
-    <p className="text-lg text-gray-300 font-semibold">請輸入密碼解鎖</p>
+    <p className="text-lg text-gray-700 font-semibold">請輸入密碼解鎖</p>
     <div className={`flex gap-3 ${err?'text-red-500':''}`}>{[0,1,2,3].map(i=>(<div key={i} className={`w-4 h-4 rounded-full border-2 ${input.length>i?'bg-amber-500 border-amber-500':'border-gray-600'}`}></div>))}</div>
     <div className="grid grid-cols-3 gap-4">{['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k,i)=>k===''?<div key={i}/>:(
-      <button key={i} onClick={()=>k==='⌫'?setInput(v=>v.slice(0,-1)):press(k)} className="w-16 h-16 rounded-full bg-white/[0.06] text-gray-200 text-xl font-semibold active:bg-white/[0.12]">{k}</button>
+      <button key={i} onClick={()=>k==='⌫'?setInput(v=>v.slice(0,-1)):press(k)} className="w-16 h-16 rounded-full bg-gray-100 text-gray-800 text-xl font-semibold active:bg-gray-200">{k}</button>
     ))}</div>
   </div>);
 }
@@ -157,11 +165,11 @@ function PinSetup({onDone}){
     }
   };
   return(<div className="min-h-screen flex flex-col items-center justify-center gap-6 p-6">
-    <p className="text-lg text-gray-300 font-semibold">{step===1?'設定4位數自動鎖屏密碼':'請再輸入一次確認'}</p>
+    <p className="text-lg text-gray-700 font-semibold">{step===1?'設定4位數自動鎖屏密碼':'請再輸入一次確認'}</p>
     {err&&<p className="text-xs text-red-400">{err}</p>}
     <div className="flex gap-3">{[0,1,2,3].map(i=>(<div key={i} className={`w-4 h-4 rounded-full border-2 ${input.length>i?'bg-amber-500 border-amber-500':'border-gray-600'}`}></div>))}</div>
     <div className="grid grid-cols-3 gap-4">{['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k,i)=>k===''?<div key={i}/>:(
-      <button key={i} onClick={()=>k==='⌫'?setInput(v=>v.slice(0,-1)):press(k)} className="w-16 h-16 rounded-full bg-white/[0.06] text-gray-200 text-xl font-semibold active:bg-white/[0.12]">{k}</button>
+      <button key={i} onClick={()=>k==='⌫'?setInput(v=>v.slice(0,-1)):press(k)} className="w-16 h-16 rounded-full bg-gray-100 text-gray-800 text-xl font-semibold active:bg-gray-200">{k}</button>
     ))}</div>
   </div>);
 }
@@ -174,27 +182,30 @@ function RegisterFlow({profile,onDone}){
   const[shift,setShift]=useState('');
   const[phone,setPhone]=useState('');
   const[mgmtOnly,setMgmtOnly]=useState(false);
+  const[personType,setPersonType]=useState('');
   const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
-  const canSubmit=lastName.trim()&&firstName.trim()&&(mgmtOnly||(hireDate&&shift));
+  const PERSON_TYPES=['執行長','區經理','經理','組長','副理','實習副理'];
+  const canSubmit=lastName.trim()&&firstName.trim()&&(mgmtOnly?!!personType:(hireDate&&shift));
   const submit=async()=>{
     if(!canSubmit)return;
     setBusy(true);setErr('');
     try{
-      const r=await fdRegister({lineUserId:profile.userId,phone:phone.trim(),lastName:lastName.trim(),firstName:firstName.trim(),nickname:nickname.trim(),hireDate,shift,isManagementOnly:mgmtOnly});
+      const r=await fdRegister({lineUserId:profile.userId,phone:phone.trim(),lastName:lastName.trim(),firstName:firstName.trim(),nickname:nickname.trim(),hireDate,shift,isManagementOnly:mgmtOnly,personType:mgmtOnly?personType:''});
       if(r&&r.ok){onDone()}else{setErr((r&&r.error)||'登記失敗')}
     }catch(e){setErr(String(e))}
     setBusy(false);
   };
   return(<div className="min-h-screen flex items-center justify-center p-4">
-    <div className="w-full max-w-md bg-gray-900 rounded-2xl border border-white/[0.08] p-5 space-y-4">
-      <h1 className="text-lg font-bold text-gray-100 text-center">櫃台人員登記</h1>
-      <div className="grid grid-cols-2 gap-2"><input value={lastName} onChange={e=>setLastName(e.target.value)} placeholder="姓" className="bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3 text-sm text-gray-100"/><input value={firstName} onChange={e=>setFirstName(e.target.value)} placeholder="名" className="bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3 text-sm text-gray-100"/></div>
-      <input value={nickname} onChange={e=>setNickname(e.target.value)} placeholder="暱稱（不填自動取名字最後一字）" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3 text-sm text-gray-100"/>
-      <input value={phone} onChange={e=>setPhone(e.target.value.replace(/[^\d]/g,''))} inputMode="numeric" placeholder="手機（聯絡用，選填）" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3 text-sm text-gray-100"/>
-      <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={mgmtOnly} onChange={e=>setMgmtOnly(e.target.checked)} className="w-4 h-4 rounded accent-amber-500"/><span className="text-sm text-gray-300">此帳號僅用於管理，不需排班／排休</span></label>
+    <div className="w-full max-w-md bg-white rounded-2xl border border-gray-300 p-5 space-y-4">
+      <h1 className="text-lg font-bold text-gray-900 text-center">櫃台人員登記</h1>
+      <div className="grid grid-cols-2 gap-2"><input value={lastName} onChange={e=>setLastName(e.target.value)} placeholder="姓" className="bg-gray-100 border border-gray-300 rounded-xl px-3 py-3 text-sm text-gray-900"/><input value={firstName} onChange={e=>setFirstName(e.target.value)} placeholder="名" className="bg-gray-100 border border-gray-300 rounded-xl px-3 py-3 text-sm text-gray-900"/></div>
+      <input value={nickname} onChange={e=>setNickname(e.target.value)} placeholder="暱稱（不填自動取名字最後一字）" className="w-full bg-gray-100 border border-gray-300 rounded-xl px-3 py-3 text-sm text-gray-900"/>
+      <input value={phone} onChange={e=>setPhone(e.target.value.replace(/[^\d]/g,''))} inputMode="numeric" placeholder="手機（聯絡用，選填）" className="w-full bg-gray-100 border border-gray-300 rounded-xl px-3 py-3 text-sm text-gray-900"/>
+      <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={mgmtOnly} onChange={e=>setMgmtOnly(e.target.checked)} className="w-4 h-4 rounded accent-amber-500"/><span className="text-sm text-gray-700">此帳號僅用於管理，不需排班／排休</span></label>
+      {mgmtOnly&&(<div><label className="text-xs text-gray-500 block mb-1">人員別</label><div className="grid grid-cols-3 gap-2">{PERSON_TYPES.map(t=>(<button key={t} onClick={()=>setPersonType(t)} className={`py-2.5 rounded-xl text-xs font-semibold ${personType===t?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'}`}>{t}</button>))}</div>{(personType==='副理'||personType==='實習副理')&&<p className="text-[10px] text-gray-500 mt-1">此人員別可查看組長畫面，但沒有核准／拒絕的權限</p>}</div>)}
       {!mgmtOnly&&(<>
-        <div><label className="text-xs text-gray-500 block mb-1">到職日</label><input type="date" value={hireDate} onChange={e=>setHireDate(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3 text-sm text-gray-100"/></div>
-        <div><label className="text-xs text-gray-500 block mb-1">班別</label><div className="grid grid-cols-3 gap-2">{SHIFT_ORDER.map(s=>(<button key={s} onClick={()=>setShift(s)} className={`py-2.5 rounded-xl text-xs font-semibold ${shift===s?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{SHIFT_SHORT_LABEL[s]}</button>))}</div></div>
+        <div><label className="text-xs text-gray-500 block mb-1">到職日</label><input type="date" value={hireDate} onChange={e=>setHireDate(e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-xl px-3 py-3 text-sm text-gray-900"/></div>
+        <div><label className="text-xs text-gray-500 block mb-1">班別</label><div className="grid grid-cols-3 gap-2">{SHIFT_ORDER.map(s=>(<button key={s} onClick={()=>setShift(s)} className={`py-2.5 rounded-xl text-xs font-semibold ${shift===s?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'}`}>{SHIFT_SHORT_LABEL[s]}</button>))}</div></div>
       </>)}
       {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
       <button onClick={submit} disabled={!canSubmit||busy} className="w-full py-3.5 rounded-xl bg-amber-600 text-white font-bold disabled:opacity-50 flex items-center justify-center gap-2">{busy&&<Spinner/>}完成登記</button>
@@ -224,9 +235,9 @@ function PendingScreen({profile,onApproved}){
   };
   return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
     <p className="text-2xl">⏳</p>
-    <p className="text-base text-gray-200 font-semibold">帳號待審核中</p>
+    <p className="text-base text-gray-800 font-semibold">帳號待審核中</p>
     <p className="text-sm text-gray-500">請等候櫃台組長核准後即可使用完整功能</p>
-    <button onClick={check} disabled={busy||cooldown>0} className="px-6 py-3 rounded-xl bg-white/[0.06] text-gray-300 text-sm font-semibold disabled:opacity-50 flex items-center gap-2">{busy&&<Spinner size={12}/>}{cooldown>0?`請稍候 ${cooldown} 秒`:'檢查審核情形'}</button>
+    <button onClick={check} disabled={busy||cooldown>0} className="px-6 py-3 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold disabled:opacity-50 flex items-center gap-2">{busy&&<Spinner size={12}/>}{cooldown>0?`請稍候 ${cooldown} 秒`:'檢查審核情形'}</button>
     {msg&&<p className="text-xs text-amber-400">{msg}</p>}
   </div>);
 }
@@ -252,7 +263,7 @@ function OffScheduleModal({myStaff,onClose,onSubmitted}){
   const[pending,setPending]=useState(new Set());
   const[monthlyLimit,setMonthlyLimit]=useState(4);
   const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');
-  const isPrivileged=myStaff.role==='supervisor'||myStaff.isManagementOnly;
+  const isPrivileged=myStaff.role==='supervisor'||myStaff.role==='admin'||myStaff.isManagementOnly;
   useEffect(()=>{fdGetConfig().then(r=>{if(r&&r.ok)setMonthlyLimit(r.monthlyOffLimit)})},[]);
   useEffect(()=>{
     setMonthData(null);setPending(new Set());
@@ -292,10 +303,10 @@ function OffScheduleModal({myStaff,onClose,onSubmitted}){
     if(m<1){m=12;y--;} if(m>12){m=1;y++;}
     setYear(y);setMonth(m);
   };
-  return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}>
-    <div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl p-4 space-y-3 max-h-[85vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
-      <div className="flex items-center justify-between"><h3 className="text-base font-bold text-gray-100">排休</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
-      <div className="flex items-center justify-between"><button onClick={()=>changeMonth(-1)} className="px-2 py-1 rounded bg-white/[0.06] text-gray-300">‹</button><p className="text-sm text-gray-300">{year}年{month}月</p><button onClick={()=>changeMonth(1)} className="px-2 py-1 rounded bg-white/[0.06] text-gray-300">›</button></div>
+  return(<div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={onClose}>
+    <div className="bg-white w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl p-4 space-y-3 max-h-[85vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+      <div className="flex items-center justify-between"><h3 className="text-base font-bold text-gray-900">排休</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
+      <div className="flex items-center justify-between"><button onClick={()=>changeMonth(-1)} className="px-2 py-1 rounded bg-gray-100 text-gray-700">‹</button><p className="text-sm text-gray-700">{year}年{month}月</p><button onClick={()=>changeMonth(1)} className="px-2 py-1 rounded bg-gray-100 text-gray-700">›</button></div>
       {!monthData?<p className="text-center py-6"><Spinner size={20}/></p>:monthData.locked?(
         <p className="text-xs text-amber-400 text-center py-4">🔒 本月排休已被組長關閉</p>
       ):(<>
@@ -304,7 +315,7 @@ function OffScheduleModal({myStaff,onClose,onSubmitted}){
           {grid.map((c,i)=>{
             const isMine=c.dateStr&&(monthData.offMap[c.dateStr]||[]).includes(myStaff.id);
             const isPending=c.dateStr&&pending.has(c.dateStr);
-            return(<button key={i} disabled={!c.inMonth} onClick={()=>toggleDay(c.dateStr)} className={`rounded py-2 text-xs ${!c.inMonth?'opacity-20':''} ${isPending?'bg-emerald-600 text-white':isMine?'bg-white/[0.15] text-gray-300':'bg-white/[0.05] text-gray-300'}`}>{c.day}</button>);
+            return(<button key={i} disabled={!c.inMonth} onClick={()=>toggleDay(c.dateStr)} className={`rounded py-2 text-xs ${!c.inMonth?'opacity-20':''} ${isPending?'bg-emerald-600 text-white':isMine?'bg-gray-300 text-gray-700':'bg-gray-100 text-gray-700'}`}>{c.day}</button>);
           })}
         </div>
         <p className="text-[11px] text-gray-500 text-center">已選 {pending.size} 天{!isPrivileged?('，本月上限 '+monthlyLimit+' 天，已排 '+myOffCount+' 天'):''}</p>
@@ -326,7 +337,7 @@ function MonthView({myStaff,year,month}){
   const[limitBusy,setLimitBusy]=useState(false);
   const[lockBusy,setLockBusy]=useState(false);
   const[showOffModal,setShowOffModal]=useState(false);
-  const isPrivileged=myStaff&&(myStaff.role==='supervisor'||myStaff.isManagementOnly);
+  const isPrivileged=myStaff&&(myStaff.role==='supervisor'||myStaff.role==='admin'||myStaff.isManagementOnly);
   const cacheKey=()=>'fd-cal-cache-'+year+'-'+month;
   const fetchFresh=async()=>{
     setUpdateBusy(true);
@@ -396,21 +407,21 @@ function MonthView({myStaff,year,month}){
   };
   return(<div className="space-y-3">
     <div className="flex items-center gap-2">
-      <select value={filter} onChange={e=>setFilter(e.target.value)} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200">
+      <select value={filter} onChange={e=>setFilter(e.target.value)} className="flex-1 bg-gray-100 border border-gray-300 rounded-lg px-2 py-2 text-xs text-gray-800">
         <option value="all">所有人</option><option value="morning">早上組（早1+早2）</option><option value="night">晚上組（小夜2+大夜）</option>
         {data&&data.staff.map(s=>(<option key={s.id} value={s.id}>{s.nickname||s.firstName}</option>))}
       </select>
-      <button onClick={fetchFresh} disabled={updateBusy||cooldown>0} className="text-[11px] px-2.5 py-2 rounded-lg bg-white/[0.06] text-gray-400 disabled:opacity-50 flex items-center gap-1 flex-shrink-0">{updateBusy&&<Spinner size={10}/>}{cooldown>0?cooldown+'s':'更新'}</button>
+      <button onClick={fetchFresh} disabled={updateBusy||cooldown>0} className="text-[11px] px-2.5 py-2 rounded-lg bg-gray-100 text-gray-500 disabled:opacity-50 flex items-center gap-1 flex-shrink-0">{updateBusy&&<Spinner size={10}/>}{cooldown>0?cooldown+'s':'更新'}</button>
     </div>
     {isPrivileged?(
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1"><span className="text-[10px] text-gray-500">月休</span><input type="number" value={monthlyLimit} onChange={e=>setMonthlyLimit(parseInt(e.target.value,10)||1)} className="w-12 bg-white/[0.06] border border-white/[0.08] rounded-lg px-1 py-1.5 text-xs text-gray-200 text-center"/><span className="text-[10px] text-gray-500">天</span><button onClick={saveLimit} disabled={limitBusy} className="text-[10px] px-1.5 py-1 rounded bg-white/[0.06] text-gray-400">{limitBusy?<Spinner size={9}/>:'儲存'}</button></div>
-        <div className="flex items-center gap-1"><span className="text-[10px] text-gray-500">超休</span><input type="number" value={threshold} onChange={e=>setThreshold(parseInt(e.target.value,10)||1)} className="w-12 bg-white/[0.06] border border-white/[0.08] rounded-lg px-1 py-1.5 text-xs text-gray-200 text-center"/><span className="text-[10px] text-gray-500">人警示</span></div>
+        <div className="flex items-center gap-1"><span className="text-[10px] text-gray-500">月休</span><input type="number" value={monthlyLimit} onChange={e=>setMonthlyLimit(parseInt(e.target.value,10)||1)} className="w-12 bg-gray-100 border border-gray-300 rounded-lg px-1 py-1.5 text-xs text-gray-800 text-center"/><span className="text-[10px] text-gray-500">天</span><button onClick={saveLimit} disabled={limitBusy} className="text-[10px] px-1.5 py-1 rounded bg-gray-100 text-gray-500">{limitBusy?<Spinner size={9}/>:'儲存'}</button></div>
+        <div className="flex items-center gap-1"><span className="text-[10px] text-gray-500">超休</span><input type="number" value={threshold} onChange={e=>setThreshold(parseInt(e.target.value,10)||1)} className="w-12 bg-gray-100 border border-gray-300 rounded-lg px-1 py-1.5 text-xs text-gray-800 text-center"/><span className="text-[10px] text-gray-500">人警示</span></div>
       </div>
     ):(
       data&&<p className="text-[11px] text-center text-gray-500">{data.locked?'本月已鎖定，不可排休':'開放排休中'}</p>
     )}
-    {!data?<p className="text-xs text-gray-600 text-center py-8"><Spinner size={20}/></p>:(<>
+    {!data?<p className="text-xs text-gray-500 text-center py-8"><Spinner size={20}/></p>:(<>
     {data.locked&&<p className="text-[11px] text-amber-400 text-center bg-amber-500/10 rounded-lg py-1.5">🔒 本月排休已被組長關閉，暫時無法調整</p>}
     <div className="grid grid-cols-7 gap-1 text-center">{WEEKDAY_LABEL.map(w=>(<div key={w} className="text-[11px] text-gray-500 py-1">{w}</div>))}</div>
     <div className="grid grid-cols-7 gap-1">
@@ -418,9 +429,9 @@ function MonthView({myStaff,year,month}){
         const info=c.inMonth?dayInfo(c.dateStr):{count:0,entries:[]};
         const warn=c.inMonth&&info.count>0&&info.count>=threshold;
         const isMine=myStaff&&c.dateStr&&(data.offMap[c.dateStr]||[]).includes(myStaff.id);
-        return(<div key={i} className={`rounded-lg p-1 min-h-[64px] text-left ${c.inMonth?(warn?'bg-red-500/10':'bg-white/[0.03]'):'opacity-30'} ${isMine?'ring-1 ring-amber-500':''}`}>
-          <p className={`text-[11px] font-semibold ${!c.inMonth?'text-gray-600':warn?'text-red-400 fd-blink':'text-gray-300'}`}>{c.day}</p>
-          <div className="space-y-0.5 mt-0.5">{info.entries.slice(0,4).map((e,j)=>(<p key={j} className="text-[9px] text-gray-400 leading-tight truncate">{e.staff.nickname}{e.label}</p>))}{info.entries.length>4&&<p className="text-[9px] text-gray-600">+{info.entries.length-4}</p>}</div>
+        return(<div key={i} className={`rounded-lg p-1 min-h-[64px] text-left ${c.inMonth?(warn?'bg-red-500/10':'bg-gray-50'):'opacity-30'} ${isMine?'ring-1 ring-amber-500':''}`}>
+          <p className={`text-[11px] font-semibold ${!c.inMonth?'text-gray-500':warn?'text-red-400 fd-blink':'text-gray-700'}`}>{c.day}</p>
+          <div className="space-y-0.5 mt-0.5">{info.entries.slice(0,4).map((e,j)=>(<p key={j} className="text-[9px] text-gray-500 leading-tight truncate">{e.staff.nickname}{e.label}</p>))}{info.entries.length>4&&<p className="text-[9px] text-gray-500">+{info.entries.length-4}</p>}</div>
         </div>);
       })}
     </div>
@@ -430,16 +441,19 @@ function MonthView({myStaff,year,month}){
       ):null;})}
     </div>
     {myStaff&&!myStaff.isManagementOnly&&!data.locked&&(
-      <button onClick={()=>setShowOffModal(true)} className="w-full py-2.5 rounded-xl bg-white/[0.06] text-gray-300 text-sm font-semibold">排休</button>
+      <button onClick={()=>setShowOffModal(true)} className="w-full py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold">排休</button>
     )}
     {isPrivileged&&(
       <button onClick={toggleLock} disabled={lockBusy} className={`w-full py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 ${data.locked?'bg-emerald-600/20 text-emerald-400':'bg-red-600/20 text-red-400'}`}>{lockBusy&&<Spinner size={12}/>}{data.locked?'開放本月排休':'鎖定本月排休'}</button>
     )}
-    <p className="text-[10px] text-gray-600 text-center pt-1">最後更新日期：{lastUpdated||'（尚未載入）'}</p>
+    <p className="text-[10px] text-gray-500 text-center pt-1">最後更新日期：{lastUpdated||'（尚未載入）'}</p>
     </>)}
     {showOffModal&&<OffScheduleModal myStaff={myStaff} onClose={()=>setShowOffModal(false)} onSubmitted={fetchFresh}/>}
   </div>);
 }
+
+const LEAVE_COLOR={off:{dot:'⬜',label:'排休'},personal:{dot:'🟦',label:'事假'},sick:{dot:'🟥',label:'病假'},annual_pending:{dot:'🟨',label:'特休待審核'},annual_approved:{dot:'🟩',label:'特休已核准'}};
+const LeaveLegend=()=>(<div className="flex flex-wrap gap-x-3 gap-y-1 pt-1">{Object.values(LEAVE_COLOR).map(c=>(<span key={c.label} className="text-[10px] text-gray-500">{c.dot} {c.label}</span>))}</div>);
 
 function DayView({myStaff,dateStr}){
   const[monthData,setMonthData]=useState(null);
@@ -467,22 +481,20 @@ function DayView({myStaff,dateStr}){
   };
   return(<div className="space-y-3">
     <div>
-      <p className="text-xs text-gray-500 mb-1">排休人員</p>
-      {monthData===null?<Spinner size={14}/>:offList.length===0?<p className="text-xs text-gray-600">今天沒有人排休</p>:(
-        <div className="flex flex-wrap gap-1.5">{offList.map(s=>(<span key={s.id} className="text-xs px-2 py-1 rounded-lg bg-white/[0.06] text-gray-300">{s.nickname}</span>))}</div>
+      <p className="text-xs text-gray-500 mb-1">今日排休／請假</p>
+      {monthData===null||leaves===null?<Spinner size={14}/>:(offList.length===0&&leaves.length===0)?<p className="text-xs text-gray-500">今天沒有人排休或請假</p>:(
+        <div className="flex flex-wrap gap-1.5">
+          {offList.map(s=>(<span key={'off'+s.id} className="text-xs px-2 py-1 rounded-lg bg-gray-100 text-gray-700">{LEAVE_COLOR.off.dot} {s.nickname}</span>))}
+          {leaves.map((l,i)=>{const key=l.type==='annual'?('annual_'+l.status):l.type;const c=LEAVE_COLOR[key]||LEAVE_COLOR.personal;return(<span key={'lv'+i} className="text-xs px-2 py-1 rounded-lg bg-gray-100 text-gray-700">{c.dot} {l.staffName}</span>);})}
+        </div>
       )}
-    </div>
-    <div>
-      <p className="text-xs text-gray-500 mb-1">今日請假</p>
-      {leaves===null?<Spinner size={14}/>:leaves.length===0?<p className="text-xs text-gray-600">今天沒有人請假</p>:(
-        <div className="space-y-1">{leaves.map((l,i)=>(<div key={i} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-2.5 py-1.5"><span className="text-xs text-gray-300">{l.staffName}・{LEAVE_TYPE_LABEL[l.type]}・{l.hours}小時</span><span className={`text-[10px] ${l.status==='approved'?'text-emerald-400':'text-amber-400'}`}>{l.status==='approved'?'已核准':'待審核'}</span></div>))}</div>
-      )}
+      <LeaveLegend/>
     </div>
     <div>
       <p className="text-xs text-gray-500 mb-1">櫃台交接事項</p>
-      <div className="flex gap-2 mb-2"><input value={noteText} onChange={e=>setNoteText(e.target.value)} placeholder="留言給下一班…" className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/><button onClick={submitNote} disabled={busy||!noteText.trim()} className="px-3 py-2 rounded-lg bg-amber-600 text-white text-xs font-semibold disabled:opacity-50 flex-shrink-0">{busy?<Spinner size={11}/>:'送出'}</button></div>
-      {notes===null?<Spinner size={14}/>:notes.length===0?<p className="text-xs text-gray-600">目前沒有交接事項</p>:(
-        <div className="space-y-1.5">{notes.map(n=>(<div key={n.id} className="bg-white/[0.03] rounded-lg px-3 py-2"><p className="text-sm text-gray-200">{n.text}</p><p className="text-[10px] text-gray-600 mt-0.5">{n.staffName}・{n.createdAt}</p></div>))}</div>
+      <div className="flex gap-2 mb-2"><input value={noteText} onChange={e=>setNoteText(e.target.value)} placeholder="留言給下一班…" className="flex-1 bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/><button onClick={submitNote} disabled={busy||!noteText.trim()} className="px-3 py-2 rounded-lg bg-amber-600 text-white text-xs font-semibold disabled:opacity-50 flex-shrink-0">{busy?<Spinner size={11}/>:'送出'}</button></div>
+      {notes===null?<Spinner size={14}/>:notes.length===0?<p className="text-xs text-gray-500">目前沒有交接事項</p>:(
+        <div className="space-y-1.5">{notes.map(n=>(<div key={n.id} className="bg-gray-50 rounded-lg px-3 py-2"><p className="text-sm text-gray-800">{n.text}</p><p className="text-[10px] text-gray-500 mt-0.5">{n.staffName}・{n.createdAt}</p></div>))}</div>
       )}
     </div>
   </div>);
@@ -497,24 +509,29 @@ function MultiDayView({dates}){
       fdMonthData(parts[0],parts[1]).then(r=>{if(r&&r.ok)setMonthDatas(prev=>({...prev,[ym]:r}))});
     });
   },[monthsNeeded.join(',')]);
-  const namesFor=(dateStr)=>{
+  const entriesFor=(dateStr)=>{
     const data=monthDatas[dateStr.slice(0,7)];
     if(!data)return null;
     const offIds=data.offMap[dateStr]||[];
     const leaves=data.leaveMap[dateStr]||[];
-    const approvedAnnual=leaves.filter(l=>l.type==='annual'&&l.status==='approved').map(l=>l.staffId);
-    const ids=Array.from(new Set([...offIds,...approvedAnnual]));
-    return ids.map(id=>{const s=data.staff.find(x=>x.id===id);return s?s.nickname:id});
+    const out=offIds.map(id=>{const s=data.staff.find(x=>x.id===id);return {name:s?s.nickname:id,color:LEAVE_COLOR.off}});
+    leaves.forEach(l=>{
+      const s=data.staff.find(x=>x.id===l.staffId);
+      const key=l.type==='annual'?('annual_'+l.status):l.type;
+      out.push({name:s?s.nickname:l.staffId,color:LEAVE_COLOR[key]||LEAVE_COLOR.personal});
+    });
+    return out;
   };
   return(<div className="space-y-2">
     {dates.map(d=>{
-      const names=namesFor(d);
+      const entries=entriesFor(d);
       const dt=new Date(d);
-      return(<div key={d} className="bg-white/[0.03] rounded-lg px-3 py-2">
-        <p className="text-xs text-gray-400 font-semibold mb-1">{d.slice(5)}（{WEEKDAY_LABEL[dt.getDay()]}）</p>
-        {names===null?<Spinner size={12}/>:names.length===0?<p className="text-[11px] text-gray-600">無人排休/特休</p>:<p className="text-[11px] text-gray-300">{names.join('、')}</p>}
+      return(<div key={d} className="bg-gray-50 rounded-lg px-3 py-2">
+        <p className="text-xs text-gray-500 font-semibold mb-1">{d.slice(5)}（{WEEKDAY_LABEL[dt.getDay()]}）</p>
+        {entries===null?<Spinner size={12}/>:entries.length===0?<p className="text-[11px] text-gray-500">無人排休/請假</p>:<p className="text-[11px] text-gray-700">{entries.map((e,i)=>(<span key={i}>{e.color.dot} {e.name}{i<entries.length-1?'　':''}</span>))}</p>}
       </div>);
     })}
+    <LeaveLegend/>
   </div>);
 }
 
@@ -555,13 +572,13 @@ function ScheduleTab({myStaff}){
   return(<div className="space-y-3">
     <div className="grid grid-cols-4 gap-1.5">
       {[['day','單日'],['3day','三日'],['week','本週'],['month','本月']].map(([k,l])=>(
-        <button key={k} onClick={()=>setViewMode(k)} className={`py-1.5 rounded-lg text-[11px] font-semibold ${viewMode===k?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-400'}`}>{l}</button>
+        <button key={k} onClick={()=>setViewMode(k)} className={`py-1.5 rounded-lg text-[11px] font-semibold ${viewMode===k?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'}`}>{l}</button>
       ))}
     </div>
     {viewMode!=='month'?(
-      <div className="flex items-center justify-between"><button onClick={()=>shiftAnchor(-1)} className="px-3 py-1.5 rounded-lg bg-white/[0.06] text-gray-300">‹</button><p className="text-sm font-bold text-gray-100">{label}</p><button onClick={()=>shiftAnchor(1)} className="px-3 py-1.5 rounded-lg bg-white/[0.06] text-gray-300">›</button></div>
+      <div className="flex items-center justify-between"><button onClick={()=>shiftAnchor(-1)} className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700">‹</button><p className="text-sm font-bold text-gray-900">{label}</p><button onClick={()=>shiftAnchor(1)} className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700">›</button></div>
     ):(
-      <div className="flex items-center justify-between"><button onClick={()=>changeMonth(-1)} className="px-3 py-1.5 rounded-lg bg-white/[0.06] text-gray-300">‹</button><p className="text-base font-bold text-gray-100">{label}</p><button onClick={()=>changeMonth(1)} className="px-3 py-1.5 rounded-lg bg-white/[0.06] text-gray-300">›</button></div>
+      <div className="flex items-center justify-between"><button onClick={()=>changeMonth(-1)} className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700">‹</button><p className="text-base font-bold text-gray-900">{label}</p><button onClick={()=>changeMonth(1)} className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700">›</button></div>
     )}
     {viewMode==='day'&&<DayView myStaff={myStaff} dateStr={dayDateStr}/>}
     {(viewMode==='3day'||viewMode==='week')&&<MultiDayView dates={rangeDates}/>}
@@ -573,24 +590,35 @@ const LEAVE_CACHE_KEY='fd-leave-cache';
 function LeaveModal({myStaff,onClose,onSubmitted}){
   const[type,setType]=useState('personal');
   const[date,setDate]=useState(todayYmd());
-  const[hours,setHours]=useState('8');
+  const[amount,setAmount]=useState('1');
+  const[unit,setUnit]=useState('day'); // day/hour
   const[reason,setReason]=useState('');
   const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');
   const submit=async()=>{
     setBusy(true);setMsg('');
     try{
-      const r=await fdSubmitLeave({staffId:myStaff.id,type,date,hours:parseFloat(hours)||8,reason});
+      let r;
+      if(unit==='hour'){
+        r=await fdSubmitLeave({staffId:myStaff.id,type,date,hours:parseFloat(amount)||8,reason});
+      }else{
+        const days=Math.max(1,parseInt(amount,10)||1);
+        const entries=[];
+        const d0=new Date(date);
+        for(let i=0;i<days;i++){const d=new Date(d0);d.setDate(d0.getDate()+i);entries.push({date:ymd(d.getFullYear(),d.getMonth()+1,d.getDate()),hours:8});}
+        r=await fdSubmitLeaveBatch(myStaff.id,type,entries,reason);
+      }
       if(r&&r.ok){setMsg('✓ 已送出，等候核准');setTimeout(()=>{onSubmitted();onClose()},800)}else{setMsg(r&&r.error||'送出失敗')}
     }catch(e){setMsg(String(e))}
     setBusy(false);
   };
-  return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}>
-    <div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl p-4 space-y-3" onClick={e=>e.stopPropagation()}>
-      <div className="flex items-center justify-between"><h3 className="text-base font-bold text-gray-100">請假申請</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
-      <div className="grid grid-cols-3 gap-2">{Object.keys(LEAVE_TYPE_LABEL).map(k=>(<button key={k} onClick={()=>setType(k)} className={`py-2 rounded-lg text-xs font-semibold ${type===k?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{LEAVE_TYPE_LABEL[k]}</button>))}</div>
-      <input type="date" value={date} onChange={e=>setDate(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/>
-      <div><label className="text-xs text-gray-500 block mb-1">時數（整天填8）</label><input type="number" value={hours} onChange={e=>setHours(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/></div>
-      <textarea value={reason} onChange={e=>setReason(e.target.value)} placeholder="事由（選填）" rows={2} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100 resize-none"/>
+  return(<div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={onClose}>
+    <div className="bg-white w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl p-4 space-y-3" onClick={e=>e.stopPropagation()}>
+      <div className="flex items-center justify-between"><h3 className="text-base font-bold text-gray-900">請假申請</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
+      <div className="grid grid-cols-3 gap-2">{Object.keys(LEAVE_TYPE_LABEL).map(k=>(<button key={k} onClick={()=>setType(k)} className={`py-2 rounded-lg text-xs font-semibold ${type===k?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'}`}>{LEAVE_TYPE_LABEL[k]}</button>))}</div>
+      <div><label className="text-xs text-gray-500 block mb-1">{unit==='day'?'起始日期':'日期'}</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/></div>
+      <div className="flex gap-2"><input type="number" value={amount} onChange={e=>setAmount(e.target.value)} className="flex-1 bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/><select value={unit} onChange={e=>setUnit(e.target.value)} className="bg-gray-100 border border-gray-300 rounded-lg px-2 py-2 text-sm text-gray-900"><option value="day">天</option><option value="hour">小時</option></select></div>
+      {unit==='day'&&parseInt(amount,10)>1&&<p className="text-[11px] text-gray-500">將從 {date} 起連續請 {amount} 天</p>}
+      <textarea value={reason} onChange={e=>setReason(e.target.value)} placeholder="事由（選填）" rows={2} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 resize-none"/>
       {msg&&<p className="text-xs text-center text-amber-400">{msg}</p>}
       <button onClick={submit} disabled={busy} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{busy&&<Spinner/>}送出申請</button>
     </div>
@@ -598,7 +626,7 @@ function LeaveModal({myStaff,onClose,onSubmitted}){
 }
 
 function LeaveTab({myStaff}){
-  const isPrivileged=myStaff&&(myStaff.role==='supervisor'||myStaff.isManagementOnly);
+  const isPrivileged=myStaff&&(myStaff.role==='supervisor'||myStaff.role==='admin'||myStaff.isManagementOnly);
   const[viewStaffId,setViewStaffId]=useState(myStaff.id);
   const[staffOptions,setStaffOptions]=useState([]);
   const[canViewOthers,setCanViewOthers]=useState(false);
@@ -656,33 +684,33 @@ function LeaveTab({myStaff}){
       return {type:k,items:items,totalDays:(totalHours/8),totalHours:totalHours};
     });
   },[myLeaves]);
-  const renderItem=(l)=>(<div key={l.id} className="bg-white/[0.03] rounded-lg px-3 py-2"><div className="flex items-center justify-between"><span className="text-sm text-gray-200">{LEAVE_TYPE_LABEL[l.type]}・{l.date}</span><span className={`text-[11px] ${l.status==='approved'?'text-emerald-400':l.status==='rejected'?'text-red-400':'text-amber-400'}`}>{STATUS_LABEL[l.status]}</span></div><p className="text-[10px] text-gray-600 mt-0.5">{l.hours}小時・申請於 {l.submittedAt}</p></div>);
+  const renderItem=(l)=>(<div key={l.id} className="bg-gray-50 rounded-lg px-3 py-2"><div className="flex items-center justify-between"><span className="text-sm text-gray-800">{LEAVE_TYPE_LABEL[l.type]}・{l.date}</span><span className={`text-[11px] ${l.status==='approved'?'text-emerald-400':l.status==='rejected'?'text-red-400':'text-amber-400'}`}>{STATUS_LABEL[l.status]}</span></div><p className="text-[10px] text-gray-500 mt-0.5">{l.hours}小時・申請於 {l.submittedAt}</p></div>);
   return(<div className="space-y-4">
-    <div className="flex items-center justify-between gap-2"><p className="text-base font-bold text-gray-100 flex-shrink-0">請假</p>{viewStaffId===myStaff.id&&<button onClick={()=>setShowModal(true)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold flex-shrink-0">請假申請</button>}</div>
-    {canViewOthers&&(<select value={viewStaffId} onChange={e=>setViewStaffId(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200">
+    <div className="flex items-center justify-between gap-2"><p className="text-base font-bold text-gray-900 flex-shrink-0">請假</p>{viewStaffId===myStaff.id&&<button onClick={()=>setShowModal(true)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold flex-shrink-0">請假申請</button>}</div>
+    {canViewOthers&&(<select value={viewStaffId} onChange={e=>setViewStaffId(e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-2 py-2 text-xs text-gray-800">
       <option value={myStaff.id}>自己</option>
       {staffOptions.filter(s=>s.id!==myStaff.id).map(s=>(<option key={s.id} value={s.id}>{s.nickname}</option>))}
     </select>)}
-    {usage&&<div className="bg-white/[0.03] rounded-xl p-3"><p className="text-xs text-gray-500">特休剩餘</p><p className="text-lg text-amber-400 font-bold">{usage.remaining} <span className="text-xs text-gray-500">/ {usage.total} 天</span></p></div>}
+    {usage&&<div className="bg-gray-50 rounded-xl p-3"><p className="text-xs text-gray-500">特休剩餘</p><p className="text-lg text-amber-400 font-bold">{usage.remaining} <span className="text-xs text-gray-500">/ {usage.total} 天</span></p></div>}
     <div className="space-y-2">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <p className="text-sm text-gray-300 font-semibold">請假明細</p>
+        <p className="text-sm text-gray-700 font-semibold">請假明細</p>
         <div className="flex gap-1.5 items-center flex-wrap">
-          <button onClick={()=>setSortMode('occur')} className={`text-[11px] px-2.5 py-1.5 rounded-lg font-semibold ${sortMode==='occur'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>發生時間</button>
-          <button onClick={()=>setSortMode('submit')} className={`text-[11px] px-2.5 py-1.5 rounded-lg font-semibold ${sortMode==='submit'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>申請時間</button>
-          <button onClick={()=>setSortMode('type')} className={`text-[11px] px-2.5 py-1.5 rounded-lg font-semibold ${sortMode==='type'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>假別</button>
-          <button onClick={fetchFresh} disabled={updateBusy||cooldown>0} className="text-[11px] px-2.5 py-1.5 rounded-lg bg-white/[0.06] text-gray-400 disabled:opacity-50 flex items-center gap-1">{updateBusy&&<Spinner size={10}/>}{cooldown>0?cooldown+'s':'更新'}</button>
+          <button onClick={()=>setSortMode('occur')} className={`text-[11px] px-2.5 py-1.5 rounded-lg font-semibold ${sortMode==='occur'?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'}`}>發生時間</button>
+          <button onClick={()=>setSortMode('submit')} className={`text-[11px] px-2.5 py-1.5 rounded-lg font-semibold ${sortMode==='submit'?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'}`}>申請時間</button>
+          <button onClick={()=>setSortMode('type')} className={`text-[11px] px-2.5 py-1.5 rounded-lg font-semibold ${sortMode==='type'?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'}`}>假別</button>
+          <button onClick={fetchFresh} disabled={updateBusy||cooldown>0} className="text-[11px] px-2.5 py-1.5 rounded-lg bg-gray-100 text-gray-500 disabled:opacity-50 flex items-center gap-1">{updateBusy&&<Spinner size={10}/>}{cooldown>0?cooldown+'s':'更新'}</button>
         </div>
       </div>
       {viewErr&&<p className="text-xs text-red-400 text-center py-2">{viewErr}</p>}
-      {myLeaves===null?<Spinner size={16}/>:myLeaves.length===0?<p className="text-xs text-gray-600 text-center py-3">目前沒有請假紀錄</p>:sortMode==='occur'?(
+      {myLeaves===null?<Spinner size={16}/>:myLeaves.length===0?<p className="text-xs text-gray-500 text-center py-3">目前沒有請假紀錄</p>:sortMode==='occur'?(
         sortedByOccur.map(renderItem)
       ):sortMode==='submit'?(
         sortedBySubmit.map(renderItem)
       ):(
-        groupedByType.map(g=>(<div key={g.type} className="space-y-1.5"><p className="text-xs text-gray-400 font-semibold">{LEAVE_TYPE_LABEL[g.type]}（共 {g.totalDays} 天／{g.totalHours} 小時）</p>{g.items.map(l=>(<div key={l.id} className="ml-2">{renderItem(l)}</div>))}</div>))
+        groupedByType.map(g=>(<div key={g.type} className="space-y-1.5"><p className="text-xs text-gray-500 font-semibold">{LEAVE_TYPE_LABEL[g.type]}（共 {g.totalDays} 天／{g.totalHours} 小時）</p>{g.items.map(l=>(<div key={l.id} className="ml-2">{renderItem(l)}</div>))}</div>))
       )}
-      <p className="text-[10px] text-gray-600 text-center pt-1">最後更新日期：{lastUpdated||'（尚未載入）'}</p>
+      <p className="text-[10px] text-gray-500 text-center pt-1">最後更新日期：{lastUpdated||'（尚未載入）'}</p>
     </div>
     {showModal&&<LeaveModal myStaff={myStaff} onClose={()=>setShowModal(false)} onSubmitted={fetchFresh}/>}
   </div>);
@@ -726,49 +754,78 @@ function AnnualAllTab(){
     return {total:u.total*mult,pending:u.pending*mult,used:u.used*mult,remaining:u.remaining*mult,unit:unit};
   };
   return(<div className="space-y-2">
-    <div className="flex items-center justify-between"><p className="text-sm text-gray-300 font-semibold">特休使用總表</p><button onClick={fetchFresh} disabled={updateBusy||cooldown>0} className="text-[11px] px-2.5 py-1.5 rounded-lg bg-white/[0.06] text-gray-400 disabled:opacity-50 flex items-center gap-1">{updateBusy&&<Spinner size={10}/>}{cooldown>0?cooldown+'s':'更新'}</button></div>
+    <div className="flex items-center justify-between"><p className="text-sm text-gray-700 font-semibold">特休使用總表</p><button onClick={fetchFresh} disabled={updateBusy||cooldown>0} className="text-[11px] px-2.5 py-1.5 rounded-lg bg-gray-100 text-gray-500 disabled:opacity-50 flex items-center gap-1">{updateBusy&&<Spinner size={10}/>}{cooldown>0?cooldown+'s':'更新'}</button></div>
     {list===null?<Spinner size={20}/>:list.map(u=>{const f=fmtRow(u);return(
-      <div key={u.id} className="bg-white/[0.03] rounded-lg px-3 py-2">
-        <p className="text-sm text-gray-200 mb-1">{u.nickname}</p>
-        <p className="text-xs text-gray-400">總共<span className="text-sm text-amber-400 font-bold">{f.total}</span>{f.unit}，申請中<span className="text-sm text-amber-400 font-bold">{f.pending}</span>{f.unit}，已用<span className="text-sm text-amber-400 font-bold">{f.used}</span>{f.unit}，剩<span className="text-sm text-amber-400 font-bold">{f.remaining}</span>{f.unit}</p>
+      <div key={u.id} className="bg-gray-50 rounded-lg px-3 py-2">
+        <p className="text-sm text-gray-800 mb-1">{u.nickname}</p>
+        <p className="text-xs text-gray-500">總共<span className="text-sm text-amber-400 font-bold">{f.total}</span>{f.unit}，申請中<span className="text-sm text-amber-400 font-bold">{f.pending}</span>{f.unit}，已用<span className="text-sm text-amber-400 font-bold">{f.used}</span>{f.unit}，剩<span className="text-sm text-amber-400 font-bold">{f.remaining}</span>{f.unit}</p>
       </div>
     );})}
-    <p className="text-[10px] text-gray-600 text-center pt-1">最後更新日期：{lastUpdated||'（尚未載入）'}</p>
+    <p className="text-[10px] text-gray-500 text-center pt-1">最後更新日期：{lastUpdated||'（尚未載入）'}</p>
   </div>);
 }
 
+const STATUS_LABEL_MAP={approved:'已核准',rejected:'已拒絕'};
 function ApprovalTab({myStaff}){
   const[pendingStaff,setPendingStaff]=useState(null);
   const[pendingLeaves,setPendingLeaves]=useState(null);
   const[pendingChanges,setPendingChanges]=useState(null);
+  const[history,setHistory]=useState(null);
+  const[busyId,setBusyId]=useState('');
+  const[wipeBusy,setWipeBusy]=useState(false);const[wipeConfirm,setWipeConfirm]=useState(false);const[wipeMsg,setWipeMsg]=useState('');
+  const canApprove=myStaff.canApprove!==false;
   const load=()=>{
     fdListPendingStaff(myStaff.lineUserId).then(r=>{if(r&&r.ok)setPendingStaff(r.list)});
     fdListPendingLeaves(myStaff.lineUserId).then(r=>{if(r&&r.ok)setPendingLeaves(r.list)});
     fdListPendingFieldChanges(myStaff.lineUserId).then(r=>{if(r&&r.ok)setPendingChanges(r.list)});
+    fdListApprovalHistory(myStaff.lineUserId).then(r=>{if(r&&r.ok)setHistory(r.list)});
   };
   useEffect(()=>{load()},[]);
-  const doStaff=(id,ok)=>{fdApproveStaff(id,ok,myStaff.lineUserId).then(load)};
-  const doLeave=(id,ok)=>{fdApproveLeave(id,ok,myStaff.nickname,myStaff.lineUserId).then(load)};
-  const doChange=(id,ok)=>{fdApproveFieldChange(id,ok,myStaff.nickname,myStaff.lineUserId).then(load)};
+  const doStaff=async(id,ok)=>{setBusyId(id);await fdApproveStaff(id,ok,myStaff.lineUserId);setBusyId('');load()};
+  const doLeave=async(id,ok)=>{setBusyId(id);await fdApproveLeave(id,ok,myStaff.nickname,myStaff.lineUserId);setBusyId('');load()};
+  const doChange=async(id,ok)=>{setBusyId(id);await fdApproveFieldChange(id,ok,myStaff.nickname,myStaff.lineUserId);setBusyId('');load()};
+  const doWipe=async()=>{
+    if(!wipeConfirm){setWipeConfirm(true);return}
+    setWipeBusy(true);setWipeMsg('');
+    try{const r=await fdWipeLeaveAndSchedule(myStaff.lineUserId);setWipeMsg(r&&r.ok?'✓ 已清空':(r&&r.error)||'清空失敗');if(r&&r.ok)load()}catch(e){setWipeMsg(String(e))}
+    setWipeBusy(false);setWipeConfirm(false);
+  };
+  const ActionBtns=({id,onAct})=>(<div className="flex gap-1.5 flex-shrink-0">
+    {busyId===id&&<Spinner size={12}/>}
+    <button onClick={()=>onAct(false)} disabled={!canApprove||busyId===id} className="text-[11px] px-2 py-1 rounded bg-gray-200 text-gray-500 disabled:opacity-40">拒絕</button>
+    <button onClick={()=>onAct(true)} disabled={!canApprove||busyId===id} className="text-[11px] px-2 py-1 rounded bg-emerald-600/20 text-emerald-400 disabled:opacity-40">核准</button>
+  </div>);
   return(<div className="space-y-4">
+    {!canApprove&&<p className="text-[11px] text-amber-400 bg-amber-500/10 rounded-lg px-3 py-2">此身分僅能檢視審核狀況，沒有核准／拒絕的權限</p>}
     <div>
-      <p className="text-sm text-gray-300 font-semibold mb-2">待審核帳號（{pendingStaff?pendingStaff.length:0}）</p>
-      {pendingStaff===null?<Spinner size={16}/>:pendingStaff.length===0?<p className="text-xs text-gray-600">目前沒有待審核帳號</p>:pendingStaff.map(s=>(
-        <div key={s.id} className="bg-white/[0.03] rounded-lg px-3 py-2 flex items-center justify-between mb-1.5"><p className="text-sm text-gray-200">{s.lastName}{s.firstName}（{s.nickname}）{s.isManagementOnly?'・管理專用':('・'+(SHIFTS[s.shift]||{}).name)}</p><div className="flex gap-1.5"><button onClick={()=>doStaff(s.id,false)} className="text-[11px] px-2 py-1 rounded bg-white/[0.08] text-gray-400">拒絕</button><button onClick={()=>doStaff(s.id,true)} className="text-[11px] px-2 py-1 rounded bg-emerald-600/20 text-emerald-400">核准</button></div></div>
+      <p className="text-sm text-gray-700 font-semibold mb-2">待審核帳號（{pendingStaff?pendingStaff.length:0}）</p>
+      {pendingStaff===null?<Spinner size={16}/>:pendingStaff.length===0?<p className="text-xs text-gray-500">目前沒有待審核帳號</p>:pendingStaff.map(s=>(
+        <div key={s.id} className="bg-gray-50 rounded-lg px-3 py-2 flex items-center justify-between mb-1.5"><p className="text-sm text-gray-800">{s.lastName}{s.firstName}（{s.nickname}）{s.isManagementOnly?('・'+(s.personType||'管理專用')):('・'+SHIFT_SHORT_LABEL[s.shift])}</p><ActionBtns id={s.id} onAct={(ok)=>doStaff(s.id,ok)}/></div>
       ))}
     </div>
     <div>
-      <p className="text-sm text-gray-300 font-semibold mb-2">待審核請假（{pendingLeaves?pendingLeaves.length:0}）</p>
-      {pendingLeaves===null?<Spinner size={16}/>:pendingLeaves.length===0?<p className="text-xs text-gray-600">目前沒有待審核請假</p>:pendingLeaves.map(l=>(
-        <div key={l.id} className="bg-white/[0.03] rounded-lg px-3 py-2 mb-1.5"><div className="flex items-center justify-between"><p className="text-sm text-gray-200">{l.staffName}・{LEAVE_TYPE_LABEL[l.type]}・{l.date}</p><div className="flex gap-1.5"><button onClick={()=>doLeave(l.id,false)} className="text-[11px] px-2 py-1 rounded bg-white/[0.08] text-gray-400">拒絕</button><button onClick={()=>doLeave(l.id,true)} className="text-[11px] px-2 py-1 rounded bg-emerald-600/20 text-emerald-400">核准</button></div></div>{l.reason&&<p className="text-[11px] text-gray-500 mt-1">{l.reason}</p>}</div>
+      <p className="text-sm text-gray-700 font-semibold mb-2">待審核請假（{pendingLeaves?pendingLeaves.length:0}）</p>
+      {pendingLeaves===null?<Spinner size={16}/>:pendingLeaves.length===0?<p className="text-xs text-gray-500">目前沒有待審核請假</p>:pendingLeaves.map(l=>(
+        <div key={l.id} className="bg-gray-50 rounded-lg px-3 py-2 mb-1.5"><div className="flex items-center justify-between"><p className="text-sm text-gray-800">{l.staffName}・{LEAVE_TYPE_LABEL[l.type]}・{l.date}</p><ActionBtns id={l.id} onAct={(ok)=>doLeave(l.id,ok)}/></div>{l.reason&&<p className="text-[11px] text-gray-500 mt-1">{l.reason}</p>}</div>
       ))}
     </div>
     <div>
-      <p className="text-sm text-gray-300 font-semibold mb-2">待審核資料變更（{pendingChanges?pendingChanges.length:0}）</p>
-      {pendingChanges===null?<Spinner size={16}/>:pendingChanges.length===0?<p className="text-xs text-gray-600">目前沒有待審核變更</p>:pendingChanges.map(c=>(
-        <div key={c.id} className="bg-white/[0.03] rounded-lg px-3 py-2 flex items-center justify-between mb-1.5"><p className="text-sm text-gray-200">{c.staffName}・{c.field==='shift'?'班別':'到職日'}：{c.oldValue}→{c.newValue}</p><div className="flex gap-1.5"><button onClick={()=>doChange(c.id,false)} className="text-[11px] px-2 py-1 rounded bg-white/[0.08] text-gray-400">拒絕</button><button onClick={()=>doChange(c.id,true)} className="text-[11px] px-2 py-1 rounded bg-emerald-600/20 text-emerald-400">核准</button></div></div>
+      <p className="text-sm text-gray-700 font-semibold mb-2">待審核資料變更（{pendingChanges?pendingChanges.length:0}）</p>
+      {pendingChanges===null?<Spinner size={16}/>:pendingChanges.length===0?<p className="text-xs text-gray-500">目前沒有待審核變更</p>:pendingChanges.map(c=>(
+        <div key={c.id} className="bg-gray-50 rounded-lg px-3 py-2 flex items-center justify-between mb-1.5"><p className="text-sm text-gray-800">{c.staffName}・{c.field==='shift'?'班別':'到職日'}：{c.oldValue}→{c.newValue}</p><ActionBtns id={c.id} onAct={(ok)=>doChange(c.id,ok)}/></div>
       ))}
     </div>
+    <div>
+      <p className="text-sm text-gray-700 font-semibold mb-2">歷史審查資料</p>
+      {history===null?<Spinner size={16}/>:history.length===0?<p className="text-xs text-gray-500">目前沒有歷史紀錄</p>:history.map((h,i)=>(
+        <div key={i} className="bg-gray-50 rounded-lg px-3 py-1.5 mb-1 flex items-center justify-between"><p className="text-[11px] text-gray-500">{h.kind}・{h.target}</p><p className={`text-[10px] ${h.status==='approved'?'text-emerald-500':'text-red-500'}`}>{STATUS_LABEL_MAP[h.status]}・{h.approver||'?'}・{h.time}</p></div>
+      ))}
+    </div>
+    {myStaff.role==='admin'&&(<div className="pt-3 border-t border-gray-200 space-y-2">
+      <p className="text-[11px] text-red-400">危險操作：清空後無法復原</p>
+      {wipeMsg&&<p className="text-xs text-center text-amber-400">{wipeMsg}</p>}
+      <button onClick={doWipe} disabled={wipeBusy} className="w-full py-2.5 rounded-xl bg-red-600/20 text-red-400 text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">{wipeBusy&&<Spinner size={12}/>}{wipeConfirm?'再按一次確認清空':'一鍵刪除所有請假/排休資料'}</button>
+    </div>)}
   </div>);
 }
 
@@ -781,7 +838,6 @@ function ProfileView({myStaff,onClose,onSaved}){
   const[hireDate,setHireDate]=useState(myStaff.hireDate);
   const[editing,setEditing]=useState(false);
   const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');
-  const[notifyBusy,setNotifyBusy]=useState(false);
   const[shiftMsg,setShiftMsg]=useState('');const[shiftBusy,setShiftBusy]=useState(false);
   const[hireMsg,setHireMsg]=useState('');const[hireBusy,setHireBusy]=useState(false);
   const submit=async()=>{
@@ -793,12 +849,6 @@ function ProfileView({myStaff,onClose,onSaved}){
       else{setMsg(r&&r.error||'更新失敗')}
     }catch(e){setMsg(String(e))}
     setBusy(false);
-  };
-  const toggleNotify=async()=>{
-    setNotifyBusy(true);
-    const next=!myStaff.notifyOptIn;
-    try{const r=await fdSetNotifyPref(myStaff.lineUserId,next);if(r&&r.ok)onSaved({...myStaff,notifyOptIn:next})}catch(_e){}
-    setNotifyBusy(false);
   };
   const submitShiftChange=async()=>{
     if(shift===myStaff.shift)return;
@@ -812,33 +862,36 @@ function ProfileView({myStaff,onClose,onSaved}){
     try{const r=await fdRequestFieldChange(myStaff.id,'hireDate',hireDate);setHireMsg(r&&r.ok?'✓ 已送出，等候核准':(r&&r.error)||'送出失敗')}catch(e){setHireMsg(String(e))}
     setHireBusy(false);
   };
-  return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}>
-    <div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl p-4 space-y-3 max-h-[85vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
-      <div className="flex items-center justify-between"><h3 className="text-base font-bold text-gray-100">我的資料</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
+  return(<div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={onClose}>
+    <div className="bg-white w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl p-4 space-y-3 max-h-[85vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+      <div className="flex items-center justify-between"><h3 className="text-base font-bold text-gray-900">我的資料</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
       {!editing?(<>
-        <p className="text-sm text-gray-300">{myStaff.lastName}{myStaff.firstName}（{myStaff.nickname}）</p>
-        <p className="text-xs text-gray-500">{myStaff.phone||'（未填手機）'}</p>
-        <p className="text-xs text-gray-500">{myStaff.isManagementOnly?'管理專用帳號':((SHIFTS[myStaff.shift]||{}).name+'・到職日 '+myStaff.hireDate)}</p>
-        {myStaff.isSuperAdmin&&(<label className="flex items-center justify-between gap-2 py-1 cursor-pointer"><span className="text-xs text-gray-400">接收請假申請通知</span><button onClick={toggleNotify} disabled={notifyBusy} className={`w-10 h-6 rounded-full flex items-center px-0.5 transition-colors ${myStaff.notifyOptIn?'bg-amber-600 justify-end':'bg-white/[0.1] justify-start'}`}><span className="w-5 h-5 rounded-full bg-white block"></span></button></label>)}
-        <button onClick={()=>setEditing(true)} className="w-full py-2 rounded-xl bg-white/[0.06] text-gray-300 text-sm font-semibold">編輯</button>
+        <div><p className="text-[11px] text-gray-500">姓名</p><p className="text-sm text-gray-700">{myStaff.lastName}{myStaff.firstName}（{myStaff.nickname}）</p></div>
+        <div><p className="text-[11px] text-gray-500">手機</p><p className="text-xs text-gray-500">{myStaff.phone?fmtPhone(myStaff.phone):'（未填手機）'}</p></div>
+        {!myStaff.isManagementOnly&&(<>
+          <div><p className="text-[11px] text-gray-500">班別</p><p className="text-xs text-gray-500">{SHIFT_SHORT_LABEL[myStaff.shift]||myStaff.shift}</p></div>
+          <div><p className="text-[11px] text-gray-500">到職日</p><p className="text-xs text-gray-500">{myStaff.hireDate}</p></div>
+        </>)}
+        {myStaff.isManagementOnly&&<div><p className="text-[11px] text-gray-500">身分</p><p className="text-xs text-gray-500">管理專用帳號{myStaff.personType?('・'+myStaff.personType):''}</p></div>}
+        <button onClick={()=>setEditing(true)} className="w-full py-2 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold">編輯</button>
       </>):(<>
         <div className="grid grid-cols-2 gap-2">
-          <div><label className="text-[11px] text-gray-500 block mb-1">姓</label><input value={lastName} onChange={e=>setLastName(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/></div>
-          <div><label className="text-[11px] text-gray-500 block mb-1">名</label><input value={firstName} onChange={e=>setFirstName(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/></div>
+          <div><label className="text-[11px] text-gray-500 block mb-1">姓</label><input value={lastName} onChange={e=>setLastName(e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/></div>
+          <div><label className="text-[11px] text-gray-500 block mb-1">名</label><input value={firstName} onChange={e=>setFirstName(e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/></div>
         </div>
-        <div><label className="text-[11px] text-gray-500 block mb-1">暱稱</label><input value={nickname} onChange={e=>setNickname(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/></div>
-        <div><label className="text-[11px] text-gray-500 block mb-1">手機</label><input value={phone} onChange={e=>setPhone(e.target.value.replace(/[^\d]/g,''))} inputMode="numeric" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/></div>
+        <div><label className="text-[11px] text-gray-500 block mb-1">暱稱</label><input value={nickname} onChange={e=>setNickname(e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/></div>
+        <div><label className="text-[11px] text-gray-500 block mb-1">手機</label><input value={phone} onChange={e=>setPhone(e.target.value.replace(/[^\d]/g,''))} inputMode="numeric" className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/></div>
         {msg&&<p className="text-xs text-center text-amber-400">{msg}</p>}
-        <div className="flex gap-2"><button onClick={()=>setEditing(false)} className="flex-1 py-2 rounded-xl bg-white/[0.06] text-gray-400 text-sm">取消</button><button onClick={submit} disabled={busy} className="flex-1 py-2 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{busy&&<Spinner size={12}/>}儲存</button></div>
+        <div className="flex gap-2"><button onClick={()=>setEditing(false)} className="flex-1 py-2 rounded-xl bg-gray-100 text-gray-500 text-sm">取消</button><button onClick={submit} disabled={busy} className="flex-1 py-2 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{busy&&<Spinner size={12}/>}儲存</button></div>
 
-        {!myStaff.isManagementOnly&&(<div className="pt-3 border-t border-white/[0.06] space-y-3">
-          <p className="text-[11px] text-gray-600">以下兩項調整需送櫃台組長審核，核准後才會生效</p>
-          <div><label className="text-[11px] text-gray-500 block mb-1">班別</label><div className="grid grid-cols-3 gap-1.5">{SHIFT_ORDER.map(s=>(<button key={s} onClick={()=>setShift(s)} className={`py-2 rounded-lg text-[11px] font-semibold ${shift===s?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{SHIFT_SHORT_LABEL[s]}</button>))}</div>
-            {shift!==myStaff.shift&&<button onClick={submitShiftChange} disabled={shiftBusy} className="w-full mt-2 py-2 rounded-lg bg-white/[0.08] text-gray-300 text-xs font-semibold disabled:opacity-50 flex items-center justify-center gap-2">{shiftBusy&&<Spinner size={11}/>}送出班別變更申請</button>}
+        {!myStaff.isManagementOnly&&(<div className="pt-3 border-t border-gray-200 space-y-3">
+          <p className="text-[11px] text-gray-500">以下兩項調整需送櫃台組長審核，核准後才會生效</p>
+          <div><label className="text-[11px] text-gray-500 block mb-1">班別</label><div className="grid grid-cols-3 gap-1.5">{SHIFT_ORDER.map(s=>(<button key={s} onClick={()=>setShift(s)} className={`py-2 rounded-lg text-[11px] font-semibold ${shift===s?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'}`}>{SHIFT_SHORT_LABEL[s]}</button>))}</div>
+            {shift!==myStaff.shift&&<button onClick={submitShiftChange} disabled={shiftBusy} className="w-full mt-2 py-2 rounded-lg bg-gray-200 text-gray-700 text-xs font-semibold disabled:opacity-50 flex items-center justify-center gap-2">{shiftBusy&&<Spinner size={11}/>}送出班別變更申請</button>}
             {shiftMsg&&<p className="text-[11px] text-center text-amber-400 mt-1">{shiftMsg}</p>}
           </div>
-          <div><label className="text-[11px] text-gray-500 block mb-1">到職日</label><input type="date" value={hireDate} onChange={e=>setHireDate(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/>
-            {hireDate!==myStaff.hireDate&&<button onClick={submitHireChange} disabled={hireBusy} className="w-full mt-2 py-2 rounded-lg bg-white/[0.08] text-gray-300 text-xs font-semibold disabled:opacity-50 flex items-center justify-center gap-2">{hireBusy&&<Spinner size={11}/>}送出到職日變更申請</button>}
+          <div><label className="text-[11px] text-gray-500 block mb-1">到職日</label><input type="date" value={hireDate} onChange={e=>setHireDate(e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"/>
+            {hireDate!==myStaff.hireDate&&<button onClick={submitHireChange} disabled={hireBusy} className="w-full mt-2 py-2 rounded-lg bg-gray-200 text-gray-700 text-xs font-semibold disabled:opacity-50 flex items-center justify-center gap-2">{hireBusy&&<Spinner size={11}/>}送出到職日變更申請</button>}
             {hireMsg&&<p className="text-[11px] text-center text-amber-400 mt-1">{hireMsg}</p>}
           </div>
         </div>)}
@@ -857,19 +910,17 @@ function AttendanceSettingsModal({myStaff,onClose}){
     try{const r=await fdSetConfig({restrictLeaveView:next},myStaff.lineUserId);if(r&&r.ok)setRestrictLeaveView(next)}catch(_e){}
     setBusy(false);
   };
-  return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}>
-    <div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl p-4 space-y-3" onClick={e=>e.stopPropagation()}>
-      <div className="flex items-center justify-between"><h3 className="text-base font-bold text-gray-100">差勤設定</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
-      <label className="flex items-center justify-between gap-2 py-1 cursor-pointer"><span className="text-sm text-gray-300">限制員工只能查看自己的請假明細</span><button onClick={toggle} disabled={busy} className={`w-10 h-6 rounded-full flex items-center px-0.5 transition-colors flex-shrink-0 ${restrictLeaveView?'bg-amber-600 justify-end':'bg-white/[0.1] justify-start'}`}><span className="w-5 h-5 rounded-full bg-white block"></span></button></label>
-      <p className="text-[11px] text-gray-600">組長本身不受此設定影響，一律可以查看所有人</p>
+  return(<div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={onClose}>
+    <div className="bg-white w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl p-4 space-y-3" onClick={e=>e.stopPropagation()}>
+      <div className="flex items-center justify-between"><h3 className="text-base font-bold text-gray-900">差勤設定</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
+      <label className="flex items-center justify-between gap-2 py-1 cursor-pointer"><span className="text-sm text-gray-700">限制員工只能查看自己的請假明細</span><button onClick={toggle} disabled={busy} className={`w-10 h-6 rounded-full flex items-center px-0.5 transition-colors flex-shrink-0 ${restrictLeaveView?'bg-amber-600 justify-end':'bg-gray-200 justify-start'}`}><span className="w-5 h-5 rounded-full bg-white block"></span></button></label>
+      <p className="text-[11px] text-gray-500">組長本身不受此設定影響，一律可以查看所有人</p>
     </div>
   </div>);
 }
 
 function MainApp({myStaff,onProfileSaved}){
-  const[viewAsRole,setViewAsRole]=useState(''); // 只有最高管理者能用,純前端模擬視角,不影響GAS上真正的role
-  const effRole=myStaff.isSuperAdmin&&viewAsRole?viewAsRole:myStaff.role;
-  const isSupervisor=effRole==='supervisor';
+  const isSupervisor=myStaff.role==='supervisor'||myStaff.role==='admin';
   const[tab,setTab]=useState('schedule');
   const[showProfile,setShowProfile]=useState(false);
   const[showSettings,setShowSettings]=useState(false);
@@ -880,14 +931,13 @@ function MainApp({myStaff,onProfileSaved}){
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {isSupervisor&&<button onClick={()=>setShowSettings(true)} className="text-gray-500 text-base leading-none">⚙️</button>}
-          <h1 className="text-base font-bold text-gray-100">櫃台差勤</h1>
+          <h1 className="text-base font-bold text-gray-900">櫃台差勤</h1>
         </div>
         <div className="flex items-center gap-2">
-          {myStaff.isSuperAdmin&&<select value={viewAsRole} onChange={e=>setViewAsRole(e.target.value)} className="text-[11px] px-1.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.08] text-gray-400"><option value="">檢視角色</option><option value="supervisor">組長</option><option value="staff">一般</option></select>}
-          <button onClick={()=>setShowProfile(true)} className="text-xs text-gray-400 truncate max-w-[120px]">{myStaff.nickname||myStaff.firstName}</button>
+          <button onClick={()=>setShowProfile(true)} className="text-xs text-gray-500 truncate max-w-[120px]">{myStaff.nickname||myStaff.firstName}</button>
         </div>
       </div>
-      <div className="grid gap-1.5" style={{gridTemplateColumns:`repeat(${TABS.length},1fr)`}}>{TABS.map(([k,l])=>(<button key={k} onClick={()=>setTab(k)} className={`py-2 rounded-lg text-xs font-semibold ${tab===k?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-400'}`}>{l}</button>))}</div>
+      <div className="grid gap-1.5" style={{gridTemplateColumns:`repeat(${TABS.length},1fr)`}}>{TABS.map(([k,l])=>(<button key={k} onClick={()=>setTab(k)} className={`py-2 rounded-lg text-xs font-semibold ${tab===k?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'}`}>{l}</button>))}</div>
       {tab==='schedule'&&<ScheduleTab myStaff={myStaff}/>}
       {tab==='leave'&&<LeaveTab myStaff={myStaff}/>}
       {tab==='annual'&&<AnnualAllTab/>}
@@ -939,7 +989,7 @@ function App(){
   },[phase,locked]);
 
   if(phase==='error')return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{liffErr}</p></div>);
-  if(phase==='liffInit'||phase==='loading')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><div className="text-amber-500"><Spinner size={40}/></div><p className="text-base text-gray-400">載入中…</p></div>);
+  if(phase==='liffInit'||phase==='loading')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><div className="text-amber-500"><Spinner size={40}/></div><p className="text-base text-gray-500">載入中…</p></div>);
   if(phase==='register')return(<RegisterFlow profile={profile} onDone={()=>{
     setPhase('loading');
     fdGetSelf(profile.userId).then(r=>{
