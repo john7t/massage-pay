@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-050</title>
+<title>薪資追蹤 v1.12-051</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -563,13 +563,15 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
       if(keyCheck==='invalid'){setErr(t.keyInvalidEditMsg);return}
       const changed={};const changedDisp=[];
       fieldKeys.forEach(k=>{
-        if(k==='skills'){
-          const ov=JSON.stringify(settings.skills||{});const nv=form.skills||{};
-          if(ov!==JSON.stringify(nv)){changed[k]=nv;changedDisp.push({key:k,label:infoFieldLabel(k,t),val:SKILL_KEYS.filter(s=>nv[s]).map(s=>t[s]||s).join('、')||'—'})}
-          return;
-        }
-        const ov=settings[k]||'';const nv=(form[k]||'').trim();
-        if(ov!==nv){changed[k]=nv;changedDisp.push({key:k,label:infoFieldLabel(k,t),val:nv})}
+        try{
+          if(k==='skills'){
+            const ov=JSON.stringify(settings.skills||{});const nv=form.skills||{};
+            if(ov!==JSON.stringify(nv)){changed[k]=nv;changedDisp.push({key:k,label:infoFieldLabel(k,t),val:SKILL_KEYS.filter(s=>nv[s]).map(s=>t[s]||s).join('、')||'—'})}
+            return;
+          }
+          const ov=settings[k]||'';const nv=(form[k]||'').trim();
+          if(ov!==nv){changed[k]=nv;changedDisp.push({key:k,label:infoFieldLabel(k,t),val:nv})}
+        }catch(fe){throw new Error('欄位['+k+']型別='+typeof form[k]+' 值='+JSON.stringify(form[k])+' 原始錯誤:'+fe.message)}
       });
       if(Object.keys(changed).length===0){setMode('view');return}
       setBusy(true);setErr('');
