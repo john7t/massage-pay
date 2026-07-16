@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>員工列表 v1.0-006</title>
+<title>員工列表 v1.0-007</title>
 <script>
   var PAGE="employees",PCODE="04";
   window.__fbLang='zh';
@@ -71,6 +71,9 @@ const SKILL_KEYS_LOCAL=['guasha','baguang','xiujiao'];
 const SKILL_LABEL={guasha:'刮痧',baguang:'拔罐',xiujiao:'修腳皮'};
 const TIME_OPTIONS=Array.from({length:48},(_,i)=>{const h=Math.floor(i/2);const m=i%2===0?'00':'30';return String(h).padStart(2,'0')+':'+m;});
 async function gasEmployeeCreate(lineUserId,data){const r=await window.MP.gasCallPost('employeeCreate',{lineUserId,...data},15000);return r||{ok:false,error:'GAS無回應'};}
+async function gasLaborPointsGetMonth(lineUserId,store,yearMonth){const r=await gasCall('laborPointsGetMonth',{lineUserId,store,yearMonth},10000);return r||{ok:false,error:'GAS無回應'};}
+async function gasLaborPointsSave(lineUserId,store,yearMonth,code,points){const r=await window.MP.gasCallPost('laborPointsSave',{lineUserId,store,yearMonth,code,points},10000);return r||{ok:false,error:'GAS無回應'};}
+async function gasLaborPointsRanking(lineUserId,store,yearMonth,improveTopN){const r=await gasCall('laborPointsRanking',{lineUserId,store,yearMonth,improveTopN},10000);return r||{ok:false,error:'GAS無回應'};}
 
 function EmployeeDetailModal({code,myAuth,onClose}){
   const[staff,setStaff]=useState(null);
@@ -230,6 +233,94 @@ function TimeGroupedView({list,timeField,onSelect}){
   </div>);
 }
 
+function LaborPointsModal({myAuth,stores,onClose}){
+  const canPickStore=myAuth.level>=4;
+  const now=new Date();
+  const[store,setStore]=useState(canPickStore?(stores[0]||''):myAuth.store);
+  const[yearMonth,setYearMonth]=useState(now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0'));
+  const[view,setView]=useState('entry'); // entry/ranking
+  const[list,setList]=useState(null);
+  const[pointsMap,setPointsMap]=useState({});
+  const[savingCode,setSavingCode]=useState('');
+  const[savedCode,setSavedCode]=useState('');
+  const[improveTopN,setImproveTopN]=useState(5);
+  const[ranking,setRanking]=useState(null);
+  const[rankingBusy,setRankingBusy]=useState(false);
+  const[copied,setCopied]=useState(false);
+  const loadEntry=()=>{
+    if(!store||!yearMonth)return;
+    setList(null);
+    gasEmployeeList(myAuth.lineUserId,store).then(r=>{if(r&&r.ok)setList(r.list.filter(e=>e.role!=='admin').sort((a,b)=>(parseInt(String(a.code).replace(/\D/g,''),10)||0)-(parseInt(String(b.code).replace(/\D/g,''),10)||0)))});
+    gasLaborPointsGetMonth(myAuth.lineUserId,store,yearMonth).then(r=>{if(r&&r.ok)setPointsMap(r.points||{})});
+  };
+  useEffect(()=>{if(view==='entry')loadEntry()},[view,store,yearMonth]);
+  const savePoint=async(code,val)=>{
+    const n=parseInt(val,10);
+    if(isNaN(n))return;
+    setSavingCode(code);
+    try{const r=await gasLaborPointsSave(myAuth.lineUserId,store,yearMonth,code,n);if(r&&r.ok){setSavedCode(code);setTimeout(()=>setSavedCode(''),1200)}}catch(_e){}
+    setSavingCode('');
+  };
+  const loadRanking=async()=>{
+    setRankingBusy(true);setRanking(null);
+    try{const r=await gasLaborPointsRanking(myAuth.lineUserId,store,yearMonth,improveTopN);if(r&&r.ok)setRanking(r)}catch(_e){}
+    setRankingBusy(false);
+  };
+  useEffect(()=>{if(view==='ranking')loadRanking()},[view,store,yearMonth,improveTopN]);
+  const genText=()=>{
+    if(!ranking)return '';
+    const[yy,mm]=yearMonth.split('-');
+    const medals=['🥇','🥈','🥉'];
+    let s='🔵 【'+yy+'年'+parseInt(mm,10)+'月｜'+store+' 勞點公告】\n🏆 Top 3 表現最佳同仁\n';
+    ranking.top3.forEach((e,i)=>{s+=(medals[i]||'')+' '+e.code+' : '+e.points+'點\n';});
+    s+='最佳進步同仁\n';
+    ranking.improved.forEach(e=>{s+=e.code+' ：'+e.delta+'點\n';});
+    s+='各位老師都非常的棒，一直都在努力與進步，各位老師一起努力讓這個大家庭越來越棒(好棒)(好棒)\n📣 辛苦大家了～感謝每一位夥伴的努力與付出，讓我們繼續加油 💪✨';
+    return s;
+  };
+  const doCopy=async()=>{
+    const text=genText();
+    try{await navigator.clipboard.writeText(text);setCopied(true);setTimeout(()=>setCopied(false),2000)}catch(_e){
+      try{const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.focus();ta.select();document.execCommand('copy');document.body.removeChild(ta);setCopied(true);setTimeout(()=>setCopied(false),2000)}catch(_e2){}
+    }
+  };
+  return(<div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={onClose}>
+    <div className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+      <div className="p-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10"><h3 className="text-base font-bold text-gray-900">勞點管理</h3><button onClick={onClose} className="text-gray-400">✕</button></div>
+      <div className="p-4 space-y-3">
+        <div className="grid grid-cols-2 gap-2">
+          {canPickStore?(<select value={store} onChange={e=>setStore(e.target.value)} className="bg-gray-100 border border-gray-300 rounded-lg px-2 py-2 text-sm text-gray-900">{stores.map(s=>(<option key={s} value={s}>{s}</option>))}</select>):(<p className="text-sm text-gray-700 px-2 py-2 bg-gray-100 rounded-lg">{myAuth.store}</p>)}
+          <input type="month" value={yearMonth} onChange={e=>setYearMonth(e.target.value)} className="bg-gray-100 border border-gray-300 rounded-lg px-2 py-2 text-sm text-gray-900"/>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={()=>setView('entry')} className={`py-2 rounded-lg text-xs font-semibold ${view==='entry'?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'}`}>輸入本月勞點</button>
+          <button onClick={()=>setView('ranking')} className={`py-2 rounded-lg text-xs font-semibold ${view==='ranking'?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'}`}>產生排行公告</button>
+        </div>
+        {view==='entry'&&(
+          list===null?<p className="text-center py-8"><Spinner size={20}/></p>:list.length===0?<p className="text-sm text-gray-500 text-center py-6">此店面沒有員工資料</p>:(
+          <div className="space-y-1.5">{list.map((e,i)=>(
+            <div key={e.code} className={`flex items-center gap-2 rounded-lg px-3 py-2 ${i%2===0?'bg-white':'bg-gray-50'} border border-gray-100`}>
+              <span className="text-sm font-semibold text-gray-800 w-14 flex-shrink-0">{e.code}</span>
+              <span className="text-xs text-gray-500 flex-1 truncate">{e.nameZh}</span>
+              <input type="number" defaultValue={pointsMap[e.code]!=null?pointsMap[e.code]:''} onBlur={ev=>savePoint(e.code,ev.target.value)} placeholder="點數" className="w-20 bg-gray-100 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-gray-900 text-center"/>
+              {savingCode===e.code&&<Spinner size={12}/>}
+              {savedCode===e.code&&<span className="text-emerald-600 text-xs">✓</span>}
+            </div>
+          ))}</div>
+          )
+        )}
+        {view==='ranking'&&(<div className="space-y-3">
+          <div className="flex items-center gap-2"><label className="text-xs text-gray-500">進步名單顯示</label><input type="number" value={improveTopN} onChange={e=>setImproveTopN(parseInt(e.target.value,10)||1)} className="w-16 bg-gray-100 border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-900 text-center"/><span className="text-xs text-gray-500">位</span></div>
+          {rankingBusy?<p className="text-center py-8"><Spinner size={20}/></p>:ranking&&(<>
+            <div className="bg-gray-50 rounded-xl p-3"><pre className="text-xs text-gray-800 whitespace-pre-wrap font-sans">{genText()}</pre></div>
+            <button onClick={doCopy} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold">{copied?'✓ 已複製':'複製公告文字'}</button>
+          </>)}
+        </div>)}
+      </div>
+    </div>
+  </div>);
+}
+
 function EmployeeListPage({myAuth}){
   const[list,setList]=useState(null);
   const[sortMode,setSortMode]=useState('code'); // code/role/shift/gender/lang/time
@@ -243,6 +334,7 @@ function EmployeeListPage({myAuth}){
   const[storeFilter,setStoreFilter]=useState('');
   const[viewCode,setViewCode]=useState('');
   const[showCreate,setShowCreate]=useState(false);
+  const[showLabor,setShowLabor]=useState(false);
   const canPickStore=myAuth.level>=4;
   const load=()=>{gasEmployeeList(myAuth.lineUserId,storeFilter).then(r=>{if(r&&r.ok)setList(r.list)})};
   useEffect(()=>{load()},[storeFilter]);
@@ -271,7 +363,7 @@ function EmployeeListPage({myAuth}){
   },[list,sortMode,codeDir,codeRange,shiftFilter,langFilter,genderFilter]);
   return(<div className="min-h-screen p-4">
     <div className="max-w-md mx-auto space-y-3">
-      <div className="flex items-center justify-between"><h1 className="text-base font-bold text-gray-900">員工列表</h1><button onClick={()=>setShowCreate(true)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold">+ 新增老師</button></div>
+      <div className="flex items-center justify-between gap-2"><h1 className="text-base font-bold text-gray-900 flex-shrink-0">員工列表</h1><div className="flex gap-1.5"><button onClick={()=>setShowLabor(true)} className="text-xs px-3 py-2 rounded-lg bg-emerald-600 text-white font-semibold">勞點</button><button onClick={()=>setShowCreate(true)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold">+ 新增老師</button></div></div>
       {canPickStore&&(<select value={storeFilter} onChange={e=>setStoreFilter(e.target.value)} className="w-full bg-white border border-gray-300 rounded-lg px-2 py-2 text-xs text-gray-800"><option value="">（我的店面：{myAuth.store}）</option>{stores.map(s=>(<option key={s} value={s}>{s}</option>))}</select>)}
       <div className="flex gap-1.5 flex-wrap">
         {[['code','編號'],['role','職務'],['shift','班別'],['lang','語系'],['gender','性別'],['time','上/下工時間']].map(([k,l])=>(<button key={k} onClick={()=>setSortMode(k)} className={`text-[11px] px-2.5 py-1.5 rounded-lg font-semibold ${sortMode===k?'bg-amber-600 text-white':'bg-white text-gray-500 border border-gray-200'}`}>{l}排序</button>))}
@@ -296,6 +388,7 @@ function EmployeeListPage({myAuth}){
     </div>
     {viewCode&&<EmployeeDetailModal code={viewCode} myAuth={myAuth} onClose={()=>{setViewCode('');load()}}/>}
     {showCreate&&<CreateStaffModal myAuth={myAuth} stores={stores} onClose={()=>setShowCreate(false)} onCreated={()=>{setShowCreate(false);load()}}/>}
+    {showLabor&&<LaborPointsModal myAuth={myAuth} stores={canPickStore?stores:[myAuth.store]} onClose={()=>setShowLabor(false)}/>}
   </div>);
 }
 
