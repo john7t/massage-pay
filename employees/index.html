@@ -49,7 +49,7 @@ const{gasCall,SUP_LEVELS}=window.MP||{};
 
 // 這個頁面需要一個「Endpoint URL指到這個頁面網址」的LIFF App,要另外在LINE Developers Console申請一個,
 // 申請好之後把下面這個空字串換成真正的LIFF ID
-const LIFF_ID_HARDCODED='';
+const LIFF_ID_HARDCODED='2010673151-AU7Cpo5v';
 
 async function gasEmployeeAuth(lineUserId){const r=await gasCall('employeeAuth',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
 async function gasEmployeeList(lineUserId,storeFilter){const r=await gasCall('employeeList',{lineUserId,storeFilter},15000);return r||{ok:false,error:'GAS無回應'};}
