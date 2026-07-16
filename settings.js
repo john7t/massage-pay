@@ -1,5 +1,5 @@
 // settings.js — 設定頁相關元件(從 index.html 抽離,降低 index 體積)
-// v1.12-036 / 設定頁分頁移除基資/店資(已改由首頁左上角彈窗處理,底層邏輯不受影響) | 前: v1.12-035 / 推播圖示改成LINE品牌綠色圓形小圖示(不再是📲emoji) | 前: v1.12-034 / 公告Flex卡片改版+列表加推播按鈕:(1)GAS的_buildNoticeFlex加入人員徽章(圓框頭像圖示+編號,標題下方)+內容後面加「編號 主分類 子分類 發布日」這行meta資訊(2)已發布公告列表每一則旁邊多一顆📲推播按鈕,不用先進編輯或新建流程,任何一則都能直接推播到自己的LINE | 前: v1.12-033 / 修正兩個bug:(1)gasPushNoticeFlexToMe忘記加進bridge匯入清單導致推播按鈕報錯找不到變數(2)發布成功後「發布公告」按鈕沒有跟著鎖住,現在會保持灰色不能重複按 | 前: v1.12-032 / 新建公告接LINE推播:發布成功後不再自動關閉視窗,改成留在頁面上顯示「推播到我的LINE」按鈕(用code查安全回報那邊收集到的LINE身分,查不到會提示先去登記)+「查誰還沒看」按鈕(沿用既有的noticeUnread動作) | 前: v1.12-031 / 首頁圖示改版+建議功能實作:(1)自約/公告/圖表/建議/違規5個分頁按鈕從TABS移除,改用首頁圖示進入(2)SuggestPage移除假資料,改接真正的GAS(submitSuggestion/listSuggestions),送出建議會真的存進Sheet,清單真的從GAS撈 | 前: v1.12-030 / 公告分類分頁改用完整8分類清單:不再從現有公告資料推導(避免有分類還沒被用過就不會出現在分頁),改讀GAS發布時一併附上的mainCats(含中越文對照),固定顯示「全部」+8個主分類共9個按鈕(3x3排列),依語系自動切換中文/越南文標籤 | 前: v1.12-029 / 首頁設定新增「保護密碼」區塊:關閉首頁密碼要求的開關+自動上鎖時間(可調整,最小5分鐘,預設60分鐘,取代原本寫死的5分鐘) | 前: v1.12-028 / 公告列表細部調整+憑證狀態整合:(1)分類分頁改3欄(原4欄文字被吃),點主分類後下方多一列子分類可再篩選(2)公告編號從第一排移到分類標籤之後(3)本機優先(還沒發布)的公告加綠底白字「本機」標籤(4)CredentialCard整合進既有「老師專屬憑證」那行,不再是獨立卡片,加憑證期限+離職日/已逾期原因顯示,展期按鈕改成到期前7天就會出現(不用等真的失效),移除卡片裡的離職按鈕(離職移到店資彈窗) | 前: v1.12-027 / 公告列表大改版:(1)標題下方加分類分頁(全部+最多6個主分類,從現有公告資料取不重複主分類,不用另外查Categories表)(2)每則公告第一排最前面加公告編號(3)加下架/上架:編輯頁下方新增按鈕,呼叫GAS toggleNoticeStatus,下架後列表仍看得到但灰字+加下架標籤,一般老師端(notices.json實際發布內容)會被過濾掉(4)editNotice核准後,GAS回傳最終欄位值(含AI產生的越南文),前端直接套用到本機列表,不用等下次發布就能看到完整結果 | 前: v1.12-025 / 重新正確加入離職+憑證展期功能(CredentialCard元件):上一版(v023)bridge匯入清單裡`buildReqLink`重複宣告(跟後面既有的申請碼系統匯入撞名),導致Babel轉譯整個檔案失敗、index.html跟著崩潰(白畫面"網站更新中")。這次改成只加缺少的識別字(gasVerifyKey/gasLeaveTeacher/gasSubmitAction/gasCheckAction/getMyKey),不重複加已存在的(buildReqLink/hasMyKey),並額外做了「解構清單重複識別字」專門檢查(TypeScript語法檢查器抓不到這種錯誤,只有真的用Babel轉譯才會抓到) | 前: v1.12-022 / 公告列表照新規格重排:第二排依序👤發布人/👁開啟次數(依主管選的人數或人次)/👍已讀人數/主子分類(受顯示開關控制)/時間(置右)。第一排文字改用主管選的標題或摘要(listText設定) | 前: v1.12-021 / 公告列表版面調整:第一排只留摘要+編輯鈕(主分類移出);第二排右側改放主/子分類(合併顯示,如"薪資・調整")+開啟次數(👁圖示+數字,取代原本的已讀人數,開啟次數是更寬鬆的被動記錄指標) | 前: 語系選項從基資分頁移到首頁設定的主題下方(語系是個人偏好,不屬於需要主管審核的基資,放首頁設定更直覺) | 前: 版次對齊(內容未變動):跟隨common.js/index.html/auth.html/notice-modal.js這次的整理點同步版號,方便日後從標題/檔頭確認全套部署是否一致 | 前: 公告分頁:移除進入公告頁後的提示文字段落(點右上新增公告...那句)。新增公告的權限限制(限主管supervisor+admin)在v034已完成(canManage判斷),此次確認沿用 | 前:hotfix:公告編輯權限判斷修正(admin查admin.cfg雜湊,不是staff.json role) | 前: 新增公告完整流程接功能(033)
+// v1.12-038 / 公告管理頁改版:(1)列表項目改三排式(編號・日期・圓框頭像+發文者/標題摘要/主子分類+開啟次數置右),移除列表上的分享按鈕(2)編輯頁新增「誰有看」「誰沒看」區塊各自附複製按鈕,底部按鈕改成修改/下架/分享到LINE三顆並排 | 前: v1.12-037 / 設定頁完全移除左側分頁列(改由首頁圖示導向所有子頁面,backup/manage新增首頁圖示) | 前: v1.12-036 / 設定頁分頁移除基資/店資(已改由首頁左上角彈窗處理,底層邏輯不受影響) | 前: v1.12-035 / 推播圖示改成LINE品牌綠色圓形小圖示(不再是📲emoji) | 前: v1.12-034 / 公告Flex卡片改版+列表加推播按鈕:(1)GAS的_buildNoticeFlex加入人員徽章(圓框頭像圖示+編號,標題下方)+內容後面加「編號 主分類 子分類 發布日」這行meta資訊(2)已發布公告列表每一則旁邊多一顆📲推播按鈕,不用先進編輯或新建流程,任何一則都能直接推播到自己的LINE | 前: v1.12-033 / 修正兩個bug:(1)gasPushNoticeFlexToMe忘記加進bridge匯入清單導致推播按鈕報錯找不到變數(2)發布成功後「發布公告」按鈕沒有跟著鎖住,現在會保持灰色不能重複按 | 前: v1.12-032 / 新建公告接LINE推播:發布成功後不再自動關閉視窗,改成留在頁面上顯示「推播到我的LINE」按鈕(用code查安全回報那邊收集到的LINE身分,查不到會提示先去登記)+「查誰還沒看」按鈕(沿用既有的noticeUnread動作) | 前: v1.12-031 / 首頁圖示改版+建議功能實作:(1)自約/公告/圖表/建議/違規5個分頁按鈕從TABS移除,改用首頁圖示進入(2)SuggestPage移除假資料,改接真正的GAS(submitSuggestion/listSuggestions),送出建議會真的存進Sheet,清單真的從GAS撈 | 前: v1.12-030 / 公告分類分頁改用完整8分類清單:不再從現有公告資料推導(避免有分類還沒被用過就不會出現在分頁),改讀GAS發布時一併附上的mainCats(含中越文對照),固定顯示「全部」+8個主分類共9個按鈕(3x3排列),依語系自動切換中文/越南文標籤 | 前: v1.12-029 / 首頁設定新增「保護密碼」區塊:關閉首頁密碼要求的開關+自動上鎖時間(可調整,最小5分鐘,預設60分鐘,取代原本寫死的5分鐘) | 前: v1.12-028 / 公告列表細部調整+憑證狀態整合:(1)分類分頁改3欄(原4欄文字被吃),點主分類後下方多一列子分類可再篩選(2)公告編號從第一排移到分類標籤之後(3)本機優先(還沒發布)的公告加綠底白字「本機」標籤(4)CredentialCard整合進既有「老師專屬憑證」那行,不再是獨立卡片,加憑證期限+離職日/已逾期原因顯示,展期按鈕改成到期前7天就會出現(不用等真的失效),移除卡片裡的離職按鈕(離職移到店資彈窗) | 前: v1.12-027 / 公告列表大改版:(1)標題下方加分類分頁(全部+最多6個主分類,從現有公告資料取不重複主分類,不用另外查Categories表)(2)每則公告第一排最前面加公告編號(3)加下架/上架:編輯頁下方新增按鈕,呼叫GAS toggleNoticeStatus,下架後列表仍看得到但灰字+加下架標籤,一般老師端(notices.json實際發布內容)會被過濾掉(4)editNotice核准後,GAS回傳最終欄位值(含AI產生的越南文),前端直接套用到本機列表,不用等下次發布就能看到完整結果 | 前: v1.12-025 / 重新正確加入離職+憑證展期功能(CredentialCard元件):上一版(v023)bridge匯入清單裡`buildReqLink`重複宣告(跟後面既有的申請碼系統匯入撞名),導致Babel轉譯整個檔案失敗、index.html跟著崩潰(白畫面"網站更新中")。這次改成只加缺少的識別字(gasVerifyKey/gasLeaveTeacher/gasSubmitAction/gasCheckAction/getMyKey),不重複加已存在的(buildReqLink/hasMyKey),並額外做了「解構清單重複識別字」專門檢查(TypeScript語法檢查器抓不到這種錯誤,只有真的用Babel轉譯才會抓到) | 前: v1.12-022 / 公告列表照新規格重排:第二排依序👤發布人/👁開啟次數(依主管選的人數或人次)/👍已讀人數/主子分類(受顯示開關控制)/時間(置右)。第一排文字改用主管選的標題或摘要(listText設定) | 前: v1.12-021 / 公告列表版面調整:第一排只留摘要+編輯鈕(主分類移出);第二排右側改放主/子分類(合併顯示,如"薪資・調整")+開啟次數(👁圖示+數字,取代原本的已讀人數,開啟次數是更寬鬆的被動記錄指標) | 前: 語系選項從基資分頁移到首頁設定的主題下方(語系是個人偏好,不屬於需要主管審核的基資,放首頁設定更直覺) | 前: 版次對齊(內容未變動):跟隨common.js/index.html/auth.html/notice-modal.js這次的整理點同步版號,方便日後從標題/檔頭確認全套部署是否一致 | 前: 公告分頁:移除進入公告頁後的提示文字段落(點右上新增公告...那句)。新增公告的權限限制(限主管supervisor+admin)在v034已完成(canManage判斷),此次確認沿用 | 前:hotfix:公告編輯權限判斷修正(admin查admin.cfg雜湊,不是staff.json role) | 前: 新增公告完整流程接功能(033)
 // 注意:此檔為 type="text/babel",獨立作用域,需自行宣告 hooks 與 bridge
 const{useState,useEffect,useCallback,useMemo}=React;
 const{gasAnalyze,gasAddNotice,gasEditNotice,noticeSummary,noticeTitle,getNoticeReadCount,getNoticeShow,getNoticeListText,getNoticeCountType,getNoticeMainCats,getNoticesLocal,fetchNotices,gasVerifyKey,gasLeaveTeacher,gasSubmitAction,gasCheckAction,gasToggleNoticeStatus,gasSubmitSuggestion,gasListSuggestions,gasPushNoticeFlexToMe,getMyKey,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,getGasUrl,setGasUrl,gasCall,hasMyKey,issueKey,claimMyKey,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
@@ -165,7 +165,7 @@ function NoticeManagePage({t,settings}){
   const closeAdd=()=>{setShowAdd(false);setContent('');setAiResult(null);setAiStatus('')};
   const myCode=(()=>{try{return (settings&&settings.code)||''}catch(_e){return ''}})();
   const[editAiFilled,setEditAiFilled]=React.useState([]);
-  const openEdit=(n,ev)=>{try{if(ev)ev.stopPropagation()}catch(_e){}setEditing(n);setEditForm({cat:n.cat||'',subcat:n.subcat||'',title:n.title||'',summary:n.summary||'',body:n.body||'',tags:n.tags||''});setEditStatus('');setEditAiFilled([])};
+  const openEdit=(n,ev)=>{try{if(ev)ev.stopPropagation()}catch(_e){}setEditing(n);setEditForm({cat:n.cat||'',subcat:n.subcat||'',title:n.title||'',summary:n.summary||'',body:n.body||'',tags:n.tags||''});setEditStatus('');setEditAiFilled([]);setReadInfo(null);setUnreadInfo(null);setEditPushMsg('')};
   const closeEdit=()=>{setEditing(null);setEditForm(null);setEditStatus('');setEditAiFilled([])};
   const updEdit=(k,v)=>setEditForm(p=>Object.assign({},p,{[k]:v}));
   const FIELD_ZH={cat:'主分類',subcat:'子分類',title:'標題',summary:'摘要',tags:'標籤'};
@@ -214,16 +214,25 @@ function NoticeManagePage({t,settings}){
     }catch(e){setPushMsg('推播失敗：'+e)}
     setPushBusy(false);
   };
-  const[listPushBusy,setListPushBusy]=React.useState('');const[listPushMsg,setListPushMsg]=React.useState({});
-  const doPushListItem=async(noticeId,ev)=>{
-    if(ev)ev.stopPropagation();
-    setListPushBusy(noticeId);
+  const[readInfo,setReadInfo]=React.useState(null);const[readBusy,setReadBusy]=React.useState(false);
+  const checkRead=async(noticeId)=>{
+    setReadBusy(true);
+    try{const r=await gasCall('noticeReads',{noticeId,detail:true},10000);if(r&&r.ok)setReadInfo(r)}catch(_e){}
+    setReadBusy(false);
+  };
+  const copyText=async(text)=>{try{await navigator.clipboard.writeText(text);return true}catch(_e){try{const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.focus();ta.select();document.execCommand('copy');document.body.removeChild(ta);return true}catch(_e2){return false}}};
+  const[copyMsg,setCopyMsg]=React.useState('');
+  const doCopy=async(text,label)=>{const ok=await copyText(text);setCopyMsg(ok?(label+'已複製'):'複製失敗');setTimeout(()=>setCopyMsg(''),2000)};
+  const[editPushBusy,setEditPushBusy]=React.useState(false);const[editPushMsg,setEditPushMsg]=React.useState('');
+  const doPushEdit=async()=>{
+    if(!editing)return;
+    setEditPushBusy(true);
     try{
-      const r=await gasPushNoticeFlexToMe(noticeId,myCode);
-      setListPushMsg(prev=>({...prev,[noticeId]:r&&r.ok?'✓ 已推播':(r&&r.needBind?'尚未綁定LINE':'推播失敗')}));
-    }catch(_e){setListPushMsg(prev=>({...prev,[noticeId]:'推播失敗'}))}
-    setListPushBusy('');
-    setTimeout(()=>setListPushMsg(prev=>{const n={...prev};delete n[noticeId];return n}),2500);
+      const r=await gasPushNoticeFlexToMe(editing.id,myCode);
+      setEditPushMsg(r&&r.ok?'✓ 已推播':(r&&r.needBind?'尚未綁定LINE':'推播失敗'));
+    }catch(_e){setEditPushMsg('推播失敗')}
+    setEditPushBusy(false);
+    setTimeout(()=>setEditPushMsg(''),2500);
   };
   const[unreadInfo,setUnreadInfo]=React.useState(null);const[unreadBusy,setUnreadBusy]=React.useState(false);
   const checkUnread=async(noticeId)=>{
@@ -270,19 +279,23 @@ function NoticeManagePage({t,settings}){
       const isOff=n.status==='off';
       const isLocal=!!localOverrides[n.id];
       return(<div key={n.id} onClick={()=>openNotice(n)} className={`bg-white/[0.03] border border-white/[0.05] rounded-xl px-3 py-2.5 active:bg-white/[0.06] cursor-pointer ${isOff?'opacity-50':''}`}>
-        <div className="flex items-center justify-between gap-2"><p className={`text-sm font-medium truncate flex-1 ${isOff?'text-gray-500':'text-gray-200'}`}>{displayText}</p><div className="flex items-center gap-1 flex-shrink-0">{canManage&&<button onClick={(ev)=>doPushListItem(n.id,ev)} disabled={listPushBusy===n.id} className="w-6 h-6 rounded-full bg-[#06C755] flex items-center justify-center active:opacity-80 disabled:opacity-50 flex-shrink-0">{listPushBusy===n.id?<span className="text-white text-[9px]">…</span>:<svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.5 2 2 5.6 2 10c0 3.9 3.6 7.2 8.4 7.9.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1.1 1 .6 1.1-.5 6.2-3.7 8.5-6.3C22.1 12.6 22 11.3 22 10c0-4.4-4.5-8-10-8z"/></svg>}</button>}{canManage&&<button onClick={(ev)=>openEdit(n,ev)} className="text-[11px] px-1.5 py-0.5 rounded-full bg-white/[0.08] text-gray-300 active:bg-white/[0.15] flex-shrink-0">✏️</button>}</div></div>
-        {listPushMsg[n.id]&&<p className="text-[10px] text-amber-400 mt-0.5">{listPushMsg[n.id]}</p>}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <span className="text-[10px] text-gray-600 font-mono flex-shrink-0">{n.id}</span>
+            <span className="text-[10px] text-gray-600 flex-shrink-0">・{n.date}</span>
+            <span className="w-4 h-4 rounded-full bg-amber-600/30 flex items-center justify-center flex-shrink-0"><span className="text-[8px]">👤</span></span>
+            <span className="text-[10px] text-gray-500 truncate">{n.author||''}</span>
+          </div>
+          {canManage&&<button onClick={(ev)=>openEdit(n,ev)} className="text-[11px] px-1.5 py-0.5 rounded-full bg-white/[0.08] text-gray-300 active:bg-white/[0.15] flex-shrink-0">✏️</button>}
+        </div>
+        <p className={`text-sm font-medium truncate mt-1 ${isOff?'text-gray-500':'text-gray-200'}`}>{displayText}</p>
         <div className="flex items-center justify-between gap-2 mt-1">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
-            <span className="text-[10px] text-gray-500 flex-shrink-0">👤 {n.author||''}</span>
-            <span className="text-[10px] text-gray-600 flex-shrink-0">👁 {openN}</span>
-            <span className="text-[10px] text-gray-600 flex-shrink-0">👍 {typeof n.readCount==='number'?n.readCount:0}</span>
             {(showFlags.cat&&n.cat)&&<span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 flex-shrink-0">{n.cat}{(showFlags.subcat&&n.subcat)?'・'+n.subcat:''}</span>}
-            <span className="text-[10px] text-gray-600 font-mono flex-shrink-0">{n.id}</span>
             {isOff&&<span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-gray-500 flex-shrink-0">{t.noticeOffBtn||'下架'}</span>}
             {isLocal&&<span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-600 text-white flex-shrink-0">{t.noticeLocalBadge||'本機'}</span>}
           </div>
-          <span className="text-[10px] text-gray-500 flex-shrink-0">{n.date}</span>
+          <span className="text-[10px] text-gray-500 flex-shrink-0">👁 {openN}</span>
         </div>
       </div>);
     })}</div>
@@ -302,8 +315,20 @@ function NoticeManagePage({t,settings}){
         {editStatus==='saved'&&<p className="text-[11px] text-emerald-500 text-center font-semibold">✓ 已存檔，越南文已同步更新{editAiFilled.length>0?('，AI 已自動補上：'+editAiFilled.map(k=>FIELD_ZH[k]||k).join('、')):''}。公告頁是快取，需等下次更新才會顯示，當下沒變是正常的。</p>}
         {editStatus==='savedNoVi'&&<p className="text-[11px] text-amber-500 text-center font-semibold">✓ 中文已存檔{editAiFilled.length===0?'':'（部分欄位待AI補，'}，AI 處理暫時失敗待補（不影響已填的中文內容）。</p>}
         {editStatus&&editStatus!=='saving'&&editStatus!=='saved'&&editStatus!=='savedNoVi'&&<p className="text-[11px] text-red-400 text-center">{editStatus}</p>}
-        <div className="pt-2 border-t border-white/[0.06]"><button onClick={submitEdit} disabled={editStatus==='saving'} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold active:bg-emerald-700 disabled:opacity-50">{editStatus==='saving'?'存檔中…':(t.noticeSaveBtn||'儲存變更')}</button></div>
-        <button onClick={toggleStatus} disabled={toggleBusy} className={`w-full py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 ${editing.status==='off'?'bg-emerald-600/20 text-emerald-400':'bg-red-600/20 text-red-400'}`}>{toggleBusy?'…':(editing.status==='off'?(t.noticeOnBtn||'上架'):(t.noticeOffBtn||'下架'))}</button>
+        <div className="pt-2 border-t border-white/[0.06] space-y-2">
+          <div className="flex items-center justify-between"><p className="text-xs font-semibold text-gray-400">誰有看</p><div className="flex gap-1.5"><button onClick={()=>checkRead(editing.id)} disabled={readBusy} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-400 disabled:opacity-50">{readBusy?'查詢中…':'查詢'}</button>{readInfo&&readInfo.readers&&readInfo.readers.length>0&&<button onClick={()=>doCopy(editing.id+' 已閱讀（共'+readInfo.readers.length+'人）\n'+readInfo.readers.map(r=>r.code).join('、'),'已閱讀名單')} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-400">複製</button>}</div></div>
+          {readInfo&&(readInfo.readers?<div className="bg-white/[0.03] rounded-lg p-2.5"><p className="text-[11px] text-gray-500 mb-1">共{readInfo.readers.length}人</p><div className="flex flex-wrap gap-1">{readInfo.readers.map(r=>(<span key={r.code} className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400">{r.code}</span>))}</div></div>:null)}
+          <div className="flex items-center justify-between"><p className="text-xs font-semibold text-gray-400">誰沒看</p><div className="flex gap-1.5"><button onClick={()=>checkUnread(editing.id)} disabled={unreadBusy} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-400 disabled:opacity-50">{unreadBusy?'查詢中…':'查詢'}</button>{unreadInfo&&unreadInfo.total>0&&<button onClick={()=>doCopy(editing.id+' 未閱讀（共'+unreadInfo.total+'人）\n'+['day','night','other'].map(k=>unreadInfo[k]&&unreadInfo[k].length?(k==='day'?'早班：':k==='night'?'晚班：':'未選班別：')+unreadInfo[k].join('、'):'').filter(Boolean).join('\n'),'未閱讀名單')} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-400">複製</button>}</div></div>
+          {unreadInfo&&(<div className="bg-white/[0.03] rounded-lg p-2.5 space-y-1"><p className="text-[11px] text-gray-500">未讀共{unreadInfo.total}人</p>{unreadInfo.day.length>0&&<p className="text-[11px] text-gray-400">早班：{unreadInfo.day.join('、')}</p>}{unreadInfo.night.length>0&&<p className="text-[11px] text-gray-400">晚班：{unreadInfo.night.join('、')}</p>}{unreadInfo.other.length>0&&<p className="text-[11px] text-gray-400">未選班別：{unreadInfo.other.join('、')}</p>}</div>)}
+          {copyMsg&&<p className="text-[11px] text-center text-emerald-400">{copyMsg}</p>}
+        </div>
+        <div className="pt-2 border-t border-white/[0.06] grid grid-cols-3 gap-2">
+          <button onClick={submitEdit} disabled={editStatus==='saving'} className="py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold active:bg-emerald-700 disabled:opacity-50">{editStatus==='saving'?'…':(t.noticeSaveBtn||'修改')}</button>
+          <button onClick={toggleStatus} disabled={toggleBusy} className={`py-2.5 rounded-xl text-xs font-semibold disabled:opacity-50 ${editing.status==='off'?'bg-emerald-600/20 text-emerald-400':'bg-red-600/20 text-red-400'}`}>{toggleBusy?'…':(editing.status==='off'?(t.noticeOnBtn||'上架'):(t.noticeOffBtn||'下架'))}</button>
+          <button onClick={doPushEdit} disabled={editPushBusy} className="py-2.5 rounded-xl bg-[#06C755] text-white text-xs font-semibold active:opacity-80 disabled:opacity-50 flex items-center justify-center gap-1">{editPushBusy?'…':<svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.5 2 2 5.6 2 10c0 3.9 3.6 7.2 8.4 7.9.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1.1 1 .6 1.1-.5 6.2-3.7 8.5-6.3C22.1 12.6 22 11.3 22 10c0-4.4-4.5-8-10-8z"/></svg>}分享
+          </button>
+        </div>
+        {editPushMsg&&<p className="text-[11px] text-center text-gray-400">{editPushMsg}</p>}
       </div>
     </div></div>)}
     {showAdd&&(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={closeAdd}><div className="bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[88vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
@@ -413,7 +438,7 @@ function CredentialCard({t,settings}){
 function SettingsPage({settings,onUpdate,t,theme,setTheme}){
   const[form,setForm]=useState({...settings});const[gasTest,setGasTest]=useState('');const[keyAdminSec,setKeyAdminSec]=useState('');const[keyGenCode,setKeyGenCode]=useState('');const[keyGenResult,setKeyGenResult]=useState(null);const[claimInput,setClaimInput]=useState('');const[claimMsg,setClaimMsg]=useState('');
   const[saved,setSaved]=useState(false);
-  const[subTab,setSubTab]=useState('home');const[navLock,setNavLock]=useState(false);
+  const[subTab,setSubTab]=useState('home');
   useEffect(()=>{try{const s=sessionStorage.getItem('__settingsSub');if(s){setSubTab(s);sessionStorage.removeItem('__settingsSub')}}catch(e){}},[]);
   const devId=getDeviceId();
   const[connMode,setConnMode]=useState(null);
@@ -433,7 +458,6 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
     if(!hasPerm){try{const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),4000);const res=await fetch('./admin.cfg',{cache:'no-store',signal:ctrl.signal});clearTimeout(timer);if(res.ok){const text=(await res.text()).trim();const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));const myHash=adminHash(settings.code);hasPerm=lines.some(l=>{const parts=l.split(':');const h=parts.length>=2?parts[parts.length-1]:parts[0];return h===myHash})}}catch(_e){}}
     location.href='./auth.html#lang='+(settings.lang||'zh')+(hasPerm?'&auto=1':'');
   };
-  const TABS=[['home',t.tabHome2],['cust',t.tabCust],['backup',t.tabBackup],['manage',t.tabManage]];
   const fld=(label,key,opt)=>(<div><label className="text-xs text-gray-400 mb-1 block">{label}{opt&&<span className="text-[10px] text-gray-600 ml-1">({t.optional})</span>}</label><input value={form[key]||''} onChange={e=>upd({[key]:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>);
   const Construction=()=>(<div className="flex flex-col items-center justify-center py-20 text-center"><svg className="w-12 h-12 text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/></svg><p className="text-sm text-gray-500">{t.underConstruction}</p></div>);
   // 產生申請碼:把欄位加密,標記變動
@@ -478,18 +502,6 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
   const fldP=(label,key,opt,snapshot)=>(<div><label className="text-xs text-gray-400 mb-1 block">{label}{opt&&<span className="text-[10px] text-gray-600 ml-1">({t.optional})</span>}</label><input value={form[key]||''} onChange={e=>upd({[key]:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>{prevHint(snapshot,key,form[key])}</div>);
   return(
     <div className="flex h-full fi">
-      <div className="flex-shrink-0 w-12 border-r border-white/[0.06] py-3 space-y-0.5 overflow-y-auto no-sb">
-        {TABS.map(([id,label])=>{
-          const showAlert=(id==='basic'&&(basicChanged||permitExpiring))||(id==='store'&&storeChanged);
-          const noticeCount=id==='notice'?(0):0; // 公告未讀數框架,現為0不顯示
-          return(
-          <button key={id} disabled={navLock&&id==='manage'} onClick={()=>{if(id==='manage'){if(navLock)return;setSubTab('manage');setNavLock(true);setTimeout(()=>{location.href='./auth.html#lang='+(settings.lang||'zh')},150);return}setSubTab(id)}} className={`relative w-full px-0.5 py-2.5 text-[11px] font-semibold text-center leading-tight ${subTab===id?'text-amber-400 border-r-2 border-amber-400 bg-amber-600/5':'text-gray-500'} ${navLock&&id==='manage'?'opacity-50':''}`}>
-            {id==='manage'&&navLock?'...':label}
-            {showAlert&&<span className="absolute -top-0.5 right-0 text-red-500 text-[9px] leading-none">❗</span>}
-            {noticeCount>0&&<span className="absolute top-0.5 right-0.5 bg-red-500 text-white text-[9px] rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5">{noticeCount}</span>}
-          </button>);
-        })}
-      </div>
       <div className="flex-1 w-full overflow-y-auto p-4 pb-8 space-y-5 min-w-0">
       {subTab==='home'&&(<div className="space-y-5 fi">
         <h2 className="text-lg font-bold text-gray-100">{t.homeSettings}</h2>
