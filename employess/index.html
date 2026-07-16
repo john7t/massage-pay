@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>員工列表 v1.0-003</title>
+<title>員工列表 v1.0-004</title>
 <script>
   var PAGE="employees",PCODE="04";
   window.__fbLang='zh';
@@ -63,9 +63,9 @@ function Spinner({size=16}){return(<span style={{display:'inline-block',width:si
 const SHIFT_SHORT_LABEL={A1:'早1',A2:'早2',B:'中',C1:'小夜1',C2:'小夜2',D:'大夜',day:'早班',night:'晚班'};
 const ROLE_LABEL={teacher:'老師',supervisor:'主管',admin:'管理者'};
 
-const BASIC_FIELDS=['nameZh','nameVi','gender','phone','email','addrCity','addrDist','addrDetail','school','major','schoolType','permitNo','permitDate','permitExpiry','permitOrg'];
+const BASIC_FIELDS=['nameZh','nameVi','gender','lang','phone','email','addrCity','addrDist','addrDetail','school','major','schoolType','permitNo','permitDate','permitExpiry','permitOrg'];
 const STORE_FIELDS=['store','shift','workStart','workEnd','workNote','unitPrice','skills','preg','oil','techMentor','lockerNo'];
-const FIELD_LABEL={nameZh:'中文姓名',nameVi:'越南文姓名',gender:'性別',phone:'電話',email:'Email',addrCity:'縣市',addrDist:'鄉鎮區',addrDetail:'詳細地址',school:'學校',major:'科系',schoolType:'學制',permitNo:'工作證號',permitDate:'核發日',permitExpiry:'到期日',permitOrg:'核發單位',
+const FIELD_LABEL={nameZh:'中文姓名',nameVi:'越南文姓名',gender:'性別',lang:'語系',phone:'電話',email:'Email',addrCity:'縣市',addrDist:'鄉鎮區',addrDetail:'詳細地址',school:'學校',major:'科系',schoolType:'學制',permitNo:'工作證號',permitDate:'核發日',permitExpiry:'到期日',permitOrg:'核發單位',
   storeSel:'所在店面',store:'所在店面',shift:'班別',workStart:'上工時間',workEnd:'下工時間',workNote:'工作備註',unitPrice:'每支單價',skills:'老師技能',preg:'懷孕客人',oil:'油壓',techMentor:'指導老師',lockerNo:'置物櫃編號'};
 const SKILL_KEYS_LOCAL=['guasha','baguang','xiujiao'];
 const SKILL_LABEL={guasha:'刮痧',baguang:'拔罐',xiujiao:'修腳皮'};
@@ -108,6 +108,8 @@ function EmployeeDetailModal({code,myAuth,onClose}){
     let inputEl;
     if(k==='gender'){
       inputEl=(<div className="grid grid-cols-2 gap-1.5">{[['M','男'],['F','女']].map(([v,l])=>(<button key={v} onClick={()=>upd('gender',v)} className={`py-1.5 rounded-lg text-xs font-semibold ${form.gender===v?'bg-amber-600 text-white':'bg-white text-gray-500 border border-gray-200'}`}>{l}</button>))}</div>);
+    }else if(k==='lang'){
+      inputEl=(<div className="grid grid-cols-2 gap-1.5">{[['zh','中文'],['vi','越南文']].map(([v,l])=>(<button key={v} onClick={()=>upd('lang',v)} className={`py-1.5 rounded-lg text-xs font-semibold ${form.lang===v?'bg-amber-600 text-white':'bg-white text-gray-500 border border-gray-200'}`}>{l}</button>))}</div>);
     }else if(k==='store'){
       inputEl=(<select value={form.store||''} onChange={e=>upd('store',e.target.value)} className="w-full bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-900"><option value="">--</option>{stores.map(s=>(<option key={s} value={s}>{s}</option>))}</select>);
     }else if(k==='shift'){
@@ -119,10 +121,21 @@ function EmployeeDetailModal({code,myAuth,onClose}){
       inputEl=(<div className="grid grid-cols-3 gap-1.5">{SKILL_KEYS_LOCAL.map(s=>(<button key={s} onClick={()=>upd('skills',{...sk,[s]:!sk[s]})} className={`py-1.5 rounded-lg text-xs font-semibold ${sk[s]?'bg-amber-600 text-white':'bg-white text-gray-500 border border-gray-200'}`}>{SKILL_LABEL[s]}</button>))}</div>);
     }else if(k==='unitPrice'){
       inputEl=(<input value={form.unitPrice||''} onChange={e=>upd('unitPrice',e.target.value.replace(/\D/g,''))} inputMode="numeric" className="w-full bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-900"/>);
-    }else if(k==='workStart'||k==='workEnd'){
-      inputEl=(<select value={form[k]||''} onChange={e=>upd(k,e.target.value)} className="w-full bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-900"><option value="">--</option>{TIME_OPTIONS.map(tm=>(<option key={tm} value={tm}>{tm}</option>))}</select>);
+    }else if(k==='workStart'){
+      inputEl=(<select value={form.workStart||''} onChange={e=>{
+        const v=e.target.value;
+        if(v){
+          const[hh,mm]=v.split(':').map(Number);
+          const totalMin=(hh*60+mm+12*60)%1440;
+          const eh=Math.floor(totalMin/60),em=totalMin%60;
+          const endStr=String(eh).padStart(2,'0')+':'+String(em).padStart(2,'0');
+          setForm(f=>({...f,workStart:v,workEnd:endStr}));
+        }else{upd('workStart',v)}
+      }} className="w-full bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-900"><option value="">--</option>{TIME_OPTIONS.map(tm=>(<option key={tm} value={tm}>{tm}</option>))}</select>);
+    }else if(k==='workEnd'){
+      inputEl=(<select value={form.workEnd||''} onChange={e=>upd('workEnd',e.target.value)} className="w-full bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-900"><option value="">--</option>{TIME_OPTIONS.map(tm=>(<option key={tm} value={tm}>{tm}</option>))}</select>);
     }else if(k==='permitDate'||k==='permitExpiry'){
-      inputEl=(<input type="date" value={form[k]||''} onChange={e=>upd(k,e.target.value)} className="w-full bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-900"/>);
+      inputEl=(<div className="flex gap-1"><input type="date" value={form[k]||''} onChange={e=>upd(k,e.target.value)} className="flex-1 bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-900"/>{form[k]&&<button onClick={()=>upd(k,'')} className="w-7 h-7 flex-shrink-0 rounded-lg bg-gray-100 text-gray-500 text-xs">✕</button>}</div>);
     }else{
       inputEl=(<input value={form[k]||''} onChange={e=>upd(k,e.target.value)} className="w-full bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-900"/>);
     }
@@ -138,7 +151,7 @@ function EmployeeDetailModal({code,myAuth,onClose}){
           {BASIC_FIELDS.map((k,i)=>renderField(k,i))}
         </div>
         <div className="bg-amber-50 rounded-xl overflow-hidden border border-amber-100">
-          <p className="text-xs font-semibold text-amber-700 px-2.5 pt-2">店資料</p>
+          <p className="text-xs font-semibold text-amber-700 px-2.5 pt-2">在店資料</p>
           {STORE_FIELDS.map((k,i)=>renderField(k,i))}
         </div>
         {saveStatus&&<p className="text-xs text-center text-emerald-600 font-semibold">{saveStatus}</p>}
@@ -191,12 +204,41 @@ function CreateStaffModal({myAuth,stores,onClose,onCreated}){
   </div>);
 }
 
+function TimeGroupedView({list,timeField}){
+  const groups=useMemo(()=>{
+    const g=Array.from({length:24},()=>[]);
+    list.forEach(e=>{
+      const v=e[timeField];
+      if(!v)return;
+      const h=parseInt(String(v).split(':')[0],10);
+      if(!isNaN(h)&&h>=0&&h<24)g[h].push(e);
+    });
+    return g;
+  },[list,timeField]);
+  const refs=useMemo(()=>Array.from({length:24},()=>React.createRef()),[]);
+  useEffect(()=>{
+    const nowH=new Date().getHours();
+    setTimeout(()=>{try{refs[nowH].current&&refs[nowH].current.scrollIntoView({block:'start'})}catch(_e){}},50);
+  },[timeField]);
+  return(<div className="space-y-1.5">
+    {groups.map((entries,h)=>(
+      <div key={h} ref={refs[h]}>
+        <p className="text-xs font-bold text-gray-700 bg-gray-100 rounded-lg px-2.5 py-1.5">{String(h).padStart(2,'0')}:00（{entries.length}）</p>
+        {entries.length>0&&<div className="flex flex-wrap gap-1.5 px-1 py-1.5">{entries.map(e=>(<span key={e.code} className="text-[11px] px-2 py-1 rounded-full bg-white border border-gray-200 text-gray-700">{e.code} {e.nameZh}</span>))}</div>}
+      </div>
+    ))}
+  </div>);
+}
+
 function EmployeeListPage({myAuth}){
   const[list,setList]=useState(null);
-  const[sortMode,setSortMode]=useState('code'); // code/role/shift/gender/lang
+  const[sortMode,setSortMode]=useState('code'); // code/role/shift/gender/lang/time
+  const[codeDir,setCodeDir]=useState('asc'); // asc/desc
+  const[codeRange,setCodeRange]=useState('all'); // all/0/100/200/300
   const[shiftFilter,setShiftFilter]=useState('all'); // all/day/night/blank
   const[langFilter,setLangFilter]=useState('all'); // all/zh/vi/blank
   const[genderFilter,setGenderFilter]=useState('all'); // all/M/F/blank
+  const[timeField,setTimeField]=useState('workStart'); // workStart/workEnd
   const[stores,setStores]=useState([]);
   const[storeFilter,setStoreFilter]=useState('');
   const[viewCode,setViewCode]=useState('');
@@ -211,26 +253,36 @@ function EmployeeListPage({myAuth}){
     if(sortMode==='shift'&&shiftFilter!=='all')arr=arr.filter(e=>shiftFilter==='blank'?!e.shift:e.shift===shiftFilter);
     if(sortMode==='lang'&&langFilter!=='all')arr=arr.filter(e=>langFilter==='blank'?!e.lang:e.lang===langFilter);
     if(sortMode==='gender'&&genderFilter!=='all')arr=arr.filter(e=>genderFilter==='blank'?!e.gender:e.gender===genderFilter);
+    if(sortMode==='code'&&codeRange!=='all'){
+      const lo=parseInt(codeRange,10);
+      const hi=lo+99;
+      arr=arr.filter(e=>{const n=parseInt(String(e.code).replace(/\D/g,''),10);return !isNaN(n)&&n>=lo&&(codeRange==='300'?true:n<=hi)});
+    }
     const sortFns={
-      code:(a,b)=>{const na=parseInt(String(a.code).replace(/\D/g,''),10);const nb=parseInt(String(b.code).replace(/\D/g,''),10);if(!isNaN(na)&&!isNaN(nb)&&na!==nb)return na-nb;return String(a.code).localeCompare(String(b.code))},
+      code:(a,b)=>{const na=parseInt(String(a.code).replace(/\D/g,''),10);const nb=parseInt(String(b.code).replace(/\D/g,''),10);let r;if(!isNaN(na)&&!isNaN(nb)&&na!==nb)r=na-nb;else r=String(a.code).localeCompare(String(b.code));return codeDir==='desc'?-r:r},
       role:(a,b)=>(b.level||0)-(a.level||0)||String(a.code).localeCompare(String(b.code)),
       shift:(a,b)=>String(a.shift||'').localeCompare(String(b.shift||'')),
       gender:(a,b)=>String(a.gender||'').localeCompare(String(b.gender||'')),
       lang:(a,b)=>String(a.lang||'').localeCompare(String(b.lang||'')),
     };
-    arr.sort(sortFns[sortMode]||sortFns.code);
+    if(sortMode!=='time')arr.sort(sortFns[sortMode]||sortFns.code);
     return arr;
-  },[list,sortMode,shiftFilter,langFilter,genderFilter]);
+  },[list,sortMode,codeDir,codeRange,shiftFilter,langFilter,genderFilter]);
   return(<div className="min-h-screen p-4">
     <div className="max-w-md mx-auto space-y-3">
       <div className="flex items-center justify-between"><h1 className="text-base font-bold text-gray-900">員工列表</h1><button onClick={()=>setShowCreate(true)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold">+ 新增老師</button></div>
       {canPickStore&&(<select value={storeFilter} onChange={e=>setStoreFilter(e.target.value)} className="w-full bg-white border border-gray-300 rounded-lg px-2 py-2 text-xs text-gray-800"><option value="">（我的店面：{myAuth.store}）</option>{stores.map(s=>(<option key={s} value={s}>{s}</option>))}</select>)}
       <div className="flex gap-1.5 flex-wrap">
-        {[['code','編號'],['role','職務'],['shift','班別'],['lang','語系'],['gender','性別']].map(([k,l])=>(<button key={k} onClick={()=>setSortMode(k)} className={`text-[11px] px-2.5 py-1.5 rounded-lg font-semibold ${sortMode===k?'bg-amber-600 text-white':'bg-white text-gray-500 border border-gray-200'}`}>{l}排序</button>))}
+        {[['code','編號'],['role','職務'],['shift','班別'],['lang','語系'],['gender','性別'],['time','上/下工時間']].map(([k,l])=>(<button key={k} onClick={()=>setSortMode(k)} className={`text-[11px] px-2.5 py-1.5 rounded-lg font-semibold ${sortMode===k?'bg-amber-600 text-white':'bg-white text-gray-500 border border-gray-200'}`}>{l}排序</button>))}
       </div>
+      {sortMode==='code'&&(<div className="flex gap-1.5 flex-wrap">{[['asc','正序'],['desc','倒序']].map(([k,l])=>(<button key={k} onClick={()=>setCodeDir(k)} className={`text-[10px] px-2 py-1 rounded-full font-semibold ${codeDir===k?'bg-amber-500/20 text-amber-700 border border-amber-300':'bg-white text-gray-500 border border-gray-200'}`}>{l}</button>))}{[['all','全部'],['0','0+'],['100','100+'],['200','200+'],['300','300+']].map(([k,l])=>(<button key={k} onClick={()=>setCodeRange(k)} className={`text-[10px] px-2 py-1 rounded-full font-semibold ${codeRange===k?'bg-amber-500/20 text-amber-700 border border-amber-300':'bg-white text-gray-500 border border-gray-200'}`}>{l}</button>))}</div>)}
       {sortMode==='shift'&&(<div className="flex gap-1.5 flex-wrap">{[['all','全部'],['day','早班'],['night','晚班'],['blank','未填']].map(([k,l])=>(<button key={k} onClick={()=>setShiftFilter(k)} className={`text-[10px] px-2 py-1 rounded-full font-semibold ${shiftFilter===k?'bg-amber-500/20 text-amber-700 border border-amber-300':'bg-white text-gray-500 border border-gray-200'}`}>{l}</button>))}</div>)}
       {sortMode==='lang'&&(<div className="flex gap-1.5 flex-wrap">{[['all','全部'],['zh','中文'],['vi','越南文'],['blank','未填']].map(([k,l])=>(<button key={k} onClick={()=>setLangFilter(k)} className={`text-[10px] px-2 py-1 rounded-full font-semibold ${langFilter===k?'bg-amber-500/20 text-amber-700 border border-amber-300':'bg-white text-gray-500 border border-gray-200'}`}>{l}</button>))}</div>)}
       {sortMode==='gender'&&(<div className="flex gap-1.5 flex-wrap">{[['all','全部'],['M','男'],['F','女'],['blank','未填']].map(([k,l])=>(<button key={k} onClick={()=>setGenderFilter(k)} className={`text-[10px] px-2 py-1 rounded-full font-semibold ${genderFilter===k?'bg-amber-500/20 text-amber-700 border border-amber-300':'bg-white text-gray-500 border border-gray-200'}`}>{l}</button>))}</div>)}
+      {sortMode==='time'&&(<div className="flex gap-1.5 flex-wrap">{[['workStart','上工時間'],['workEnd','下工時間']].map(([k,l])=>(<button key={k} onClick={()=>setTimeField(k)} className={`text-[10px] px-2 py-1 rounded-full font-semibold ${timeField===k?'bg-amber-500/20 text-amber-700 border border-amber-300':'bg-white text-gray-500 border border-gray-200'}`}>{l}</button>))}</div>)}
+      {sortMode==='time'?(
+        list===null?<p className="text-center py-8"><Spinner size={20}/></p>:<TimeGroupedView list={filtered} timeField={timeField}/>
+      ):(
       <div className="space-y-1.5">
         {filtered===null||list===null?<p className="text-center py-8"><Spinner size={20}/></p>:filtered.length===0?<p className="text-sm text-gray-500 text-center py-8">沒有符合條件的員工</p>:filtered.map((e,i)=>(
           <div key={e.code} onClick={()=>setViewCode(e.code)} className={`rounded-xl px-3 py-2.5 cursor-pointer active:bg-gray-100 border border-gray-200 ${i%2===0?'bg-white':'bg-gray-50'}`}>
@@ -239,6 +291,7 @@ function EmployeeListPage({myAuth}){
           </div>
         ))}
       </div>
+      )}
     </div>
     {viewCode&&<EmployeeDetailModal code={viewCode} myAuth={myAuth} onClose={()=>{setViewCode('');load()}}/>}
     {showCreate&&<CreateStaffModal myAuth={myAuth} stores={stores} onClose={()=>setShowCreate(false)} onCreated={()=>{setShowCreate(false);load()}}/>}
