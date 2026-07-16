@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>員工列表 v1.0-005</title>
+<title>員工列表 v1.0-006</title>
 <script>
   var PAGE="employees",PCODE="04";
   window.__fbLang='zh';
@@ -258,12 +258,13 @@ function EmployeeListPage({myAuth}){
       const hi=lo+99;
       arr=arr.filter(e=>{const n=parseInt(String(e.code).replace(/\D/g,''),10);return !isNaN(n)&&n>=lo&&(codeRange==='300'?true:n<=hi)});
     }
+    const numCode=s=>{const n=parseInt(String(s.code).replace(/\D/g,''),10);return isNaN(n)?0:n};
     const sortFns={
       code:(a,b)=>{const na=parseInt(String(a.code).replace(/\D/g,''),10);const nb=parseInt(String(b.code).replace(/\D/g,''),10);let r;if(!isNaN(na)&&!isNaN(nb)&&na!==nb)r=na-nb;else r=String(a.code).localeCompare(String(b.code));return codeDir==='desc'?-r:r},
-      role:(a,b)=>(b.level||0)-(a.level||0)||String(a.code).localeCompare(String(b.code)),
-      shift:(a,b)=>String(a.shift||'').localeCompare(String(b.shift||'')),
-      gender:(a,b)=>String(a.gender||'').localeCompare(String(b.gender||'')),
-      lang:(a,b)=>String(a.lang||'').localeCompare(String(b.lang||'')),
+      role:(a,b)=>(b.level||0)-(a.level||0)||numCode(a)-numCode(b),
+      shift:(a,b)=>String(a.shift||'').localeCompare(String(b.shift||''))||numCode(a)-numCode(b),
+      gender:(a,b)=>String(a.gender||'').localeCompare(String(b.gender||''))||numCode(a)-numCode(b),
+      lang:(a,b)=>String(a.lang||'').localeCompare(String(b.lang||''))||numCode(a)-numCode(b),
     };
     if(sortMode!=='time')arr.sort(sortFns[sortMode]||sortFns.code);
     return arr;
@@ -277,7 +278,7 @@ function EmployeeListPage({myAuth}){
       </div>
       {sortMode==='code'&&(<div className="flex gap-1.5 flex-wrap">{[['asc','正序'],['desc','倒序']].map(([k,l])=>(<button key={k} onClick={()=>setCodeDir(k)} className={`text-[10px] px-2 py-1 rounded-full font-semibold ${codeDir===k?'bg-amber-500/20 text-amber-700 border border-amber-300':'bg-white text-gray-500 border border-gray-200'}`}>{l}</button>))}{[['all','全部'],['0','0+'],['100','100+'],['200','200+'],['300','300+']].map(([k,l])=>(<button key={k} onClick={()=>setCodeRange(k)} className={`text-[10px] px-2 py-1 rounded-full font-semibold ${codeRange===k?'bg-amber-500/20 text-amber-700 border border-amber-300':'bg-white text-gray-500 border border-gray-200'}`}>{l}</button>))}</div>)}
       {sortMode==='shift'&&(<div className="flex gap-1.5 flex-wrap">{[['all','全部'],['day','早班'],['night','晚班'],['blank','未填']].map(([k,l])=>(<button key={k} onClick={()=>setShiftFilter(k)} className={`text-[10px] px-2 py-1 rounded-full font-semibold ${shiftFilter===k?'bg-amber-500/20 text-amber-700 border border-amber-300':'bg-white text-gray-500 border border-gray-200'}`}>{l}</button>))}</div>)}
-      {sortMode==='lang'&&(<div className="flex gap-1.5 flex-wrap">{[['all','全部'],['zh','中文'],['vi','越南文'],['blank','未填']].map(([k,l])=>(<button key={k} onClick={()=>setLangFilter(k)} className={`text-[10px] px-2 py-1 rounded-full font-semibold ${langFilter===k?'bg-amber-500/20 text-amber-700 border border-amber-300':'bg-white text-gray-500 border border-gray-200'}`}>{l}</button>))}</div>)}
+      {sortMode==='lang'&&(<div className="flex gap-1.5 flex-wrap">{[['all','全部'],['zh','中文'],['vi','越南文']].map(([k,l])=>(<button key={k} onClick={()=>setLangFilter(k)} className={`text-[10px] px-2 py-1 rounded-full font-semibold ${langFilter===k?'bg-amber-500/20 text-amber-700 border border-amber-300':'bg-white text-gray-500 border border-gray-200'}`}>{l}</button>))}</div>)}
       {sortMode==='gender'&&(<div className="flex gap-1.5 flex-wrap">{[['all','全部'],['M','男'],['F','女'],['blank','未填']].map(([k,l])=>(<button key={k} onClick={()=>setGenderFilter(k)} className={`text-[10px] px-2 py-1 rounded-full font-semibold ${genderFilter===k?'bg-amber-500/20 text-amber-700 border border-amber-300':'bg-white text-gray-500 border border-gray-200'}`}>{l}</button>))}</div>)}
       {sortMode==='time'&&(<div className="flex gap-1.5 flex-wrap">{[['workStart','上工時間'],['workEnd','下工時間']].map(([k,l])=>(<button key={k} onClick={()=>setTimeField(k)} className={`text-[10px] px-2 py-1 rounded-full font-semibold ${timeField===k?'bg-amber-500/20 text-amber-700 border border-amber-300':'bg-white text-gray-500 border border-gray-200'}`}>{l}</button>))}</div>)}
       {sortMode==='time'?(
