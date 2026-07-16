@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>公告 v1.0-015</title>
+<title>公告 v1.0-016</title>
 <meta property="og:title" content="公告通知">
 <meta property="og:description" content="請點擊連結查看公告內容">
 <meta property="og:type" content="website">
@@ -71,6 +71,17 @@ async function gasAnalyzeNotice(content,code){const r=await window.MP.gasCallPos
 async function gasAddNoticeLiff(data){const r=await window.MP.gasCallPost('addNotice',data,15000);return r||{ok:false,error:'GAS無回應'};}
 async function gasNoticeUnread(noticeId){const r=await gasCall('noticeUnread',{noticeId},10000);return r||{ok:false,error:'GAS無回應'};}
 async function gasNoticeReads(noticeId){const r=await gasCall('noticeReads',{noticeId,detail:true},10000);return r||{ok:false,error:'GAS無回應'};}
+async function gasEditNoticeLiff(data){const r=await window.MP.gasCallPost('editNotice',data,15000);return r||{ok:false,error:'GAS無回應'};}
+async function gasToggleNoticeStatus(id,code){const r=await window.MP.gasCallPost('toggleNoticeStatus',{id,code},10000);return r||{ok:false,error:'GAS無回應'};}
+async function copyText(text){
+  try{await navigator.clipboard.writeText(text);return true}catch(_e){
+    try{
+      const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
+      document.body.appendChild(ta);ta.focus();ta.select();document.execCommand('copy');document.body.removeChild(ta);
+      return true;
+    }catch(_e2){return false}
+  }
+}
 async function noticeLiffMarkRead(noticeId,lineUserId){const r=await window.MP.gasCallPost('noticeLiffMarkRead',{noticeId,lineUserId},15000);return r||{ok:false,error:'GAS無回應'};}
 async function sfGetUser(lineUserId){const r=await gasCall('sfGetUser',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfRegister(data){const r=await window.MP.gasCallPost('sfRegister',data,15000);return r||{ok:false,error:'GAS無回應'};}
@@ -254,11 +265,85 @@ function ManagerCreateNotice({code,onClose,onPublished}){
   </div>);
 }
 
+function CopyBtn2({getText}){
+  const[copied,setCopied]=useState(false);
+  const doCopy=async()=>{const ok=await copyText(getText());if(ok){setCopied(true);setTimeout(()=>setCopied(false),2000)}};
+  return(<button onClick={doCopy} className="text-[11px] px-2 py-1 rounded-lg bg-gray-100 text-gray-600 font-semibold flex-shrink-0">{copied?'✓ 已複製':'複製'}</button>);
+}
+
+function ManagerNoticeDetail({notice,code,onClose,onChanged}){
+  const[readInfo,setReadInfo]=useState(null);const[readBusy,setReadBusy]=useState(false);
+  const[unreadInfo,setUnreadInfo]=useState(null);const[unreadBusy,setUnreadBusy]=useState(false);
+  const[shareBusy,setShareBusy]=useState(false);
+  const[toggleBusy,setToggleBusy]=useState(false);
+  const[status,setStatus]=useState(notice.status||'');
+  const[editing,setEditing]=useState(false);
+  const[form,setForm]=useState({cat:notice.cat||'',subcat:notice.subcat||'',title:notice.title||'',summary:notice.summary||'',body:notice.body||'',tags:notice.tags||''});
+  const[saveStatus,setSaveStatus]=useState('');
+  const checkRead=async()=>{setReadBusy(true);try{const r=await gasNoticeReads(notice.id);if(r&&r.ok)setReadInfo(r)}catch(_e){}setReadBusy(false)};
+  const checkUnread=async()=>{setUnreadBusy(true);try{const r=await gasNoticeUnread(notice.id);if(r&&r.ok)setUnreadInfo(r)}catch(_e){}setUnreadBusy(false)};
+  const header=()=>'公告編號：'+notice.id+'\n公告摘要：'+(notice.summary||notice.title||'');
+  const doShare=async()=>{
+    if(shareBusy)return;
+    setShareBusy(true);
+    try{
+      const r=await getNoticeFlexContent(notice.id,LIFF_ID_HARDCODED);
+      if(r&&r.ok&&liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker')){
+        await liff.shareTargetPicker([{type:'flex',altText:r.title,contents:r.flex}]);
+      }
+    }catch(_e){}
+    setShareBusy(false);
+  };
+  const doToggle=async()=>{
+    setToggleBusy(true);
+    try{const r=await gasToggleNoticeStatus(notice.id,code);if(r&&r.ok){setStatus(r.status);onChanged&&onChanged()}}catch(_e){}
+    setToggleBusy(false);
+  };
+  const doSave=async()=>{
+    setSaveStatus('saving');
+    try{
+      const r=await gasEditNoticeLiff({id:notice.id,cat:form.cat,subcat:form.subcat,title:form.title,summary:form.summary,body:form.body,tags:form.tags});
+      if(r&&r.ok){setSaveStatus('已修改');setEditing(false);onChanged&&onChanged()}else{setSaveStatus((r&&r.error)||'修改失敗')}
+    }catch(e){setSaveStatus(String(e))}
+    setTimeout(()=>setSaveStatus(''),2500);
+  };
+  return(<div className="min-h-screen p-4">
+    <div className="max-w-md mx-auto space-y-3">
+      <div className="flex items-center justify-between"><button onClick={onClose} className="text-xs text-gray-500">← 返回列表</button><span className="text-[11px] text-gray-400 font-mono">{notice.id}</span></div>
+      {!editing?(<div className="bg-white border border-gray-200 rounded-xl p-3 space-y-1.5">
+        <p className="text-base font-bold text-gray-900">{notice.title}</p>
+        <p className="text-sm text-gray-600">{notice.summary}</p>
+        <p className="text-sm text-gray-700 whitespace-pre-wrap">{notice.body}</p>
+        <p className="text-[11px] text-gray-400 pt-1">{notice.cat}{notice.subcat?('・'+notice.subcat):''}・{notice.date}・{notice.author}</p>
+        {status==='off'&&<p className="text-[11px] text-red-500">（已下架）</p>}
+      </div>):(<div className="bg-white border border-gray-200 rounded-xl p-3 space-y-2">
+        <div><label className="text-[10px] text-gray-500 block mb-0.5">主分類</label><input value={form.cat} onChange={e=>setForm(f=>({...f,cat:e.target.value}))} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-900"/></div>
+        <div><label className="text-[10px] text-gray-500 block mb-0.5">子分類</label><input value={form.subcat} onChange={e=>setForm(f=>({...f,subcat:e.target.value}))} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-900"/></div>
+        <div><label className="text-[10px] text-gray-500 block mb-0.5">標題</label><input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-900"/></div>
+        <div><label className="text-[10px] text-gray-500 block mb-0.5">摘要</label><input value={form.summary} onChange={e=>setForm(f=>({...f,summary:e.target.value}))} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-900"/></div>
+        <div><label className="text-[10px] text-gray-500 block mb-0.5">內容</label><textarea value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} rows={4} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-900 resize-none"/></div>
+        {saveStatus&&<p className="text-xs text-center text-amber-600">{saveStatus}</p>}
+        <div className="flex gap-2"><button onClick={()=>setEditing(false)} className="flex-1 py-2 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold">取消</button><button onClick={doSave} disabled={saveStatus==='saving'} className="flex-1 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold disabled:opacity-50">{saveStatus==='saving'?'儲存中…':'儲存'}</button></div>
+      </div>)}
+      <div className="bg-white border border-gray-200 rounded-xl p-3 space-y-2">
+        <div className="flex items-center justify-between"><p className="text-xs font-semibold text-gray-700">誰有看</p><div className="flex gap-1.5"><button onClick={checkRead} disabled={readBusy} className="text-[11px] px-2 py-1 rounded-lg bg-gray-100 text-gray-500 disabled:opacity-50">{readBusy?'查詢中…':'查詢'}</button>{readInfo&&readInfo.readers&&readInfo.readers.length>0&&<CopyBtn2 getText={()=>header()+'\n已閱讀（'+readInfo.readers.length+'人）：'+readInfo.readers.map(r=>r.code).join('、')}/>}</div></div>
+        {readInfo&&readInfo.readers&&(<div className="flex flex-wrap gap-1">{readInfo.readers.length===0?<p className="text-xs text-gray-400">目前還沒有人閱讀</p>:readInfo.readers.map(r=>(<span key={r.code} className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700">{r.code}</span>))}</div>)}
+        <div className="flex items-center justify-between pt-1 border-t border-gray-100"><p className="text-xs font-semibold text-gray-700">誰沒看</p><div className="flex gap-1.5"><button onClick={checkUnread} disabled={unreadBusy} className="text-[11px] px-2 py-1 rounded-lg bg-gray-100 text-gray-500 disabled:opacity-50">{unreadBusy?'查詢中…':'查詢'}</button>{unreadInfo&&unreadInfo.total>0&&<CopyBtn2 getText={()=>header()+'\n未閱讀（'+unreadInfo.total+'人）：\n'+['day','night','other'].map(k=>unreadInfo[k]&&unreadInfo[k].length?(k==='day'?'早班：':k==='night'?'晚班：':'未選班別：')+unreadInfo[k].join('、'):'').filter(Boolean).join('\n')}/>}</div></div>
+        {unreadInfo&&(<div className="space-y-1">{unreadInfo.day.length>0&&<p className="text-[11px] text-gray-500">早班：{unreadInfo.day.join('、')}</p>}{unreadInfo.night.length>0&&<p className="text-[11px] text-gray-500">晚班：{unreadInfo.night.join('、')}</p>}{unreadInfo.other.length>0&&<p className="text-[11px] text-gray-500">未選班別：{unreadInfo.other.join('、')}</p>}{unreadInfo.total===0&&<p className="text-xs text-emerald-600">✓ 全部人都已經閱讀了</p>}</div>)}
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <button onClick={()=>setEditing(true)} className="py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold">修改</button>
+        <button onClick={doToggle} disabled={toggleBusy} className={`py-2.5 rounded-xl text-xs font-semibold disabled:opacity-50 ${status==='off'?'bg-emerald-600/20 text-emerald-600':'bg-red-600/20 text-red-600'}`}>{toggleBusy?'…':(status==='off'?'上架':'下架')}</button>
+        <button onClick={doShare} disabled={shareBusy} className="py-2.5 rounded-xl bg-[#06C755] text-white text-xs font-semibold disabled:opacity-50 flex items-center justify-center gap-1">{shareBusy?<Spinner size={11}/>:<svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.5 2 2 5.6 2 10c0 3.9 3.6 7.2 8.4 7.9.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1.1 1 .6 1.1-.5 6.2-3.7 8.5-6.3C22.1 12.6 22 11.3 22 10c0-4.4-4.5-8-10-8z"/></svg>}分享</button>
+      </div>
+    </div>
+  </div>);
+}
+
 function ManagerNoticeList({userProfile}){
   const[list,setList]=useState(null);
   const[viewing,setViewing]=useState(null);
   const[showCreate,setShowCreate]=useState(false);
-  const[shareBusy,setShareBusy]=useState('');
   const lang=userProfile.lang||'zh';
   const t=(T&&T[lang])||{};
   const code=userProfile.code||userProfile.name||'';
@@ -268,18 +353,6 @@ function ManagerNoticeList({userProfile}){
     setList(arr);
   }).catch(()=>setList([]))};
   useEffect(()=>{load()},[]);
-  const doShare=async(n,ev)=>{
-    ev.stopPropagation();
-    if(shareBusy)return;
-    setShareBusy(n.id);
-    try{
-      const r=await getNoticeFlexContent(n.id,LIFF_ID_HARDCODED);
-      if(r&&r.ok&&liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker')){
-        await liff.shareTargetPicker([{type:'flex',altText:r.title,contents:r.flex}]);
-      }
-    }catch(_e){}
-    setShareBusy('');
-  };
   const[appShareBusy,setAppShareBusy]=useState(false);
   const doShareApp=async()=>{
     if(appShareBusy)return;
@@ -301,7 +374,7 @@ function ManagerNoticeList({userProfile}){
     }catch(_e){}
     setAppShareBusy(false);
   };
-  if(viewing)return(<window.NoticeDetailModal notice={viewing} settings={{code,lang}} t={t} onClose={()=>setViewing(null)} onMore={()=>{}}/>);
+  if(viewing)return(<ManagerNoticeDetail notice={viewing} code={code} onClose={()=>setViewing(null)} onChanged={()=>{load();const fresh=list&&list.find(n=>n.id===viewing.id);if(fresh)setViewing(fresh)}}/>);
   return(<div className="min-h-screen p-4">
     <div className="max-w-md mx-auto space-y-3">
       <div className="flex items-center justify-between">
@@ -309,12 +382,10 @@ function ManagerNoticeList({userProfile}){
         <button onClick={()=>setShowCreate(true)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold">新增公告</button>
       </div>
       {list===null?<p className="text-center py-8"><Spinner size={20}/></p>:list.length===0?<p className="text-sm text-gray-500 text-center py-8">目前沒有公告</p>:list.map(n=>(
-        <div key={n.id} className="bg-white border border-gray-200 rounded-xl px-3 py-2.5">
-          <div onClick={()=>setViewing(n)} className="cursor-pointer active:bg-gray-50"><p className="text-sm text-gray-900 font-medium truncate">{n.title}</p><p className="text-[11px] text-gray-500 mt-0.5">{n.id}・{n.cat}{n.subcat?('・'+n.subcat):''}</p></div>
-          <button onClick={(ev)=>doShare(n,ev)} disabled={shareBusy===n.id} className="mt-2 w-full py-2 rounded-lg bg-[#06C755] text-white text-xs font-semibold disabled:opacity-50 flex items-center justify-center gap-1.5">
-            {shareBusy===n.id?<Spinner size={11}/>:<svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.5 2 2 5.6 2 10c0 3.9 3.6 7.2 8.4 7.9.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1.1 1 .6 1.1-.5 6.2-3.7 8.5-6.3C22.1 12.6 22 11.3 22 10c0-4.4-4.5-8-10-8z"/></svg>}
-            分享到LINE
-          </button>
+        <div key={n.id} onClick={()=>setViewing(n)} className="bg-white border border-gray-200 rounded-xl px-3 py-2.5 cursor-pointer active:bg-gray-50">
+          <div className="flex items-center gap-1.5 min-w-0"><span className="text-[10px] text-gray-500 font-mono flex-shrink-0">{n.id}</span><span className="text-[10px] text-gray-500 flex-shrink-0">・{n.date}</span><span className="w-4 h-4 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0"><span className="text-[8px]">👤</span></span><span className="text-[10px] text-gray-500 truncate">{n.author||''}</span></div>
+          <p className="text-sm text-gray-900 font-medium truncate mt-1">{n.title}</p>
+          <div className="flex items-center justify-between gap-2 mt-1"><span className="text-[10px] text-gray-500 truncate">{n.cat}{n.subcat?('・'+n.subcat):''}{n.status==='off'?'・已下架':''}</span><span className="text-[10px] text-gray-400 flex-shrink-0">👁 {typeof n.openCount==='number'?n.openCount:0}</span></div>
         </div>
       ))}
     </div>
