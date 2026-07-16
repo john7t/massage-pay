@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>員工列表 v1.0-001</title>
+<title>員工列表 v1.0-002</title>
 <script>
   var PAGE="employees",PCODE="04";
   window.__fbLang='zh';
@@ -41,7 +41,7 @@ body{background:#f9fafb;color:#111827;margin:0;font-family:-apple-system,BlinkMa
   <div id="__fbmsg" style="display:none;margin:-1rem 0 2rem;padding:10px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-family:monospace;font-size:11px;color:#b91c1c;max-width:90%;word-break:break-all;white-space:pre-wrap"></div>
 </div>
 
-<script src="./common.js"></script>
+<script src="../common.js"></script>
 <script type="text/babel">
 (function(){
 const{useState,useEffect,useMemo}=React;
@@ -56,7 +56,7 @@ async function gasEmployeeList(lineUserId,storeFilter){const r=await gasCall('em
 async function gasEmployeeDetail(lineUserId,code){const r=await gasCall('employeeDetail',{lineUserId,code},10000);return r||{ok:false,error:'GAS無回應'};}
 async function gasEmployeeSave(lineUserId,code,patch){const r=await window.MP.gasCallPost('employeeSave',{lineUserId,code,patch:JSON.stringify(patch||{})},15000);return r||{ok:false,error:'GAS無回應'};}
 async function gasEmployeeAuditLog(lineUserId,code){const r=await gasCall('employeeAuditLog',{lineUserId,code},10000);return r||{ok:false,error:'GAS無回應'};}
-async function loadStoresLocal(){try{const res=await fetch('./stores.cfg',{cache:'no-store'});if(!res.ok)return['龍山寺店'];const text=(await res.text()).trim();const stores=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));return stores.length?stores:['龍山寺店'];}catch(_e){return['龍山寺店']}}
+async function loadStoresLocal(){try{const res=await fetch('../stores.cfg',{cache:'no-store'});if(!res.ok)return['龍山寺店'];const text=(await res.text()).trim();const stores=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));return stores.length?stores:['龍山寺店'];}catch(_e){return['龍山寺店']}}
 
 function Spinner({size=16}){return(<span style={{display:'inline-block',width:size,height:size,border:'2px solid #d97706',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.7s linear infinite'}}/>);}
 
