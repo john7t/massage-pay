@@ -1,4 +1,4 @@
-/* notice-modal.js v1.12-041 — 共用公告詳情彈窗元件(index與公告頁共用)
+/* notice-modal.js v1.12-042 — 共用公告詳情彈窗元件(index與公告頁共用)
    用法:<NoticeDetailModal notice={n} settings={settings} t={t} onClose={()=>...} onMore={()=>...}/>
    依賴 window.MP 的:noticeBody,hasMyKey,markNoticeRead,autoClaimKey,isNoticeRead,getNoticeReadCount,getNoticeReaders,getNoticeShow,isValidPin,lockPwdCred,gasSetInitialPwd,gasVerifyKey,getMyKey,LS
    v1.12-019:密碼關卡通過後,再背景驗證金鑰是否有效(離職時金鑰會被設過期/停用)。金鑰失效→即使密碼對也擋內容,顯示「憑證已失效」;沒有金鑰或網路失敗時不擋(容錯優先,避免誤傷正常老師) */
@@ -8,12 +8,21 @@
   const UNLOCK_KEY_PREFIX='notice-pwd-unlock-';
   function getUnlockTs(code){try{return parseInt(localStorage.getItem(UNLOCK_KEY_PREFIX+code)||'0',10)||0}catch(_e){return 0}}
   function setUnlockTs(code){try{localStorage.setItem(UNLOCK_KEY_PREFIX+code,String(Date.now()))}catch(_e){}}
+  // 自己注入專屬樣式(這個檔案會被獨立的notice-liff.html引用,不能依賴外部頁面才有的CSS,且要蓋過任何主題override規則)
+  try{
+    if(!document.getElementById('__pinGateStyle')){
+      const st=document.createElement('style');
+      st.id='__pinGateStyle';
+      st.textContent='.pinGateBackdrop{background-color:#000000!important;opacity:1!important}.pinGateBtn{background-color:rgba(255,255,255,0.12)!important;color:#f3f4f6!important}.pinGateTitle{color:#f9fafb!important}.pinGateBody{color:#9ca3af!important}';
+      document.head.appendChild(st);
+    }
+  }catch(_e){}
   function PinDots({length}){
     return(<div className="flex gap-3 justify-center">{Array.from({length:4}).map((_,i)=>(<div key={i} className={`w-4 h-4 rounded-full border-2 ${length>i?'bg-amber-500 border-amber-500':'border-white/[0.2]'}`}></div>))}</div>);
   }
   function PinKeypad({onDigit,onBackspace}){
     return(<div className="grid grid-cols-3 gap-4 justify-items-center">{['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k,i)=>k===''?<div key={i}/>:(
-      <button key={i} onClick={()=>k==='⌫'?onBackspace():onDigit(k)} className="w-16 h-16 rounded-full bg-white/[0.06] text-gray-100 text-xl font-semibold active:bg-white/[0.12]">{k}</button>
+      <button key={i} onClick={()=>k==='⌫'?onBackspace():onDigit(k)} className="pinGateBtn w-16 h-16 rounded-full text-xl font-semibold active:opacity-80">{k}</button>
     ))}</div>);
   }
   // 憑證有效性一天只查一次(不用每次開公告都打GAS),同一天內直接用快取結果
@@ -103,26 +112,26 @@
       }
     };
     if(gate==='setup'){
-      return(<div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 p-6" style={{background:'rgba(0,0,0,0.9)'}} onClick={onClose}>
+      return(<div className="pinGateBackdrop fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 p-6" onClick={onClose}>
         <div onClick={e=>e.stopPropagation()} className="flex flex-col items-center gap-6">
-          <p className="text-base font-bold text-gray-100 text-center">{setupStep===1?(t.noticePwdSetupTitle||'設定4位數密碼'):(t.lockPwdConfirm||'再輸入一次確認')}</p>
-          {setupStep===1&&<p className="text-xs text-gray-500 text-center max-w-xs -mt-3">{t.noticePwdSetupBody}</p>}
+          <p className="pinGateTitle text-base font-bold text-center">{setupStep===1?(t.noticePwdSetupTitle||'設定4位數密碼'):(t.lockPwdConfirm||'再輸入一次確認')}</p>
+          {setupStep===1&&<p className="pinGateBody text-xs text-center max-w-xs -mt-3">{t.noticePwdSetupBody}</p>}
           <PinDots length={setupPwd.length}/>
           {setupErr&&<p className="text-xs text-red-400 text-center">{setupErr}</p>}
           <PinKeypad onDigit={pressSetupDigit} onBackspace={()=>setSetupPwd(v=>v.slice(0,-1))}/>
-          <button onClick={onClose} className="text-xs text-gray-500">✕ 取消</button>
+          <button onClick={onClose} className="pinGateBody text-xs">✕ 取消</button>
         </div>
       </div>);
     }
     if(gate==='locked'){
-      return(<div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 p-6" style={{background:'rgba(0,0,0,0.9)'}} onClick={onClose}>
+      return(<div className="pinGateBackdrop fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 p-6" onClick={onClose}>
         <div onClick={e=>e.stopPropagation()} className="flex flex-col items-center gap-6">
-          <p className="text-base font-bold text-gray-100 text-center">{t.noticePwdLockedTitle||'請輸入密碼'}</p>
-          <p className="text-xs text-gray-500 text-center max-w-xs -mt-3">{t.noticePwdLockedBody}</p>
+          <p className="pinGateTitle text-base font-bold text-center">{t.noticePwdLockedTitle||'請輸入密碼'}</p>
+          <p className="pinGateBody text-xs text-center max-w-xs -mt-3">{t.noticePwdLockedBody}</p>
           <div className={unlockShake?'text-red-500':''}><PinDots length={unlockInput.length}/></div>
           {unlockErr&&<p className="text-xs text-red-400 text-center">{unlockErr}</p>}
           <PinKeypad onDigit={pressUnlockDigit} onBackspace={()=>setUnlockInput(v=>v.slice(0,-1))}/>
-          <button onClick={onClose} className="text-xs text-gray-500">✕ 取消</button>
+          <button onClick={onClose} className="pinGateBody text-xs">✕ 取消</button>
         </div>
       </div>);
     }
