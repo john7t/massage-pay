@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-055</title>
+<title>薪資追蹤 v1.12-056</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -62,6 +62,10 @@ input[type=number]{-moz-appearance:textfield}
 .arrow-blink{animation:arrowBlink 1s ease-in-out infinite}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .fi{animation:fadeIn .2s ease-out}.su{animation:slideUp .25s ease-out}
+.pinGateBackdrop{background-color:#000000!important;opacity:1!important}
+.pinGateBtn{background-color:rgba(255,255,255,0.12)!important;color:#f3f4f6!important}
+.pinGateTitle{color:#f9fafb!important}
+.pinGateBody{color:#9ca3af!important}
 </style>
 <style>
 /* ── v1.8-006: Light theme (pink/white) — 文字改深色，降低對比刺眼感 ── */
@@ -461,7 +465,7 @@ function PinDots({length}){
 }
 function PinKeypad({onDigit,onBackspace}){
   return(<div className="grid grid-cols-3 gap-4 justify-items-center">{['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k,i)=>k===''?<div key={i}/>:(
-    <button key={i} onClick={()=>k==='⌫'?onBackspace():onDigit(k)} className="w-16 h-16 rounded-full bg-white/[0.06] text-gray-100 text-xl font-semibold active:bg-white/[0.12]">{k}</button>
+    <button key={i} onClick={()=>k==='⌫'?onBackspace():onDigit(k)} className="pinGateBtn w-16 h-16 rounded-full text-xl font-semibold active:opacity-80">{k}</button>
   ))}</div>);
 }
 
@@ -481,15 +485,27 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
 
   const initGate=()=>{
     if(!code)return 'none';
-    if(!settings.lockPwd)return 'setup';
+    if(!settings.lockPwd)return 'checking'; // 本機沒有,要先問GAS這個編號是不是已經在別的裝置設過密碼
     if(Date.now()-getInfoUnlockTs(code)>(settings.lockAutoTime||60)*60*1000)return 'locked';
     return 'none';
   };
   const[gate,setGate]=useState(initGate);
+  const[verifyMode,setVerifyMode]=useState(false); // true=本機沒有密碼但伺服器已有,要用既有密碼驗證(不是重新設定)
+  useEffect(()=>{
+    if(gate!=='checking')return;
+    (async()=>{
+      try{
+        const r=await gasCheckCode(code);
+        setVerifyMode(!!(r&&r.ok&&r.hasLockPwd));
+        setGate(r&&r.ok&&r.hasLockPwd?'locked':'setup');
+      }catch(_e){setGate('setup')}
+    })();
+  },[gate]);
   const[keyCheck,setKeyCheck]=useState(null); // null/checking/ok/invalid
   const[setupStep,setSetupStep]=useState(1); // 1=第一次輸入 2=再輸入一次確認
   const[setupPwd,setSetupPwd]=useState('');const[setupPwd1,setSetupPwd1]=useState('');const[setupErr,setSetupErr]=useState('');const[setupBusy,setSetupBusy]=useState(false);
   const[unlockInput,setUnlockInput]=useState('');const[unlockErr,setUnlockErr]=useState('');const[unlockShake,setUnlockShake]=useState(false);
+  const[unlockBusy,setUnlockBusy]=useState(false);
 
   const[mode,setMode]=useState(()=>pending?'ticket':'view'); // view/edit/ticket
   const initForm=()=>{const f={};fieldKeys.forEach(k=>{if(k==='skills'){f[k]=settings[k]||{};return}f[k]=settings[k]!=null?String(settings[k]):(k==='gloveSize'?'M':'')});return f};
@@ -550,6 +566,24 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
     const next=(unlockInput+d).slice(0,4);
     setUnlockInput(next);
     if(next.length===4){
+      if(verifyMode){
+        setUnlockBusy(true);
+        (async()=>{
+          try{
+            const cred=lockPwdCred(code,next);
+            const r=await gasLoginPwd(code,cred);
+            if(r&&r.ok){
+              const updated=Object.assign({},settings,{lockPwd:next});
+              try{LS.set('app-settings',updated)}catch(_e){}
+              if(onUpdateSettings)onUpdateSettings(updated);
+              setInfoUnlockTs(code);setUnlockErr('');setUnlockBusy(false);setGate('none');
+            }else{
+              setUnlockBusy(false);setUnlockErr((r&&r.error)||t.noticePwdWrong||'密碼錯誤');setUnlockShake(true);setTimeout(()=>{setUnlockShake(false);setUnlockInput('')},500);
+            }
+          }catch(e){setUnlockBusy(false);setUnlockErr(String(e));setUnlockShake(true);setTimeout(()=>{setUnlockShake(false);setUnlockInput('')},500)}
+        })();
+        return;
+      }
       if(next===settings.lockPwd){setInfoUnlockTs(code);setUnlockErr('');setGate('none')}
       else{setUnlockErr(t.noticePwdWrong||'密碼錯誤');setUnlockShake(true);setTimeout(()=>{setUnlockShake(false);setUnlockInput('')},500)}
     }
@@ -606,27 +640,34 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
     }catch(_e){setTicketStatus('error');setCooldown(60)}
   };
 
+  if(gate==='checking'){
+    return(<div className="pinGateBackdrop fixed inset-0 z-50 flex flex-col items-center justify-center gap-4">
+      <span className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/>
+      <p className="pinGateBody text-xs">確認中…</p>
+    </div>);
+  }
   if(gate==='setup'){
-    return(<div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 p-6" style={{background:'rgba(0,0,0,0.9)'}} onClick={onClose}>
+    return(<div className="pinGateBackdrop fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 p-6" onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} className="flex flex-col items-center gap-6">
-        <p className="text-base font-bold text-gray-100 text-center">{setupStep===1?(t.noticePwdSetupTitle||'設定4位數密碼'):(t.lockPwdConfirm||'再輸入一次確認')}</p>
-        {setupStep===1&&<p className="text-xs text-gray-500 text-center max-w-xs -mt-3">{type==='basic'?t.infoPwdSetupBasicBody:t.infoPwdSetupStoreBody}</p>}
+        <p className="pinGateTitle text-base font-bold text-center">{setupStep===1?(t.noticePwdSetupTitle||'設定4位數密碼'):(t.lockPwdConfirm||'再輸入一次確認')}</p>
+        {setupStep===1&&<p className="pinGateBody text-xs text-center max-w-xs -mt-3">{type==='basic'?t.infoPwdSetupBasicBody:t.infoPwdSetupStoreBody}</p>}
         <PinDots length={setupPwd.length}/>
         {setupErr&&<p className="text-xs text-red-400 text-center">{setupErr}</p>}
         <PinKeypad onDigit={pressSetupDigit} onBackspace={()=>setSetupPwd(v=>v.slice(0,-1))}/>
-        <button onClick={onClose} className="text-xs text-gray-500">✕ 取消</button>
+        <button onClick={onClose} className="pinGateBody text-xs">✕ 取消</button>
       </div>
     </div>);
   }
   if(gate==='locked'){
-    return(<div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 p-6" style={{background:'rgba(0,0,0,0.9)'}} onClick={onClose}>
+    return(<div className="pinGateBackdrop fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 p-6" onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} className="flex flex-col items-center gap-6">
-        <p className="text-base font-bold text-gray-100 text-center">{t.noticePwdLockedTitle||'請輸入密碼'}</p>
-        <p className="text-xs text-gray-500 text-center max-w-xs -mt-3">{type==='basic'?t.infoPwdLockedBasicBody:t.infoPwdLockedStoreBody}</p>
+        <p className="pinGateTitle text-base font-bold text-center">{t.noticePwdLockedTitle||'請輸入密碼'}</p>
+        <p className="pinGateBody text-xs text-center max-w-xs -mt-3">{verifyMode?'請輸入你原本設定的密碼':(type==='basic'?t.infoPwdLockedBasicBody:t.infoPwdLockedStoreBody)}</p>
         <div className={unlockShake?'text-red-500':''}><PinDots length={unlockInput.length}/></div>
+        {unlockBusy&&<span className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/>}
         {unlockErr&&<p className="text-xs text-red-400 text-center">{unlockErr}</p>}
         <PinKeypad onDigit={pressUnlockDigit} onBackspace={()=>setUnlockInput(v=>v.slice(0,-1))}/>
-        <button onClick={onClose} className="text-xs text-gray-500">✕ 取消</button>
+        <button onClick={onClose} className="pinGateBody text-xs">✕ 取消</button>
       </div>
     </div>);
   }
@@ -1106,9 +1147,9 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
     </div>
     {showGroupBuy&&<GroupBuyModal t={t} settings={settings} onClose={()=>setShowGroupBuy(false)}/>}
     {showDisasterReport&&<DisasterReportModal t={t} settings={settings} onClose={()=>setShowDisasterReport(false)} onSaved={(patch)=>{if(onUpdateSettings)onUpdateSettings(Object.assign({},settings,patch));try{LS.set('app-settings',Object.assign({},settings,patch))}catch(_e){}}}/>}
-    {dailyQueue[0]==='pwd'&&(<div className="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-6 p-6" style={{background:'rgba(0,0,0,0.9)'}}>
-      <p className="text-base font-bold text-gray-100 text-center">{t.homePwdPopupTitle}</p>
-      <p className="text-xs text-gray-500 text-center max-w-xs -mt-3">{t.homePwdPopupBody}</p>
+    {dailyQueue[0]==='pwd'&&(<div className="pinGateBackdrop fixed inset-0 z-[70] flex flex-col items-center justify-center gap-6 p-6">
+      <p className="pinGateTitle text-base font-bold text-center">{t.homePwdPopupTitle}</p>
+      <p className="pinGateBody text-xs text-center max-w-xs -mt-3">{t.homePwdPopupBody}</p>
       <div className={pwdShake?'text-red-500':''}><PinDots length={pwdInput.length}/></div>
       {pwdErr&&<p className="text-xs text-red-400 text-center">{pwdErr}</p>}
       <PinKeypad onDigit={pressPwdDigit} onBackspace={()=>setPwdInput(v=>v.slice(0,-1))}/>
