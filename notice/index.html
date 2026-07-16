@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>公告 v1.0-018</title>
+<title>公告 v1.0-019</title>
 <meta property="og:title" content="公告通知">
 <meta property="og:description" content="請點擊連結查看公告內容">
 <meta property="og:type" content="website">
@@ -575,7 +575,7 @@ function App(){
   return(<NoticeView nid={nid} userProfile={userProfile}/>);
 }
 
-class __EB extends React.Component{constructor(p){super(p);this.state={e:false}}static getDerivedStateFromError(){return{e:true}}componentDidCatch(err,info){try{const detail='name='+(err&&err.name)+'\nmessage='+(err&&err.message)+'\n---元件堆疊---\n'+((info&&info.componentStack)||'(無)')+'\n---JS堆疊---\n'+((err&&err.stack)||'(無)');alert('除錯訊息(請截圖給我):\n'+detail);window.__showFallback(3,{lineno:0,msg:(err&&err.message)||String(err)})}catch(e){}}render(){return this.state.e?null:this.props.children}}
+class __EB extends React.Component{constructor(p){super(p);this.state={e:false}}static getDerivedStateFromError(){return{e:true}}componentDidCatch(err){try{window.__showFallback(3,{lineno:0,msg:(err&&err.message)||String(err)})}catch(e){}}render(){return this.state.e?null:this.props.children}}
 ReactDOM.createRoot(document.getElementById('root')).render(<__EB><App/></__EB>);
 })();
 </script>
