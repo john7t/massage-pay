@@ -36,11 +36,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-058</title>
+<title>薪資追蹤 v1.12-059</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
 *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
 html{background:var(--bg,#030712)}body{margin:0;background:var(--bg,#030712);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none;min-height:100vh}
@@ -1018,6 +1019,40 @@ function DisasterReportModal({t,settings,onClose,onSaved}){
     </div>)}
   </div></div>);
 }
+function SupervisorSection(){
+  const[phase,setPhase]=useState('locked'); // locked/checking/denied/granted
+  const[errMsg,setErrMsg]=useState('');
+  const SUP_LIFF_ID='2010673151-AU7Cpo5v'; // 借用employees.html的LIFF App做登入驗證,指定redirectUri導回本頁,不會跳去employees頁面
+  const doCheck=async()=>{
+    setPhase('checking');setErrMsg('');
+    try{
+      if(typeof liff==='undefined'){setErrMsg('LINE 元件載入失敗，請檢查網路');setPhase('locked');return}
+      await liff.init({liffId:SUP_LIFF_ID});
+      if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return}
+      const profile=await liff.getProfile();
+      const res=await fetch('./supervisors.cfg',{cache:'no-store'});
+      const text=res.ok?(await res.text()):'';
+      const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
+      const found=lines.some(l=>l.split(':')[0]===profile.userId);
+      setPhase(found?'granted':'denied');
+    }catch(e){setErrMsg(String((e&&e.message)||e));setPhase('locked')}
+  };
+  if(phase==='locked')return(<div className="mt-5 pt-4 border-t border-white/[0.06]">
+    <button onClick={doCheck} className="w-full py-3 rounded-xl bg-white/[0.03] border border-white/[0.08] text-gray-500 text-xs font-medium active:bg-white/[0.06]">🔒 主管專用區塊（點擊驗證身分）</button>
+    {errMsg&&<p className="text-[11px] text-red-400 text-center mt-1.5">{errMsg}</p>}
+  </div>);
+  if(phase==='checking')return(<div className="mt-5 pt-4 border-t border-white/[0.06] flex justify-center py-3"><span className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/></div>);
+  if(phase==='denied')return(<div className="mt-5 pt-4 border-t border-white/[0.06]"><p className="text-xs text-gray-500 text-center py-3">您目前不是主管身分</p></div>);
+  return(<div className="mt-5 pt-4 border-t border-white/[0.06] space-y-2">
+    <p className="text-xs font-semibold text-purple-400 px-1">主管專用</p>
+    <div className="grid grid-cols-3 gap-3">
+      <a href="https://liff.line.me/2010673151-AU7Cpo5v" className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-lg">👥</span><span className="text-[10px] text-gray-500">員工管理</span></a>
+      <a href="https://liff.line.me/2010673151-PEhuHeqe" className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-lg">📋</span><span className="text-[10px] text-gray-500">公告管理</span></a>
+      <a href="https://liff.line.me/2010673151-kemVP4Pi" className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-lg">⚠️</span><span className="text-[10px] text-gray-500">安全回報</span></a>
+    </div>
+  </div>);
+}
+
 function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,onGotoChart,onGotoSuggest,onGotoViolation,onGotoBackup,onGotoManage,onGotoMonthly,onGotoCustomers,onGotoSettings,settingsAlert,onUpdateSettings}){
   const now=bizDate();const bp=bizParts();const ty=settings.year||bp.y,tm=bp.m,td=bp.d;
   const[data,setData]=useState(null);const[prev,setPrev]=useState(null);const[otherMode,setOtherMode]=useState(false);const[otherVal,setOtherVal]=useState('');const[editPrev,setEditPrev]=useState(false);const[editToday,setEditToday]=useState(false);
@@ -1146,6 +1181,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
       <button onClick={()=>setShowLineQr(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z"/></svg></span><span className="text-[10px] text-gray-500">LINE Bot</span></button>
       <button onClick={()=>setShowDisasterReport(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg></span><span className="text-[10px] text-gray-500">{t.drBtn}</span></button>
     </div>
+    <SupervisorSection/>
     {showGroupBuy&&<GroupBuyModal t={t} settings={settings} onClose={()=>setShowGroupBuy(false)}/>}
     {showLineQr&&(<div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 p-6" style={{background:'rgba(0,0,0,0.9)'}} onClick={()=>setShowLineQr(false)}>
       <div onClick={e=>e.stopPropagation()} className="bg-white rounded-2xl p-5 flex flex-col items-center gap-3 max-w-xs">
