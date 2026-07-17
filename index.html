@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-056</title>
+<title>薪資追蹤 v1.12-057</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -1022,7 +1022,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
   const now=bizDate();const bp=bizParts();const ty=settings.year||bp.y,tm=bp.m,td=bp.d;
   const[data,setData]=useState(null);const[prev,setPrev]=useState(null);const[otherMode,setOtherMode]=useState(false);const[otherVal,setOtherVal]=useState('');const[editPrev,setEditPrev]=useState(false);const[editToday,setEditToday]=useState(false);
   const[showStoreInfo,setShowStoreInfo]=useState(false);const[showBasicInfo,setShowBasicInfo]=useState(false);
-  const[showGroupBuy,setShowGroupBuy]=useState(false);const[showDisasterReport,setShowDisasterReport]=useState(false);
+  const[showGroupBuy,setShowGroupBuy]=useState(false);const[showDisasterReport,setShowDisasterReport]=useState(false);const[showLineQr,setShowLineQr]=useState(false);
   const[dailyQueue,setDailyQueue]=useState([]);const[gbPromptData,setGbPromptData]=useState(null);
   const[pwdInput,setPwdInput]=useState('');const[pwdErr,setPwdErr]=useState('');
   const advanceQueue=()=>setDailyQueue(q=>q.slice(1));
@@ -1143,9 +1143,18 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
       <button onClick={()=>onGotoBackup&&onGotoBackup()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg></span><span className="text-[10px] text-gray-500">{t.tabBackup||'備份'}</span></button>
       <button onClick={()=>onGotoManage&&onGotoManage()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 14.4 7.2 17l.9-5.4L4.2 7.8l5.4-.8L12 2z"/></svg></span><span className="text-[10px] text-gray-500">{t.tabManage||'管理中心'}</span></button>
       <button onClick={()=>setShowGroupBuy(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></span><span className="text-[10px] text-gray-500">{t.groupBuyBtn}</span></button>
+      <button onClick={()=>setShowLineQr(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z"/></svg></span><span className="text-[10px] text-gray-500">LINE Bot</span></button>
       <button onClick={()=>setShowDisasterReport(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg></span><span className="text-[10px] text-gray-500">{t.drBtn}</span></button>
     </div>
     {showGroupBuy&&<GroupBuyModal t={t} settings={settings} onClose={()=>setShowGroupBuy(false)}/>}
+    {showLineQr&&(<div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 p-6" style={{background:'rgba(0,0,0,0.9)'}} onClick={()=>setShowLineQr(false)}>
+      <div onClick={e=>e.stopPropagation()} className="bg-white rounded-2xl p-5 flex flex-col items-center gap-3 max-w-xs">
+        <p className="text-sm font-bold text-gray-900">加入 LINE Bot</p>
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=https%3A%2F%2Flin.ee%2F58Dsob3" alt="LINE Bot QR Code" className="w-56 h-56"/>
+        <a href="https://lin.ee/58Dsob3" target="_blank" rel="noopener" className="w-full py-2.5 rounded-xl bg-[#06C755] text-white text-sm font-bold text-center">直接開啟</a>
+        <button onClick={()=>setShowLineQr(false)} className="text-xs text-gray-500">關閉</button>
+      </div>
+    </div>)}
     {showDisasterReport&&<DisasterReportModal t={t} settings={settings} onClose={()=>setShowDisasterReport(false)} onSaved={(patch)=>{if(onUpdateSettings)onUpdateSettings(Object.assign({},settings,patch));try{LS.set('app-settings',Object.assign({},settings,patch))}catch(_e){}}}/>}
     {dailyQueue[0]==='pwd'&&(<div className="pinGateBackdrop fixed inset-0 z-[70] flex flex-col items-center justify-center gap-6 p-6">
       <p className="pinGateTitle text-base font-bold text-center">{t.homePwdPopupTitle}</p>
