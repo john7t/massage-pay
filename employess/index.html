@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>員工列表 v1.0-009</title>
+<title>員工列表 v1.0-011</title>
 <script>
   var PAGE="employees",PCODE="04";
   window.__fbLang='zh';
@@ -75,6 +75,7 @@ async function gasLaborPointsGetMonth(lineUserId,store,yearMonth){const r=await 
 async function gasLaborPointsSave(lineUserId,store,yearMonth,code,points){const r=await window.MP.gasCallPost('laborPointsSave',{lineUserId,store,yearMonth,code,points},10000);return r||{ok:false,error:'GAS無回應'};}
 async function gasLaborPointsSaveBatch(lineUserId,store,yearMonth,entries){const r=await window.MP.gasCallPost('laborPointsSaveBatch',{lineUserId,store,yearMonth,entries:JSON.stringify(entries)},20000);return r||{ok:false,error:'GAS無回應'};}
 async function gasLaborPointsRanking(lineUserId,store,yearMonth,improveTopN){const r=await gasCall('laborPointsRanking',{lineUserId,store,yearMonth,improveTopN},10000);return r||{ok:false,error:'GAS無回應'};}
+async function gasLaborPointsBonus(lineUserId,store,yearMonth){const r=await gasCall('laborPointsBonus',{lineUserId,store,yearMonth},10000);return r||{ok:false,error:'GAS無回應'};}
 
 function EmployeeDetailModal({code,myAuth,onClose}){
   const[staff,setStaff]=useState(null);
@@ -249,6 +250,8 @@ function LaborPointsModal({myAuth,stores,onClose}){
   const[pageSize,setPageSize]=useState(9);
   const[improveTopN,setImproveTopN]=useState(5);
   const[ranking,setRanking]=useState(null);
+  const[bonus,setBonus]=useState(null);
+  const[bonusCopied,setBonusCopied]=useState(false);
   const[rankingBusy,setRankingBusy]=useState(false);
   const[copied,setCopied]=useState(false);
   const loadEntry=async()=>{
@@ -275,11 +278,33 @@ function LaborPointsModal({myAuth,stores,onClose}){
   };
   const changePage=(delta)=>{setPage(p=>Math.max(0,p+delta))}; // 换页時資料留在localPoints(本機狀態),不會遺失
   const loadRanking=async()=>{
-    setRankingBusy(true);setRanking(null);
-    try{const r=await gasLaborPointsRanking(myAuth.lineUserId,store,yearMonth,improveTopN);if(r&&r.ok)setRanking(r)}catch(_e){}
+    setRankingBusy(true);setRanking(null);setBonus(null);
+    try{
+      const[r,b]=await Promise.all([gasLaborPointsRanking(myAuth.lineUserId,store,yearMonth,improveTopN),gasLaborPointsBonus(myAuth.lineUserId,store,yearMonth)]);
+      if(r&&r.ok)setRanking(r);
+      if(b&&b.ok)setBonus(b);
+    }catch(_e){}
     setRankingBusy(false);
   };
   useEffect(()=>{if(view==='ranking')loadRanking()},[view,store,yearMonth,improveTopN]);
+  const genBonusText=()=>{
+    if(!bonus)return '';
+    const[yy,mm]=yearMonth.split('-');
+    let s='💰 【'+yy+'年'+parseInt(mm,10)+'月｜'+store+' 勞點獎金】\n';
+    s+='進步獎（晚班・9~39點・超過8點的部分每點100元）\n';
+    if(bonus.progressBonus.length===0)s+='（無符合人員）\n';
+    else bonus.progressBonus.forEach(e=>{s+=e.code+'：'+e.points+'點，獎金 '+e.bonus+' 元\n';});
+    s+='勞點獎金（40點1000元／60點以上3000元）\n';
+    if(bonus.laborBonus.length===0)s+='（無符合人員）\n';
+    else bonus.laborBonus.forEach(e=>{s+=e.code+'：'+e.points+'點，獎金 '+e.bonus+' 元\n';});
+    return s;
+  };
+  const doCopyBonus=async()=>{
+    const text=genBonusText();
+    try{await navigator.clipboard.writeText(text);setBonusCopied(true);setTimeout(()=>setBonusCopied(false),2000)}catch(_e){
+      try{const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.focus();ta.select();document.execCommand('copy');document.body.removeChild(ta);setBonusCopied(true);setTimeout(()=>setBonusCopied(false),2000)}catch(_e2){}
+    }
+  };
   const genText=()=>{
     if(!ranking)return '';
     const[yy,mm]=yearMonth.split('-');
@@ -339,6 +364,11 @@ function LaborPointsModal({myAuth,stores,onClose}){
           {rankingBusy?<p className="text-center py-8"><Spinner size={20}/></p>:ranking&&(<>
             <div className="bg-gray-50 rounded-xl p-3"><pre className="text-xs text-gray-800 whitespace-pre-wrap font-sans">{genText()}</pre></div>
             <button onClick={doCopy} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold">{copied?'✓ 已複製':'複製公告文字'}</button>
+            {bonus&&(<div className="pt-2 border-t border-gray-200 space-y-2">
+              <p className="text-xs font-semibold text-gray-600">獎金試算</p>
+              <div className="bg-gray-50 rounded-xl p-3"><pre className="text-xs text-gray-800 whitespace-pre-wrap font-sans">{genBonusText()}</pre></div>
+              <button onClick={doCopyBonus} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold">{bonusCopied?'✓ 已複製':'複製獎金文字'}</button>
+            </div>)}
           </>)}
         </div>)}
       </div>
