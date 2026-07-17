@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-057</title>
+<title>薪資追蹤 v1.12-058</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -1231,14 +1231,16 @@ function DayEditor({day,d,y,m,t,up,sk,onSave,onCancel,code:editorCode}){
   </div></div>)}
 
 /* ══════════ Monthly ══════════ */
-function MonthlyPage({settings,curM,setCurM,t,onGotoYear}){
+function MonthlyPage({settings,curM,setCurM,t,onGotoYear,onClose}){
   const[data,setData]=useState(null);const[editDay,setEditDay]=useState(null);const y=settings.year||bizParts().y;
   useEffect(()=>{setData(LS.get(dk(settings.code,y,curM))||eMon())},[settings.code,y,curM]);
   useEffect(()=>{if(data&&curM===bizParts().m&&y===bizParts().y){const el=document.querySelector('[data-today-row]');if(el)setTimeout(()=>{try{el.scrollIntoView({block:'center',behavior:'smooth'})}catch(_e){}},150)}},[data,curM,y]);
   const saveDay=(d,dd)=>{const nd={...data,days:{...data.days,[d]:dd}};setData(nd);setEditDay(null);LS.set(dk(settings.code,y,curM),nd)};
   const dm=dim(y,curM);
   const calc=useMemo(()=>{if(!data)return{prev:{units:0,salary:0,laodian:0},next:{units:0,salary:0,laodian:0},month:{units:0,salary:0,laodian:0}};let pu=0,ps=0,pl=0,nu=0,ns=0,nl=0;for(let d=1;d<=dm;d++){const day=data.days[d]||eDay();const u=day.total||0,lo=day.laodian||0,s=calcSal(day,settings.unitPrice,settings.skills);if(d<=15){pu+=u;ps+=s;pl+=lo}else{nu+=u;ns+=s;nl+=lo}}return{prev:{units:pu,salary:ps,laodian:pl},next:{units:nu,salary:ns,laodian:nl},month:{units:pu+nu,salary:ps+ns,laodian:pl+nl}}},[data,dm,settings.unitPrice,settings.skills]);
-  return(<div className="max-w-lg mx-auto fi"><div className="sticky top-0 z-10 bg-gray-950 pb-1"><div className="px-2 py-2 flex gap-1 overflow-x-auto no-sb"><button onClick={()=>onGotoYear&&onGotoYear()} className="px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 bg-emerald-600 text-white">{t.yearly}</button>{Array.from({length:12},(_,i)=>i+1).map(m=>(<button key={m} onClick={()=>setCurM(m)} className={`px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 ${m===curM?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-600'}`}>{t.months[m-1]}</button>))}<button onClick={()=>onGotoYear&&onGotoYear()} className="px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 bg-emerald-600 text-white">{t.yearly}</button></div><div className="px-3 py-2"><SummaryTable prev={calc.prev} next={calc.next} month={calc.month} t={t}/></div></div>
+  return(<div className="max-w-lg mx-auto fi"><div className="sticky top-0 z-10 bg-gray-950 pb-1">
+  <div className="flex items-center justify-between px-3 pt-2"><h2 className="text-base font-bold text-gray-100">{t.monthly}</h2><button onClick={()=>onClose&&onClose()} className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-gray-400 active:bg-white/[0.12]">✕</button></div>
+  <div className="px-2 py-2 flex gap-1 overflow-x-auto no-sb"><button onClick={()=>onGotoYear&&onGotoYear()} className="px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 bg-emerald-600 text-white">{t.yearly}</button>{Array.from({length:12},(_,i)=>i+1).map(m=>(<button key={m} onClick={()=>setCurM(m)} className={`px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 ${m===curM?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-600'}`}>{t.months[m-1]}</button>))}<button onClick={()=>onGotoYear&&onGotoYear()} className="px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 bg-emerald-600 text-white">{t.yearly}</button></div><div className="px-3 py-2"><SummaryTable prev={calc.prev} next={calc.next} month={calc.month} t={t}/></div></div>
   <div className="px-3 py-1.5 bg-amber-600/[0.06] border-b border-amber-500/10"><span className="text-[11px] text-amber-500/80 font-semibold">{t.p1}</span></div>
   {Array.from({length:Math.min(15,dm)},(_,i)=>i+1).map(d=>(<DayRow key={d} d={d} day={data?.days[d]||eDay()} y={y} m={curM} t={t} up={settings.unitPrice} sk={settings.skills} onEdit={setEditDay} isToday={curM===bizParts().m&&y===bizParts().y&&d===bizParts().d}/>))}
   {dm>15&&(<><div className="px-3 py-1.5 bg-amber-600/[0.06] border-b border-amber-500/10 mt-0.5"><span className="text-[11px] text-amber-500/80 font-semibold">{t.p2}</span></div>{Array.from({length:dm-15},(_,i)=>i+16).map(d=>(<DayRow key={d} d={d} day={data?.days[d]||eDay()} y={y} m={curM} t={t} up={settings.unitPrice} sk={settings.skills} onEdit={setEditDay} isToday={curM===bizParts().m&&y===bizParts().y&&d===bizParts().d}/>))}</>)}
@@ -1305,13 +1307,12 @@ function App(){
   // 設定圖示❗:基資或店資有未確認變動(主管除外)
   const settingsAlert=(()=>{const permExp=(()=>{if(!settings.permitExpiry)return false;const days=(new Date(settings.permitExpiry)-new Date())/86400000;return days<=30})();const gh=getGHConfig();if(gh&&gh.token)return permExp;const cp=settings.confirmedProfile,cs=settings.confirmedStore;const pf=['gender','nameZh','nameVi','phone','email','addrCity','addrDist','addrDetail','school','major','schoolType','permitNo','permitDate','permitExpiry','permitOrg'];const sf=['storeSel','shift','workStart','workEnd','workNote','unitPrice','preg','oil','techMentor','lockerNo'];const chg=(snap,fs)=>{if(!snap)return fs.some(k=>{const v=settings[k];return v!==undefined&&v!==''&&v!==null});return fs.some(k=>(snap[k]||'')!==((settings[k]!==undefined?settings[k]:'')||''))};return chg(cp,pf)||chg(cs,sf)||permExp})();
   return(<div className={`${isLight?'text-gray-900':'text-gray-100'} flex flex-col`} style={{backgroundColor:bgColor,height:'100vh',maxHeight:'100dvh'}} data-light={isLight||undefined}>
-    {tab!=='home'&&(<div className="flex-shrink-0 flex items-center justify-end px-4 py-2 border-b border-white/[0.06]" style={{backgroundColor:bgColor}}><button onClick={()=>handleTab('home')} className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-gray-400 active:bg-white/[0.12]">✕</button></div>)}
     <div className="flex-1 overflow-y-auto">
       {tab==='home'&&<HomePage settings={settings} t={t} refreshKey={refreshKey} onUpdateSettings={updateSettings} onGotoProfile={()=>{try{sessionStorage.setItem('__settingsSub','basic')}catch(e){}handleTab('settings')}} onGotoNotices={()=>{try{sessionStorage.setItem('__settingsSub','notice')}catch(e){}handleTab('settings')}} onGotoBook={()=>{try{sessionStorage.setItem('__settingsSub','book')}catch(e){}handleTab('settings')}} onGotoChart={()=>{try{sessionStorage.setItem('__settingsSub','chart')}catch(e){}handleTab('settings')}} onGotoSuggest={()=>{try{sessionStorage.setItem('__settingsSub','suggest')}catch(e){}handleTab('settings')}} onGotoViolation={()=>{try{sessionStorage.setItem('__settingsSub','violation')}catch(e){}handleTab('settings')}} onGotoBackup={()=>{try{sessionStorage.setItem('__settingsSub','backup')}catch(e){}handleTab('settings')}} onGotoManage={()=>{location.href='./auth.html#lang='+(settings.lang||'zh')}} onGotoMonthly={()=>handleTab('monthly')} onGotoCustomers={()=>handleTab('customers')} onGotoSettings={()=>handleTab('settings')} settingsAlert={settingsAlert}/>}
-      {tab==='monthly'&&<MonthlyPage settings={settings} curM={curM} setCurM={setCurM} t={t} onGotoYear={()=>handleTab('yearly')}/>}
+      {tab==='monthly'&&<MonthlyPage settings={settings} curM={curM} setCurM={setCurM} t={t} onGotoYear={()=>handleTab('yearly')} onClose={()=>handleTab('home')}/>}
       {tab==='yearly'&&<YearlyPage settings={settings} t={t} onBack={()=>handleTab('monthly')}/>}
-      {tab==='customers'&&(()=>{const CP=(window.__V&&window.__V.CustomerPage)||(()=>null);return<CP settings={settings} t={t}/>})()}
-      {tab==='settings'&&(()=>{const SP=(window.__V&&window.__V.SettingsPage)||(()=>null);return<SP settings={settings} onUpdate={updateSettings} t={t} theme={theme} setTheme={setTheme}/>})()}
+      {tab==='customers'&&(()=>{const CP=(window.__V&&window.__V.CustomerPage)||(()=>null);return<CP settings={settings} t={t} onClose={()=>handleTab('home')}/>})()}
+      {tab==='settings'&&(()=>{const SP=(window.__V&&window.__V.SettingsPage)||(()=>null);return<SP settings={settings} onUpdate={updateSettings} t={t} theme={theme} setTheme={setTheme} onClose={()=>handleTab('home')}/>})()}
     </div>
   </div>)}
 
