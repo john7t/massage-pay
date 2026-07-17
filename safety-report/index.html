@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>安全回報 v1.12-049</title>
+<title>安全回報 v1.12-051</title>
 <meta property="og:title" content="天然災害每日安全回報中心">
 <meta property="og:description" content="請點擊連結進行安全回報">
 <meta property="og:type" content="website">
@@ -132,6 +132,14 @@ const STATUS_KEYS=['safe','flooded','sick'];
 // 留空的話會照原本方式去問GAS的指令碼屬性(多一次來回,但LIFF ID要改的話不用重新部署前端)。
 const LIFF_ID_HARDCODED='2010673151-kemVP4Pi';
 const Spinner=({size})=>(<svg className="animate-spin" width={size||14} height={size||14} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>);
+function MiniPinDots({length,total}){
+  return(<div className="flex gap-2.5 justify-center py-1">{Array.from({length:total}).map((_,i)=>(<div key={i} className={`w-3.5 h-3.5 rounded-full border-2 ${length>i?'bg-amber-500 border-amber-500':'border-white/[0.25]'}`}></div>))}</div>);
+}
+function MiniPinKeypad({onDigit,onBackspace}){
+  return(<div className="grid grid-cols-3 gap-2 justify-items-center max-w-[220px] mx-auto">{['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k,i)=>k===''?<div key={i}/>:(
+    <button key={i} type="button" onClick={()=>k==='⌫'?onBackspace():onDigit(k)} className="w-12 h-12 rounded-full bg-white/[0.08] text-gray-100 text-base font-semibold active:bg-white/[0.15]">{k}</button>
+  ))}</div>);
+}
 // 主管的自訂名稱如果純數字(例如管理者直接輸入編號當識別碼),自動補上「號」讀起來才順(例如「5」顯示成「5號」);如果是打真的名字就照原樣顯示
 const fmtManagerName=(name)=>/^\d+$/.test(String(name||''))?(name+'號'):name;
 
@@ -165,7 +173,7 @@ function PendingApprovalScreen({reqId,store,onApproved}){
     setShareStatus('sharing');
     try{
       if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setShareStatus('error');return}
-      const uri='https://liff.line.me/'+LIFF_ID_HARDCODED+'?approveReg='+reqId;
+      const uri='https://john7t.github.io/massage-pay/auth.html#req='+reqId;
       const res=await liff.shareTargetPicker([{type:'flex',altText:'審核通知',contents:{
         type:'bubble',
         body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
@@ -327,9 +335,15 @@ function RegisterFlow({profile,onDone,sid}){
       </div>)}
 
       {personType==='teacher'&&(<div className="space-y-3">
-        <div><label className="text-sm text-gray-400 block mb-2">{t.teacherCode}</label><div className="flex gap-2"><input value={code} onChange={e=>{setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''));setCheckFound(null);setCheckMsg('');setPwdMode('');setPwdVerified(false);setPwdInput('');setPwdSetup1('');setPwdErr('')}} placeholder={t.teacherCodePh} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 text-center tracking-widest"/><button onClick={doCheck} disabled={checkBusy||!code.trim()} className="px-4 py-3 rounded-xl bg-white/[0.08] text-gray-300 text-sm font-semibold disabled:opacity-50 flex-shrink-0">{checkBusy?<Spinner size={14}/>:'檢查'}</button></div>{checkMsg&&<p className={`text-xs mt-1 ${checkFound?'text-emerald-400':'text-amber-400'}`}>{checkMsg}</p>}</div>
-        {pwdMode==='verify'&&!pwdVerified&&(<div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-3 space-y-2"><p className="text-xs text-gray-400">請輸入你原本設定的4位數密碼</p><input value={pwdInput} onChange={e=>{setPwdInput(e.target.value.replace(/\D/g,'').slice(0,4));setPwdErr('')}} inputMode="numeric" type="password" maxLength={4} placeholder="••••" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3 text-lg text-center text-gray-100 tracking-[0.5em]"/>{pwdErr&&<p className="text-xs text-red-400">{pwdErr}</p>}<button onClick={doPwdVerify} disabled={pwdBusy||pwdInput.length!==4} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 disabled:bg-white/[0.06] disabled:text-gray-600">{pwdBusy?<Spinner size={14}/>:'登入'}</button></div>)}
-        {(pwdMode==='setup1'||pwdMode==='setup2')&&!pwdVerified&&(<div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-3 space-y-2"><p className="text-xs text-gray-400">{pwdMode==='setup1'?'請設定4位數密碼（不可4碼相同或連續遞增/遞減）':'請再輸入一次確認'}</p><input value={pwdInput} onChange={e=>{setPwdInput(e.target.value.replace(/\D/g,'').slice(0,4));setPwdErr('')}} inputMode="numeric" type="password" maxLength={4} placeholder="••••" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3 text-lg text-center text-gray-100 tracking-[0.5em]"/>{pwdErr&&<p className="text-xs text-red-400">{pwdErr}</p>}<button onClick={doPwdSetupStep} disabled={pwdInput.length!==4} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 disabled:bg-white/[0.06] disabled:text-gray-600">{pwdMode==='setup1'?'下一步':'確認設定'}</button></div>)}
+        <div className="space-y-2">
+          <label className="text-sm text-gray-400 block text-center">{t.teacherCodePh}</label>
+          <MiniPinDots length={code.length} total={3}/>
+          <MiniPinKeypad onDigit={d=>{if(code.length>=3)return;setCode(code+d);setCheckFound(null);setCheckMsg('');setPwdMode('');setPwdVerified(false);setPwdInput('');setPwdSetup1('');setPwdErr('')}} onBackspace={()=>{setCode(c=>c.slice(0,-1));setCheckFound(null);setCheckMsg('');setPwdMode('');setPwdVerified(false);setPwdInput('');setPwdSetup1('');setPwdErr('')}}/>
+          <button onClick={doCheck} disabled={checkBusy||!code.trim()} className="w-full py-2.5 rounded-xl bg-white/[0.08] text-gray-300 text-sm font-semibold disabled:opacity-50">{checkBusy?<Spinner size={14}/>:'檢查'}</button>
+          {checkMsg&&<p className={`text-xs text-center ${checkFound?'text-emerald-400':'text-amber-400'}`}>{checkMsg}</p>}
+        </div>
+        {pwdMode==='verify'&&!pwdVerified&&(<div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-3 space-y-2"><p className="text-xs text-gray-400 text-center">請輸入你原本設定的4位數密碼</p><MiniPinDots length={pwdInput.length} total={4}/>{pwdErr&&<p className="text-xs text-red-400 text-center">{pwdErr}</p>}<MiniPinKeypad onDigit={d=>{if(pwdInput.length>=4)return;setPwdInput(v=>v+d);setPwdErr('')}} onBackspace={()=>{setPwdInput(v=>v.slice(0,-1));setPwdErr('')}}/><button onClick={doPwdVerify} disabled={pwdBusy||pwdInput.length!==4} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 disabled:bg-white/[0.06] disabled:text-gray-600">{pwdBusy?<Spinner size={14}/>:'登入'}</button></div>)}
+        {(pwdMode==='setup1'||pwdMode==='setup2')&&!pwdVerified&&(<div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-3 space-y-2"><p className="text-xs text-gray-400 text-center">{pwdMode==='setup1'?'請設定4位數密碼（不可4碼相同或連續遞增/遞減）':'請再輸入一次確認'}</p><MiniPinDots length={pwdInput.length} total={4}/>{pwdErr&&<p className="text-xs text-red-400 text-center">{pwdErr}</p>}<MiniPinKeypad onDigit={d=>{if(pwdInput.length>=4)return;setPwdInput(v=>v+d);setPwdErr('')}} onBackspace={()=>{setPwdInput(v=>v.slice(0,-1));setPwdErr('')}}/><button onClick={doPwdSetupStep} disabled={pwdInput.length!==4} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 disabled:bg-white/[0.06] disabled:text-gray-600">{pwdMode==='setup1'?'下一步':'確認設定'}</button></div>)}
         {pwdVerified&&<p className="text-xs text-emerald-400">✓ 密碼{pwdMode==='verify'?'驗證':'設定'}完成</p>}
         {pwdVerified&&(<>
         <div><label className="text-sm text-gray-400 block mb-2">{t.gender}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setGender('M')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='M'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderM}</button><button onClick={()=>setGender('F')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='F'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderF}</button></div></div>
