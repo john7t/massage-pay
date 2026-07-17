@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>員工列表 v1.0-011</title>
+<title>員工列表 v1.0-012</title>
 <script>
   var PAGE="employees",PCODE="04";
   window.__fbLang='zh';
@@ -76,6 +76,7 @@ async function gasLaborPointsSave(lineUserId,store,yearMonth,code,points){const 
 async function gasLaborPointsSaveBatch(lineUserId,store,yearMonth,entries){const r=await window.MP.gasCallPost('laborPointsSaveBatch',{lineUserId,store,yearMonth,entries:JSON.stringify(entries)},20000);return r||{ok:false,error:'GAS無回應'};}
 async function gasLaborPointsRanking(lineUserId,store,yearMonth,improveTopN){const r=await gasCall('laborPointsRanking',{lineUserId,store,yearMonth,improveTopN},10000);return r||{ok:false,error:'GAS無回應'};}
 async function gasLaborPointsBonus(lineUserId,store,yearMonth){const r=await gasCall('laborPointsBonus',{lineUserId,store,yearMonth},10000);return r||{ok:false,error:'GAS無回應'};}
+async function gasLaborPointsHistoryMax(lineUserId,store){const r=await gasCall('laborPointsHistoryMax',{lineUserId,store},10000);return r||{ok:false,error:'GAS無回應'};}
 
 function EmployeeDetailModal({code,myAuth,onClose}){
   const[staff,setStaff]=useState(null);
@@ -238,22 +239,27 @@ function TimeGroupedView({list,timeField,onSelect}){
 function LaborPointsModal({myAuth,stores,onClose}){
   const canPickStore=myAuth.level>=4;
   const now=new Date();
+  const prevMonthDate=new Date(now.getFullYear(),now.getMonth()-1,1); // 預設抓「上個月」,例如8/1之後預設顯示7月
   const[store,setStore]=useState(canPickStore?(stores[0]||''):myAuth.store);
-  const[yearMonth,setYearMonth]=useState(now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0'));
+  const[yearMonth,setYearMonth]=useState(prevMonthDate.getFullYear()+'-'+String(prevMonthDate.getMonth()+1).padStart(2,'0'));
   const[view,setView]=useState('entry'); // entry/ranking
   const[list,setList]=useState(null);
   const[localPoints,setLocalPoints]=useState({}); // 本機暫存,還沒回存GAS
+  const[historyMax,setHistoryMax]=useState({}); // 每個編號的歷史最高點數(唯讀顯示用)
   const[dirty,setDirty]=useState(false); // 有沒有還沒存檔的變更
   const[saveStatus,setSaveStatus]=useState(''); // ''/saving/done/錯誤訊息
   const[loadStatus,setLoadStatus]=useState('');
   const[page,setPage]=useState(0);
-  const[pageSize,setPageSize]=useState(9);
+  const[pageSize,setPageSize]=useState(5);
   const[improveTopN,setImproveTopN]=useState(5);
   const[ranking,setRanking]=useState(null);
   const[bonus,setBonus]=useState(null);
   const[bonusCopied,setBonusCopied]=useState(false);
   const[rankingBusy,setRankingBusy]=useState(false);
   const[copied,setCopied]=useState(false);
+  const loadHistoryMax=async()=>{
+    try{const r=await gasLaborPointsHistoryMax(myAuth.lineUserId,store);if(r&&r.ok)setHistoryMax(r.max||{})}catch(_e){}
+  };
   const loadEntry=async()=>{
     if(!store||!yearMonth)return;
     setLoadStatus('loading');setList(null);setPage(0);
@@ -265,14 +271,14 @@ function LaborPointsModal({myAuth,stores,onClose}){
     }catch(_e){}
     setLoadStatus('');
   };
-  useEffect(()=>{if(view==='entry')loadEntry()},[view,store,yearMonth]);
+  useEffect(()=>{if(view==='entry'){loadEntry();loadHistoryMax()}},[view,store,yearMonth]);
   const updLocal=(code,val)=>{setLocalPoints(p=>({...p,[code]:val}));setDirty(true)};
   const doSave=async()=>{
     setSaveStatus('saving');
     const entries=Object.keys(localPoints).filter(c=>localPoints[c]!==''&&localPoints[c]!=null).map(c=>({code:c,points:parseInt(localPoints[c],10)||0}));
     try{
       const r=await gasLaborPointsSaveBatch(myAuth.lineUserId,store,yearMonth,entries);
-      if(r&&r.ok){setSaveStatus('done');setDirty(false)}else{setSaveStatus((r&&r.error)||'存檔失敗')}
+      if(r&&r.ok){setSaveStatus('done');setDirty(false);loadHistoryMax()}else{setSaveStatus((r&&r.error)||'存檔失敗')}
     }catch(e){setSaveStatus(String(e))}
     setTimeout(()=>setSaveStatus(''),2500);
   };
@@ -312,7 +318,7 @@ function LaborPointsModal({myAuth,stores,onClose}){
     let s='🔵 【'+yy+'年'+parseInt(mm,10)+'月｜'+store+' 勞點公告】\n🏆 Top 3 表現最佳同仁\n';
     ranking.top3.forEach((e,i)=>{s+=(medals[i]||'')+' '+e.code+' : '+e.points+'點\n';});
     s+='最佳進步同仁\n';
-    ranking.improved.forEach(e=>{s+=e.code+' ：'+e.delta+'點\n';});
+    ranking.improved.forEach(e=>{s+=e.code+' ：'+e.points+'點（較前月提高'+e.delta+'點）\n';});
     s+='各位老師都非常的棒，一直都在努力與進步，各位老師一起努力讓這個大家庭越來越棒(好棒)(好棒)\n📣 辛苦大家了～感謝每一位夥伴的努力與付出，讓我們繼續加油 💪✨';
     return s;
   };
@@ -343,13 +349,15 @@ function LaborPointsModal({myAuth,stores,onClose}){
             <div key={e.code} className={`flex items-center gap-2 rounded-lg px-3 py-2 ${i%2===0?'bg-white':'bg-gray-50'} border border-gray-100`}>
               <span className="text-sm font-semibold text-gray-800 w-14 flex-shrink-0">{e.code}</span>
               <span className="text-xs text-gray-500 flex-1 truncate">{e.nameZh}</span>
-              <input type="number" value={localPoints[e.code]!=null?localPoints[e.code]:''} onChange={ev=>updLocal(e.code,ev.target.value)} placeholder="點數" className="w-20 bg-gray-100 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-gray-900 text-center"/>
+              <input type="number" value={localPoints[e.code]!=null?localPoints[e.code]:''} onChange={ev=>updLocal(e.code,ev.target.value)} placeholder="點數" className="w-16 bg-gray-100 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-gray-900 text-center flex-shrink-0"/>
+              <span className="w-14 flex-shrink-0 text-center text-xs text-gray-400 bg-gray-50 rounded-lg py-1.5" title="歷史最高點數">{historyMax[e.code]!=null?historyMax[e.code]:'—'}</span>
             </div>
           ))}</div>
+          <p className="text-[10px] text-gray-400 text-right -mt-1">右側為歷史最高點數（僅供參考，存檔後更新）</p>
           <div className="flex items-center justify-center gap-2 pt-1">
             <button onClick={()=>changePage(-1)} disabled={page===0} className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs disabled:opacity-40">← 上一頁</button>
             <span className="text-xs text-gray-500">{page+1}/{totalPages}</span>
-            <div className="flex items-center gap-1"><span className="text-[10px] text-gray-500">每頁</span><input type="number" value={pageSize} onChange={e=>{setPageSize(Math.max(1,parseInt(e.target.value,10)||1));setPage(0)}} className="w-12 bg-gray-100 border border-gray-300 rounded-lg px-1 py-1 text-xs text-gray-900 text-center"/><span className="text-[10px] text-gray-500">筆</span></div>
+            <div className="flex items-center gap-1"><span className="text-[10px] text-gray-500">每頁</span><select value={pageSize} onChange={e=>{setPageSize(parseInt(e.target.value,10));setPage(0)}} className="bg-gray-100 border border-gray-300 rounded-lg px-1.5 py-1 text-xs text-gray-900">{Array.from({length:20},(_,i)=>i+1).map(n=>(<option key={n} value={n}>{n}</option>))}</select><span className="text-[10px] text-gray-500">筆</span></div>
             <button onClick={()=>changePage(1)} disabled={page>=totalPages-1} className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs disabled:opacity-40">下一頁 →</button>
           </div>
           <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-200">
