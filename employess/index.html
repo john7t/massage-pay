@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>員工列表 v1.0-012</title>
+<title>員工列表 v1.0-014</title>
 <script>
   var PAGE="employees",PCODE="04";
   window.__fbLang='zh';
@@ -173,6 +173,44 @@ function EmployeeDetailModal({code,myAuth,onClose}){
   </div>);
 }
 
+function WorkHoursChartModal({myAuth,stores,onClose}){
+  const canPickStore=myAuth.level>=4;
+  const[store,setStore]=useState(canPickStore?'':myAuth.store); // 空字串=全部店面(僅限可跨店者)
+  const[list,setList]=useState(null);
+  const[loading,setLoading]=useState(true);
+  const[mode,setMode]=useState('online'); // online=在線人數, start=上工分布
+  const[pickHour,setPickHour]=useState(null);
+  const load=()=>{
+    setLoading(true);setList(null);
+    gasEmployeeList(myAuth.lineUserId,store).then(r=>{if(r&&r.ok)setList(r.list);setLoading(false)});
+  };
+  useEffect(()=>{load()},[store]);
+  const rows=(list||[]).filter(s=>s.workStart);
+  const hourOf=(hhmm)=>{if(!hhmm)return null;const h=Number(String(hhmm).split(':')[0]);return isNaN(h)?null:h};
+  const counts=Array.from({length:24},()=>0);
+  rows.forEach(s=>{const sh=hourOf(s.workStart);if(sh===null)return;if(mode==='start'){counts[sh]++}else{let eh=hourOf(s.workEnd);if(eh===null)eh=(sh+12)%24;let h=sh;for(let i=0;i<24;i++){counts[h]++;if(h===eh)break;h=(h+1)%24;if(h===sh)break}}});
+  const maxC=Math.max(1,...counts);
+  const HOURS=Array.from({length:24},(_,i)=>(i+7)%24); // 早7→隔天早6
+  const hourDetail=(h)=>{if(mode==='start'){return rows.filter(s=>hourOf(s.workStart)===h).map(s=>({code:s.code,ws:s.workStart}))}else{return rows.filter(s=>{const sh=hourOf(s.workStart);if(sh===null)return false;let eh=hourOf(s.workEnd);if(eh===null)eh=(sh+12)%24;let hh=sh;for(let i=0;i<24;i++){if(hh===h)return true;if(hh===eh)break;hh=(hh+1)%24;if(hh===sh)break}return false}).map(s=>({code:s.code,ws:s.workStart,we:s.workEnd}))}};
+  const detail=pickHour!==null?hourDetail(pickHour):[];
+  return(<div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={onClose}>
+    <div className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+      <div className="p-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10"><h3 className="text-base font-bold text-gray-900 flex items-center gap-2">上工人數統計{loading&&<Spinner size={14}/>}</h3><button onClick={onClose} className="text-gray-400">✕</button></div>
+      <div className="p-4 space-y-3">
+        {canPickStore&&(<select value={store} onChange={e=>{setStore(e.target.value);setPickHour(null)}} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-2 py-2 text-xs text-gray-800"><option value="">全部店面</option>{stores.map(s=>(<option key={s} value={s}>{s}</option>))}</select>)}
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
+          <button onClick={()=>{setMode('online');setPickHour(null)}} className={`flex-1 py-1.5 rounded-md text-xs font-semibold ${mode==='online'?'bg-amber-600 text-white':'text-gray-500'}`}>在線人數</button>
+          <button onClick={()=>{setMode('start');setPickHour(null)}} className={`flex-1 py-1.5 rounded-md text-xs font-semibold ${mode==='start'?'bg-amber-600 text-white':'text-gray-500'}`}>上工分布</button>
+        </div>
+        <p className="text-[11px] text-gray-500">{mode==='online'?'依上下工時間換算，各時段目前在線人數':'各時段開始上工的人數分布'}（{rows.length} 人）</p>
+        <div className="space-y-1">{HOURS.map(h=>{const c=counts[h]||0;const on=pickHour===h;return(<div key={h} onClick={()=>setPickHour(on?null:h)} className="flex items-center gap-2 active:opacity-70 cursor-pointer"><span className={`text-[10px] tabular-nums w-7 text-right ${on?'text-amber-600 font-bold':'text-gray-400'}`}>{String(h).padStart(2,'0')}</span><div className="flex-1 h-4 bg-gray-100 rounded-sm overflow-hidden"><div className="h-full rounded-sm transition-all" style={{width:(c/maxC*100)+'%',background:on?'#f59e0b':'#d97706'}}></div></div><span className={`text-[10px] tabular-nums w-5 ${on?'text-amber-600 font-bold':'text-gray-400'}`}>{c||''}</span></div>)})}</div>
+        {pickHour!==null&&(<div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5"><p className="text-xs text-amber-700 font-semibold mb-1.5">{String(pickHour).padStart(2,'0')}:00 — {detail.length} 人</p>{detail.length===0?<p className="text-[11px] text-gray-500">無資料</p>:<div className="space-y-1">{detail.map((d,i)=>(<div key={i} className="flex items-center gap-2 text-[11px]"><span className="font-mono text-gray-700 w-12">#{d.code}</span><span className="text-gray-500">{d.ws}{d.we?'～'+d.we:''}</span></div>))}</div>}</div>)}
+        <button onClick={load} disabled={loading} className="w-full py-2 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold disabled:opacity-50">重新整理</button>
+      </div>
+    </div>
+  </div>);
+}
+
 function CreateStaffModal({myAuth,stores,onClose,onCreated}){
   const canPickStore=myAuth.level>=4;
   const[code,setCode]=useState('');
@@ -265,7 +303,7 @@ function LaborPointsModal({myAuth,stores,onClose}){
     setLoadStatus('loading');setList(null);setPage(0);
     try{
       const[lr,pr]=await Promise.all([gasEmployeeList(myAuth.lineUserId,store),gasLaborPointsGetMonth(myAuth.lineUserId,store,yearMonth)]);
-      if(lr&&lr.ok)setList(lr.list.filter(e=>e.role!=='admin').sort((a,b)=>(parseInt(String(a.code).replace(/\D/g,''),10)||0)-(parseInt(String(b.code).replace(/\D/g,''),10)||0)));
+      if(lr&&lr.ok)setList(lr.list.sort((a,b)=>(parseInt(String(a.code).replace(/\D/g,''),10)||0)-(parseInt(String(b.code).replace(/\D/g,''),10)||0)));
       if(pr&&pr.ok)setLocalPoints(pr.points||{});
       setDirty(false);
     }catch(_e){}
@@ -398,6 +436,7 @@ function EmployeeListPage({myAuth}){
   const[viewCode,setViewCode]=useState('');
   const[showCreate,setShowCreate]=useState(false);
   const[showLabor,setShowLabor]=useState(false);
+  const[showChart,setShowChart]=useState(false);
   const[appShareBusy,setAppShareBusy]=useState(false);
   const doShareApp=async()=>{
     if(appShareBusy)return;
@@ -449,7 +488,7 @@ function EmployeeListPage({myAuth}){
     <div className="max-w-md mx-auto space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 flex-shrink-0"><h1 className="text-base font-bold text-gray-900">員工列表</h1><button onClick={doShareApp} disabled={appShareBusy} className="w-6 h-6 rounded-full bg-[#06C755] flex items-center justify-center disabled:opacity-50 flex-shrink-0">{appShareBusy?<Spinner size={10}/>:<svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.5 2 2 5.6 2 10c0 3.9 3.6 7.2 8.4 7.9.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1.1 1 .6 1.1-.5 6.2-3.7 8.5-6.3C22.1 12.6 22 11.3 22 10c0-4.4-4.5-8-10-8z"/></svg>}</button></div>
-        <div className="flex gap-1.5"><button onClick={()=>setShowLabor(true)} className="text-xs px-3 py-2 rounded-lg bg-emerald-600 text-white font-semibold">勞點</button><button onClick={()=>setShowCreate(true)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold">+ 新增老師</button></div>
+        <div className="flex gap-1.5"><button onClick={()=>setShowChart(true)} className="text-xs px-3 py-2 rounded-lg bg-sky-600 text-white font-semibold">圖表</button><button onClick={()=>setShowLabor(true)} className="text-xs px-3 py-2 rounded-lg bg-emerald-600 text-white font-semibold">勞點</button><button onClick={()=>setShowCreate(true)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold">+ 新增老師</button></div>
       </div>
       {canPickStore&&(<select value={storeFilter} onChange={e=>setStoreFilter(e.target.value)} className="w-full bg-white border border-gray-300 rounded-lg px-2 py-2 text-xs text-gray-800"><option value="">（我的店面：{myAuth.store}）</option>{stores.map(s=>(<option key={s} value={s}>{s}</option>))}</select>)}
       <div className="flex gap-1.5 flex-wrap">
@@ -476,6 +515,7 @@ function EmployeeListPage({myAuth}){
     {viewCode&&<EmployeeDetailModal code={viewCode} myAuth={myAuth} onClose={()=>{setViewCode('');load()}}/>}
     {showCreate&&<CreateStaffModal myAuth={myAuth} stores={stores} onClose={()=>setShowCreate(false)} onCreated={()=>{setShowCreate(false);load()}}/>}
     {showLabor&&<LaborPointsModal myAuth={myAuth} stores={canPickStore?stores:[myAuth.store]} onClose={()=>setShowLabor(false)}/>}
+    {showChart&&<WorkHoursChartModal myAuth={myAuth} stores={canPickStore?stores:[myAuth.store]} onClose={()=>setShowChart(false)}/>}
   </div>);
 }
 
