@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>員工列表 v1.0-014</title>
+<title>員工列表 v1.0-015</title>
 <script>
   var PAGE="employees",PCODE="04";
   window.__fbLang='zh';
@@ -55,6 +55,9 @@ async function gasEmployeeAuth(lineUserId){const r=await gasCall('employeeAuth',
 async function gasEmployeeList(lineUserId,storeFilter){const r=await gasCall('employeeList',{lineUserId,storeFilter},15000);return r||{ok:false,error:'GAS無回應'};}
 async function gasEmployeeDetail(lineUserId,code){const r=await gasCall('employeeDetail',{lineUserId,code},10000);return r||{ok:false,error:'GAS無回應'};}
 async function gasEmployeeSave(lineUserId,code,patch){const r=await window.MP.gasCallPost('employeeSave',{lineUserId,code,patch:JSON.stringify(patch||{})},15000);return r||{ok:false,error:'GAS無回應'};}
+async function gasEmployeeAppointSupervisor(lineUserId,code,level){const r=await window.MP.gasCallPost('employeeAppointSupervisor',{lineUserId,code,level},15000);return r||{ok:false,error:'GAS無回應'};}
+async function gasEmployeeSetStatus(lineUserId,code,status){const r=await window.MP.gasCallPost('employeeSetStatus',{lineUserId,code,status},15000);return r||{ok:false,error:'GAS無回應'};}
+async function gasEmployeeDelete(lineUserId,code){const r=await window.MP.gasCallPost('employeeDelete',{lineUserId,code},15000);return r||{ok:false,error:'GAS無回應'};}
 async function gasEmployeeAuditLog(lineUserId,code){const r=await gasCall('employeeAuditLog',{lineUserId,code},10000);return r||{ok:false,error:'GAS無回應'};}
 async function loadStoresLocal(){try{const res=await fetch('../stores.cfg',{cache:'no-store'});if(!res.ok)return['龍山寺店'];const text=(await res.text()).trim();const stores=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));return stores.length?stores:['龍山寺店'];}catch(_e){return['龍山寺店']}}
 
@@ -78,12 +81,17 @@ async function gasLaborPointsRanking(lineUserId,store,yearMonth,improveTopN){con
 async function gasLaborPointsBonus(lineUserId,store,yearMonth){const r=await gasCall('laborPointsBonus',{lineUserId,store,yearMonth},10000);return r||{ok:false,error:'GAS無回應'};}
 async function gasLaborPointsHistoryMax(lineUserId,store){const r=await gasCall('laborPointsHistoryMax',{lineUserId,store},10000);return r||{ok:false,error:'GAS無回應'};}
 
-function EmployeeDetailModal({code,myAuth,onClose}){
+function EmployeeDetailModal({code,myAuth,onClose,onChanged}){
   const[staff,setStaff]=useState(null);
   const[form,setForm]=useState(null);
   const[saveStatus,setSaveStatus]=useState('');
   const[auditLog,setAuditLog]=useState(null);
   const[stores,setStores]=useState([]);
+  const[basicOpen,setBasicOpen]=useState(false); // 基資預設收起
+  const[storeOpen,setStoreOpen]=useState(true); // 店資預設打開
+  const[supLevel,setSupLevel]=useState(1);
+  const[actionStatus,setActionStatus]=useState('');
+  const[delConfirm,setDelConfirm]=useState(false);
   useEffect(()=>{loadStoresLocal().then(setStores)},[]);
   const load=()=>{
     gasEmployeeDetail(myAuth.lineUserId,code).then(r=>{if(r&&r.ok){setStaff(r.staff);setForm({...r.staff,skills:r.staff.skills||{}})}});
@@ -91,6 +99,30 @@ function EmployeeDetailModal({code,myAuth,onClose}){
   };
   useEffect(()=>{load()},[code]);
   const upd=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const doAppoint=async(level)=>{
+    setActionStatus('saving');
+    try{
+      const r=await gasEmployeeAppointSupervisor(myAuth.lineUserId,code,level);
+      if(r&&r.ok){setActionStatus('✓ 已更新');load();onChanged&&onChanged()}else{setActionStatus((r&&r.error)||'操作失敗')}
+    }catch(e){setActionStatus(String(e))}
+    setTimeout(()=>setActionStatus(''),2500);
+  };
+  const doSetStatus=async(status)=>{
+    setActionStatus('saving');
+    try{
+      const r=await gasEmployeeSetStatus(myAuth.lineUserId,code,status);
+      if(r&&r.ok){setActionStatus('✓ 已更新');load();onChanged&&onChanged()}else{setActionStatus((r&&r.error)||'操作失敗')}
+    }catch(e){setActionStatus(String(e))}
+    setTimeout(()=>setActionStatus(''),2500);
+  };
+  const doDelete=async()=>{
+    if(!delConfirm){setDelConfirm(true);return}
+    setActionStatus('saving');
+    try{
+      const r=await gasEmployeeDelete(myAuth.lineUserId,code);
+      if(r&&r.ok){onChanged&&onChanged();onClose()}else{setActionStatus((r&&r.error)||'刪除失敗');setDelConfirm(false)}
+    }catch(e){setActionStatus(String(e));setDelConfirm(false)}
+  };
   const doSave=async()=>{
     setSaveStatus('saving');
     const patch={};
@@ -148,20 +180,43 @@ function EmployeeDetailModal({code,myAuth,onClose}){
     return(<div key={k} className={`px-2.5 py-2 ${i%2===0?'bg-white/60':'bg-transparent'}`}><label className="text-[10px] text-gray-500 block mb-0.5">{FIELD_LABEL[k]}</label>{inputEl}</div>);
   };
   if(!staff||!form)return(<div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"><Spinner size={28}/></div>);
+  const isSup=staff.role==='supervisor';
   return(<div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={onClose}>
     <div className="bg-gray-50 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
-      <div className="p-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-gray-50 z-10"><h3 className="text-base font-bold text-gray-900">{staff.nameZh||code}（{code}）</h3><button onClick={onClose} className="text-gray-400">✕</button></div>
+      <div className="p-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-gray-50 z-10"><h3 className="text-base font-bold text-gray-900">{staff.nameZh||code}（{code}）{staff.status==='off'&&<span className="text-xs text-red-500 ml-1">（已離職）</span>}</h3><button onClick={onClose} className="text-gray-400">✕</button></div>
       <div className="p-3 space-y-3">
         <div className="bg-blue-50 rounded-xl overflow-hidden border border-blue-100">
-          <p className="text-xs font-semibold text-blue-700 px-2.5 pt-2">基本資料</p>
-          {BASIC_FIELDS.map((k,i)=>renderField(k,i))}
+          <button onClick={()=>setBasicOpen(v=>!v)} className="w-full flex items-center justify-between px-2.5 pt-2 pb-2"><p className="text-xs font-semibold text-blue-700">基本資料</p><span className="text-blue-400 text-xs">{basicOpen?'▲ 收起':'▼ 展開'}</span></button>
+          {basicOpen&&BASIC_FIELDS.map((k,i)=>renderField(k,i))}
         </div>
         <div className="bg-amber-50 rounded-xl overflow-hidden border border-amber-100">
-          <p className="text-xs font-semibold text-amber-700 px-2.5 pt-2">在店資料</p>
-          {STORE_FIELDS.map((k,i)=>renderField(k,i))}
+          <button onClick={()=>setStoreOpen(v=>!v)} className="w-full flex items-center justify-between px-2.5 pt-2 pb-2"><p className="text-xs font-semibold text-amber-700">在店資料</p><span className="text-amber-500 text-xs">{storeOpen?'▲ 收起':'▼ 展開'}</span></button>
+          {storeOpen&&STORE_FIELDS.map((k,i)=>renderField(k,i))}
         </div>
         {saveStatus&&<p className="text-xs text-center text-emerald-600 font-semibold">{saveStatus}</p>}
         <button onClick={doSave} disabled={saveStatus==='saving'} className="w-full py-3 rounded-xl bg-emerald-600 text-white font-bold disabled:opacity-50 flex items-center justify-center gap-2">{saveStatus==='saving'&&<Spinner size={14}/>}存檔（不需審核，直接生效）</button>
+
+        <div className="bg-purple-50 rounded-xl overflow-hidden border border-purple-100 p-2.5 space-y-2.5">
+          <p className="text-xs font-semibold text-purple-700">主管任命及員工操作</p>
+          <div className="space-y-1.5">
+            <p className="text-[10px] text-gray-500">{isSup?('目前為主管・等級 '+staff.level):'目前為一般老師'}</p>
+            {!isSup?(
+              <div className="flex gap-1.5"><select value={supLevel} onChange={e=>setSupLevel(parseInt(e.target.value,10))} className="flex-1 bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-900">{SUP_LEVELS.filter(lv=>lv.id<=myAuth.level).map(lv=>(<option key={lv.id} value={lv.id}>{lv.zh}</option>))}</select><button onClick={()=>doAppoint(supLevel)} disabled={actionStatus==='saving'} className="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-semibold disabled:opacity-50">任命主管</button></div>
+            ):(
+              <button onClick={()=>doAppoint(0)} disabled={actionStatus==='saving'} className="w-full py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-semibold disabled:opacity-50">撤銷主管身分</button>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-1.5 pt-1.5 border-t border-purple-100">
+            {staff.status==='off'?(
+              <button onClick={()=>doSetStatus('active')} disabled={actionStatus==='saving'} className="py-1.5 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-semibold disabled:opacity-50">復工</button>
+            ):(
+              <button onClick={()=>doSetStatus('off')} disabled={actionStatus==='saving'} className="py-1.5 rounded-lg bg-gray-200 text-gray-600 text-xs font-semibold disabled:opacity-50">離職</button>
+            )}
+            <button onClick={doDelete} disabled={actionStatus==='saving'} className="py-1.5 rounded-lg bg-red-100 text-red-600 text-xs font-semibold disabled:opacity-50">{delConfirm?'再按一次確認刪除':'刪除'}</button>
+          </div>
+          {actionStatus&&actionStatus!=='saving'&&<p className="text-[11px] text-center text-gray-600">{actionStatus}</p>}
+        </div>
+
         <div className="pt-2 border-t border-gray-200">
           <p className="text-xs font-semibold text-gray-600 mb-1.5">主管操作紀錄</p>
           {auditLog===null?<Spinner size={14}/>:auditLog.length===0?<p className="text-xs text-gray-400">目前沒有操作紀錄</p>:(
@@ -512,7 +567,7 @@ function EmployeeListPage({myAuth}){
       </div>
       )}
     </div>
-    {viewCode&&<EmployeeDetailModal code={viewCode} myAuth={myAuth} onClose={()=>{setViewCode('');load()}}/>}
+    {viewCode&&<EmployeeDetailModal code={viewCode} myAuth={myAuth} onClose={()=>{setViewCode('');load()}} onChanged={load}/>}
     {showCreate&&<CreateStaffModal myAuth={myAuth} stores={stores} onClose={()=>setShowCreate(false)} onCreated={()=>{setShowCreate(false);load()}}/>}
     {showLabor&&<LaborPointsModal myAuth={myAuth} stores={canPickStore?stores:[myAuth.store]} onClose={()=>setShowLabor(false)}/>}
     {showChart&&<WorkHoursChartModal myAuth={myAuth} stores={canPickStore?stores:[myAuth.store]} onClose={()=>setShowChart(false)}/>}
