@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>公告 v1.0-019</title>
+<title>公告 v1.0-020</title>
 <meta property="og:title" content="公告通知">
 <meta property="og:description" content="請點擊連結查看公告內容">
 <meta property="og:type" content="website">
@@ -492,16 +492,6 @@ function NoticeView({nid,userProfile}){
   const t=(T&&T[lang])||{};
   const code=userProfile.personType==='teacher'?userProfile.name:(userProfile.code||userProfile.name||'');
   const settingsObj={code:code,lang:lang};
-  useEffect(()=>{
-    // 這個LIFF頁面已經走過LINE登入確認身分,notice-modal.js的本機PIN鎖(設計給主系統那種免登入情境用的)在這裡是多餘的關卡。
-    // 預先在本機localStorage寫入「已設定+已通過」的狀態,直接跳過那道關卡,不用修改notice-modal.js本身(主系統那邊的PIN鎖不受影響)。
-    if(!code)return;
-    try{
-      const s=(window.MP&&window.MP.LS&&window.MP.LS.get('app-settings'))||{};
-      window.MP.LS.set('app-settings',Object.assign({},s,{code:code,lockPwd:'0000',lockAutoTime:99999999}));
-      localStorage.setItem('notice-pwd-unlock-'+code,String(Date.now()));
-    }catch(_e){}
-  },[code]);
   if(!nid&&userProfile.personType==='manager')return(<ManagerNoticeList userProfile={userProfile}/>);
   const isManagerWithNid=nid&&userProfile.personType==='manager';
   const backToList=()=>{location.href=location.href.split('?')[0]};
@@ -509,7 +499,7 @@ function NoticeView({nid,userProfile}){
   if(!notice)return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-gray-500 text-center">找不到這則公告，可能已經下架或連結有誤</p></div>);
   return(<div className="relative min-h-screen">
     {isManagerWithNid&&<button onClick={backToList} className="fixed top-3 right-3 z-[60] text-xs px-3 py-1.5 rounded-full bg-gray-900/80 text-white font-semibold">← 回列表</button>}
-    {window.NoticeDetailModal&&<window.NoticeDetailModal notice={notice} settings={settingsObj} t={t} onClose={()=>{try{liff.closeWindow()}catch(_e){}}} onMore={()=>{}}/>}
+    {window.NoticeDetailModal&&<window.NoticeDetailModal notice={notice} settings={settingsObj} t={t} skipGate={true} onClose={()=>{try{liff.closeWindow()}catch(_e){}}} onMore={()=>{}}/>}
   </div>);
 }
 
