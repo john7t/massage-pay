@@ -1,11 +1,11 @@
 // settings.js — 設定頁相關元件(從 index.html 抽離,降低 index 體積)
-// v1.12-038 / 公告管理頁改版:(1)列表項目改三排式(編號・日期・圓框頭像+發文者/標題摘要/主子分類+開啟次數置右),移除列表上的分享按鈕(2)編輯頁新增「誰有看」「誰沒看」區塊各自附複製按鈕,底部按鈕改成修改/下架/分享到LINE三顆並排 | 前: v1.12-037 / 設定頁完全移除左側分頁列(改由首頁圖示導向所有子頁面,backup/manage新增首頁圖示) | 前: v1.12-036 / 設定頁分頁移除基資/店資(已改由首頁左上角彈窗處理,底層邏輯不受影響) | 前: v1.12-035 / 推播圖示改成LINE品牌綠色圓形小圖示(不再是📲emoji) | 前: v1.12-034 / 公告Flex卡片改版+列表加推播按鈕:(1)GAS的_buildNoticeFlex加入人員徽章(圓框頭像圖示+編號,標題下方)+內容後面加「編號 主分類 子分類 發布日」這行meta資訊(2)已發布公告列表每一則旁邊多一顆📲推播按鈕,不用先進編輯或新建流程,任何一則都能直接推播到自己的LINE | 前: v1.12-033 / 修正兩個bug:(1)gasPushNoticeFlexToMe忘記加進bridge匯入清單導致推播按鈕報錯找不到變數(2)發布成功後「發布公告」按鈕沒有跟著鎖住,現在會保持灰色不能重複按 | 前: v1.12-032 / 新建公告接LINE推播:發布成功後不再自動關閉視窗,改成留在頁面上顯示「推播到我的LINE」按鈕(用code查安全回報那邊收集到的LINE身分,查不到會提示先去登記)+「查誰還沒看」按鈕(沿用既有的noticeUnread動作) | 前: v1.12-031 / 首頁圖示改版+建議功能實作:(1)自約/公告/圖表/建議/違規5個分頁按鈕從TABS移除,改用首頁圖示進入(2)SuggestPage移除假資料,改接真正的GAS(submitSuggestion/listSuggestions),送出建議會真的存進Sheet,清單真的從GAS撈 | 前: v1.12-030 / 公告分類分頁改用完整8分類清單:不再從現有公告資料推導(避免有分類還沒被用過就不會出現在分頁),改讀GAS發布時一併附上的mainCats(含中越文對照),固定顯示「全部」+8個主分類共9個按鈕(3x3排列),依語系自動切換中文/越南文標籤 | 前: v1.12-029 / 首頁設定新增「保護密碼」區塊:關閉首頁密碼要求的開關+自動上鎖時間(可調整,最小5分鐘,預設60分鐘,取代原本寫死的5分鐘) | 前: v1.12-028 / 公告列表細部調整+憑證狀態整合:(1)分類分頁改3欄(原4欄文字被吃),點主分類後下方多一列子分類可再篩選(2)公告編號從第一排移到分類標籤之後(3)本機優先(還沒發布)的公告加綠底白字「本機」標籤(4)CredentialCard整合進既有「老師專屬憑證」那行,不再是獨立卡片,加憑證期限+離職日/已逾期原因顯示,展期按鈕改成到期前7天就會出現(不用等真的失效),移除卡片裡的離職按鈕(離職移到店資彈窗) | 前: v1.12-027 / 公告列表大改版:(1)標題下方加分類分頁(全部+最多6個主分類,從現有公告資料取不重複主分類,不用另外查Categories表)(2)每則公告第一排最前面加公告編號(3)加下架/上架:編輯頁下方新增按鈕,呼叫GAS toggleNoticeStatus,下架後列表仍看得到但灰字+加下架標籤,一般老師端(notices.json實際發布內容)會被過濾掉(4)editNotice核准後,GAS回傳最終欄位值(含AI產生的越南文),前端直接套用到本機列表,不用等下次發布就能看到完整結果 | 前: v1.12-025 / 重新正確加入離職+憑證展期功能(CredentialCard元件):上一版(v023)bridge匯入清單裡`buildReqLink`重複宣告(跟後面既有的申請碼系統匯入撞名),導致Babel轉譯整個檔案失敗、index.html跟著崩潰(白畫面"網站更新中")。這次改成只加缺少的識別字(gasVerifyKey/gasLeaveTeacher/gasSubmitAction/gasCheckAction/getMyKey),不重複加已存在的(buildReqLink/hasMyKey),並額外做了「解構清單重複識別字」專門檢查(TypeScript語法檢查器抓不到這種錯誤,只有真的用Babel轉譯才會抓到) | 前: v1.12-022 / 公告列表照新規格重排:第二排依序👤發布人/👁開啟次數(依主管選的人數或人次)/👍已讀人數/主子分類(受顯示開關控制)/時間(置右)。第一排文字改用主管選的標題或摘要(listText設定) | 前: v1.12-021 / 公告列表版面調整:第一排只留摘要+編輯鈕(主分類移出);第二排右側改放主/子分類(合併顯示,如"薪資・調整")+開啟次數(👁圖示+數字,取代原本的已讀人數,開啟次數是更寬鬆的被動記錄指標) | 前: 語系選項從基資分頁移到首頁設定的主題下方(語系是個人偏好,不屬於需要主管審核的基資,放首頁設定更直覺) | 前: 版次對齊(內容未變動):跟隨common.js/index.html/auth.html/notice-modal.js這次的整理點同步版號,方便日後從標題/檔頭確認全套部署是否一致 | 前: 公告分頁:移除進入公告頁後的提示文字段落(點右上新增公告...那句)。新增公告的權限限制(限主管supervisor+admin)在v034已完成(canManage判斷),此次確認沿用 | 前:hotfix:公告編輯權限判斷修正(admin查admin.cfg雜湊,不是staff.json role) | 前: 新增公告完整流程接功能(033)
+// v1.12-040 / 兩項修正:(1)保護密碼自動上鎖時間改成下拉選單(5/10/20/30/40/50/60/120分鐘),修正之前notice-liff.html誤寫入lockAutoTime:99999999污染本機設定的bug(2)系統設定/自約/客戶管理/公告/圖表/建議/違規/備份,標題統一改跟✕關閉按鈕同一排(不再是App層級通用置頂列,改由各頁面自己處理) | 前: v1.12-039 / 複製名單格式加上公告編號+摘要(方便主管/老師直接關聯是哪一則公告,不用只看到一串內部編號) | 前: v1.12-038 / 公告管理頁改版:(1)列表項目改三排式(編號・日期・圓框頭像+發文者/標題摘要/主子分類+開啟次數置右),移除列表上的分享按鈕(2)編輯頁新增「誰有看」「誰沒看」區塊各自附複製按鈕,底部按鈕改成修改/下架/分享到LINE三顆並排 | 前: v1.12-037 / 設定頁完全移除左側分頁列(改由首頁圖示導向所有子頁面,backup/manage新增首頁圖示) | 前: v1.12-036 / 設定頁分頁移除基資/店資(已改由首頁左上角彈窗處理,底層邏輯不受影響) | 前: v1.12-035 / 推播圖示改成LINE品牌綠色圓形小圖示(不再是📲emoji) | 前: v1.12-034 / 公告Flex卡片改版+列表加推播按鈕:(1)GAS的_buildNoticeFlex加入人員徽章(圓框頭像圖示+編號,標題下方)+內容後面加「編號 主分類 子分類 發布日」這行meta資訊(2)已發布公告列表每一則旁邊多一顆📲推播按鈕,不用先進編輯或新建流程,任何一則都能直接推播到自己的LINE | 前: v1.12-033 / 修正兩個bug:(1)gasPushNoticeFlexToMe忘記加進bridge匯入清單導致推播按鈕報錯找不到變數(2)發布成功後「發布公告」按鈕沒有跟著鎖住,現在會保持灰色不能重複按 | 前: v1.12-032 / 新建公告接LINE推播:發布成功後不再自動關閉視窗,改成留在頁面上顯示「推播到我的LINE」按鈕(用code查安全回報那邊收集到的LINE身分,查不到會提示先去登記)+「查誰還沒看」按鈕(沿用既有的noticeUnread動作) | 前: v1.12-031 / 首頁圖示改版+建議功能實作:(1)自約/公告/圖表/建議/違規5個分頁按鈕從TABS移除,改用首頁圖示進入(2)SuggestPage移除假資料,改接真正的GAS(submitSuggestion/listSuggestions),送出建議會真的存進Sheet,清單真的從GAS撈 | 前: v1.12-030 / 公告分類分頁改用完整8分類清單:不再從現有公告資料推導(避免有分類還沒被用過就不會出現在分頁),改讀GAS發布時一併附上的mainCats(含中越文對照),固定顯示「全部」+8個主分類共9個按鈕(3x3排列),依語系自動切換中文/越南文標籤 | 前: v1.12-029 / 首頁設定新增「保護密碼」區塊:關閉首頁密碼要求的開關+自動上鎖時間(可調整,最小5分鐘,預設60分鐘,取代原本寫死的5分鐘) | 前: v1.12-028 / 公告列表細部調整+憑證狀態整合:(1)分類分頁改3欄(原4欄文字被吃),點主分類後下方多一列子分類可再篩選(2)公告編號從第一排移到分類標籤之後(3)本機優先(還沒發布)的公告加綠底白字「本機」標籤(4)CredentialCard整合進既有「老師專屬憑證」那行,不再是獨立卡片,加憑證期限+離職日/已逾期原因顯示,展期按鈕改成到期前7天就會出現(不用等真的失效),移除卡片裡的離職按鈕(離職移到店資彈窗) | 前: v1.12-027 / 公告列表大改版:(1)標題下方加分類分頁(全部+最多6個主分類,從現有公告資料取不重複主分類,不用另外查Categories表)(2)每則公告第一排最前面加公告編號(3)加下架/上架:編輯頁下方新增按鈕,呼叫GAS toggleNoticeStatus,下架後列表仍看得到但灰字+加下架標籤,一般老師端(notices.json實際發布內容)會被過濾掉(4)editNotice核准後,GAS回傳最終欄位值(含AI產生的越南文),前端直接套用到本機列表,不用等下次發布就能看到完整結果 | 前: v1.12-025 / 重新正確加入離職+憑證展期功能(CredentialCard元件):上一版(v023)bridge匯入清單裡`buildReqLink`重複宣告(跟後面既有的申請碼系統匯入撞名),導致Babel轉譯整個檔案失敗、index.html跟著崩潰(白畫面"網站更新中")。這次改成只加缺少的識別字(gasVerifyKey/gasLeaveTeacher/gasSubmitAction/gasCheckAction/getMyKey),不重複加已存在的(buildReqLink/hasMyKey),並額外做了「解構清單重複識別字」專門檢查(TypeScript語法檢查器抓不到這種錯誤,只有真的用Babel轉譯才會抓到) | 前: v1.12-022 / 公告列表照新規格重排:第二排依序👤發布人/👁開啟次數(依主管選的人數或人次)/👍已讀人數/主子分類(受顯示開關控制)/時間(置右)。第一排文字改用主管選的標題或摘要(listText設定) | 前: v1.12-021 / 公告列表版面調整:第一排只留摘要+編輯鈕(主分類移出);第二排右側改放主/子分類(合併顯示,如"薪資・調整")+開啟次數(👁圖示+數字,取代原本的已讀人數,開啟次數是更寬鬆的被動記錄指標) | 前: 語系選項從基資分頁移到首頁設定的主題下方(語系是個人偏好,不屬於需要主管審核的基資,放首頁設定更直覺) | 前: 版次對齊(內容未變動):跟隨common.js/index.html/auth.html/notice-modal.js這次的整理點同步版號,方便日後從標題/檔頭確認全套部署是否一致 | 前: 公告分頁:移除進入公告頁後的提示文字段落(點右上新增公告...那句)。新增公告的權限限制(限主管supervisor+admin)在v034已完成(canManage判斷),此次確認沿用 | 前:hotfix:公告編輯權限判斷修正(admin查admin.cfg雜湊,不是staff.json role) | 前: 新增公告完整流程接功能(033)
 // 注意:此檔為 type="text/babel",獨立作用域,需自行宣告 hooks 與 bridge
 const{useState,useEffect,useCallback,useMemo}=React;
 const{gasAnalyze,gasAddNotice,gasEditNotice,noticeSummary,noticeTitle,getNoticeReadCount,getNoticeShow,getNoticeListText,getNoticeCountType,getNoticeMainCats,getNoticesLocal,fetchNotices,gasVerifyKey,gasLeaveTeacher,gasSubmitAction,gasCheckAction,gasToggleNoticeStatus,gasSubmitSuggestion,gasListSuggestions,gasPushNoticeFlexToMe,getMyKey,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,getGasUrl,setGasUrl,gasCall,hasMyKey,issueKey,claimMyKey,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 function fmtSyncTime(iso){try{const d=new Date(iso);const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"/"+p(d.getMonth()+1)+"/"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes())}catch(_e){return ""}}
 
-function ChartPage({t,settings}){
+function ChartPage({t,settings,onClose}){
   const[sub,setSub]=useState('shift');
   const[stats,setStats]=useState(undefined); // undefined=載入中, null=無資料
   const[pickHour,setPickHour]=useState(null);
@@ -19,7 +19,7 @@ function ChartPage({t,settings}){
   // 圓餅圖(SVG)
   const pie=(data,colors)=>{const total=data.reduce((s,d)=>s+d.v,0);if(total===0)return<p className="text-sm text-gray-500 text-center py-8">{t.chartNoData}</p>;let acc=0;const R=70,CX=90,CY=90;const segs=data.filter(d=>d.v>0).map((d,i)=>{const frac=d.v/total;const a0=acc*2*Math.PI-Math.PI/2;acc+=frac;const a1=acc*2*Math.PI-Math.PI/2;const x0=CX+R*Math.cos(a0),y0=CY+R*Math.sin(a0);const x1=CX+R*Math.cos(a1),y1=CY+R*Math.sin(a1);const large=frac>0.5?1:0;return{path:`M ${CX} ${CY} L ${x0} ${y0} A ${R} ${R} 0 ${large} 1 ${x1} ${y1} Z`,color:colors[i%colors.length],label:d.label,v:d.v,pct:Math.round(frac*100)}});return(<div className="flex flex-col items-center gap-3"><svg viewBox="0 0 180 180" className="w-44 h-44">{segs.map((s,i)=><path key={i} d={s.path} fill={s.color}/>)}</svg><div className="flex flex-wrap justify-center gap-3">{segs.map((s,i)=>(<div key={i} className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm" style={{background:s.color}}></span><span className="text-xs text-gray-300">{s.label} {s.v}（{s.pct}%）</span></div>))}</div></div>)};
   return(<div className="fi space-y-4">
-    <h2 className="text-lg font-bold text-gray-100">{t.tabChart}</h2>
+    <div className="flex items-center justify-between"><h2 className="text-lg font-bold text-gray-100">{t.tabChart}</h2><button onClick={()=>onClose&&onClose()} className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-gray-400 active:bg-white/[0.12]">✕</button></div>
     <div className="flex gap-1 bg-white/[0.03] rounded-lg p-1 overflow-x-auto">{SUBS.map(([id,label])=>(<button key={id} onClick={()=>{setSub(id);setPickHour(null)}} className={`flex-1 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold ${sub===id?'bg-amber-600 text-white':'text-gray-500'}`}>{label}</button>))}</div>
     {stats===undefined&&<p className="text-sm text-gray-500 text-center py-8">...</p>}
     {stats===null&&<p className="text-sm text-gray-500 text-center py-8">{t.chartNoData}</p>}
@@ -51,7 +51,7 @@ function BackupSection({settings,t}){
 /* ══════════ Settings ══════════ */
 /* ══════════ Settings (slim — admin/supervisor 移至 auth.html) ══════════ */
 // 客管分頁(老師端:流水hashtag統計 + 姓名/手機搜流水,不碰自約客)
-function CustomerPage({t,settings}){
+function CustomerPage({t,settings,onClose}){
   const[mode,setMode]=useState('search'); // 預設客戶管理(搜尋)
   const[openTag,setOpenTag]=useState(null);
   const[q,setQ]=useState('');
@@ -66,7 +66,7 @@ function CustomerPage({t,settings}){
   const found=mode==='search'?searchSlips(allSlips,q):[];
   const slipRow=(s)=>(<div key={s.id} className="flex items-center gap-2 px-3 py-2 bg-white/[0.03] border border-white/[0.05] rounded-lg"><span className="text-sm font-bold text-amber-300 min-w-[3rem]">{slipSvcLabel(s,t===T.zh?"zh":"vi")}</span><span className="text-xs text-gray-400 tabular-nums w-20">{fmtDT(s)}</span><div className="flex-1 min-w-0"><span className="text-xs text-gray-300">{s.custName||''}{s.custTitle?' '+bookTitleName(s.custTitle,t===T.zh?'zh':'vi'):''}</span>{s.tags&&s.tags.length>0&&<span className="text-[10px] text-gray-500 ml-1">{s.tags.map(x=>'#'+x).join(' ')}</span>}</div>{s.custPhone&&<span className="text-[10px] text-gray-500">{s.custPhone}</span>}</div>);
   return(<div className="fi space-y-3 max-w-lg mx-auto px-4 py-2">
-    <h2 className="text-lg font-bold text-gray-100">{t.custMgmt}</h2>
+    <div className="flex items-center justify-between"><h2 className="text-lg font-bold text-gray-100">{t.custMgmt}</h2><button onClick={()=>onClose&&onClose()} className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-gray-400 active:bg-white/[0.12]">✕</button></div>
     <div className="flex gap-1 bg-white/[0.03] rounded-lg p-1">
       <button onClick={()=>setMode('search')} className={`flex-1 py-1.5 rounded-md text-xs font-semibold ${mode==='search'?'bg-amber-600 text-white':'text-gray-500'}`}>{t.custSearchBtn}</button>
       <button onClick={()=>setMode('tags')} className={`flex-1 py-1.5 rounded-md text-xs font-semibold ${mode==='tags'?'bg-amber-600 text-white':'text-gray-500'}`}>{t.custTagStats}</button>
@@ -91,7 +91,7 @@ function CustomerPage({t,settings}){
   </div>);
 }
 // 圖表分頁(老師端:讀stats.json快照顯示班別比/性別比)
-function SuggestPage({t,settings}){
+function SuggestPage({t,settings,onClose}){
   const[showAdd,setShowAdd]=React.useState(false);
   const[title,setTitle]=React.useState('');
   const[body,setBody]=React.useState('');
@@ -112,7 +112,7 @@ function SuggestPage({t,settings}){
     setBusy(false);
   };
   return(<div className="fi">
-    <div className="flex items-center justify-between mb-3"><h2 className="text-lg font-bold text-gray-100">{t.suggestBox||'建議'}</h2><button onClick={()=>setShowAdd(true)} className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold active:bg-amber-700">+ {t.suggestAdd||'新建議'}</button></div>
+    <div className="flex items-center justify-between mb-3"><h2 className="text-lg font-bold text-gray-100">{t.suggestBox||'建議'}</h2><div className="flex items-center gap-2"><button onClick={()=>setShowAdd(true)} className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold active:bg-amber-700">+ {t.suggestAdd||'新建議'}</button><button onClick={()=>onClose&&onClose()} className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-gray-400 active:bg-white/[0.12]">✕</button></div></div>
     {list===undefined?<p className="text-xs text-gray-600 text-center py-6">{t.loading||'載入中…'}</p>:list.length===0?<p className="text-xs text-gray-600 text-center py-6">{t.suggestEmpty||'目前沒有建議'}</p>:(
     <div className="space-y-2">{list.map(s=>(<div key={s.id} className="bg-white/[0.03] border border-white/[0.05] rounded-xl px-3 py-2.5"><div className="flex items-center justify-between gap-2"><p className="text-sm text-gray-200 font-medium truncate flex-1">{s.title}</p><span className="text-[10px] text-gray-500 flex-shrink-0">{s.anon?(t.suggestAnon||'發布人：隱藏'):('發布人：'+s.author)}</span></div><div className="flex items-center justify-between gap-2 mt-1"><p className="text-[11px] text-gray-500 truncate flex-1">{s.body}</p><span className="text-[10px] text-gray-600 flex-shrink-0">{s.time}</span></div></div>))}</div>
     )}
@@ -128,7 +128,7 @@ function SuggestPage({t,settings}){
     </div></div>)}
   </div>);
 }
-function NoticeManagePage({t,settings}){
+function NoticeManagePage({t,settings,onClose}){
   const[showAdd,setShowAdd]=React.useState(false);
   const[content,setContent]=React.useState('');
   const[aiResult,setAiResult]=React.useState(null);
@@ -267,7 +267,7 @@ function NoticeManagePage({t,settings}){
     setToggleBusy(false);
   };
   return(<div className="fi">
-    <div className="flex items-center justify-between mb-3"><h2 className="text-lg font-bold text-gray-100">{t.noticeCenter||'公告'}</h2>{canManage&&<button onClick={()=>setShowAdd(true)} className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold active:bg-amber-700">+ {t.noticeAdd||'新增公告'}</button>}</div>
+    <div className="flex items-center justify-between mb-3"><h2 className="text-lg font-bold text-gray-100">{t.noticeCenter||'公告'}</h2><div className="flex items-center gap-2">{canManage&&<button onClick={()=>setShowAdd(true)} className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold active:bg-amber-700">+ {t.noticeAdd||'新增公告'}</button>}<button onClick={()=>onClose&&onClose()} className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-gray-400 active:bg-white/[0.12]">✕</button></div></div>
     <div className="grid grid-cols-3 gap-1.5 mb-2">{[['all',t.catTabAll||'全部'],...mainCatsAll.map(c=>[c.zh,catLabel(c.zh)])].map(([k,l])=>(<button key={k} onClick={()=>{setCatTab(k);setSubTabSel('all')}} className={`py-2 rounded-lg text-[11px] font-semibold truncate px-1 ${catTab===k?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-400'}`}>{l}</button>))}</div>
     {catTab!=='all'&&subCatsPresent.length>0&&(<div className="flex flex-wrap gap-1.5 mb-3">{[['all',t.catTabAll||'全部'],...subCatsPresent.map(c=>[c,c])].map(([k,l])=>(<button key={k} onClick={()=>setSubTabSel(k)} className={`px-2.5 py-1 rounded-full text-[10px] font-medium ${subTabSel===k?'bg-amber-500/20 text-amber-400 border border-amber-500/30':'bg-white/[0.04] text-gray-500 border border-transparent'}`}>{l}</button>))}</div>)}
     <div className="space-y-2 mt-3">{list.length===0?<p className="text-xs text-gray-600 text-center py-6">{t.noticeEmpty||'目前沒有公告'}</p>:list.filter(n=>(catTab==='all'||n.cat===catTab)&&(subTabSel==='all'||n.subcat===subTabSel)).slice().reverse().map(n=>{
@@ -316,9 +316,9 @@ function NoticeManagePage({t,settings}){
         {editStatus==='savedNoVi'&&<p className="text-[11px] text-amber-500 text-center font-semibold">✓ 中文已存檔{editAiFilled.length===0?'':'（部分欄位待AI補，'}，AI 處理暫時失敗待補（不影響已填的中文內容）。</p>}
         {editStatus&&editStatus!=='saving'&&editStatus!=='saved'&&editStatus!=='savedNoVi'&&<p className="text-[11px] text-red-400 text-center">{editStatus}</p>}
         <div className="pt-2 border-t border-white/[0.06] space-y-2">
-          <div className="flex items-center justify-between"><p className="text-xs font-semibold text-gray-400">誰有看</p><div className="flex gap-1.5"><button onClick={()=>checkRead(editing.id)} disabled={readBusy} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-400 disabled:opacity-50">{readBusy?'查詢中…':'查詢'}</button>{readInfo&&readInfo.readers&&readInfo.readers.length>0&&<button onClick={()=>doCopy(editing.id+' 已閱讀（共'+readInfo.readers.length+'人）\n'+readInfo.readers.map(r=>r.code).join('、'),'已閱讀名單')} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-400">複製</button>}</div></div>
+          <div className="flex items-center justify-between"><p className="text-xs font-semibold text-gray-400">誰有看</p><div className="flex gap-1.5"><button onClick={()=>checkRead(editing.id)} disabled={readBusy} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-400 disabled:opacity-50">{readBusy?'查詢中…':'查詢'}</button>{readInfo&&readInfo.readers&&readInfo.readers.length>0&&<button onClick={()=>doCopy('公告編號：'+editing.id+'\n公告摘要：'+(editing.summary||editing.title||'')+'\n已閱讀（'+readInfo.readers.length+'人）：'+readInfo.readers.map(r=>r.code).join('、'),'已閱讀名單')} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-400">複製</button>}</div></div>
           {readInfo&&(readInfo.readers?<div className="bg-white/[0.03] rounded-lg p-2.5"><p className="text-[11px] text-gray-500 mb-1">共{readInfo.readers.length}人</p><div className="flex flex-wrap gap-1">{readInfo.readers.map(r=>(<span key={r.code} className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400">{r.code}</span>))}</div></div>:null)}
-          <div className="flex items-center justify-between"><p className="text-xs font-semibold text-gray-400">誰沒看</p><div className="flex gap-1.5"><button onClick={()=>checkUnread(editing.id)} disabled={unreadBusy} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-400 disabled:opacity-50">{unreadBusy?'查詢中…':'查詢'}</button>{unreadInfo&&unreadInfo.total>0&&<button onClick={()=>doCopy(editing.id+' 未閱讀（共'+unreadInfo.total+'人）\n'+['day','night','other'].map(k=>unreadInfo[k]&&unreadInfo[k].length?(k==='day'?'早班：':k==='night'?'晚班：':'未選班別：')+unreadInfo[k].join('、'):'').filter(Boolean).join('\n'),'未閱讀名單')} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-400">複製</button>}</div></div>
+          <div className="flex items-center justify-between"><p className="text-xs font-semibold text-gray-400">誰沒看</p><div className="flex gap-1.5"><button onClick={()=>checkUnread(editing.id)} disabled={unreadBusy} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-400 disabled:opacity-50">{unreadBusy?'查詢中…':'查詢'}</button>{unreadInfo&&unreadInfo.total>0&&<button onClick={()=>doCopy('公告編號：'+editing.id+'\n公告摘要：'+(editing.summary||editing.title||'')+'\n未閱讀（'+unreadInfo.total+'人）：\n'+['day','night','other'].map(k=>unreadInfo[k]&&unreadInfo[k].length?(k==='day'?'早班：':k==='night'?'晚班：':'未選班別：')+unreadInfo[k].join('、'):'').filter(Boolean).join('\n'),'未閱讀名單')} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-400">複製</button>}</div></div>
           {unreadInfo&&(<div className="bg-white/[0.03] rounded-lg p-2.5 space-y-1"><p className="text-[11px] text-gray-500">未讀共{unreadInfo.total}人</p>{unreadInfo.day.length>0&&<p className="text-[11px] text-gray-400">早班：{unreadInfo.day.join('、')}</p>}{unreadInfo.night.length>0&&<p className="text-[11px] text-gray-400">晚班：{unreadInfo.night.join('、')}</p>}{unreadInfo.other.length>0&&<p className="text-[11px] text-gray-400">未選班別：{unreadInfo.other.join('、')}</p>}</div>)}
           {copyMsg&&<p className="text-[11px] text-center text-emerald-400">{copyMsg}</p>}
         </div>
@@ -435,7 +435,7 @@ function CredentialCard({t,settings}){
     </div></div>)}
   </>);
 }
-function SettingsPage({settings,onUpdate,t,theme,setTheme}){
+function SettingsPage({settings,onUpdate,t,theme,setTheme,onClose}){
   const[form,setForm]=useState({...settings});const[gasTest,setGasTest]=useState('');const[keyAdminSec,setKeyAdminSec]=useState('');const[keyGenCode,setKeyGenCode]=useState('');const[keyGenResult,setKeyGenResult]=useState(null);const[claimInput,setClaimInput]=useState('');const[claimMsg,setClaimMsg]=useState('');
   const[saved,setSaved]=useState(false);
   const[subTab,setSubTab]=useState('home');
@@ -504,7 +504,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
     <div className="flex h-full fi">
       <div className="flex-1 w-full overflow-y-auto p-4 pb-8 space-y-5 min-w-0">
       {subTab==='home'&&(<div className="space-y-5 fi">
-        <h2 className="text-lg font-bold text-gray-100">{t.homeSettings}</h2>
+        <div className="flex items-center justify-between"><h2 className="text-lg font-bold text-gray-100">{t.homeSettings}</h2><button onClick={()=>onClose&&onClose()} className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-gray-400 active:bg-white/[0.12]">✕</button></div>
         <div><label className="text-xs text-gray-400 mb-1 block">{t.year}</label>
           <div className="flex items-center gap-3"><button onClick={()=>upd({year:form.year-1})} className="w-12 h-12 rounded-xl bg-white/[0.04] text-gray-300 text-2xl active:bg-white/[0.08]">−</button><span className="text-2xl font-bold text-gray-100 flex-1 text-center tabular-nums">{form.year}</span><button onClick={()=>upd({year:form.year+1})} className="w-12 h-12 rounded-xl bg-white/[0.04] text-gray-300 text-2xl active:bg-white/[0.08]">+</button></div>
         </div>
@@ -516,7 +516,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
         </div>
         <div className="space-y-2"><label className="text-xs text-gray-400 mb-1 block">{t.lockPwdSectionTitle}</label>
           <label className="flex items-center gap-2 bg-white/[0.04] rounded-xl px-4 py-3 cursor-pointer"><input type="checkbox" checked={!!form.disableHomePwd} onChange={e=>upd({disableHomePwd:e.target.checked})} className="w-4 h-4 rounded accent-amber-500"/><span className="text-sm text-gray-300">{t.disableHomePwdLabel}</span></label>
-          <div className="bg-white/[0.04] rounded-xl px-4 py-3"><label className="text-xs text-gray-500 block mb-1.5">{t.lockAutoTimeLabel}</label><div className="flex items-center gap-2"><input type="number" min={5} value={form.lockAutoTime||60} onChange={e=>{const v=Math.max(5,parseInt(e.target.value,10)||60);upd({lockAutoTime:v})}} className="w-20 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 text-center focus:outline-none focus:border-amber-500"/><span className="text-xs text-gray-500">{t.lockAutoTimeHint}</span></div></div>
+          <div className="bg-white/[0.04] rounded-xl px-4 py-3"><label className="text-xs text-gray-500 block mb-1.5">{t.lockAutoTimeLabel}</label><div className="flex items-center gap-2"><select value={[5,10,20,30,40,50,60,120].includes(form.lockAutoTime)?form.lockAutoTime:60} onChange={e=>upd({lockAutoTime:parseInt(e.target.value,10)})} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500">{[5,10,20,30,40,50,60,120].map(v=>(<option key={v} value={v}>{v}</option>))}</select><span className="text-xs text-gray-500">{t.lockAutoTimeHint}</span></div></div>
         </div>
         <div><label className="text-xs text-gray-400 mb-1 block">{t.bizCutoffLabel}</label><input type="time" value={form.bizCutoff||'06:30'} onChange={e=>upd({bizCutoff:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500" style={{boxSizing:'border-box',maxWidth:'90%',minWidth:0}}/><p className="text-[11px] text-gray-500 mt-1">{t.bizCutoffHint}</p></div>
         {(()=>{const ghLocal=getGHConfig();const hasConn=!!(ghLocal&&ghLocal.token);return(
@@ -637,7 +637,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
       </div>)}
 
       {subTab==='book'&&(<div className="space-y-4 fi">
-        <h2 className="text-lg font-bold text-gray-100">{t.myBooking2}</h2>
+        <div className="flex items-center justify-between"><h2 className="text-lg font-bold text-gray-100">{t.myBooking2}</h2><button onClick={()=>onClose&&onClose()} className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-gray-400 active:bg-white/[0.12]">✕</button></div>
         <button onClick={()=>{location.href='./booking.html'}} className="w-full py-3.5 rounded-xl bg-amber-600/15 border border-amber-500/25 text-amber-400 text-sm font-semibold active:bg-amber-600/25 flex items-center justify-center gap-2">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
           {t.booking}
@@ -654,19 +654,19 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme}){
         </div>
       </div>)}
 
-      {subTab==='cust'&&<CustomerPage t={t} settings={settings}/>}
-      {subTab==='notice'&&<NoticeManagePage t={t} settings={settings}/>}
-      {subTab==='chart'&&<ChartPage t={t} settings={settings}/>}
-      {subTab==='suggest'&&<SuggestPage t={t} settings={settings}/>}
+      {subTab==='cust'&&<CustomerPage t={t} settings={settings} onClose={onClose}/>}
+      {subTab==='notice'&&<NoticeManagePage t={t} settings={settings} onClose={onClose}/>}
+      {subTab==='chart'&&<ChartPage t={t} settings={settings} onClose={onClose}/>}
+      {subTab==='suggest'&&<SuggestPage t={t} settings={settings} onClose={onClose}/>}
 
       {subTab==='backup'&&(<div className="space-y-4 fi">
-        <h2 className="text-lg font-bold text-gray-100">{t.backupCenter}</h2>
+        <div className="flex items-center justify-between"><h2 className="text-lg font-bold text-gray-100">{t.backupCenter}</h2><button onClick={()=>onClose&&onClose()} className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-gray-400 active:bg-white/[0.12]">✕</button></div>
         <BackupSection settings={settings} t={t}/>
       </div>)}
 
       {subTab==='violation'&&(<div className="space-y-6 fi">
         <div>
-          <h2 className="text-lg font-bold text-gray-100 mb-3">{t.violationTitle}</h2>
+          <div className="flex items-center justify-between mb-3"><h2 className="text-lg font-bold text-gray-100">{t.violationTitle}</h2><button onClick={()=>onClose&&onClose()} className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-gray-400 active:bg-white/[0.12]">✕</button></div>
           <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl px-4 py-6 text-center"><p className="text-sm text-gray-500">{t.noViolation}</p></div>
         </div>
         <div className="space-y-2">
