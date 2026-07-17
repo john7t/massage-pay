@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>公告 v1.0-021</title>
+<title>公告 v1.0-023</title>
 <meta property="og:title" content="公告通知">
 <meta property="og:description" content="請點擊連結查看公告內容">
 <meta property="og:type" content="website">
@@ -53,7 +53,7 @@ body{background:#0a0a0f;color:#e5e7eb;margin:0;font-family:-apple-system,BlinkMa
 <script type="text/babel">
 (function(){
 const{useState,useEffect}=React;
-const{gasCall,TW_REGIONS,T}=window.MP||{};
+const{gasCall,TW_REGIONS,T,isValidPin,lockPwdCred,gasSetInitialPwd,gasLoginPwd}=window.MP||{};
 
 // 測速用:填了就跳過問GAS要LIFF ID那一次來回。這個頁面需要一個「Endpoint URL指到這個頁面網址」的LIFF App,
 // 不能直接沿用安全回報的LIFF ID(那個的Endpoint URL指到別的網址),要另外在LINE Developers Console申請一個。
@@ -86,6 +86,8 @@ async function noticeLiffMarkRead(noticeId,lineUserId){const r=await window.MP.g
 async function sfGetUser(lineUserId){const r=await gasCall('sfGetUser',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
 async function sfRegister(data){const r=await window.MP.gasCallPost('sfRegister',data,15000);return r||{ok:false,error:'GAS無回應'};}
 async function checkStaffCode(code){const r=await gasCall('checkStaffCode',{code},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfRegisterRequest(data){const r=await window.MP.gasCallPost('sfRegisterRequest',data,15000);return r||{ok:false,error:'GAS無回應'};}
+async function sfCheckPendingStatus(reqId){const r=await gasCall('sfCheckPendingStatus',{reqId},10000);return r||{ok:false,error:'GAS無回應'};}
 
 const Spinner=({size})=>(<svg className="animate-spin" width={size||14} height={size||14} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>);
 // LIFF的access token過期/被撤銷是LINE平台常見的行為(關閉LIFF App當下token就會失效),不是我們程式碼能完全避免的問題,
@@ -96,6 +98,50 @@ function _fmtLiffErr(err){
     return '登入狀態已過期，請完全關閉LINE App後重新開啟再試一次\n（技術訊息：'+msg+'）';
   }
   return msg;
+}
+
+function PendingApprovalScreen({reqId,onApproved}){
+  const[shareStatus,setShareStatus]=useState('');
+  const[checkStatus,setCheckStatus]=useState('');
+  const APPROVE_LIFF_ID='2010673151-kemVP4Pi'; // 審核頁面統一放在safety-report.html那邊
+  const doShare=async()=>{
+    setShareStatus('sharing');
+    try{
+      if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setShareStatus('error');return}
+      const uri='https://liff.line.me/'+APPROVE_LIFF_ID+'?approveReg='+reqId;
+      const res=await liff.shareTargetPicker([{type:'flex',altText:'審核通知',contents:{
+        type:'bubble',
+        body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
+          {type:'text',text:'📝 人員登記審核通知',weight:'bold',size:'md',color:'#111111'},
+          {type:'text',text:'請主管協助審核此筆登記申請',size:'sm',color:'#666666',wrap:true,margin:'md'},
+          {type:'text',text:'審核代碼：'+reqId,size:'xs',color:'#999999',margin:'md'}
+        ]},
+        footer:{type:'box',layout:'vertical',paddingAll:'lg',contents:[
+          {type:'button',style:'primary',color:'#d97706',height:'sm',action:{type:'uri',label:'前往審核',uri:uri}}
+        ]}
+      }}]);
+      setShareStatus(res?'done':'cancelled');
+    }catch(_e){setShareStatus('error')}
+  };
+  const doCheck=async()=>{
+    setCheckStatus('checking');
+    try{const r=await sfCheckPendingStatus(reqId);if(r&&r.ok)setCheckStatus(r.status);else setCheckStatus('')}catch(_e){setCheckStatus('')}
+  };
+  if(checkStatus==='approved')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center"><p className="text-base text-emerald-500 font-semibold">✓ 已核准！</p><button onClick={onApproved} className="px-6 py-3 rounded-xl bg-amber-600 text-white text-sm font-bold">開始使用</button></div>);
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-5 p-6 text-center">
+    <div className="w-16 h-16 rounded-full bg-amber-500/15 flex items-center justify-center text-2xl">⏳</div>
+    <div><p className="text-base text-gray-100 font-semibold">查無此編號的員工資料</p><p className="text-sm text-gray-400 mt-1">已建立審核申請，請將下方通知分享給主管審核</p></div>
+    <div className="bg-white/[0.04] rounded-xl px-4 py-2.5"><p className="text-xs text-gray-500">審核代碼</p><p className="text-lg text-amber-400 font-bold font-mono">{reqId}</p></div>
+    <div className="w-full max-w-xs space-y-2.5">
+      <button onClick={doShare} disabled={shareStatus==='sharing'} className="w-full py-3 rounded-xl bg-[#06C755] text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{shareStatus==='sharing'?<Spinner size={14}/>:<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.5 2 2 5.6 2 10c0 3.9 3.6 7.2 8.4 7.9.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1.1 1 .6 1.1-.5 6.2-3.7 8.5-6.3C22.1 12.6 22 11.3 22 10c0-4.4-4.5-8-10-8z"/></svg>}分享給主管審核</button>
+      {shareStatus==='done'&&<p className="text-xs text-emerald-400">✓ 已分享</p>}
+      {shareStatus==='cancelled'&&<p className="text-xs text-gray-500">已取消分享</p>}
+      {shareStatus==='error'&&<p className="text-xs text-red-400">分享失敗，請確認在LINE App內開啟</p>}
+      <button onClick={doCheck} disabled={checkStatus==='checking'} className="w-full py-3 rounded-xl bg-white/[0.06] border border-white/[0.1] text-gray-300 text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">{checkStatus==='checking'&&<Spinner size={14}/>}檢查核准情形</button>
+      {checkStatus==='pending'&&<p className="text-xs text-gray-500">尚未核准，請耐心等候</p>}
+      {checkStatus==='rejected'&&<p className="text-xs text-red-400">很抱歉，這筆申請已被拒絕</p>}
+    </div>
+  </div>);
 }
 
 function RegisterFlow({profile,onDone,staticMode}){
@@ -109,50 +155,90 @@ function RegisterFlow({profile,onDone,staticMode}){
   const[shift,setShift]=useState('');
   const[city,setCity]=useState('');const[dist,setDist]=useState('');
   const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
-  const[checkBusy,setCheckBusy]=useState(false);const[checkMsg,setCheckMsg]=useState('');
+  const[checkBusy,setCheckBusy]=useState(false);const[checkMsg,setCheckMsg]=useState('');const[checkFound,setCheckFound]=useState(null);
+  const[pendingReqId,setPendingReqId]=useState('');
+  const[pwdMode,setPwdMode]=useState(''); // ''=不用處理密碼(非老師身分)/verify=既有密碼要先登入/setup1/setup2=設定新密碼(分兩步驟輸入確認)
+  const[pwdInput,setPwdInput]=useState('');const[pwdSetup1,setPwdSetup1]=useState('');const[pwdErr,setPwdErr]=useState('');const[pwdBusy,setPwdBusy]=useState(false);
+  const[pwdVerified,setPwdVerified]=useState(false);const[finalPwd,setFinalPwd]=useState('');
   const langDone=!!lang;
   const step1Done=langDone&&!!store;
   const canSubmit=(()=>{
     if(!step1Done||!personType)return false;
     if(personType==='manager')return subType&&(code.trim()||name.trim())&&gender&&shift&&city&&dist;
     if(personType==='frontdesk'||personType==='student')return code.trim()||name.trim();
-    if(personType==='teacher')return code.trim()&&gender&&shift&&city&&dist;
+    if(personType==='teacher')return code.trim()&&gender&&shift&&city&&dist&&pwdVerified;
     return false;
   })();
   const doCheck=async()=>{
     if(!code.trim())return;
-    setCheckBusy(true);setCheckMsg('');
+    setCheckBusy(true);setCheckMsg('');setCheckFound(null);setPwdVerified(false);setPwdInput('');setPwdSetup1('');setPwdErr('');
     try{
       const r=await checkStaffCode(code.trim());
       if(r&&r.ok&&r.found){
         if(r.store)setStore(r.store);
         if(r.gender)setGender(r.gender);
         if(r.shift)setShift(r.shift);
-        setCheckMsg('✓ 已自動帶出你的資料，請確認居住地');
-      }else{setCheckMsg('查無此編號，請確認輸入正確或手動選擇店別')}
+        setCheckFound(true);
+        if(r.hasLockPwd){setPwdMode('verify');setCheckMsg('✓ 已自動帶出你的資料，請輸入你原本設定的密碼')}
+        else{setPwdMode('setup1');setCheckMsg('✓ 已自動帶出你的資料，請設定4位數密碼')}
+      }else{setCheckFound(false);setPwdMode('setup1');setCheckMsg('查無此編號，填完資料後將送交主管審核')}
     }catch(_e){setCheckMsg('查詢失敗')}
     setCheckBusy(false);
+  };
+  const doPwdVerify=async()=>{
+    if(pwdInput.length!==4)return;
+    setPwdBusy(true);setPwdErr('');
+    try{
+      const r=await gasLoginPwd(code.trim(),lockPwdCred(code.trim(),pwdInput));
+      if(r&&r.ok){setPwdVerified(true);setFinalPwd(pwdInput)}else{setPwdErr('密碼錯誤');setPwdInput('')}
+    }catch(e){setPwdErr(String(e))}
+    setPwdBusy(false);
+  };
+  const doPwdSetupStep=()=>{
+    if(pwdMode==='setup1'){
+      if(!isValidPin(pwdInput)){setPwdErr('密碼不可4碼相同或連續遞增/遞減');setPwdInput('');return}
+      setPwdSetup1(pwdInput);setPwdInput('');setPwdErr('');setPwdMode('setup2');
+    }else if(pwdMode==='setup2'){
+      if(pwdInput!==pwdSetup1){setPwdErr('兩次輸入不一致，請重新設定');setPwdInput('');setPwdSetup1('');setPwdMode('setup1');return}
+      setPwdVerified(true);setFinalPwd(pwdInput);setPwdErr('');
+    }
   };
   const submitData={lineUserId:profile.userId,displayName:profile.displayName,store,personType,subType,name:personType==='teacher'?code.trim():name.trim(),code:personType==='teacher'?'':code.trim(),lang,gender,shift,city,dist};
   const submit=async()=>{
     if(!canSubmit)return;
     setBusy(true);setErr('');
+    if(personType==='teacher'&&checkFound===false){
+      // 查無此編號:不直接登記,改送交主管審核(一定要等GAS回應拿到審核代碼,不走staticMode的即發即走;密碼先存起來,之後正式建檔時再套用)
+      try{
+        const r=await sfRegisterRequest({...submitData,pwdCred:lockPwdCred(code.trim(),finalPwd)});
+        if(r&&r.ok){setPendingReqId(r.reqId);setBusy(false);return}
+        setErr((r&&r.error)||'送出失敗');
+      }catch(e){setErr(String(e))}
+      setBusy(false);return;
+    }
     if(staticMode){
       // 靜態模式:送出後不等GAS回應,GAS會在伺服器端繼續執行完成,就算提前關閉分頁也不影響資料寫入。
       // 短暫轉圈圈純粹是給使用者「有在處理」的感覺。
       sfRegister(submitData).catch(()=>{});
+      if(personType==='teacher'&&checkFound===true&&pwdMode==='setup2'){gasSetInitialPwd(code.trim(),lockPwdCred(code.trim(),finalPwd)).catch(()=>{})}
       setTimeout(()=>{onDone()},800);
       return;
     }
     try{
       const r=await sfRegister(submitData);
-      if(r&&r.ok){onDone();return}
+      if(r&&r.ok){
+        if(personType==='teacher'&&checkFound===true&&pwdMode==='setup2'){
+          try{await gasSetInitialPwd(code.trim(),lockPwdCred(code.trim(),finalPwd))}catch(_e){}
+        }
+        onDone();return;
+      }
       setErr((r&&r.error)||'登記失敗');
     }catch(e){setErr(String(e))}
     setBusy(false);
   };
   const tt=lang==='vi'?{appTitle:'Đăng ký',chooseLang:'Chọn ngôn ngữ',chooseStore:'Chọn cửa hàng',choosePersonType:'Chọn loại nhân sự',typeManager:'Quản lý',typeFrontdesk:'Lễ tân',typeTeacher:'Nhân viên kỹ thuật',typeStudent:'Học viên',chooseSubType:'Chọn cấp bậc',customNameLabel:'Tên tùy chỉnh',customNamePh:'Nhập tên (hoặc mã số)',teacherCode:'Mã nhân viên',teacherCodePh:'Mã số',checkBtn:'Kiểm tra',gender:'Giới tính',genderM:'Nam',genderF:'Nữ',shift:'Ca làm',shiftDay:'Ca sáng',shiftNight:'Ca tối',addr:'Khu vực',addrCity:'Tỉnh/Thành',addrDist:'Quận/Huyện',submitBtn:'Hoàn tất',submitting:'Đang xử lý…'}:{appTitle:'人員登記',chooseLang:'選擇語系',chooseStore:'選擇店別',choosePersonType:'選擇人員別',typeManager:'主管',typeFrontdesk:'櫃台',typeTeacher:'老師',typeStudent:'教學處學生',chooseSubType:'選擇主管別',customNameLabel:'自訂名稱',customNamePh:'請輸入自訂名稱(或直接輸入編號)',teacherCode:'老師編號',teacherCodePh:'編號',checkBtn:'檢查',gender:'性別',genderM:'男',genderF:'女',shift:'班別',shiftDay:'早班',shiftNight:'晚班',addr:'居住地區',addrCity:'縣市',addrDist:'鄉鎮市區',submitBtn:'完成登記',submitting:'處理中…'};
 
+  if(pendingReqId)return(<PendingApprovalScreen reqId={pendingReqId} onApproved={onDone}/>);
   return(<div className="min-h-screen flex items-center justify-center p-4">
     <div className="w-full max-w-md bg-gray-900 rounded-2xl border border-white/[0.08] p-5 space-y-5">
       <div className="text-center"><h1 className="text-lg font-bold text-gray-100">{tt.appTitle}</h1></div>
@@ -168,7 +254,7 @@ function RegisterFlow({profile,onDone,staticMode}){
       {personType==='manager'&&(<div className="space-y-3">
         <div><label className="text-sm text-gray-400 block mb-2">{tt.chooseSubType}</label><div className="grid grid-cols-2 gap-2">{(lang==='vi'?SUBTYPES_VI:SUBTYPES_ZH).map((s,i)=>(<button key={s} onClick={()=>setSubType(SUBTYPES_ZH[i])} className={`py-2.5 rounded-xl text-xs font-semibold ${subType===SUBTYPES_ZH[i]?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{s}</button>))}</div></div>
         <div className="flex gap-2"><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={tt.teacherCodePh} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 text-center"/><button onClick={doCheck} disabled={checkBusy||!code.trim()} className="px-4 rounded-xl bg-white/[0.08] text-gray-300 text-sm font-semibold disabled:opacity-50">{checkBusy?<Spinner/>:tt.checkBtn}</button></div>
-        {checkMsg&&<p className="text-xs text-amber-400">{checkMsg}</p>}
+        {checkMsg&&<p className={`text-xs ${checkFound?'text-emerald-400':'text-amber-400'}`}>{checkMsg}</p>}
         <input value={name} onChange={e=>setName(e.target.value)} placeholder={tt.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/>
         <div className="grid grid-cols-2 gap-2"><button onClick={()=>setGender('M')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='M'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{tt.genderM}</button><button onClick={()=>setGender('F')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='F'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{tt.genderF}</button></div>
         <div className="grid grid-cols-2 gap-2"><button onClick={()=>setShift('day')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='day'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{tt.shiftDay}</button><button onClick={()=>setShift('night')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='night'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{tt.shiftNight}</button></div>
@@ -181,8 +267,11 @@ function RegisterFlow({profile,onDone,staticMode}){
       </div>)}
 
       {personType==='teacher'&&(<div className="space-y-3">
-        <div className="flex gap-2"><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={tt.teacherCodePh} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 text-center tracking-widest"/><button onClick={doCheck} disabled={checkBusy||!code.trim()} className="px-4 rounded-xl bg-white/[0.08] text-gray-300 text-sm font-semibold disabled:opacity-50">{checkBusy?<Spinner/>:tt.checkBtn}</button></div>
-        {checkMsg&&<p className="text-xs text-amber-400">{checkMsg}</p>}
+        <div className="flex gap-2"><input value={code} onChange={e=>{setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''));setCheckFound(null);setCheckMsg('');setPwdMode('');setPwdVerified(false);setPwdInput('');setPwdSetup1('');setPwdErr('')}} placeholder={tt.teacherCodePh} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 text-center tracking-widest"/><button onClick={doCheck} disabled={checkBusy||!code.trim()} className="px-4 rounded-xl bg-white/[0.08] text-gray-300 text-sm font-semibold disabled:opacity-50">{checkBusy?<Spinner/>:tt.checkBtn}</button></div>
+        {checkMsg&&<p className={`text-xs ${checkFound?'text-emerald-400':'text-amber-400'}`}>{checkMsg}</p>}
+        {pwdMode==='verify'&&!pwdVerified&&(<div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-3 space-y-2"><p className="text-xs text-gray-400">請輸入你原本設定的4位數密碼</p><input value={pwdInput} onChange={e=>{setPwdInput(e.target.value.replace(/\D/g,'').slice(0,4));setPwdErr('')}} inputMode="numeric" type="password" maxLength={4} placeholder="••••" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3 text-lg text-center text-gray-100 tracking-[0.5em]"/>{pwdErr&&<p className="text-xs text-red-400">{pwdErr}</p>}<button onClick={doPwdVerify} disabled={pwdBusy||pwdInput.length!==4} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 disabled:bg-white/[0.06] disabled:text-gray-600">{pwdBusy?<Spinner/>:'登入'}</button></div>)}
+        {(pwdMode==='setup1'||pwdMode==='setup2')&&!pwdVerified&&(<div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-3 space-y-2"><p className="text-xs text-gray-400">{pwdMode==='setup1'?'請設定4位數密碼（不可4碼相同或連續遞增/遞減）':'請再輸入一次確認'}</p><input value={pwdInput} onChange={e=>{setPwdInput(e.target.value.replace(/\D/g,'').slice(0,4));setPwdErr('')}} inputMode="numeric" type="password" maxLength={4} placeholder="••••" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3 text-lg text-center text-gray-100 tracking-[0.5em]"/>{pwdErr&&<p className="text-xs text-red-400">{pwdErr}</p>}<button onClick={doPwdSetupStep} disabled={pwdInput.length!==4} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 disabled:bg-white/[0.06] disabled:text-gray-600">{pwdMode==='setup1'?'下一步':'確認設定'}</button></div>)}
+        {pwdVerified&&<p className="text-xs text-emerald-400">✓ 密碼{pwdMode==='verify'?'驗證':'設定'}完成</p>}
         <div className="grid grid-cols-2 gap-2"><button onClick={()=>setGender('M')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='M'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{tt.genderM}</button><button onClick={()=>setGender('F')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='F'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{tt.genderF}</button></div>
         <div className="grid grid-cols-2 gap-2"><button onClick={()=>setShift('day')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='day'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{tt.shiftDay}</button><button onClick={()=>setShift('night')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='night'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{tt.shiftNight}</button></div>
         <div className="grid grid-cols-2 gap-2"><select value={city} onChange={e=>{setCity(e.target.value);setDist('')}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100"><option value="">{tt.addrCity}</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select><select value={dist} onChange={e=>setDist(e.target.value)} disabled={!city} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100 disabled:opacity-40"><option value="">{tt.addrDist}</option>{(TW_REGIONS&&TW_REGIONS[city]||[]).map(d=><option key={d} value={d}>{d}</option>)}</select></div>
