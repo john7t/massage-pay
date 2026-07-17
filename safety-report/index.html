@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>安全回報 v1.12-048</title>
+<title>安全回報 v1.12-049</title>
 <meta property="og:title" content="天然災害每日安全回報中心">
 <meta property="og:description" content="請點擊連結進行安全回報">
 <meta property="og:type" content="website">
@@ -198,6 +198,7 @@ function PendingApprovalScreen({reqId,store,onApproved}){
       {shareStatus==='cancelled'&&<p className="text-xs text-gray-500">已取消分享</p>}
       {shareStatus==='error'&&<p className="text-xs text-red-400">分享失敗，請確認在LINE App內開啟</p>}
       <button onClick={doCheck} disabled={checkStatus==='checking'} className="w-full py-3 rounded-xl bg-white/[0.06] border border-white/[0.1] text-gray-300 text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">{checkStatus==='checking'&&<Spinner size={14}/>}檢查核准情形</button>
+      <a href="https://lin.ee/58Dsob3" target="_blank" rel="noopener" className="w-full py-3 rounded-xl bg-[#06C755] text-white text-sm font-bold flex items-center justify-center gap-2"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.5 2 2 5.6 2 10c0 3.9 3.6 7.2 8.4 7.9.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1.1 1 .6 1.1-.5 6.2-3.7 8.5-6.3C22.1 12.6 22 11.3 22 10c0-4.4-4.5-8-10-8z"/></svg>加入 LINE 官方帳號</a>
       {checkStatus==='pending'&&<p className="text-xs text-gray-500">尚未核准，請耐心等候</p>}
       {checkStatus==='rejected'&&<p className="text-xs text-red-400">很抱歉，這筆申請已被拒絕</p>}
     </div>
