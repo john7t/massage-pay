@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>員工列表 v1.0-015</title>
+<title>員工列表 v1.0-016</title>
 <script>
   var PAGE="employees",PCODE="04";
   window.__fbLang='zh';
@@ -45,7 +45,7 @@ body{background:#f9fafb;color:#111827;margin:0;font-family:-apple-system,BlinkMa
 <script type="text/babel">
 (function(){
 const{useState,useEffect,useMemo}=React;
-const{gasCall,SUP_LEVELS}=window.MP||{};
+const{gasCall,SUP_LEVELS,supLevelName,computeStats,publishStats,getGHConfig,saveGHConfigLocal}=window.MP||{};
 
 // 這個頁面需要一個「Endpoint URL指到這個頁面網址」的LIFF App,要另外在LINE Developers Console申請一個,
 // 申請好之後把下面這個空字串換成真正的LIFF ID
@@ -177,7 +177,7 @@ function EmployeeDetailModal({code,myAuth,onClose,onChanged}){
     }else{
       inputEl=(<input value={form[k]||''} onChange={e=>upd(k,e.target.value)} className="w-full bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-900"/>);
     }
-    return(<div key={k} className={`px-2.5 py-2 ${i%2===0?'bg-white/60':'bg-transparent'}`}><label className="text-[10px] text-gray-500 block mb-0.5">{FIELD_LABEL[k]}</label>{inputEl}</div>);
+    return(<div key={k} className={`px-2.5 py-2 flex items-center gap-2 ${i%2===0?'bg-white/60':'bg-transparent'}`}><label className="text-[11px] text-gray-500 w-20 flex-shrink-0">{FIELD_LABEL[k]}</label><div className="flex-1 min-w-0">{inputEl}</div></div>);
   };
   if(!staff||!form)return(<div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"><Spinner size={28}/></div>);
   const isSup=staff.role==='supervisor';
@@ -198,21 +198,24 @@ function EmployeeDetailModal({code,myAuth,onClose,onChanged}){
 
         <div className="bg-purple-50 rounded-xl overflow-hidden border border-purple-100 p-2.5 space-y-2.5">
           <p className="text-xs font-semibold text-purple-700">主管任命及員工操作</p>
-          <div className="space-y-1.5">
-            <p className="text-[10px] text-gray-500">{isSup?('目前為主管・等級 '+staff.level):'目前為一般老師'}</p>
+          <div className="flex items-center gap-2">
+            <label className="text-[11px] text-gray-500 w-16 flex-shrink-0">主管任命</label>
             {!isSup?(
-              <div className="flex gap-1.5"><select value={supLevel} onChange={e=>setSupLevel(parseInt(e.target.value,10))} className="flex-1 bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-900">{SUP_LEVELS.filter(lv=>lv.id<=myAuth.level).map(lv=>(<option key={lv.id} value={lv.id}>{lv.zh}</option>))}</select><button onClick={()=>doAppoint(supLevel)} disabled={actionStatus==='saving'} className="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-semibold disabled:opacity-50">任命主管</button></div>
+              <div className="flex gap-1.5 flex-1"><select value={supLevel} onChange={e=>setSupLevel(parseInt(e.target.value,10))} className="flex-1 bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-900">{SUP_LEVELS.filter(lv=>lv.id<=myAuth.level).map(lv=>(<option key={lv.id} value={lv.id}>{lv.zh}</option>))}</select><button onClick={()=>doAppoint(supLevel)} disabled={actionStatus==='saving'} className="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-semibold disabled:opacity-50 flex-shrink-0">任命主管身分</button></div>
             ):(
-              <button onClick={()=>doAppoint(0)} disabled={actionStatus==='saving'} className="w-full py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-semibold disabled:opacity-50">撤銷主管身分</button>
+              <div className="flex items-center gap-2 flex-1"><span className="text-xs text-gray-700 flex-1">目前為主管・{supLevelName(staff.level,'zh')||('等級'+staff.level)}</span><button onClick={()=>doAppoint(0)} disabled={actionStatus==='saving'} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-semibold disabled:opacity-50 flex-shrink-0">撤銷主管身分</button></div>
             )}
           </div>
-          <div className="grid grid-cols-2 gap-1.5 pt-1.5 border-t border-purple-100">
+          <div className="flex items-center gap-2 pt-1.5 border-t border-purple-100">
+            <label className="text-[11px] text-gray-500 w-16 flex-shrink-0">員工操作</label>
+            <div className="grid grid-cols-2 gap-1.5 flex-1">
             {staff.status==='off'?(
               <button onClick={()=>doSetStatus('active')} disabled={actionStatus==='saving'} className="py-1.5 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-semibold disabled:opacity-50">復工</button>
             ):(
               <button onClick={()=>doSetStatus('off')} disabled={actionStatus==='saving'} className="py-1.5 rounded-lg bg-gray-200 text-gray-600 text-xs font-semibold disabled:opacity-50">離職</button>
             )}
             <button onClick={doDelete} disabled={actionStatus==='saving'} className="py-1.5 rounded-lg bg-red-100 text-red-600 text-xs font-semibold disabled:opacity-50">{delConfirm?'再按一次確認刪除':'刪除'}</button>
+            </div>
           </div>
           {actionStatus&&actionStatus!=='saving'&&<p className="text-[11px] text-center text-gray-600">{actionStatus}</p>}
         </div>
@@ -235,11 +238,30 @@ function WorkHoursChartModal({myAuth,stores,onClose}){
   const[loading,setLoading]=useState(true);
   const[mode,setMode]=useState('online'); // online=在線人數, start=上工分布
   const[pickHour,setPickHour]=useState(null);
+  const[publishBusy,setPublishBusy]=useState(false);
+  const[publishMsg,setPublishMsg]=useState('');
   const load=()=>{
     setLoading(true);setList(null);
     gasEmployeeList(myAuth.lineUserId,store).then(r=>{if(r&&r.ok)setList(r.list);setLoading(false)});
   };
   useEffect(()=>{load()},[store]);
+  const doPublish=async()=>{
+    if(!list)return;
+    setPublishBusy(true);setPublishMsg('');
+    try{
+      let gh=getGHConfig();
+      if(!gh||!gh.token){
+        const ghr=await gasGetGHConfigForSupervisor(myAuth.lineUserId);
+        if(ghr&&ghr.ok){saveGHConfigLocal({owner:ghr.owner,repo:ghr.repo,token:ghr.token});gh=getGHConfig()}
+      }
+      if(!gh||!gh.token){setPublishMsg('找不到GitHub設定，更新失敗');setPublishBusy(false);return}
+      const stats=computeStats(list,store||null);
+      const ok=await publishStats(gh,stats);
+      setPublishMsg(ok?'✓ 已更新，員工端圖表會顯示最新資料':'更新失敗，請稍後再試');
+    }catch(e){setPublishMsg('更新失敗：'+String(e))}
+    setPublishBusy(false);
+    setTimeout(()=>setPublishMsg(''),3000);
+  };
   const rows=(list||[]).filter(s=>s.workStart);
   const hourOf=(hhmm)=>{if(!hhmm)return null;const h=Number(String(hhmm).split(':')[0]);return isNaN(h)?null:h};
   const counts=Array.from({length:24},()=>0);
@@ -260,7 +282,12 @@ function WorkHoursChartModal({myAuth,stores,onClose}){
         <p className="text-[11px] text-gray-500">{mode==='online'?'依上下工時間換算，各時段目前在線人數':'各時段開始上工的人數分布'}（{rows.length} 人）</p>
         <div className="space-y-1">{HOURS.map(h=>{const c=counts[h]||0;const on=pickHour===h;return(<div key={h} onClick={()=>setPickHour(on?null:h)} className="flex items-center gap-2 active:opacity-70 cursor-pointer"><span className={`text-[10px] tabular-nums w-7 text-right ${on?'text-amber-600 font-bold':'text-gray-400'}`}>{String(h).padStart(2,'0')}</span><div className="flex-1 h-4 bg-gray-100 rounded-sm overflow-hidden"><div className="h-full rounded-sm transition-all" style={{width:(c/maxC*100)+'%',background:on?'#f59e0b':'#d97706'}}></div></div><span className={`text-[10px] tabular-nums w-5 ${on?'text-amber-600 font-bold':'text-gray-400'}`}>{c||''}</span></div>)})}</div>
         {pickHour!==null&&(<div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5"><p className="text-xs text-amber-700 font-semibold mb-1.5">{String(pickHour).padStart(2,'0')}:00 — {detail.length} 人</p>{detail.length===0?<p className="text-[11px] text-gray-500">無資料</p>:<div className="space-y-1">{detail.map((d,i)=>(<div key={i} className="flex items-center gap-2 text-[11px]"><span className="font-mono text-gray-700 w-12">#{d.code}</span><span className="text-gray-500">{d.ws}{d.we?'～'+d.we:''}</span></div>))}</div>}</div>)}
-        <button onClick={load} disabled={loading} className="w-full py-2 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold disabled:opacity-50">重新整理</button>
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={load} disabled={loading} className="py-2 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold disabled:opacity-50">重新整理</button>
+          <button onClick={doPublish} disabled={publishBusy||loading} className="py-2 rounded-lg bg-amber-600 text-white text-xs font-semibold disabled:opacity-50 flex items-center justify-center gap-1.5">{publishBusy&&<Spinner size={11}/>}更新</button>
+        </div>
+        {publishMsg&&<p className="text-[11px] text-center text-gray-600">{publishMsg}</p>}
+        <p className="text-[10px] text-gray-400 text-center">「更新」會把目前畫面的統計結果發布出去，一般員工在自己的「圖表」頁看到的就是這份資料</p>
       </div>
     </div>
   </div>);
