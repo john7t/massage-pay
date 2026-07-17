@@ -1,4 +1,4 @@
-/* notice-modal.js v1.12-042 — 共用公告詳情彈窗元件(index與公告頁共用)
+/* notice-modal.js v1.12-043 — 共用公告詳情彈窗元件(index與公告頁共用)
    用法:<NoticeDetailModal notice={n} settings={settings} t={t} onClose={()=>...} onMore={()=>...}/>
    依賴 window.MP 的:noticeBody,hasMyKey,markNoticeRead,autoClaimKey,isNoticeRead,getNoticeReadCount,getNoticeReaders,getNoticeShow,isValidPin,lockPwdCred,gasSetInitialPwd,gasVerifyKey,getMyKey,LS
    v1.12-019:密碼關卡通過後,再背景驗證金鑰是否有效(離職時金鑰會被設過期/停用)。金鑰失效→即使密碼對也擋內容,顯示「憑證已失效」;沒有金鑰或網路失敗時不擋(容錯優先,避免誤傷正常老師) */
@@ -36,11 +36,12 @@
   function setCachedKeyCheck(code,result){
     try{const today=new Date().toISOString().slice(0,10);localStorage.setItem('key-check-date-'+code,today);localStorage.setItem('key-check-result-'+code,result);}catch(_e){}
   }
-  function NoticeDetailModal({notice,settings,t,onClose,onMore}){
+  function NoticeDetailModal({notice,settings,t,onClose,onMore,skipGate}){
     const code=settings&&settings.code;
     const vi=settings&&settings.lang==='vi';
     const getFreshSettings=()=>{try{return(MP.LS&&MP.LS.get('app-settings'))||settings||{}}catch(_e){return settings||{}}};
     const initGate=()=>{
+      if(skipGate)return 'none'; // 已經透過LINE登入驗證過身分的情境(例如notice-liff.html),不需要再走PIN鎖這關
       if(!code)return 'none';
       const fs=getFreshSettings();
       if(!fs.lockPwd)return 'setup';
