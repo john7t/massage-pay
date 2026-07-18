@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-070</title>
+<title>薪資追蹤 v1.12-071</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -1086,7 +1086,6 @@ function DisasterReportModal({t,settings,onClose,onSaved}){
 function BreakTimerSection({settings}){
   const[status,setStatus]=useState(null); // null=載入中, {exists,isOpen,remainSeconds,reqId,...}
   const[busy,setBusy]=useState(false);
-  const[shareStatus,setShareStatus]=useState(''); // green或white的分享狀態
   const[tick,setTick]=useState(0); // 每秒觸發重新渲染,讓倒數畫面動起來
   const syncedAtRef=React.useRef(Date.now()); // 上次跟伺服器同步remainSeconds的本機時間點
   const FD_QUICK_URL='https://john7t.github.io/massage-pay/fd-quick.html';
@@ -1119,19 +1118,14 @@ function BreakTimerSection({settings}){
     }catch(e){setActionErr('連線失敗：'+String(e))}
     setBusy(false);
   };
-  const doShare=async(kind)=>{
+  const doShare=(kind)=>{
     if(!status||!status.reqId)return;
-    setShareStatus('sharing');
-    try{
-      const uri=FD_QUICK_URL+'?action=confirm'+(kind==='green'?'Green':'White')+'&reqId='+status.reqId;
-      const label=kind==='green'?'🟢 老師開始休息(翻綠)':'⚪ 老師結束休息(回牌)';
-      // shareTargetPicker一定要透過 liff.line.me/{id} 這個網址正式啟動LIFF才能用,
-      // index.html是走原本的github.io網址,不符合條件,改用LINE官方的通用分享連結,任何瀏覽器都能用
-      const text=label+'\n請前往確認：'+uri;
-      const shareUrl='https://line.me/R/msg/text/?'+encodeURIComponent(text);
-      window.open(shareUrl,'_blank');
-      setShareStatus('done');
-    }catch(_e){setShareStatus('error')}
+    // shareTargetPicker一定要透過 liff.line.me/{id} 這個網址正式啟動LIFF才能用,
+    // index.html是走原本的github.io網址不符合條件,改成跳轉到safety-report.html的正式LIFF網址,
+    // 由那邊代為發送Flex卡片,發完會自動導回這裡
+    const BREAK_LIFF_ID='2010673151-kemVP4Pi';
+    const uri='https://liff.line.me/'+BREAK_LIFF_ID+'?breakShare='+kind+'&reqId='+status.reqId;
+    location.href=uri;
   };
   if(status===null)return(<div className="mt-5 pt-4 border-t border-white/[0.06] flex justify-center py-3"><span className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/></div>);
   return(<div className="mt-5 pt-4 border-t border-white/[0.06] space-y-2">
@@ -1141,10 +1135,7 @@ function BreakTimerSection({settings}){
       <button onClick={doFlipGreen} disabled={busy} className="w-full py-3 rounded-xl bg-white text-gray-900 text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2 border border-white/20">{busy&&<span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"/>}⚪ 翻綠（開始休息）</button>
       {status.exists&&status.usedSeconds>0&&<p className="text-[11px] text-gray-500 text-center">今天已累計使用 {fmtSec(status.usedSeconds)}／01:00:00</p>}
       {needsWhiteConfirm&&(<div className="space-y-1.5 pt-1">
-        <button onClick={()=>doShare('white')} disabled={shareStatus==='sharing'} className="w-full py-2.5 rounded-xl bg-[#06C755] text-white text-sm font-bold disabled:opacity-50">{shareStatus==='sharing'?'傳送中…':'📤 分享通知櫃台確認回牌'}</button>
-        {shareStatus==='done'&&<p className="text-[11px] text-emerald-400 text-center">✓ 已分享，等待櫃台確認</p>}
-        {shareStatus==='error'&&<p className="text-[11px] text-red-400 text-center">分享失敗，請確認在LINE App內開啟</p>}
-        {shareStatus==='cancelled'&&<p className="text-[11px] text-gray-500 text-center">已取消分享</p>}
+        <button onClick={()=>doShare('white')} className="w-full py-2.5 rounded-xl bg-[#06C755] text-white text-sm font-bold">📤 分享通知櫃台確認回牌</button>
       </div>)}
     </>):(<>
       <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-center">
@@ -1153,10 +1144,7 @@ function BreakTimerSection({settings}){
         {liveRemain<0&&<p className="text-[11px] text-red-400 mt-1">已超過1小時額度</p>}
       </div>
       {!lastSession?.greenConfirmedAt&&(<div className="space-y-1.5">
-        <button onClick={()=>doShare('green')} disabled={shareStatus==='sharing'} className="w-full py-2.5 rounded-xl bg-[#06C755] text-white text-sm font-bold disabled:opacity-50">{shareStatus==='sharing'?'傳送中…':'📤 分享通知櫃台確認翻綠'}</button>
-        {shareStatus==='done'&&<p className="text-[11px] text-emerald-400 text-center">✓ 已分享，等待櫃台確認</p>}
-        {shareStatus==='error'&&<p className="text-[11px] text-red-400 text-center">分享失敗，請確認在LINE App內開啟</p>}
-        {shareStatus==='cancelled'&&<p className="text-[11px] text-gray-500 text-center">已取消分享</p>}
+        <button onClick={()=>doShare('green')} className="w-full py-2.5 rounded-xl bg-[#06C755] text-white text-sm font-bold">📤 分享通知櫃台確認翻綠</button>
       </div>)}
       <button onClick={doFlipWhite} disabled={busy} className="w-full py-3 rounded-xl bg-emerald-600 text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{busy&&<span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>}🟢 回牌（結束休息）</button>
     </>)}
