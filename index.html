@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-069</title>
+<title>薪資追蹤 v1.12-070</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -1089,9 +1089,7 @@ function BreakTimerSection({settings}){
   const[shareStatus,setShareStatus]=useState(''); // green或white的分享狀態
   const[tick,setTick]=useState(0); // 每秒觸發重新渲染,讓倒數畫面動起來
   const syncedAtRef=React.useRef(Date.now()); // 上次跟伺服器同步remainSeconds的本機時間點
-  const liffReadyRef=React.useRef(false);
   const FD_QUICK_URL='https://john7t.github.io/massage-pay/fd-quick.html';
-  const BREAK_LIFF_ID='2010673151-kemVP4Pi'; // 借用安全回報的LIFF App做分享,分享前才初始化,不影響離線使用者
   const load=async()=>{
     try{const r=await gasCall('breakGetStatus',{code:settings.code},10000);syncedAtRef.current=Date.now();if(r&&r.ok)setStatus(r);else setStatus({exists:false})}catch(_e){setStatus({exists:false})}
   };
@@ -1125,22 +1123,14 @@ function BreakTimerSection({settings}){
     if(!status||!status.reqId)return;
     setShareStatus('sharing');
     try{
-      if(!liffReadyRef.current){await liff.init({liffId:BREAK_LIFF_ID});liffReadyRef.current=true}
-      if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setShareStatus('error');return}
       const uri=FD_QUICK_URL+'?action=confirm'+(kind==='green'?'Green':'White')+'&reqId='+status.reqId;
-      const label=kind==='green'?'老師開始休息(翻綠)':'老師結束休息(回牌)';
-      const res=await liff.shareTargetPicker([{type:'flex',altText:'休息確認通知',contents:{
-        type:'bubble',
-        body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
-          {type:'text',text:(kind==='green'?'🟢':'⚪')+' 休息確認通知',weight:'bold',size:'md',color:'#111111'},
-          {type:'text',text:label,size:'sm',color:'#666666',wrap:true,margin:'md'},
-          {type:'text',text:'代碼：'+status.reqId,size:'xs',color:'#999999',margin:'md'}
-        ]},
-        footer:{type:'box',layout:'vertical',paddingAll:'lg',contents:[
-          {type:'button',style:'primary',color:'#d97706',height:'sm',action:{type:'uri',label:'前往確認',uri:uri}}
-        ]}
-      }}]);
-      setShareStatus(res?'done':'cancelled');
+      const label=kind==='green'?'🟢 老師開始休息(翻綠)':'⚪ 老師結束休息(回牌)';
+      // shareTargetPicker一定要透過 liff.line.me/{id} 這個網址正式啟動LIFF才能用,
+      // index.html是走原本的github.io網址,不符合條件,改用LINE官方的通用分享連結,任何瀏覽器都能用
+      const text=label+'\n請前往確認：'+uri;
+      const shareUrl='https://line.me/R/msg/text/?'+encodeURIComponent(text);
+      window.open(shareUrl,'_blank');
+      setShareStatus('done');
     }catch(_e){setShareStatus('error')}
   };
   if(status===null)return(<div className="mt-5 pt-4 border-t border-white/[0.06] flex justify-center py-3"><span className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/></div>);
