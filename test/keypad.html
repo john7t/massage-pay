@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>鍵盤版面預覽</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>body{background:#030712;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}</style>
+</head>
+<body class="text-gray-100 p-5 space-y-10 max-w-md mx-auto pb-16">
+
+  <div class="space-y-3">
+    <p class="text-xs text-gray-500 text-center">版面 A — 0~9 加倒退鍵同一排(11顆並排)</p>
+    <div class="flex gap-3 justify-center py-1">
+      <div class="w-4 h-4 rounded-full bg-amber-500"></div>
+      <div class="w-4 h-4 rounded-full bg-amber-500"></div>
+      <div class="w-4 h-4 rounded-full border-2 border-white/20"></div>
+    </div>
+    <div class="grid grid-cols-11 gap-1 justify-items-center">
+      <button class="w-8 h-10 rounded-lg bg-white/[0.08] text-gray-100 text-sm font-semibold">1</button>
+      <button class="w-8 h-10 rounded-lg bg-white/[0.08] text-gray-100 text-sm font-semibold">2</button>
+      <button class="w-8 h-10 rounded-lg bg-white/[0.08] text-gray-100 text-sm font-semibold">3</button>
+      <button class="w-8 h-10 rounded-lg bg-white/[0.08] text-gray-100 text-sm font-semibold">4</button>
+      <button class="w-8 h-10 rounded-lg bg-white/[0.08] text-gray-100 text-sm font-semibold">5</button>
+      <button class="w-8 h-10 rounded-lg bg-white/[0.08] text-gray-100 text-sm font-semibold">6</button>
+      <button class="w-8 h-10 rounded-lg bg-white/[0.08] text-gray-100 text-sm font-semibold">7</button>
+      <button class="w-8 h-10 rounded-lg bg-white/[0.08] text-gray-100 text-sm font-semibold">8</button>
+      <button class="w-8 h-10 rounded-lg bg-white/[0.08] text-gray-100 text-sm font-semibold">9</button>
+      <button class="w-8 h-10 rounded-lg bg-white/[0.08] text-gray-100 text-sm font-semibold">0</button>
+      <button class="w-8 h-10 rounded-lg bg-white/[0.05] text-gray-400 text-sm">⌫</button>
+    </div>
+    <p class="text-[10px] text-gray-600 text-center">優點：只佔一排高度，畫面最省空間<br/>缺點：每顆按鈕變窄，手指誤觸機率較高</p>
+  </div>
+
+  <div class="border-t border-white/10"></div>
+
+  <div class="space-y-3">
+    <p class="text-xs text-gray-500 text-center">版面 B — 0~5一排／6~9+倒退鍵一排(行距縮短)</p>
+    <div class="flex gap-3 justify-center py-1">
+      <div class="w-4 h-4 rounded-full bg-amber-500"></div>
+      <div class="w-4 h-4 rounded-full bg-amber-500"></div>
+      <div class="w-4 h-4 rounded-full border-2 border-white/20"></div>
+    </div>
+    <div class="space-y-1.5">
+      <div class="grid grid-cols-6 gap-1.5 justify-items-center">
+        <button class="w-10 h-10 rounded-lg bg-white/[0.08] text-gray-100 text-base font-semibold">0</button>
+        <button class="w-10 h-10 rounded-lg bg-white/[0.08] text-gray-100 text-base font-semibold">1</button>
+        <button class="w-10 h-10 rounded-lg bg-white/[0.08] text-gray-100 text-base font-semibold">2</button>
+        <button class="w-10 h-10 rounded-lg bg-white/[0.08] text-gray-100 text-base font-semibold">3</button>
+        <button class="w-10 h-10 rounded-lg bg-white/[0.08] text-gray-100 text-base font-semibold">4</button>
+        <button class="w-10 h-10 rounded-lg bg-white/[0.08] text-gray-100 text-base font-semibold">5</button>
+      </div>
+      <div class="grid grid-cols-5 gap-1.5 justify-items-center max-w-[220px] mx-auto">
+        <button class="w-10 h-10 rounded-lg bg-white/[0.08] text-gray-100 text-base font-semibold">6</button>
+        <button class="w-10 h-10 rounded-lg bg-white/[0.08] text-gray-100 text-base font-semibold">7</button>
+        <button class="w-10 h-10 rounded-lg bg-white/[0.08] text-gray-100 text-base font-semibold">8</button>
+        <button class="w-10 h-10 rounded-lg bg-white/[0.08] text-gray-100 text-base font-semibold">9</button>
+        <button class="w-10 h-10 rounded-lg bg-white/[0.05] text-gray-400 text-base">⌫</button>
+      </div>
+    </div>
+    <p class="text-[10px] text-gray-600 text-center">優點：按鈕比版面A大顆，好按不易誤觸<br/>缺點：比版面A多佔一排的高度</p>
+  </div>
+
+  <div class="border-t border-white/10"></div>
+
+  <div class="space-y-3">
+    <p class="text-xs text-gray-500 text-center">目前正在用的版面 — 3×4 標準九宮格</p>
+    <div class="flex gap-3 justify-center py-1">
+      <div class="w-4 h-4 rounded-full bg-amber-500"></div>
+      <div class="w-4 h-4 rounded-full bg-amber-500"></div>
+      <div class="w-4 h-4 rounded-full border-2 border-white/20"></div>
+    </div>
+    <div class="grid grid-cols-3 gap-2.5 justify-items-center max-w-[200px] mx-auto">
+      <button class="w-12 h-12 rounded-full bg-white/[0.08] text-gray-100 text-base font-semibold">1</button>
+      <button class="w-12 h-12 rounded-full bg-white/[0.08] text-gray-100 text-base font-semibold">2</button>
+      <button class="w-12 h-12 rounded-full bg-white/[0.08] text-gray-100 text-base font-semibold">3</button>
+      <button class="w-12 h-12 rounded-full bg-white/[0.08] text-gray-100 text-base font-semibold">4</button>
+      <button class="w-12 h-12 rounded-full bg-white/[0.08] text-gray-100 text-base font-semibold">5</button>
+      <button class="w-12 h-12 rounded-full bg-white/[0.08] text-gray-100 text-base font-semibold">6</button>
+      <button class="w-12 h-12 rounded-full bg-white/[0.08] text-gray-100 text-base font-semibold">7</button>
+      <button class="w-12 h-12 rounded-full bg-white/[0.08] text-gray-100 text-base font-semibold">8</button>
+      <button class="w-12 h-12 rounded-full bg-white/[0.08] text-gray-100 text-base font-semibold">9</button>
+      <div></div>
+      <button class="w-12 h-12 rounded-full bg-white/[0.08] text-gray-100 text-base font-semibold">0</button>
+      <button class="w-12 h-12 rounded-full bg-white/[0.05] text-gray-400 text-base">⌫</button>
+    </div>
+    <p class="text-[10px] text-gray-600 text-center">佔最多高度，但按鈕最大顆最好按</p>
+  </div>
+
+</body>
+</html>
