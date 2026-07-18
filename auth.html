@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.12-045</title>
+<title>薪資追蹤 · 管理 v1.12-046</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -206,7 +206,7 @@ input[type=number]{-moz-appearance:textfield}
 <style>@keyframes fbspin{to{transform:rotate(360deg)}}@keyframes fbpulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
 <script src="./common.js"></script>
 <script type="text/babel">
-const{gasUsage,gasTranslate,gasAnalyze,gasCallPost,gasCheckAction,gasApproveAction,gasSubmitAction,gasRevokeSup,gasRejectAction,gasAuthStaffList,gasGetGHConfigForSupervisor,gasCreateDisasterSurvey,gasEndDisasterSurvey,gasDeleteDisasterSurvey,gasListDisasterSurveys,gasDisasterDayStatus,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,getGasUrl,issueKey,publishNotices,diagClaimKey,getMyKey,setMyKey,hasMyKey,getAdminSecret,setAdminSecret,hasAdminSecret,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,genUUID,getDeviceId,SUP_LEVELS,supLevelName,effSupLevel,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,computeStats,publishStats,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,T}=window.MP;
+const{gasUsage,gasTranslate,gasAnalyze,gasCallPost,gasCheckAction,gasApproveAction,gasSfGetPendingDetail,gasSfApprovePendingRegistration,gasSubmitAction,gasRevokeSup,gasRejectAction,gasAuthStaffList,gasGetGHConfigForSupervisor,gasCreateDisasterSurvey,gasEndDisasterSurvey,gasDeleteDisasterSurvey,gasListDisasterSurveys,gasDisasterDayStatus,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,getGasUrl,issueKey,publishNotices,diagClaimKey,getMyKey,setMyKey,hasMyKey,getAdminSecret,setAdminSecret,hasAdminSecret,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,genUUID,getDeviceId,SUP_LEVELS,supLevelName,effSupLevel,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,computeStats,publishStats,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo,useRef}=React;
 
 const goHome=()=>{location.href='./index.html'};
@@ -593,6 +593,15 @@ function ActionTicketBlock({t,myCode}){
   const lookup=async(overrideSeq)=>{
     const seq=(overrideSeq||seqInput).trim().toUpperCase();if(!seq)return;
     setStatus('...');setInfo(null);setApproveStatus('');
+    if(seq[0]==='G'){
+      // G代碼:查的是待審核登記(PendingRegistrations),不是標準Actions系統
+      try{
+        const r=await gasSfGetPendingDetail(myCode,seq);
+        if(r&&r.ok){setInfo({seq:seq,actionCode:'G',code:r.detail.code||r.detail.name,payload:r.detail,status:r.detail.status,createdAt:r.detail.createdAt,approvedAt:'',approvedBy:''});setStatus('')}
+        else{setStatus((r&&r.error)||t.ticketNotFound)}
+      }catch(e){setStatus(t.ticketNotFound+'（'+e+'）')}
+      return;
+    }
     try{
       const r=await gasCheckAction(seq);
       if(r&&r.ok){let payload={};try{payload=JSON.parse(r.payload||'{}')}catch(_e){}setInfo({seq:r.seq,actionCode:r.actionCode,code:r.code,payload,status:r.status,createdAt:r.createdAt,approvedAt:r.approvedAt,approvedBy:r.approvedBy});setStatus('')}
@@ -615,7 +624,7 @@ function ActionTicketBlock({t,myCode}){
   const approve=async()=>{
     if(!info)return;setApproveStatus('...');
     try{
-      const r=await gasApproveAction(info.seq,myCode,info.actionCode==='A'?supLevel:undefined);
+      const r=info.actionCode==='G'?await gasSfApprovePendingRegistration(myCode,info.seq,true):await gasApproveAction(info.seq,myCode,info.actionCode==='A'?supLevel:undefined);
       if(r&&r.ok){await lookup(info.seq);setApproveStatus(t.ticketApproveOk)}
       else{setApproveStatus(t.ticketApproveFail+(r&&r.error?'：'+r.error:''))}
     }catch(e){setApproveStatus(t.ticketApproveFail)}
@@ -623,7 +632,7 @@ function ActionTicketBlock({t,myCode}){
   const reject=async()=>{
     if(!info)return;setApproveStatus('...');
     try{
-      const r=await gasRejectAction(info.seq,myCode,rejectReason);
+      const r=info.actionCode==='G'?await gasSfApprovePendingRegistration(myCode,info.seq,false):await gasRejectAction(info.seq,myCode,rejectReason);
       if(r&&r.ok){await lookup(info.seq);setApproveStatus('');setShowReject(false);setRejectReason('')}
       else{setApproveStatus(t.ticketApproveFail+(r&&r.error?'：'+r.error:''))}
     }catch(e){setApproveStatus(t.ticketApproveFail)}
@@ -642,11 +651,20 @@ function ActionTicketBlock({t,myCode}){
     <div className="flex gap-2"><input value={seqInput} onChange={e=>setSeqInput(e.target.value)} placeholder={t.ticketLookupPh} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/><button onClick={info?clearAll:()=>lookup()} className={`px-5 py-3 rounded-xl text-white text-sm font-bold min-w-[72px] ${info?'bg-white/[0.1] text-gray-300':'bg-amber-600'}`}>{info?t.ticketClearBtn:t.ticketLookupBtn}</button></div>
     {status&&<p className="text-xs text-center text-red-400">{status}</p>}
     {info&&(<div className="bg-white/[0.03] rounded-xl p-3 space-y-1.5 fi">
-      <p className="text-sm text-amber-400 font-bold text-center">{info.actionCode==='N'?t.ticketTypeN:info.actionCode==='F'?t.ticketTypeF:info.actionCode==='A'?t.ticketTypeA:info.actionCode==='B'?t.ticketTypeB:info.actionCode==='S'?t.ticketTypeS:info.actionCode==='E'?t.ticketTypeE:info.actionCode==='R'?t.ticketTypeR:info.actionCode}</p>
+      <p className="text-sm text-amber-400 font-bold text-center">{info.actionCode==='N'?t.ticketTypeN:info.actionCode==='F'?t.ticketTypeF:info.actionCode==='A'?t.ticketTypeA:info.actionCode==='B'?t.ticketTypeB:info.actionCode==='S'?t.ticketTypeS:info.actionCode==='E'?t.ticketTypeE:info.actionCode==='R'?t.ticketTypeR:info.actionCode==='G'?'人員登記審核':info.actionCode}</p>
       <p className="text-xs text-gray-400 text-center">{t.ticketInfoTeacher}：{info.code}</p>
       {info.createdAt&&<p className="text-[11px] text-gray-600 text-center">{t.ticketInfoApplyTime}：{info.createdAt}</p>}
       {info.status==='approved'&&info.approvedAt&&<p className="text-[11px] text-gray-600 text-center">{t.ticketInfoApproveTime}：{info.approvedAt}</p>}
       {info.status==='approved'&&info.approvedBy&&<p className="text-[11px] text-gray-600 text-center">{t.ticketInfoApprover}：{info.approvedBy}</p>}
+      {info.actionCode==='G'&&(<div className="bg-white/[0.03] rounded-lg p-2 space-y-1 text-[11px]">
+        <div className="flex justify-between gap-2"><span className="text-gray-500">店別</span><span className="text-gray-300">{info.payload.store}</span></div>
+        <div className="flex justify-between gap-2"><span className="text-gray-500">身分別</span><span className="text-gray-300">{{manager:'主管',frontdesk:'櫃台',teacher:'老師',student:'教學處學生'}[info.payload.personType]||info.payload.personType}{info.payload.subType?('・'+info.payload.subType):''}</span></div>
+        {(info.payload.personType==='teacher'||info.payload.personType==='manager')&&(<>
+          <div className="flex justify-between gap-2"><span className="text-gray-500">性別</span><span className="text-gray-300">{info.payload.gender==='M'?'男':info.payload.gender==='F'?'女':'—'}</span></div>
+          <div className="flex justify-between gap-2"><span className="text-gray-500">班別</span><span className="text-gray-300">{info.payload.shift==='day'?'早班':info.payload.shift==='night'?'晚班':'—'}</span></div>
+          <div className="flex justify-between gap-2"><span className="text-gray-500">居住地</span><span className="text-gray-300">{info.payload.city}{info.payload.dist}</span></div>
+        </>)}
+      </div>)}
       {info.actionCode==='N'&&(<>
         {info.payload.store&&<p className="text-xs text-gray-500 text-center">{t.ticketInfoStore}：{info.payload.store}</p>}
         {info.payload.gender&&<p className="text-xs text-gray-500 text-center">{t.ticketInfoGender}：{info.payload.gender==='M'?t.genderM:t.genderF}</p>}
