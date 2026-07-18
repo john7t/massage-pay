@@ -357,6 +357,15 @@ async function gasCheckAction(seq){
   const r=await gasCall('checkAction',{seq},10000);
   return r||{ok:false,error:'GAS無回應'};
 }
+// 待審核登記(G代碼)查詢/核准,用密碼登入的員工編號驗證(auth.html專用,不需要LINE身分)
+async function gasSfGetPendingDetail(code,reqId){
+  const r=await gasCall('sfGetPendingDetail',{code,reqId},10000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasSfApprovePendingRegistration(code,reqId,approve){
+  const r=await gasCallPost('sfApprovePendingRegistration',{code,reqId,approve},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
 // 主管核准動作(建staff/標記approved)
 async function gasApproveAction(seq,code,level){
   const params={seq,code};
@@ -731,7 +740,7 @@ window.MP={
   // data helpers
   SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,
   toB36,fromB36,dim,dow,bizDate,bizParts,BIZ_CUTOFF_MIN,getBizCutoff,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,
-  newSlip,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,saveCustDB,getCust,getGasUrl,setGasUrl,getBuiltinGasUrl,shouldClaimKey,autoClaimKey,diagClaimKey,gasCall,gasCallPost,gasWarmup,getNoticesLocal,saveNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,getNoticeListText,getNoticeCountType,getNoticeMainCats,publishNotices,noticeBody,noticeTitle,noticeSummary,noticeCats,noticeTags,getMyKey,setMyKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,getNoticeUnread,gasTranslate,gasAnalyze,gasUsage,gasAddNotice,gasEditNotice,gasSubmitAction,gasCheckAction,gasApproveAction,gasUpdatePwd,gasLoginPwd,gasSetInitialPwd,gasSyncProfile,gasCheckCode,gasAuthStaffList,gasGetGHConfigForSupervisor,gasRevokeSup,gasRejectAction,gasVerifyKey,gasLogNoticeOpen,gasLeaveTeacher,gasToggleNoticeStatus,gasSubmitSuggestion,gasListSuggestions,gasPushNoticeFlexToMe,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasSubmitDisasterReport,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasCloseGroupBuy,gasGroupBuyDetail,gasSetGroupBuyOrderStatus,gasCreateDisasterSurvey,gasEndDisasterSurvey,gasDeleteDisasterSurvey,gasListDisasterSurveys,gasMyDisasterReports,gasDisasterDayStatus,getAdminSecret,setAdminSecret,hasAdminSecret,issueKey,claimMyKey,upsertCust,deleteCust,searchCustDB,recentCust,custLastSlip,migrateDayGroups,migrateMonthGroups,slipSvcLabel,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,
+  newSlip,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,saveCustDB,getCust,getGasUrl,setGasUrl,getBuiltinGasUrl,shouldClaimKey,autoClaimKey,diagClaimKey,gasCall,gasCallPost,gasWarmup,getNoticesLocal,saveNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,getNoticeListText,getNoticeCountType,getNoticeMainCats,publishNotices,noticeBody,noticeTitle,noticeSummary,noticeCats,noticeTags,getMyKey,setMyKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,getNoticeUnread,gasTranslate,gasAnalyze,gasUsage,gasAddNotice,gasEditNotice,gasSubmitAction,gasCheckAction,gasApproveAction,gasSfGetPendingDetail,gasSfApprovePendingRegistration,gasUpdatePwd,gasLoginPwd,gasSetInitialPwd,gasSyncProfile,gasCheckCode,gasAuthStaffList,gasGetGHConfigForSupervisor,gasRevokeSup,gasRejectAction,gasVerifyKey,gasLogNoticeOpen,gasLeaveTeacher,gasToggleNoticeStatus,gasSubmitSuggestion,gasListSuggestions,gasPushNoticeFlexToMe,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasSubmitDisasterReport,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasCloseGroupBuy,gasGroupBuyDetail,gasSetGroupBuyOrderStatus,gasCreateDisasterSurvey,gasEndDisasterSurvey,gasDeleteDisasterSurvey,gasListDisasterSurveys,gasMyDisasterReports,gasDisasterDayStatus,getAdminSecret,setAdminSecret,hasAdminSecret,issueKey,claimMyKey,upsertCust,deleteCust,searchCustDB,recentCust,custLastSlip,migrateDayGroups,migrateMonthGroups,slipSvcLabel,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,
   getCustomers,saveCustomers,getBookings,saveBookings,uid,upsertCustomer,normPhone,searchCustomers,addBooking,updateBooking,deleteBooking,confirmBooking,BOOK_TITLES,bookTitleName,
   SERVICES,svcByCode,bookUnits,bookMinutes,bookLabel,bookRange,findConflicts,dayOffStatus,bookLog,skName,
   TW_REGIONS,LANG_SCHOOLS,
