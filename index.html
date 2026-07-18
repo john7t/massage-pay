@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-065</title>
+<title>薪資追蹤 v1.12-066</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -203,7 +203,7 @@ input[type=number]{-moz-appearance:textfield}
 <script type="text/babel" src="./notice-modal.js"></script>
 <script type="text/babel" src="./settings.js"></script>
 <script type="text/babel">
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasSubmitAction,gasCheckAction,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 function NoticeBox({t,agreed,setAgreed}){return(<div className="mt-6 space-y-2"><button onClick={()=>setAgreed(!agreed)} className="flex items-center gap-2 w-full text-left"><span className={`w-5 h-5 rounded flex items-center justify-center text-xs flex-shrink-0 ${agreed?'bg-amber-600 text-white':'bg-white/[0.06] border border-white/[0.12] text-transparent'}`}>✓</span><span className="text-[13px] text-gray-300 font-semibold">{t.readConfirm}</span></button><div className="space-y-1.5 text-[11px] text-gray-500 leading-relaxed pl-7"><p>{t.privacyBody}</p><p>{t.browserNote}</p><p>{t.myBookingNote}</p><p className="text-red-400/80">{t.backupReminder}</p></div></div>)}
@@ -1083,6 +1083,79 @@ function DisasterReportModal({t,settings,onClose,onSaved}){
     </div>)}
   </div></div>);
 }
+function BreakTimerSection({settings}){
+  const[status,setStatus]=useState(null); // null=載入中, {exists,isOpen,remainSeconds,reqId,...}
+  const[busy,setBusy]=useState(false);
+  const[shareStatus,setShareStatus]=useState(''); // green或white的分享狀態
+  const[tick,setTick]=useState(0); // 每秒觸發重新渲染,讓倒數畫面動起來
+  const FD_QUICK_URL='https://john7t.github.io/massage-pay/fd-quick.html';
+  const load=async()=>{
+    try{const r=await gasCall('breakGetStatus',{code:settings.code},10000);if(r&&r.ok)setStatus(r);else setStatus({exists:false})}catch(_e){setStatus({exists:false})}
+  };
+  useEffect(()=>{load()},[]);
+  useEffect(()=>{const iv=setInterval(()=>setTick(x=>x+1),1000);return()=>clearInterval(iv)},[]);
+  useEffect(()=>{const iv=setInterval(load,30000);return()=>clearInterval(iv)},[]); // 每30秒跟伺服器對一次時間,避免本機計時漂移
+  const remain=status&&status.isOpen?Math.max(0,status.remainSeconds-(status.exists?0:0)):null; // tick僅用來觸發重繪,實際秒數靠load()同步
+  const fmtSec=(s)=>{const neg=s<0;const a=Math.abs(s);return (neg?'-':'')+String(Math.floor(a/60)).padStart(2,'0')+':'+String(a%60).padStart(2,'0')};
+  const lastSession=status&&status.sessions&&status.sessions.length>0?status.sessions[status.sessions.length-1]:null;
+  const needsWhiteConfirm=lastSession&&lastSession.whiteAt&&!lastSession.whiteConfirmedAt&&!status.isOpen;
+  const doFlipGreen=async()=>{
+    setBusy(true);
+    try{const r=await gasCallPost('breakFlipGreen',{code:settings.code,store:settings.store||''},10000);if(r&&r.ok){await load()}}catch(_e){}
+    setBusy(false);
+  };
+  const doFlipWhite=async()=>{
+    if(!status||!status.reqId)return;
+    setBusy(true);
+    try{const r=await gasCallPost('breakFlipWhite',{reqId:status.reqId},10000);if(r&&r.ok){await load()}}catch(_e){}
+    setBusy(false);
+  };
+  const doShare=async(kind)=>{
+    if(!status||!status.reqId)return;
+    setShareStatus('sharing');
+    try{
+      if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setShareStatus('error');return}
+      const uri=FD_QUICK_URL+'?action=confirm'+(kind==='green'?'Green':'White')+'&reqId='+status.reqId;
+      const label=kind==='green'?'老師開始休息(翻綠)':'老師結束休息(回牌)';
+      const res=await liff.shareTargetPicker([{type:'flex',altText:'休息確認通知',contents:{
+        type:'bubble',
+        body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
+          {type:'text',text:(kind==='green'?'🟢':'⚪')+' 休息確認通知',weight:'bold',size:'md',color:'#111111'},
+          {type:'text',text:label,size:'sm',color:'#666666',wrap:true,margin:'md'},
+          {type:'text',text:'代碼：'+status.reqId,size:'xs',color:'#999999',margin:'md'}
+        ]},
+        footer:{type:'box',layout:'vertical',paddingAll:'lg',contents:[
+          {type:'button',style:'primary',color:'#d97706',height:'sm',action:{type:'uri',label:'前往確認',uri:uri}}
+        ]}
+      }}]);
+      setShareStatus(res?'done':'cancelled');
+    }catch(_e){setShareStatus('error')}
+  };
+  if(status===null)return(<div className="mt-5 pt-4 border-t border-white/[0.06] flex justify-center py-3"><span className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/></div>);
+  return(<div className="mt-5 pt-4 border-t border-white/[0.06] space-y-2">
+    <p className="text-xs font-semibold text-emerald-400 px-1">翻綠（休息）計時</p>
+    {!status.isOpen?(<>
+      <button onClick={doFlipGreen} disabled={busy} className="w-full py-3 rounded-xl bg-emerald-600 text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{busy&&<span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>}🟢 翻綠（開始休息）</button>
+      {status.exists&&status.usedSeconds>0&&<p className="text-[11px] text-gray-500 text-center">今天已累計使用 {fmtSec(status.usedSeconds)}／01:00:00</p>}
+      {needsWhiteConfirm&&(<div className="space-y-1.5 pt-1">
+        <button onClick={()=>doShare('white')} disabled={shareStatus==='sharing'} className="w-full py-2.5 rounded-xl bg-[#06C755] text-white text-sm font-bold disabled:opacity-50">{shareStatus==='sharing'?'傳送中…':'📤 分享通知櫃台確認回牌'}</button>
+        {shareStatus==='done'&&<p className="text-[11px] text-emerald-400 text-center">✓ 已分享，等待櫃台確認</p>}
+      </div>)}
+    </>):(<>
+      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-center">
+        <p className="text-[11px] text-gray-500 mb-1">剩餘休息時間</p>
+        <p className={`text-3xl font-bold tabular-nums ${status.remainSeconds<0?'text-red-400':'text-emerald-400'}`}>{fmtSec(status.remainSeconds)}</p>
+        {status.remainSeconds<0&&<p className="text-[11px] text-red-400 mt-1">已超過1小時額度</p>}
+      </div>
+      {!lastSession?.greenConfirmedAt&&(<div className="space-y-1.5">
+        <button onClick={()=>doShare('green')} disabled={shareStatus==='sharing'} className="w-full py-2.5 rounded-xl bg-[#06C755] text-white text-sm font-bold disabled:opacity-50">{shareStatus==='sharing'?'傳送中…':'📤 分享通知櫃台確認翻綠'}</button>
+        {shareStatus==='done'&&<p className="text-[11px] text-emerald-400 text-center">✓ 已分享，等待櫃台確認</p>}
+      </div>)}
+      <button onClick={doFlipWhite} disabled={busy} className="w-full py-3 rounded-xl bg-white/[0.08] text-gray-200 text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{busy&&<span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"/>}⚪ 回牌（結束休息）</button>
+    </>)}
+  </div>);
+}
+
 function SupervisorSection(){
   const[phase,setPhase]=useState('locked'); // locked/checking/denied/granted
   const[errMsg,setErrMsg]=useState('');
@@ -1245,6 +1318,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
       <button onClick={()=>setShowLineQr(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z"/></svg></span><span className="text-[10px] text-gray-500">LINE Bot</span></button>
       <button onClick={()=>setShowDisasterReport(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg></span><span className="text-[10px] text-gray-500">{t.drBtn}</span></button>
     </div>
+    <BreakTimerSection settings={settings}/>
     <SupervisorSection/>
     {showGroupBuy&&<GroupBuyModal t={t} settings={settings} onClose={()=>setShowGroupBuy(false)}/>}
     {showLineQr&&(<div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 p-6" style={{background:'rgba(0,0,0,0.9)'}} onClick={()=>setShowLineQr(false)}>
