@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-064</title>
+<title>薪資追蹤 v1.12-065</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -507,6 +507,10 @@ function setInfoUnlockTs(code){try{localStorage.setItem(INFO_UNLOCK_KEY_PREFIX+c
 function getCachedKeyCheck(code){try{const today=new Date().toISOString().slice(0,10);if(localStorage.getItem('key-check-date-'+code)===today)return localStorage.getItem('key-check-result-'+code)}catch(_e){}return null}
 function setCachedKeyCheck(code,result){try{const today=new Date().toISOString().slice(0,10);localStorage.setItem('key-check-date-'+code,today);localStorage.setItem('key-check-result-'+code,result)}catch(_e){}}
 
+function PinDots({length,total}){
+  const n=total||4;
+  return(<div className="flex gap-3 justify-center">{Array.from({length:n}).map((_,i)=>(<div key={i} className={`w-4 h-4 rounded-full border-2 ${length>i?'bg-amber-500 border-amber-500':'border-white/[0.2]'}`}></div>))}</div>);
+}
 function PinKeypad({onDigit,onBackspace}){
   return(<div className="grid grid-cols-3 gap-4 justify-items-center">{['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k,i)=>k===''?<div key={i}/>:(
     <button key={i} onClick={()=>k==='⌫'?onBackspace():onDigit(k)} className="pinGateBtn w-16 h-16 rounded-full text-xl font-semibold active:opacity-80">{k}</button>
