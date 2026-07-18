@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>安全回報 v1.12-054</title>
+<title>安全回報 v1.12-055</title>
 <meta property="og:title" content="天然災害每日安全回報中心">
 <meta property="og:description" content="請點擊連結進行安全回報">
 <meta property="og:type" content="website">
@@ -788,6 +788,40 @@ function ShareFlow({sid,liffId}){
   </div>);
 }
 
+function BreakShareFlow({kind,reqId}){
+  const[status,setStatus]=useState('loading'); // loading/picking/done/cancelled/error
+  const[err,setErr]=useState('');
+  const FD_QUICK_URL='https://john7t.github.io/massage-pay/fd-quick.html';
+  const INDEX_URL='https://john7t.github.io/massage-pay/index.html';
+  useEffect(()=>{
+    if(!kind||!reqId){setStatus('error');setErr('缺少參數');return}
+    setStatus('picking');
+    if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setStatus('error');setErr('此環境不支援分享功能，請在LINE App內開啟');return}
+    const uri=FD_QUICK_URL+'?action=confirm'+(kind==='green'?'Green':'White')+'&reqId='+reqId;
+    const label=kind==='green'?'老師開始休息(翻綠)':'老師結束休息(回牌)';
+    liff.shareTargetPicker([{type:'flex',altText:'休息確認通知',contents:{
+      type:'bubble',
+      body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
+        {type:'text',text:(kind==='green'?'🟢':'⚪')+' 休息確認通知',weight:'bold',size:'md',color:'#111111'},
+        {type:'text',text:label,size:'sm',color:'#666666',wrap:true,margin:'md'},
+        {type:'text',text:'代碼：'+reqId,size:'xs',color:'#999999',margin:'md'}
+      ]},
+      footer:{type:'box',layout:'vertical',paddingAll:'lg',contents:[
+        {type:'button',style:'primary',color:'#d97706',height:'sm',action:{type:'uri',label:'前往確認',uri:uri}}
+      ]}
+    }}]).then(res=>{setStatus(res?'done':'cancelled')}).catch(e=>{setStatus('error');setErr(String(e&&e.message||e))});
+  },[]);
+  const goBack=()=>{try{liff.closeWindow()}catch(_e){location.href=INDEX_URL}};
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+    {status==='loading'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">準備中…</p></>)}
+    {status==='picking'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">請選擇要分享的對象…</p></>)}
+    {status==='done'&&(<p className="text-base text-emerald-500 font-semibold">✓ 已分享</p>)}
+    {status==='cancelled'&&(<p className="text-sm text-gray-500">已取消分享</p>)}
+    {status==='error'&&(<p className="text-sm text-red-400">{err}</p>)}
+    {(status==='done'||status==='cancelled'||status==='error')&&<button onClick={goBack} className="px-6 py-3 rounded-xl bg-amber-600 text-white text-sm font-bold">返回</button>}
+  </div>);
+}
+
 function ApproveRegFlow({reqId,profile}){
   const[phase,setPhase]=useState('checking'); // checking/denied/detail/done
   const[detail,setDetail]=useState(null);
@@ -854,6 +888,8 @@ function App(){
   const sid=new URLSearchParams(location.search).get('sid')||''; // 網址帶?sid=SF0001時直接顯示該筆通報,沒帶就顯示目前進行中的列表頁
   const action=new URLSearchParams(location.search).get('action')||''; // action=share時,Flex卡片上的分享按鈕點進來,直接跳shareTargetPicker
   const approveReg=new URLSearchParams(location.search).get('approveReg')||''; // 待審核登記的審核代碼,FLEX按鈕點進來走這個,不用先走登記流程
+  const breakShare=new URLSearchParams(location.search).get('breakShare')||''; // green或white,翻綠計時器要借這裡發Flex(index.html不是走liff.line.me網址,不能直接用shareTargetPicker)
+  const breakReqId=new URLSearchParams(location.search).get('reqId')||'';
 
   useEffect(()=>{
     const initLiff=(id)=>{
@@ -861,6 +897,7 @@ function App(){
       return liff.init({liffId:id}).then(()=>{
         if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return} // 明確帶目前完整網址(含?sid=...),避免LINE登入導轉過程弄丟參數
         if(approveReg){return liff.getProfile().then(p=>{setProfile(p);setPhase('approveReg')})} // 審核模式:不用先查有沒有登記過,直接進審核流程(裡面自己檢查主管權限)
+        if(breakShare){setPhase('breakShare');return} // 翻綠計時器分享,不用先查有沒有登記過,直接進分享流程
         if(action==='share'){setPhase('share');return} // 分享模式不用先查有沒有登記過,直接進分享流程
         return liff.getProfile().then(p=>{
           setProfile(p);
@@ -888,6 +925,7 @@ function App(){
   if(phase==='liffInit'||phase==='loading')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><div className="text-amber-500"><Spinner size={40}/></div><p className="text-base text-gray-400">載入中…</p></div>);
   if(phase==='share')return(<ShareFlow sid={sid} liffId={liffId}/>);
   if(phase==='approveReg')return(<ApproveRegFlow reqId={approveReg} profile={profile}/>);
+  if(phase==='breakShare')return(<BreakShareFlow kind={breakShare} reqId={breakReqId}/>);
   if(blocked)return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{SF_T.zh.accountBlocked} / {SF_T.vi.accountBlocked}</p></div>);
   if(phase==='register')return(<RegisterFlow profile={profile} sid={sid} onDone={()=>{sfGetUser(profile.userId).then(r=>{if(r&&r.ok&&r.exists){
     // 登記完成導回原本帶的sid頁面(不然使用者原本是要去回報某一項,卻被丟到看不到那項的首頁)
