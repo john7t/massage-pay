@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<script>
+/* ── 錯誤兜底攔截器（最早執行） ── */
+(function(){
+  var PAGE="fd-quick",PCODE="05";
+  window.__shownFallback=false;
+  window.__showFallback=function(src,detail){
+    if(window.__shownFallback)return;window.__shownFallback=true;
+    try{
+      var ver=(document.title.match(/v?(\d+\.\d+[-.]\d+)/)||[])[1]||"?";
+      var line=(detail&&detail.lineno)?detail.lineno:0;
+      var ecode=PCODE+String(src).padStart(2,"0")+String(line%10000).padStart(4,"0");
+      var el=document.getElementById("__fallback");
+      if(el){
+        var info=document.getElementById("__fbinfo");
+        if(info)info.textContent=PAGE+" 網頁 v"+ver+" 更新中　代碼 "+ecode;
+        el.style.display="flex";
+      }
+      var root=document.getElementById("root");if(root)root.style.display="none";
+    }catch(e){}
+  };
+  window.addEventListener("error",function(e){window.__showFallback(1,{lineno:e.lineno})},true);
+  window.addEventListener("unhandledrejection",function(e){try{console.warn("unhandledrejection:",e&&e.reason)}catch(_e){}try{if(e&&e.preventDefault)e.preventDefault()}catch(_e){}});
+})();
+</script>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#030712">
+<title>櫃台快速確認 v1.0-002</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+*{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+body{margin:0;background:#030712;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fi{animation:fadeIn .2s ease-out}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="__fallback" style="display:none;position:fixed;inset:0;z-index:99999;min-height:100svh;flex-direction:column;align-items:center;justify-content:center;padding:3rem 1.5rem;text-align:center;background:#030712;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <h1 style="font-size:20px;font-weight:500;color:#f3f4f6;margin:0 0 1rem">網站更新中</h1>
+  <p id="__fbinfo" style="font-size:12px;color:#6b7280;margin:0;font-family:monospace"></p>
+</div>
+<script type="text/babel">
+const{useState,useEffect}=React;
+const GAS_URL='https://script.google.com/macros/s/AKfycbzH6TqbO1-Xe6UkLKqn5OSbsz18rtVQ4Ze-xe9VDmMxlmMum9XZi26FK3hJJfNClOhrIw/exec';
+async function gasCall(action,params,timeoutMs){
+  try{
+    const qs=new URLSearchParams({action,...params}).toString();
+    const ctrl=new AbortController();const tm=setTimeout(()=>ctrl.abort(),timeoutMs||10000);
+    const res=await fetch(GAS_URL+'?'+qs,{signal:ctrl.signal});clearTimeout(tm);
+    return await res.json();
+  }catch(e){return {ok:false,error:String(e)};}
+}
+async function gasCallPost(action,params,timeoutMs){
+  try{
+    const ctrl=new AbortController();const tm=setTimeout(()=>ctrl.abort(),timeoutMs||10000);
+    const res=await fetch(GAS_URL,{method:'POST',body:JSON.stringify({action,...params}),signal:ctrl.signal});clearTimeout(tm);
+    return await res.json();
+  }catch(e){return {ok:false,error:String(e)};}
+}
+const Spinner=({size})=>(<svg className="animate-spin" width={size||16} height={size||16} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>);
+
+// ══════════ 主要動作內容(依網址帶的action參數顯示不同確認畫面) ══════════
+// 未來要在這支手機上做的其他動作,直接在這個物件裡加新的action定義即可
+const ACTION_DEFS={
+  confirmGreen:{icon:'🟢',title:'確認老師開始休息(翻綠)',btn:'確認翻綠',color:'bg-emerald-600',kind:'green'},
+  confirmWhite:{icon:'⚪',title:'確認老師結束休息(回牌)',btn:'確認回牌',color:'bg-gray-600',kind:'white'},
+};
+
+function ActionScreen({myUid,adminCode,action,reqId}){
+  const def=ACTION_DEFS[action];
+  const[status,setStatus]=useState(''); // ''/done/error
+  if(!def)return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-gray-500 text-center">未知的操作類型</p></div>);
+  const doConfirm=()=>{
+    // 櫃台很忙,不等GAS回應,點了直接顯示完成,GAS在背景繼續處理
+    setStatus('done');
+    gasCallPost('breakConfirm',{lineUserId:myUid,adminCode,reqId,kind:def.kind},10000).catch(()=>{});
+  };
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-6 p-6 text-center">
+    {adminCode&&<p className="text-[11px] text-amber-500 bg-amber-500/10 px-3 py-1 rounded-full">🧪 測試模式（編號 {adminCode}）</p>}
+    <div className="text-5xl">{def.icon}</div>
+    <div><p className="text-lg text-gray-100 font-bold">{def.title}</p><p className="text-xs text-gray-500 mt-1 font-mono">代碼：{reqId}</p></div>
+    {status==='done'?(
+      <div className="fi"><div className="text-4xl mb-2">✓</div><p className="text-emerald-400 font-semibold">已確認</p></div>
+    ):(
+      <button onClick={doConfirm} className={`px-10 py-4 rounded-2xl text-white text-lg font-bold ${def.color} active:opacity-80`}>{def.btn}</button>
+    )}
+    <button onClick={()=>{try{liff.closeWindow()}catch(_e){}}} className="text-xs text-gray-600 mt-4">關閉</button>
+  </div>);
+}
+
+// ══════════ 裝置綁定畫面 ══════════
+function BindScreen({myUid,onBound}){
+  const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
+  const doBind=async()=>{
+    setBusy(true);setErr('');
+    try{const r=await gasCallPost('fdQuickBind',{lineUserId:myUid},10000);if(r&&r.ok)onBound();else setErr((r&&r.error)||'綁定失敗')}catch(e){setErr(String(e))}
+    setBusy(false);
+  };
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-5 p-6 text-center">
+    <div className="text-4xl">🔗</div>
+    <div><p className="text-base text-gray-100 font-semibold">這支手機還沒綁定過</p><p className="text-xs text-gray-500 mt-2 leading-relaxed">綁定後，只有這個 LINE 帳號能在這支手機上按確認，<br/>避免連結外流被其他裝置冒用。</p></div>
+    <button onClick={doBind} disabled={busy} className="px-8 py-3.5 rounded-xl bg-amber-600 text-white font-bold disabled:opacity-50 flex items-center gap-2">{busy&&<Spinner size={14}/>}綁定這支手機</button>
+    {err&&<p className="text-xs text-red-400">{err}</p>}
+  </div>);
+}
+
+// ══════════ 管理者測試模式(免LINE綁定,用員工編號驗證admin身分,方便一機模擬測試) ══════════
+function TestModeScreen({onVerified}){
+  const[code,setCode]=useState('');const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
+  const doVerify=async()=>{
+    if(!code.trim())return;
+    setBusy(true);setErr('');
+    try{
+      const r=await gasCall('breakConfirm',{adminCode:code.trim(),reqId:'__probe__',kind:'green'},10000);
+      // 用一個不存在的假reqId探測,只要不是「不是admin身分」的錯誤,就代表編號驗證通過(查無紀錄是預期中的)
+      if(r&&r.error==='測試編號不是admin身分'){setErr('這個編號不是admin身分');setBusy(false);return}
+      onVerified(code.trim());
+    }catch(e){setErr(String(e))}
+    setBusy(false);
+  };
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+    <p className="text-xs text-amber-500">🧪 管理者測試模式</p>
+    <p className="text-xs text-gray-500">輸入 admin 身分的員工編號即可操作，<br/>不用透過 LINE 登入綁定，方便一機模擬測試</p>
+    <input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder="員工編號" className="w-40 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-lg text-center text-gray-100 tracking-widest focus:outline-none focus:border-amber-500"/>
+    {err&&<p className="text-xs text-red-400">{err}</p>}
+    <button onClick={doVerify} disabled={busy||!code.trim()} className="px-8 py-3 rounded-xl bg-amber-600 text-white font-bold disabled:opacity-50 flex items-center gap-2">{busy&&<Spinner size={14}/>}驗證</button>
+  </div>);
+}
+
+function App(){
+  const[phase,setPhase]=useState('loading'); // loading/bind/denied/action/error/testMode
+  const[myUid,setMyUid]=useState('');
+  const[adminCode,setAdminCode]=useState('');
+  const[errMsg,setErrMsg]=useState('');
+  const params=new URLSearchParams(location.search);
+  const action=params.get('action')||'';
+  const reqId=params.get('reqId')||'';
+  const isTest=params.get('test')==='1';
+  const LIFF_ID_HARDCODED='2010673151-kemVP4Pi'; // 借用安全回報的LIFF App做登入,登入本身不代表有權限,權限看裝置綁定
+  useEffect(()=>{
+    if(isTest){setPhase('testMode');return} // 網址帶?test=1時,完全跳過LINE登入,直接進管理者測試模式
+    liff.init({liffId:LIFF_ID_HARDCODED}).then(()=>{
+      if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return}
+      return liff.getProfile().then(p=>{
+        setMyUid(p.userId);
+        return gasCall('fdQuickCheckBinding',{lineUserId:p.userId},10000).then(r=>{
+          if(!r||!r.ok){setErrMsg((r&&r.error)||'查詢失敗');setPhase('error');return}
+          if(!r.bound){setPhase('bind');return}
+          if(!r.isMe){setPhase('denied');return}
+          setPhase('action');
+        });
+      });
+    }).catch(err=>{setErrMsg(String((err&&err.message)||err));setPhase('error')});
+  },[]);
+  if(phase==='loading')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><Spinner size={32}/><p className="text-sm text-gray-500">載入中…</p></div>);
+  if(phase==='error')return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{errMsg}</p></div>);
+  if(phase==='denied')return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-gray-500 text-center">此裝置尚未綁定，或不是綁定的裝置<br/>無法在這裡進行確認</p></div>);
+  if(phase==='bind')return(<BindScreen myUid={myUid} onBound={()=>setPhase('action')}/>);
+  if(phase==='testMode'){
+    if(!adminCode)return(<TestModeScreen onVerified={c=>setAdminCode(c)}/>);
+    if(!action||!reqId)return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-gray-500 text-center">缺少操作參數（action/reqId）</p></div>);
+    return(<ActionScreen adminCode={adminCode} action={action} reqId={reqId}/>);
+  }
+  if(!action||!reqId)return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-gray-500 text-center">缺少操作參數</p></div>);
+  return(<ActionScreen myUid={myUid} action={action} reqId={reqId}/>);
+}
+
+class __EB extends React.Component{constructor(p){super(p);this.state={e:false}}static getDerivedStateFromError(){return{e:true}}componentDidCatch(err){try{window.__showFallback(3,{lineno:0,msg:(err&&err.message)||String(err)})}catch(e){}}render(){return this.state.e?null:this.props.children}}
+ReactDOM.createRoot(document.getElementById('root')).render(<__EB><App/></__EB>);
+</script>
+</body>
+</html>
