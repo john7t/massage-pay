@@ -542,7 +542,13 @@ async function claimMyKey(code,claim){if(!code||!claim)return{ok:false,error:'mi
 function loadCustDB(code){try{return LS.get('custdb-'+code)||{}}catch(e){return{}}}
 function saveCustDB(code,db){LS.set('custdb-'+code,db)}
 function getCust(code,name,title,phone){const k=custKey(name,title,phone);if(!k)return null;const db=loadCustDB(code);return db[k]||null}
-function upsertCust(code,cust){const k=custKey(cust.custName,cust.custTitle,cust.custPhone);if(!k)return;const db=loadCustDB(code);const prev=db[k]||{};db[k]={custName:cust.custName||prev.custName||'',custTitle:cust.custTitle||prev.custTitle||'',custPhone:cust.custPhone||prev.custPhone||'',pressBody:cust.pressBody!==undefined?cust.pressBody:(prev.pressBody||''),pressFoot:cust.pressFoot!==undefined?cust.pressFoot:(prev.pressFoot||''),parts:cust.parts!==undefined?cust.parts:(prev.parts||[]),lastAt:Date.now()};saveCustDB(code,db)}
+function upsertCust(code,cust){const k=custKey(cust.custName,cust.custTitle,cust.custPhone);if(!k)return;const db=loadCustDB(code);const prev=db[k]||{};
+  // 有舊資料、且真的有變動內容(壓力/施力部位)時,把舊版本存進history,不直接蓋掉消失
+  const history=prev.history||[];
+  const prevHasData=prev.pressBody||prev.pressFoot||(prev.parts&&prev.parts.length);
+  const changed=prevHasData&&(prev.pressBody!==cust.pressBody||prev.pressFoot!==cust.pressFoot||JSON.stringify(prev.parts||[])!==JSON.stringify(cust.parts||[]));
+  if(changed)history.push({pressBody:prev.pressBody||'',pressFoot:prev.pressFoot||'',parts:prev.parts||[],lastAt:prev.lastAt||0});
+  db[k]={custName:cust.custName||prev.custName||'',custTitle:cust.custTitle||prev.custTitle||'',custPhone:cust.custPhone||prev.custPhone||'',pressBody:cust.pressBody!==undefined?cust.pressBody:(prev.pressBody||''),pressFoot:cust.pressFoot!==undefined?cust.pressFoot:(prev.pressFoot||''),parts:cust.parts!==undefined?cust.parts:(prev.parts||[]),lastAt:Date.now(),history:history};saveCustDB(code,db)}
 function deleteCust(code,name,title,phone){const k=custKey(name,title,phone);if(!k)return false;const db=loadCustDB(code);if(db[k]){delete db[k];saveCustDB(code,db);return true}return false}
 // 搜尋客戶DB(姓/稱謂/手機/hashtag)
 function searchCustDB(code,q){q=(q||'').trim().toLowerCase();if(!q)return[];const db=loadCustDB(code);const out=[];for(const k in db){const c=db[k];const hay=((c.custName||'')+' '+(c.custTitle||'')+' '+(c.custPhone||'')).toLowerCase();if(hay.includes(q))out.push(c)}return out.sort((a,b)=>(b.lastAt||0)-(a.lastAt||0)).slice(0,8)}
