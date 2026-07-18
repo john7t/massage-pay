@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-062</title>
+<title>薪資追蹤 v1.12-063</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -399,7 +399,7 @@ function Onboarding({onComplete}){
     {mode==='new'&&(()=>{const locked=codeCheck!=='new';return(<div className="space-y-5">
     <div className="space-y-2"><label className="text-sm text-gray-400 block text-center">{t.teacherCode}</label>
       <PinDots length={code.length} total={3} digits={code}/>
-      <PinKeypad onDigit={codeDigit} onBackspace={codeBackspace}/>
+      <PinKeypadCompact onDigit={codeDigit} onBackspace={codeBackspace}/>
       <button onClick={doCheckCode} disabled={!code.trim()||codeCheck==='checking'||codeCheck==='new'} className={`w-full py-3 rounded-xl text-sm font-bold ${codeCheck==='new'?'bg-emerald-600 text-white':code.trim()?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600'}`}>{codeCheck==='checking'?t.checkingCode:codeCheck==='new'?'✓':t.checkCodeBtn}</button>
       {codeCheck==='new'&&<p className="text-xs text-emerald-500 mt-1.5 text-center">{t.codeAvailHint}</p>}
       {codeCheck==='error'&&<p className="text-xs text-red-400 mt-1.5 text-center">{err}</p>}
@@ -411,7 +411,7 @@ function Onboarding({onComplete}){
     <div className="grid grid-cols-2 gap-2"><div><label className="text-sm text-gray-400 mb-1.5 block">{t.workStart}</label><select value={workStart} onChange={e=>onWorkStartChange(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3.5 text-base text-center text-gray-100 focus:outline-none focus:border-amber-500 appearance-none">{TIME_OPTS.map(o=><option key={o} value={o}>{o}</option>)}</select></div><div><label className="text-sm text-gray-400 mb-1.5 block">{t.workEnd}</label><select value={workEnd} onChange={e=>onWorkEndChange(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3.5 text-base text-center text-gray-100 focus:outline-none focus:border-amber-500 appearance-none">{TIME_OPTS.map(o=><option key={o} value={o}>{o}</option>)}</select></div></div>
     <div><label className="text-sm text-gray-400 mb-1.5 block text-center">{t.lockPwdTitle}</label><p className="text-[11px] text-gray-600 mb-2 text-center">{pwdStep===1?t.lockPwdHint:t.lockPwdConfirm}</p>
       <PinDots length={pwdStep===1?pwd.length:pwd2.length} total={4}/>
-      <div className="mt-2"><PinKeypad onDigit={pwdDigit} onBackspace={pwdBackspace}/></div>
+      <div className="mt-2"><PinKeypadCompact onDigit={pwdDigit} onBackspace={pwdBackspace}/></div>
       {pwd.length===4&&pwdStep===2&&!pinOk&&<p className="text-xs text-red-400 mt-1.5 text-center">{t.lockPwdInvalid}</p>}
       {pwd2.length===4&&pwd!==pwd2&&<p className="text-xs text-red-400 mt-1.5 text-center">{t.lockPwdMismatch}</p>}
     </div>
@@ -429,8 +429,8 @@ function Onboarding({onComplete}){
     {mode==='login'&&(<div className="space-y-4">
       <p className="text-sm text-amber-400 text-center font-medium">{codeCheck==='exists'?t.codeExistsHint:t.pwdLoginHint}</p>
       {loginNotice&&<p className="text-sm text-emerald-500 text-center font-semibold">✓ {loginNotice}</p>}
-      <div className="space-y-2"><label className="text-sm text-gray-400 block text-center">{t.teacherCode}</label><PinDots length={code.length} total={3} digits={code}/><PinKeypad onDigit={codeDigit} onBackspace={()=>{codeBackspace();setLoginNotice('')}}/></div>
-      <div className="space-y-2"><label className="text-sm text-gray-400 block text-center">{t.pwdInputPh}</label><PinDots length={loginPwdInput.length} total={4}/><PinKeypad onDigit={loginPwdDigit} onBackspace={loginPwdBackspace}/></div>
+      <div className="space-y-2"><label className="text-sm text-gray-400 block text-center">{t.teacherCode}</label><PinDots length={code.length} total={3} digits={code}/><PinKeypadCompact onDigit={codeDigit} onBackspace={()=>{codeBackspace();setLoginNotice('')}}/></div>
+      <div className="space-y-2"><label className="text-sm text-gray-400 block text-center">{t.pwdInputPh}</label><PinDots length={loginPwdInput.length} total={4}/><PinKeypadCompact onDigit={loginPwdDigit} onBackspace={loginPwdBackspace}/></div>
       {err&&<p className="text-red-400 text-sm text-center fi">{err}</p>}
       <button onClick={doLogin} disabled={checking||!code.trim()||loginPwdInput.length!==4} className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${!checking&&code.trim()&&loginPwdInput.length===4?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{checking?t.adminWelcome:t.pwdLoginBtn}</button>
       <button onClick={()=>{setMode('forgot');setErr('');setFieldErr('')}} className="w-full text-center text-xs text-gray-500 underline">{t.forgotPwdLink}</button>
@@ -439,10 +439,10 @@ function Onboarding({onComplete}){
 
     {mode==='forgot'&&(<div className="space-y-4">
       <p className="text-sm text-amber-400 text-center font-medium">{t.forgotPwdHint}</p>
-      <div className="space-y-2"><label className="text-sm text-gray-400 block text-center">{t.teacherCode}</label><PinDots length={code.length} total={3} digits={code}/><PinKeypad onDigit={codeDigit} onBackspace={codeBackspace}/></div>
+      <div className="space-y-2"><label className="text-sm text-gray-400 block text-center">{t.teacherCode}</label><PinDots length={code.length} total={3} digits={code}/><PinKeypadCompact onDigit={codeDigit} onBackspace={codeBackspace}/></div>
       <div><label className="text-sm text-gray-400 mb-1.5 block text-center">{t.newPwdTitle}</label><p className="text-[11px] text-gray-600 mb-2 text-center">{forgotPwdStep===1?t.newPwdHint:t.lockPwdConfirm}</p>
         <PinDots length={forgotPwdStep===1?forgotPwd.length:forgotPwd2.length} total={4}/>
-        <div className="mt-2"><PinKeypad onDigit={forgotPwdDigit} onBackspace={forgotPwdBackspace}/></div>
+        <div className="mt-2"><PinKeypadCompact onDigit={forgotPwdDigit} onBackspace={forgotPwdBackspace}/></div>
         {forgotPwd.length===4&&forgotPwdStep===2&&!forgotPinOk&&<p className="text-xs text-red-400 mt-1.5 text-center">{t.lockPwdInvalid}</p>}
         {forgotPwd2.length===4&&forgotPwd!==forgotPwd2&&<p className="text-xs text-red-400 mt-1.5 text-center">{t.lockPwdMismatch}</p>}
       </div>
@@ -500,6 +500,12 @@ function PinDots({length,total,digits}){
   })}</div>);
 }
 function PinKeypad({onDigit,onBackspace}){
+  return(<div className="grid grid-cols-3 gap-4 justify-items-center">{['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k,i)=>k===''?<div key={i}/>:(
+    <button key={i} onClick={()=>k==='⌫'?onBackspace():onDigit(k)} className="pinGateBtn w-16 h-16 rounded-full text-xl font-semibold active:opacity-80">{k}</button>
+  ))}</div>);
+}
+// 新啟動/登入/忘記密碼專用的精簡鍵盤(版面B),因為要跟其他欄位擠在同一頁,用九宮格太佔空間
+function PinKeypadCompact({onDigit,onBackspace}){
   const BtnCls="w-12 h-12 rounded-lg pinGateBtn text-lg font-semibold active:opacity-80 flex items-center justify-center";
   return(<div className="space-y-2">
     <div className="flex gap-2 justify-center">{['0','1','2','3','4','5'].map(k=>(<button key={k} onClick={()=>onDigit(k)} className={BtnCls}>{k}</button>))}</div>
