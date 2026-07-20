@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-071</title>
+<title>薪資追蹤 v1.12-074</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -1090,7 +1090,7 @@ function BreakTimerSection({settings}){
   const syncedAtRef=React.useRef(Date.now()); // 上次跟伺服器同步remainSeconds的本機時間點
   const FD_QUICK_URL='https://john7t.github.io/massage-pay/fd-quick.html';
   const load=async()=>{
-    try{const r=await gasCall('breakGetStatus',{code:settings.code},10000);syncedAtRef.current=Date.now();if(r&&r.ok)setStatus(r);else setStatus({exists:false})}catch(_e){setStatus({exists:false})}
+    try{const r=await gasCall('breakGetStatus',{code:settings.code,workStart:settings.workStart||'',workEnd:settings.workEnd||''},10000);syncedAtRef.current=Date.now();if(r&&r.ok)setStatus(r);else setStatus({exists:false})}catch(_e){setStatus({exists:false})}
   };
   useEffect(()=>{load()},[]);
   useEffect(()=>{const iv=setInterval(()=>setTick(x=>x+1),1000);return()=>clearInterval(iv)},[]);
@@ -1098,13 +1098,11 @@ function BreakTimerSection({settings}){
   // 顯示用的剩餘秒數:上次同步的秒數,扣掉本機這段時間又過去的秒數,每次tick都會重算,畫面才會真的跳動
   const liveRemain=status&&status.isOpen?status.remainSeconds-Math.floor((Date.now()-syncedAtRef.current)/1000):null;
   const fmtSec=(s)=>{const neg=s<0;const a=Math.abs(s);return (neg?'-':'')+String(Math.floor(a/3600)).padStart(2,'0')+':'+String(Math.floor(a/60)%60).padStart(2,'0')+':'+String(a%60).padStart(2,'0')};
-  const lastSession=status&&status.sessions&&status.sessions.length>0?status.sessions[status.sessions.length-1]:null;
-  const needsWhiteConfirm=lastSession&&lastSession.whiteAt&&!lastSession.whiteConfirmedAt&&!status.isOpen;
   const[actionErr,setActionErr]=useState('');
   const doFlipGreen=async()=>{
     setBusy(true);setActionErr('');
     try{
-      const r=await gasCallPost('breakFlipGreen',{code:settings.code,store:settings.store||''},10000);
+      const r=await gasCallPost('breakFlipGreen',{code:settings.code,store:settings.store||'',workStart:settings.workStart||'',workEnd:settings.workEnd||''},10000);
       if(r&&r.ok){await load()}else{setActionErr((r&&r.error)||'翻綠失敗，請稍後再試')}
     }catch(e){setActionErr('連線失敗：'+String(e))}
     setBusy(false);
@@ -1118,15 +1116,6 @@ function BreakTimerSection({settings}){
     }catch(e){setActionErr('連線失敗：'+String(e))}
     setBusy(false);
   };
-  const doShare=(kind)=>{
-    if(!status||!status.reqId)return;
-    // shareTargetPicker一定要透過 liff.line.me/{id} 這個網址正式啟動LIFF才能用,
-    // index.html是走原本的github.io網址不符合條件,改成跳轉到safety-report.html的正式LIFF網址,
-    // 由那邊代為發送Flex卡片,發完會自動導回這裡
-    const BREAK_LIFF_ID='2010673151-kemVP4Pi';
-    const uri='https://liff.line.me/'+BREAK_LIFF_ID+'?breakShare='+kind+'&reqId='+status.reqId;
-    location.href=uri;
-  };
   if(status===null)return(<div className="mt-5 pt-4 border-t border-white/[0.06] flex justify-center py-3"><span className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/></div>);
   return(<div className="mt-5 pt-4 border-t border-white/[0.06] space-y-2">
     <p className="text-xs font-semibold text-emerald-400 px-1">翻綠（休息）計時</p>
@@ -1134,18 +1123,12 @@ function BreakTimerSection({settings}){
     {!status.isOpen?(<>
       <button onClick={doFlipGreen} disabled={busy} className="w-full py-3 rounded-xl bg-white text-gray-900 text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2 border border-white/20">{busy&&<span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"/>}⚪ 翻綠（開始休息）</button>
       {status.exists&&status.usedSeconds>0&&<p className="text-[11px] text-gray-500 text-center">今天已累計使用 {fmtSec(status.usedSeconds)}／01:00:00</p>}
-      {needsWhiteConfirm&&(<div className="space-y-1.5 pt-1">
-        <button onClick={()=>doShare('white')} className="w-full py-2.5 rounded-xl bg-[#06C755] text-white text-sm font-bold">📤 分享通知櫃台確認回牌</button>
-      </div>)}
     </>):(<>
       <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-center">
         <p className="text-[11px] text-gray-500 mb-1">剩餘休息時間</p>
         <p className={`text-3xl font-bold tabular-nums ${liveRemain<0?'text-red-400':'text-emerald-400'}`}>{fmtSec(liveRemain)}</p>
         {liveRemain<0&&<p className="text-[11px] text-red-400 mt-1">已超過1小時額度</p>}
       </div>
-      {!lastSession?.greenConfirmedAt&&(<div className="space-y-1.5">
-        <button onClick={()=>doShare('green')} className="w-full py-2.5 rounded-xl bg-[#06C755] text-white text-sm font-bold">📤 分享通知櫃台確認翻綠</button>
-      </div>)}
       <button onClick={doFlipWhite} disabled={busy} className="w-full py-3 rounded-xl bg-emerald-600 text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{busy&&<span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>}🟢 回牌（結束休息）</button>
     </>)}
   </div>);
@@ -1466,6 +1449,7 @@ function App(){
     if(hash&&hash.indexOf('conn=')>=0){try{const reassembled=parseReqHash(hash,'conn');const raw=reassembled||decodeURIComponent(hash.replace(/^#/,'').split('conn=')[1]||'');const ci=raw.indexOf(':');if(ci>0){const c=raw.slice(0,ci);const actCode=raw.slice(ci+1);const did=getDeviceId();const tk=verifyActToken(actCode,c,did);if(tk){saveGHConfigLocal({owner:tk.owner,repo:tk.repo,token:tk.token});const ns={code:c,unitPrice:250,lang:'zh',store:'龍山寺店',year:bizParts().y,deviceId:did};LS.set('app-settings',ns);LS.set(`activated-${c}`,{deviceId:did,ts:Date.now()});setSettings(ns);setReady(true);history.replaceState(null,'',location.pathname);return}}}catch(_e){}}
     if(hash&&hash.length>5&&hash.indexOf('conn=')<0){const p=decBackup(hash.slice(1));if(p){LS.set(dk(p.code,p.year,p.month),p.data);const ns={code:p.code,unitPrice:250,lang:'zh',year:p.year,deviceId:getDeviceId()};LS.set('app-settings',ns);LS.set(`activated-${p.code}`,{deviceId:getDeviceId(),ts:Date.now()});setSettings(ns);setCurM(p.month);setTab('monthly');setReady(true);history.replaceState(null,'',location.pathname);return}}setNeedOnboard(true);setReady(true)},[]);
   const onOnboardComplete=(s)=>{setSettings(s);setNeedOnboard(false)};
+  const doLogout=()=>{LS.set('app-settings',null);setSettings(null);setNeedOnboard(true)}; // 只清app-settings(目前登入者標記),不動任何個人資料(月報表/客戶資料庫都是依編號存的,不會被清掉)
   const updateSettings=(s)=>{setSettings(s);LS.set('app-settings',s)};
   // ===== 引導學習點A 已移除(7/1後):不再自動填工作證到期日,尊重使用者留空 =====
   const handleTab=(id)=>{setTab(id);if(id==='home')setRefreshKey(k=>k+1)};
@@ -1481,7 +1465,7 @@ function App(){
       {tab==='monthly'&&<MonthlyPage settings={settings} curM={curM} setCurM={setCurM} t={t} onGotoYear={()=>handleTab('yearly')} onClose={()=>handleTab('home')}/>}
       {tab==='yearly'&&<YearlyPage settings={settings} t={t} onBack={()=>handleTab('monthly')}/>}
       {tab==='customers'&&(()=>{const CP=(window.__V&&window.__V.CustomerPage)||(()=>null);return<CP settings={settings} t={t} onClose={()=>handleTab('home')}/>})()}
-      {tab==='settings'&&(()=>{const SP=(window.__V&&window.__V.SettingsPage)||(()=>null);return<SP settings={settings} onUpdate={updateSettings} t={t} theme={theme} setTheme={setTheme} onClose={()=>handleTab('home')}/>})()}
+      {tab==='settings'&&(()=>{const SP=(window.__V&&window.__V.SettingsPage)||(()=>null);return<SP settings={settings} onUpdate={updateSettings} t={t} theme={theme} setTheme={setTheme} onClose={()=>handleTab('home')} onLogout={doLogout}/>})()}
     </div>
   </div>)}
 
