@@ -316,7 +316,13 @@ function PinKeypad({onDigit,onBackspace}){
 }
 // 新啟動/登入/忘記密碼專用:單排鍵盤,搭配下方PinDotsClickable做「點哪個欄位才彈出鍵盤」的設計
 function PinKeypadCompact({onDigit,onBackspace}){
-  return(<div className="flex gap-1.5 justify-center flex-wrap">{['1','2','3','4','5','6','7','8','9','0'].map(k=>(<button key={k} onClick={()=>onDigit(k)} className="w-9 h-11 rounded-lg pinGateBtn text-base font-semibold active:opacity-80 flex items-center justify-center flex-shrink-0">{k}</button>))}<button onClick={onBackspace} className="w-9 h-11 rounded-lg pinGateBtn text-gray-400 active:opacity-80 flex items-center justify-center flex-shrink-0">⌫</button></div>);
+  const BtnCls="w-9 h-11 rounded-lg pinGateBtn text-base font-semibold active:opacity-80 flex items-center justify-center flex-shrink-0";
+  return(<div className="grid grid-cols-3 gap-1.5 justify-items-center max-w-[168px] mx-auto">
+    {['1','2','3','4','5','6','7','8','9'].map(k=>(<button key={k} onClick={()=>onDigit(k)} className={BtnCls}>{k}</button>))}
+    <div/>
+    <button onClick={()=>onDigit('0')} className={BtnCls}>0</button>
+    <button onClick={onBackspace} className={BtnCls+" text-gray-400"}>⌫</button>
+  </div>);
 }
 // 可點擊的PIN圓點列:點了切換這個欄位是不是目前作用中(鍵盤要不要顯示在這欄下方),右側有清除鈕
 function PinDotsClickable({length,total,digits,active,onClick,onClear}){
