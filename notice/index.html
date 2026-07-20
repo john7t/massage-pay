@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>公告 v1.0-031</title>
+<title>公告 v1.0-033</title>
 <meta property="og:title" content="公告通知">
 <meta property="og:description" content="請點擊連結查看公告內容">
 <meta property="og:type" content="website">
@@ -97,7 +97,13 @@ function MiniPinDots({length,total,digits}){
   })}</div>);
 }
 function MiniPinKeypad({onDigit,onBackspace}){
-  return(<div className="flex gap-1.5 justify-center flex-wrap">{['1','2','3','4','5','6','7','8','9','0'].map(k=>(<button key={k} type="button" onClick={()=>onDigit(k)} className="w-9 h-11 rounded-lg bg-white/[0.08] text-gray-100 text-base font-semibold active:bg-white/[0.15] flex items-center justify-center flex-shrink-0">{k}</button>))}<button type="button" onClick={onBackspace} className="w-9 h-11 rounded-lg bg-white/[0.08] text-gray-400 active:bg-white/[0.15] flex items-center justify-center flex-shrink-0">⌫</button></div>);
+  const BtnCls="w-9 h-11 rounded-lg bg-white/[0.08] text-gray-100 text-base font-semibold active:bg-white/[0.15] flex items-center justify-center flex-shrink-0";
+  return(<div className="grid grid-cols-3 gap-1.5 justify-items-center max-w-[168px] mx-auto">
+    {['1','2','3','4','5','6','7','8','9'].map(k=>(<button key={k} type="button" onClick={()=>onDigit(k)} className={BtnCls}>{k}</button>))}
+    <div/>
+    <button type="button" onClick={()=>onDigit('0')} className={BtnCls}>0</button>
+    <button type="button" onClick={onBackspace} className={BtnCls+" text-gray-400"}>⌫</button>
+  </div>);
 }
 function MiniPinDotsClickable({length,total,digits,active,onClick,onClear}){
   return(<div className="flex items-center justify-center gap-2">
@@ -628,8 +634,8 @@ function NoticeView({nid,userProfile}){
   const t=(T&&T[lang])||{};
   const code=userProfile.personType==='teacher'?userProfile.name:(userProfile.code||userProfile.name||'');
   const settingsObj={code:code,lang:lang};
-  if(!nid&&userProfile.personType==='manager')return(<ManagerNoticeList userProfile={userProfile}/>);
-  const isManagerWithNid=nid&&userProfile.personType==='manager';
+  if(!nid&&(userProfile.personType==='manager'||userProfile.personType==='admin'))return(<ManagerNoticeList userProfile={userProfile}/>);
+  const isManagerWithNid=nid&&(userProfile.personType==='manager'||userProfile.personType==='admin');
   const backToList=()=>{location.href=location.href.split('?')[0]};
   if(notice===undefined)return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><Spinner size={32}/><p className="text-sm text-gray-500">載入中…</p></div>);
   if(!notice)return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-gray-500 text-center">找不到這則公告，可能已經下架或連結有誤</p></div>);
@@ -701,7 +707,7 @@ function App(){
   return(<NoticeView nid={nid} userProfile={userProfile}/>);
 }
 
-class __EB extends React.Component{constructor(p){super(p);this.state={e:false}}static getDerivedStateFromError(){return{e:true}}componentDidCatch(err,info){try{const detail='name='+(err&&err.name)+'\nmessage='+(err&&err.message)+'\n---元件堆疊---\n'+((info&&info.componentStack)||'(無)')+'\n---JS堆疊---\n'+((err&&err.stack)||'(無)');alert('除錯訊息(請截圖給我):\n'+detail);window.__showFallback(3,{lineno:0,msg:(err&&err.message)||String(err)})}catch(e){}}render(){return this.state.e?null:this.props.children}}
+class __EB extends React.Component{constructor(p){super(p);this.state={e:false}}static getDerivedStateFromError(){return{e:true}}componentDidCatch(err){try{window.__showFallback(3,{lineno:0,msg:(err&&err.message)||String(err)})}catch(e){}}render(){return this.state.e?null:this.props.children}}
 ReactDOM.createRoot(document.getElementById('root')).render(<__EB><App/></__EB>);
 })();
 </script>
