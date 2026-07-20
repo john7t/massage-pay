@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>安全回報 v1.12-055</title>
+<title>安全回報 v1.12-057</title>
 <meta property="og:title" content="天然災害每日安全回報中心">
 <meta property="og:description" content="請點擊連結進行安全回報">
 <meta property="og:type" content="website">
@@ -139,7 +139,13 @@ function MiniPinDots({length,total,digits}){
   })}</div>);
 }
 function MiniPinKeypad({onDigit,onBackspace}){
-  return(<div className="flex gap-1.5 justify-center flex-wrap">{['1','2','3','4','5','6','7','8','9','0'].map(k=>(<button key={k} type="button" onClick={()=>onDigit(k)} className="w-9 h-11 rounded-lg bg-white/[0.08] text-gray-100 text-base font-semibold active:bg-white/[0.15] flex items-center justify-center flex-shrink-0">{k}</button>))}<button type="button" onClick={onBackspace} className="w-9 h-11 rounded-lg bg-white/[0.08] text-gray-400 active:bg-white/[0.15] flex items-center justify-center flex-shrink-0">⌫</button></div>);
+  const BtnCls="w-9 h-11 rounded-lg bg-white/[0.08] text-gray-100 text-base font-semibold active:bg-white/[0.15] flex items-center justify-center flex-shrink-0";
+  return(<div className="grid grid-cols-3 gap-1.5 justify-items-center max-w-[168px] mx-auto">
+    {['1','2','3','4','5','6','7','8','9'].map(k=>(<button key={k} type="button" onClick={()=>onDigit(k)} className={BtnCls}>{k}</button>))}
+    <div/>
+    <button type="button" onClick={()=>onDigit('0')} className={BtnCls}>0</button>
+    <button type="button" onClick={onBackspace} className={BtnCls+" text-gray-400"}>⌫</button>
+  </div>);
 }
 function MiniPinDotsClickable({length,total,digits,active,onClick,onClear}){
   return(<div className="flex items-center justify-center gap-2">
@@ -791,13 +797,13 @@ function ShareFlow({sid,liffId}){
 function BreakShareFlow({kind,reqId}){
   const[status,setStatus]=useState('loading'); // loading/picking/done/cancelled/error
   const[err,setErr]=useState('');
-  const FD_QUICK_URL='https://john7t.github.io/massage-pay/fd-quick.html';
+  const FD_LIFF_URL='https://john7t.github.io/massage-pay/frontdesk/index.html';
   const INDEX_URL='https://john7t.github.io/massage-pay/index.html';
   useEffect(()=>{
     if(!kind||!reqId){setStatus('error');setErr('缺少參數');return}
     setStatus('picking');
     if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setStatus('error');setErr('此環境不支援分享功能，請在LINE App內開啟');return}
-    const uri=FD_QUICK_URL+'?action=confirm'+(kind==='green'?'Green':'White')+'&reqId='+reqId;
+    const uri=FD_LIFF_URL+'?breakConfirm='+kind+'&reqId='+reqId;
     const label=kind==='green'?'老師開始休息(翻綠)':'老師結束休息(回牌)';
     liff.shareTargetPicker([{type:'flex',altText:'休息確認通知',contents:{
       type:'bubble',
