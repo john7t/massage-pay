@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.12-046</title>
+<title>薪資追蹤 · 管理 v1.12-047</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -206,7 +206,7 @@ input[type=number]{-moz-appearance:textfield}
 <style>@keyframes fbspin{to{transform:rotate(360deg)}}@keyframes fbpulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
 <script src="./common.js"></script>
 <script type="text/babel">
-const{gasUsage,gasTranslate,gasAnalyze,gasCallPost,gasCheckAction,gasApproveAction,gasSfGetPendingDetail,gasSfApprovePendingRegistration,gasSubmitAction,gasRevokeSup,gasRejectAction,gasAuthStaffList,gasGetGHConfigForSupervisor,gasCreateDisasterSurvey,gasEndDisasterSurvey,gasDeleteDisasterSurvey,gasListDisasterSurveys,gasDisasterDayStatus,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,getGasUrl,issueKey,publishNotices,diagClaimKey,getMyKey,setMyKey,hasMyKey,getAdminSecret,setAdminSecret,hasAdminSecret,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,genUUID,getDeviceId,SUP_LEVELS,supLevelName,effSupLevel,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,computeStats,publishStats,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,T}=window.MP;
+const{gasUsage,gasTranslate,gasAnalyze,gasCallPost,gasCheckAction,gasApproveAction,gasSfGetPendingDetail,gasSfApprovePendingRegistration,gasSubmitAction,gasRevokeSup,gasRejectAction,gasAuthStaffList,gasGetGHConfigForSupervisor,gasCreateDisasterSurvey,gasEndDisasterSurvey,gasDeleteDisasterSurvey,gasListDisasterSurveys,gasDisasterDayStatus,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,getGasUrl,issueKey,publishNotices,diagClaimKey,getMyKey,setMyKey,hasMyKey,getAdminSecret,setAdminSecret,hasAdminSecret,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,sendTicketFlex,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,genUUID,getDeviceId,SUP_LEVELS,supLevelName,effSupLevel,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,computeStats,publishStats,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo,useRef}=React;
 
 const goHome=()=>{location.href='./index.html'};
@@ -546,7 +546,7 @@ function ReqCodeProcessor({t,gh,staffList,setStaffList}){
             <p className="text-3xl font-bold font-mono text-emerald-500 tracking-wider" style={{letterSpacing:'0.15em'}}>{confirmCode}</p>
             <p className="text-[10px] text-gray-500 mt-1">{t.giveConfirmCode}</p>
           </div>
-          <div className="grid grid-cols-2 gap-2"><button onClick={()=>{navigator.clipboard.writeText(confirmCode).catch(()=>{});setCopied(true);setTimeout(()=>setCopied(false),2000)}} className="py-2 rounded-xl bg-white/[0.06] border border-white/[0.08] text-gray-300 text-sm">{copied?'✓':t.copyBtn}</button><button onClick={()=>{location.href='https://line.me/R/share?text='+encodeURIComponent(t.lineConfirmPrefix+'\n'+confirmCode)}} className="py-2 rounded-xl text-white text-sm font-bold bg-[#06C755] active:bg-[#05b34c]">{t.sendViaLine}</button></div>
+          <div className="grid grid-cols-2 gap-2"><button onClick={()=>{navigator.clipboard.writeText(confirmCode).catch(()=>{});setCopied(true);setTimeout(()=>setCopied(false),2000)}} className="py-2 rounded-xl bg-white/[0.06] border border-white/[0.08] text-gray-300 text-sm">{copied?'✓':t.copyBtn}</button><button onClick={()=>{const indexUrl=location.origin+location.pathname.replace(/auth\.html$/,'')+'index.html';sendTicketFlex('✅ 確認碼通知',t.lineConfirmPrefix+' '+confirmCode,indexUrl)}} className="py-2 rounded-xl text-white text-sm font-bold bg-[#06C755] active:bg-[#05b34c]">{t.sendViaLine}</button></div>
           <button onClick={()=>{setParsed(null);setInput('');setConfirmCode('')}} className="w-full py-2 rounded-xl bg-white/[0.04] text-gray-400 text-sm">{t.closeThis}</button>
         </div>
       )}
@@ -639,13 +639,10 @@ function ActionTicketBlock({t,myCode}){
   };
   const notifyApproved=()=>{
     if(!info)return;
-    // 語系直接編碼在代碼第2碼(1=中文2=越南文),不用另外查payload
-    const isVi=info.seq&&info.seq[1]==='2';
     const prefixKey={N:'lineApprovedPrefix',F:'lineApprovedForgotPrefix',A:'lineApprovedSupPrefix',B:'lineApprovedBasicPrefix',S:'lineApprovedStorePrefix',E:'lineApprovedRenewPrefix',R:'lineApprovedReinstatePrefix'}[info.actionCode]||'lineApprovedPrefix';
     const zhMsg=(T.zh[prefixKey]||'').replace('{code}',info.code);
-    const viMsg=(T.vi[prefixKey]||'').replace('{code}',info.code);
-    const msg=zhMsg+(isVi?'\n\n'+viMsg:'')+'\n'+(myCode||'');
-    location.href='https://line.me/R/share?text='+encodeURIComponent(msg);
+    const indexUrl=location.origin+location.pathname.replace(/auth\.html$/,'')+'index.html';
+    sendTicketFlex('✅ 已核准通知',zhMsg,indexUrl);
   };
   return(<div ref={blockRef} className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4"><h3 className="text-sm font-semibold text-amber-400">{t.ticketLookup}</h3>
     <div className="flex gap-2"><input value={seqInput} onChange={e=>setSeqInput(e.target.value)} placeholder={t.ticketLookupPh} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/><button onClick={info?clearAll:()=>lookup()} className={`px-5 py-3 rounded-xl text-white text-sm font-bold min-w-[72px] ${info?'bg-white/[0.1] text-gray-300':'bg-amber-600'}`}>{info?t.ticketClearBtn:t.ticketLookupBtn}</button></div>
@@ -880,7 +877,7 @@ function AuthGate({t}){
     {applyStep&&!isPending&&!isApproved&&(<div className="fi space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-xl p-4"><p className="text-sm text-gray-400">{t.adminApplyDesc}</p><input value={devNameInput} onChange={e=>setDevNameInput(e.target.value)} placeholder={t.deviceName} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/><button onClick={doApply} disabled={applyBusy} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold disabled:opacity-60 flex items-center justify-center gap-2">{applyBusy&&<svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>}{applyBusy?(t.applying||'送出中…'):t.confirm}</button></div>)}
     {isPending&&(<div className="fi space-y-3">
       <div className="bg-white/[0.03] rounded-xl p-4 text-center"><p className="text-xs text-amber-400 font-semibold mb-3">{t.ticketTypeA}</p><p className="text-[11px] text-gray-500 mb-1">{t.ticketInfoTeacher}</p><p className="text-2xl font-bold text-gray-100 mb-3">{settings.code}</p><p className="text-[11px] text-gray-500 mb-1">{t.ticketCode}</p><p className="text-base font-semibold text-amber-400 font-mono tracking-widest select-all">{supStatus.ticketSeq}</p></div>
-      <button onClick={()=>{const seq=supStatus.ticketSeq||'';const base=location.origin+location.pathname;const link=buildReqLink(base,seq);const zhMsg=(T.zh.lineTicketSupPrefix||'').replace('{code}',settings.code);const viMsg=(T.vi.lineTicketSupPrefix||'').replace('{code}',settings.code);const isVi=seq&&seq[1]==='2';const msg=zhMsg+(isVi?'\n'+viMsg:'')+'\n'+link;location.href='https://line.me/R/share?text='+encodeURIComponent(msg)}} className="w-full px-3 py-4 rounded-xl text-base font-bold bg-[#06C755] text-white active:bg-[#05b34c]">{t.sendLineToSup}</button>
+      <button onClick={()=>{const seq=supStatus.ticketSeq||'';const base=location.origin+location.pathname;const link=buildReqLink(base,seq);const zhMsg=(T.zh.lineTicketSupPrefix||'').replace('{code}',settings.code);sendTicketFlex('👤 審核通知',zhMsg,link)}} className="w-full px-3 py-4 rounded-xl text-base font-bold bg-[#06C755] text-white active:bg-[#05b34c]">{t.sendLineToSup}</button>
       <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 text-center space-y-2"><div className="flex items-center justify-center gap-2"><div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div><p className="text-xs text-amber-400 font-semibold">{t.waitApproval}</p></div><button onClick={checkSupOnline} disabled={cooldown>0||supCheckStatus==='...'} className={`w-full py-3 rounded-xl font-medium text-sm ${cooldown>0||supCheckStatus==='...'?'bg-white/[0.06] text-gray-600 cursor-not-allowed':'bg-amber-600/20 text-amber-400 active:bg-amber-600/30'}`}>{supCheckStatus==='...'?t.ticketChecking:cooldown>0?fmtLog(t.ticketWaitCountdown,[String(cooldown)]):t.checkApproval}</button><button onClick={()=>{LS.set(supKey,null);setSupStatus(null);setSupErr('');setSupCheckStatus('')}} className="w-full py-2 text-[11px] text-gray-600 active:text-gray-400">{t.resetApp}</button>{supErr&&<p className="text-amber-400/60 text-xs mt-1">{supErr}</p>}</div>
     </div>)}
     </div>
