@@ -84,6 +84,12 @@ const REQ_CAT={basic:'B',store:'S',conn:'C',supapply:'A'};
 function identifyReqCode(s){const x=(s||'').trim();if(!x)return null;const c1=x[0];const up=c1.toUpperCase();const map={B:'basic',S:'store',C:'conn',A:'supapply'};const cat=map[up];if(!cat)return null;return{cat,catChar:c1,bound:c1===up,body:x.slice(1)}}
 // 把長碼切成多段參數連結:req=...&req2=...&req3=...（每段預設500字，避開LINE單段約600字辨識上限）
 function buildReqLink(base,code,seg,prefix){const S=seg||500;const P=prefix||'req';const parts=[];for(let i=0;i<code.length;i+=S)parts.push(code.slice(i,i+S));let url=base+'#'+P+'='+encodeURIComponent(parts[0]);for(let i=1;i<parts.length;i++)url+='&'+P+(i+1)+'='+encodeURIComponent(parts[i]);return url}
+// 通用行為代碼Flex分享:導去safety-report.html的LIFF正式網址代發Flex卡片(shareTargetPicker一定要透過liff.line.me網址正式啟動LIFF才能用)
+const TICKET_FLEX_LIFF_ID='2010673151-kemVP4Pi';
+function sendTicketFlex(title,body,link){
+  const uri='https://liff.line.me/'+TICKET_FLEX_LIFF_ID+'?flexTitle='+encodeURIComponent(title)+'&flexBody='+encodeURIComponent(body||'')+'&flexLink='+encodeURIComponent(link);
+  location.href=uri;
+}
 // 從 hash 還原完整碼：依序接回 req,req2,req3...
 function parseReqHash(hash,prefix){const P=prefix||'req';const h=(hash||'').replace(/^#/,'');if(!h)return null;const params={};h.split('&').forEach(kv=>{const idx=kv.indexOf('=');if(idx>0){const k=kv.slice(0,idx);const v=kv.slice(idx+1);params[k]=v}});if(params[P]===undefined)return null;let code='';try{code=decodeURIComponent(params[P])}catch(_e){code=params[P]}let n=2;while(params[P+n]!==undefined){try{code+=decodeURIComponent(params[P+n])}catch(_e){code+=params[P+n]}n++}return code}
 // 連線申請碼:C + code:uuid(老師→主管,主管產生連線碼用)
@@ -731,7 +737,7 @@ window.MP={
   getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,
   adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,
   encWithKey,decWithKey,actKey,lockPwdCred,genActWithToken,verifyActToken,genUUID,getDeviceId,
-  genReqCode,parseReqCode,decReqCode,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,REQ_CAT,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,
+  genReqCode,parseReqCode,decReqCode,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,REQ_CAT,identifyReqCode,buildReqLink,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,sendTicketFlex,
   // sup levels
   SUP_LEVELS,supLevelName,effSupLevel,
   // github
