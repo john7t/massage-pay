@@ -71,7 +71,6 @@ body {
   box-shadow: 0 2px 6px rgba(217, 119, 6, 0.2);
 }
 
-/* Modal 自訂 */
 #root>div.fixed.inset-0 {
   align-items: flex-start !important;
   padding-top: 0 !important;
@@ -534,6 +533,7 @@ function ManagerNoticeDetail({notice,code,onClose,onChanged}){
   const[unreadInfo,setUnreadInfo]=useState(null);const[unreadBusy,setUnreadBusy]=useState(false);
   const[shareBusy,setShareBusy]=useState(false);
   const[toggleBusy,setToggleBusy]=useState(false);
+  const[showVi,setShowVi]=useState(false);
   const[status,setStatus]=useState(notice.status||'');
   const[editing,setEditing]=useState(false);
   const[form,setForm]=useState({cat:notice.cat||'',subcat:notice.subcat||'',title:notice.title||'',summary:notice.summary||'',body:notice.body||'',tags:notice.tags||''});
@@ -567,12 +567,20 @@ function ManagerNoticeDetail({notice,code,onClose,onChanged}){
   };
   return(<div className="min-h-screen p-4 animate-slide-up">
     <div className="max-w-md mx-auto space-y-4">
-      <div className="flex items-center justify-between"><button onClick={onClose} className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 font-semibold">← 返回列表</button><span className="text-[11px] text-amber-700 font-mono bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full font-bold">{notice.id}</span></div>
+      <div className="flex items-center justify-between">
+        <button onClick={onClose} className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 font-semibold">← 返回列表</button>
+        <div className="flex items-center gap-2">
+          <button onClick={()=>setShowVi(v=>!v)} className="text-[11px] px-3 py-1 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 font-bold active:scale-95 transition-all">
+            {showVi?'切換中文':'中 / VI'}
+          </button>
+          <span className="text-[11px] text-amber-700 font-mono bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full font-bold">{notice.id}</span>
+        </div>
+      </div>
       
       {!editing?(<div className="card-panel rounded-2xl p-5 space-y-3">
-        <p className="text-lg font-bold text-slate-900 leading-snug">{notice.title}</p>
-        <p className="text-xs text-amber-600 font-semibold">{notice.summary}</p>
-        <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap pt-1">{notice.body}</p>
+        <p className="text-lg font-bold text-slate-900 leading-snug">{showVi?(notice.titleVi||notice.title):notice.title}</p>
+        <p className="text-xs text-amber-600 font-semibold">{showVi?(notice.summaryVi||notice.summary):notice.summary}</p>
+        <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap pt-1">{showVi?(notice.bodyVi||notice.body):notice.body}</p>
         <div className="flex items-center justify-between text-[11px] text-slate-400 pt-3 border-t border-slate-100">
           <span>{notice.cat}{notice.subcat?('・'+notice.subcat):''}</span>
           <span>{notice.date} ・ {notice.author}</span>
@@ -764,6 +772,7 @@ function UnreadListView({nid}){
 
 function NoticeView({nid,userProfile}){
   const[notice,setNotice]=useState(undefined);
+  const[currentLang,setCurrentLang]=useState((userProfile&&userProfile.lang)||'zh');
   useEffect(()=>{
     if(!nid){setNotice(null);return}
     fetch('../notices.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(data=>{
@@ -772,17 +781,21 @@ function NoticeView({nid,userProfile}){
       setNotice(found||null);
     }).catch(()=>setNotice(null));
   },[]);
-  const lang=userProfile.lang||'zh';
-  const t=(T&&T[lang])||{};
+  const t=(T&&T[currentLang])||{};
   const code=userProfile.personType==='teacher'?userProfile.name:(userProfile.code||userProfile.name||'');
-  const settingsObj={code:code,lang:lang};
+  const settingsObj={code:code,lang:currentLang};
   if(!nid&&(userProfile.personType==='manager'||userProfile.personType==='admin'))return(<ManagerNoticeList userProfile={userProfile}/>);
   const isManagerWithNid=nid&&(userProfile.personType==='manager'||userProfile.personType==='admin');
   const backToList=()=>{location.href=location.href.split('?')[0]};
   if(notice===undefined)return(<div className="min-h-screen flex flex-col items-center justify-center gap-3"><Spinner size={32}/><p className="text-xs text-slate-500 font-medium">載入公告中…</p></div>);
   if(!notice)return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-xs text-slate-500 text-center card-panel rounded-2xl p-6">找不到此則公告，可能已下架或連結失效</p></div>);
   return(<div className="relative min-h-screen">
-    {isManagerWithNid&&<button onClick={backToList} className="fixed top-4 right-4 z-[60] text-xs px-4 py-2 rounded-full card-panel text-slate-700 font-bold shadow-md border border-slate-200 active:scale-95 transition-all">← 回列表</button>}
+    <div className="fixed top-4 right-4 z-[60] flex items-center gap-2">
+      <button onClick={()=>setCurrentLang(l=>l==='zh'?'vi':'zh')} className="text-xs px-3.5 py-2 rounded-full card-panel text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 font-extrabold shadow-md active:scale-95 transition-all">
+        {currentLang==='zh'?'中 / VI':'VI / 中'}
+      </button>
+      {isManagerWithNid&&<button onClick={backToList} className="text-xs px-4 py-2 rounded-full card-panel text-slate-700 font-bold shadow-md border border-slate-200 active:scale-95 transition-all">← 回列表</button>}
+    </div>
     {window.NoticeDetailModal&&<window.NoticeDetailModal notice={notice} settings={settingsObj} t={t} skipGate={true} onClose={()=>{try{liff.closeWindow()}catch(_e){}}} onMore={()=>{}}/>}
   </div>);
 }
