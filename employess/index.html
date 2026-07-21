@@ -27,20 +27,11 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
-  body {
-    background: #f8fafc;
-    color: #0f172a;
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  }
-  #root { min-height: 100vh; }
-  
-  /* 微微滾動條美化 */
-  ::-webkit-scrollbar { width: 4px; height: 4px; }
-  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
+  body{background:#f8fafc;color:#0f172a;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+  #root{min-height:100vh}
+  ::-webkit-scrollbar{width:4px;height:4px}
+  ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+  @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -154,7 +145,7 @@ function EmployeeDetailModal({code,myAuth,onClose,onChanged}){
   };
   const renderField=(k,i)=>{
     let inputEl;
-    const activeBtnCls = "py-1.5 rounded-lg text-xs font-bold bg-amber-600 text-white shadow-sm";
+    const activeBtnCls = "py-1.5 rounded-lg text-xs font-bold bg-amber-600 text-white shadow-xs";
     const inactiveBtnCls = "py-1.5 rounded-lg text-xs font-medium bg-white text-gray-600 border border-gray-200 hover:bg-gray-50";
 
     if(k==='gender'){
@@ -192,29 +183,29 @@ function EmployeeDetailModal({code,myAuth,onClose,onChanged}){
     }
     return(<div key={k} className={`px-3 py-2 flex items-center gap-2 border-b border-gray-100 last:border-none ${i%2===0?'bg-white/70':'bg-transparent'}`}><label className="text-[11px] font-medium text-gray-500 w-20 flex-shrink-0">{FIELD_LABEL[k]}</label><div className="flex-1 min-w-0">{inputEl}</div></div>);
   };
-  if(!staff||!form)return(<div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center"><Spinner size={28}/></div>);
+  if(!staff||!form)return(<div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center"><Spinner size={28}/></div>);
   const isSup=staff.role==='supervisor';
-  return(<div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center" onClick={onClose}>
+  return(<div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center" onClick={onClose}>
     <div className="bg-slate-50 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e=>e.stopPropagation()}>
       <div className="p-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur-md z-10"><h3 className="text-base font-bold text-gray-900">{staff.nameZh||code} <span className="text-xs font-mono font-normal text-gray-400">({code})</span>{staff.status==='off'&&<span className="text-xs text-red-500 font-bold ml-1.5 bg-red-50 px-2 py-0.5 rounded-md">離職</span>}</h3><button onClick={onClose} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200">✕</button></div>
       <div className="p-4 space-y-3">
-        <div className="bg-sky-50/60 rounded-xl overflow-hidden border border-sky-100 shadow-sm">
+        <div className="bg-sky-50/60 rounded-xl overflow-hidden border border-sky-100 shadow-2xs">
           <button onClick={()=>setBasicOpen(v=>!v)} className="w-full flex items-center justify-between px-3.5 py-2.5 bg-sky-50"><p className="text-xs font-bold text-sky-800">📋 基本資料</p><span className="text-sky-500 text-xs font-semibold">{basicOpen?'▲ 收起':'▼ 展開'}</span></button>
           {basicOpen&&BASIC_FIELDS.map((k,i)=>renderField(k,i))}
         </div>
-        <div className="bg-amber-50/60 rounded-xl overflow-hidden border border-amber-100 shadow-sm">
+        <div className="bg-amber-50/60 rounded-xl overflow-hidden border border-amber-100 shadow-2xs">
           <button onClick={()=>setStoreOpen(v=>!v)} className="w-full flex items-center justify-between px-3.5 py-2.5 bg-amber-50"><p className="text-xs font-bold text-amber-800">🏪 在店資料</p><span className="text-amber-600 text-xs font-semibold">{storeOpen?'▲ 收起':'▼ 展開'}</span></button>
           {storeOpen&&STORE_FIELDS.map((k,i)=>renderField(k,i))}
         </div>
         {saveStatus&&<p className="text-xs text-center text-emerald-600 font-bold">{saveStatus}</p>}
         <button onClick={doSave} disabled={saveStatus==='saving'} className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md shadow-emerald-600/20 active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2">{saveStatus==='saving'&&<Spinner size={14}/>}儲存變更（即時生效）</button>
 
-        <div className="bg-purple-50/60 rounded-xl overflow-hidden border border-purple-100 p-3 space-y-3 shadow-sm">
+        <div className="bg-purple-50/60 rounded-xl overflow-hidden border border-purple-100 p-3 space-y-3 shadow-2xs">
           <p className="text-xs font-bold text-purple-800">👑 主管任命及狀態設定</p>
           <div className="flex items-center gap-2">
             <label className="text-[11px] text-gray-500 w-16 flex-shrink-0 font-medium">主管任命</label>
             {!isSup?(
-              <div className="flex gap-1.5 flex-1"><select value={supLevel} onChange={e=>setSupLevel(parseInt(e.target.value,10))} className="flex-1 bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 focus:ring-2 focus:ring-purple-500 outline-none">{SUP_LEVELS.filter(lv=>lv.id<=myAuth.level).map(lv=>(<option key={lv.id} value={lv.id}>{lv.zh}</option>))}</select><button onClick={()=>doAppoint(supLevel)} disabled={actionStatus==='saving'} className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-sm disabled:opacity-50 flex-shrink-0">任命主管</button></div>
+              <div className="flex gap-1.5 flex-1"><select value={supLevel} onChange={e=>setSupLevel(parseInt(e.target.value,10))} className="flex-1 bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 focus:ring-2 focus:ring-purple-500 outline-none">{SUP_LEVELS.filter(lv=>lv.id<=myAuth.level).map(lv=>(<option key={lv.id} value={lv.id}>{lv.zh}</option>))}</select><button onClick={()=>doAppoint(supLevel)} disabled={actionStatus==='saving'} className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-2xs disabled:opacity-50 flex-shrink-0">任命主管</button></div>
             ):(
               <div className="flex items-center gap-2 flex-1"><span className="text-xs text-gray-700 flex-1 font-medium">目前為主管・{supLevelName(staff.level,'zh')||('等級'+staff.level)}</span><button onClick={()=>doAppoint(0)} disabled={actionStatus==='saving'} className="px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 text-xs font-bold disabled:opacity-50 flex-shrink-0">撤銷主管</button></div>
             )}
@@ -283,18 +274,18 @@ function WorkHoursChartModal({myAuth,stores,onClose}){
   const HOURS=Array.from({length:24},(_,i)=>(i+7)%24);
   const hourDetail=(h)=>{if(mode==='start'){return rows.filter(s=>hourOf(s.workStart)===h).map(s=>({code:s.code,ws:s.workStart}))}else{return rows.filter(s=>{const sh=hourOf(s.workStart);if(sh===null)return false;let eh=hourOf(s.workEnd);if(eh===null)eh=(sh+12)%24;let hh=sh;for(let i=0;i<24;i++){if(hh===h)return true;if(hh===eh)break;hh=(hh+1)%24;if(hh===sh)break}return false}).map(s=>({code:s.code,ws:s.workStart,we:s.workEnd}))}};
   const detail=pickHour!==null?hourDetail(pickHour):[];
-  return(<div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center" onClick={onClose}>
+  return(<div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center" onClick={onClose}>
     <div className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e=>e.stopPropagation()}>
       <div className="p-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur-md z-10"><h3 className="text-base font-bold text-gray-900 flex items-center gap-2">📊 上工人數統計{loading&&<Spinner size={14}/>}</h3><button onClick={onClose} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200">✕</button></div>
       <div className="p-4 space-y-3">
         {canPickStore&&(<select value={store} onChange={e=>{setStore(e.target.value);setPickHour(null)}} className="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-xs text-gray-800 font-medium outline-none focus:ring-2 focus:ring-amber-500"><option value="">全店面彙整</option>{stores.map(s=>(<option key={s} value={s}>{s}</option>))}</select>)}
         <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
-          <button onClick={()=>{setMode('online');setPickHour(null)}} className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${mode==='online'?'bg-amber-600 text-white shadow-sm':'text-gray-500 hover:text-gray-900'}`}>在線人數</button>
-          <button onClick={()=>{setMode('start');setPickHour(null)}} className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${mode==='start'?'bg-amber-600 text-white shadow-sm':'text-gray-500 hover:text-gray-900'}`}>上工分布</button>
+          <button onClick={()=>{setMode('online');setPickHour(null)}} className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${mode==='online'?'bg-amber-600 text-white shadow-2xs':'text-gray-500 hover:text-gray-900'}`}>在線人數</button>
+          <button onClick={()=>{setMode('start');setPickHour(null)}} className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${mode==='start'?'bg-amber-600 text-white shadow-2xs':'text-gray-500 hover:text-gray-900'}`}>上工分布</button>
         </div>
         <p className="text-[11px] text-gray-500 font-medium">{mode==='online'?'依上下工時間換算，各時段目前在線人數':'各時段開始上工的人數分布'}（共 {rows.length} 人）</p>
         <div className="space-y-1.5 py-1">{HOURS.map(h=>{const c=counts[h]||0;const on=pickHour===h;return(<div key={h} onClick={()=>setPickHour(on?null:h)} className="flex items-center gap-2 active:opacity-70 cursor-pointer group"><span className={`text-[11px] font-mono tabular-nums w-6 text-right ${on?'text-amber-600 font-bold':'text-gray-400'}`}>{String(h).padStart(2,'0')}</span><div className="flex-1 h-5 bg-gray-100 rounded-full overflow-hidden p-0.5"><div className="h-full rounded-full transition-all duration-300" style={{width:(c/maxC*100)+'%',background:on?'linear-gradient(90deg, #f59e0b, #d97706)':'#cbd5e1'}}></div></div><span className={`text-[11px] font-mono tabular-nums w-5 ${on?'text-amber-600 font-bold':'text-gray-400'}`}>{c||''}</span></div>)})}</div>
-        {pickHour!==null&&(<div className="bg-amber-50 border border-amber-200 rounded-xl p-3 shadow-xs"><p className="text-xs text-amber-800 font-bold mb-1.5">🕒 {String(pickHour).padStart(2,'0')}:00 時段共 {detail.length} 人</p>{detail.length===0?<p className="text-[11px] text-gray-500">無人上工</p>:<div className="grid grid-cols-2 gap-1.5 max-h-32 overflow-y-auto">{detail.map((d,i)=>(<div key={i} className="flex items-center gap-2 text-[11px] bg-white px-2 py-1 rounded-md border border-amber-100"><span className="font-mono font-bold text-amber-900">#{d.code}</span><span className="text-gray-500">{d.ws}{d.we?'～'+d.we:''}</span></div>))}</div>}</div>)}
+        {pickHour!==null&&(<div className="bg-amber-50 border border-amber-200 rounded-xl p-3 shadow-2xs"><p className="text-xs text-amber-800 font-bold mb-1.5">🕒 {String(pickHour).padStart(2,'0')}:00 時段共 {detail.length} 人</p>{detail.length===0?<p className="text-[11px] text-gray-500">無人上工</p>:<div className="grid grid-cols-2 gap-1.5 max-h-32 overflow-y-auto">{detail.map((d,i)=>(<div key={i} className="flex items-center gap-2 text-[11px] bg-white px-2 py-1 rounded-md border border-amber-100"><span className="font-mono font-bold text-amber-900">#{d.code}</span><span className="text-gray-500">{d.ws}{d.we?'～'+d.we:''}</span></div>))}</div>}</div>)}
         <div className="grid grid-cols-2 gap-2 pt-1">
           <button onClick={load} disabled={loading} className="py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold disabled:opacity-50">重新整理</button>
           <button onClick={doPublish} disabled={publishBusy||loading} className="py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-md shadow-amber-600/20 disabled:opacity-50 flex items-center justify-center gap-1.5">{publishBusy&&<Spinner size={11}/>}同步發布</button>
@@ -325,10 +316,10 @@ function CreateStaffModal({myAuth,stores,onClose,onCreated}){
       if(r&&r.ok){onCreated()}else{setStatus((r&&r.error)||'新增失敗')}
     }catch(e){setStatus(String(e))}
   };
-  const activeBtnCls = "py-2 rounded-xl text-xs font-bold bg-amber-600 text-white shadow-sm";
+  const activeBtnCls = "py-2 rounded-xl text-xs font-bold bg-amber-600 text-white shadow-2xs";
   const inactiveBtnCls = "py-2 rounded-xl text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200";
 
-  return(<div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center" onClick={onClose}>
+  return(<div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center" onClick={onClose}>
     <div className="bg-white w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl p-4 space-y-3.5 shadow-2xl" onClick={e=>e.stopPropagation()}>
       <div className="flex items-center justify-between"><h3 className="text-base font-bold text-gray-900">✨ 新增老師資料</h3><button onClick={onClose} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200">✕</button></div>
       <div><label className="text-[11px] font-bold text-gray-500 block mb-1">員工編號 *</label><input value={code} onChange={e=>setCode(e.target.value)} placeholder="例如: 108" className="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-amber-500"/></div>
@@ -466,7 +457,7 @@ function LaborPointsModal({myAuth,stores,onClose}){
   };
   const totalPages=list?Math.max(1,Math.ceil(list.length/pageSize)):1;
   const paged=list?list.slice(page*pageSize,(page+1)*pageSize):[];
-  return(<div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center" onClick={onClose}>
+  return(<div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center" onClick={onClose}>
     <div className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e=>e.stopPropagation()}>
       <div className="p-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur-md z-10"><h3 className="text-base font-bold text-gray-900">🪙 勞點管理與計算</h3><button onClick={onClose} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200">✕</button></div>
       <div className="p-4 space-y-3">
@@ -475,8 +466,8 @@ function LaborPointsModal({myAuth,stores,onClose}){
           <input type="month" value={yearMonth} onChange={e=>setYearMonth(e.target.value)} className="bg-gray-50 border border-gray-300 rounded-xl px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:ring-2 focus:ring-amber-500"/>
         </div>
         <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
-          <button onClick={()=>setView('entry')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${view==='entry'?'bg-amber-600 text-white shadow-sm':'text-gray-500 hover:text-gray-900'}`}>登記本月點數</button>
-          <button onClick={()=>setView('ranking')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${view==='ranking'?'bg-amber-600 text-white shadow-sm':'text-gray-500 hover:text-gray-900'}`}>分析排行 / 獎金</button>
+          <button onClick={()=>setView('entry')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${view==='entry'?'bg-amber-600 text-white shadow-2xs':'text-gray-500 hover:text-gray-900'}`}>登記本月點數</button>
+          <button onClick={()=>setView('ranking')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${view==='ranking'?'bg-amber-600 text-white shadow-2xs':'text-gray-500 hover:text-gray-900'}`}>分析排行 / 獎金</button>
         </div>
         {view==='entry'&&(
           list===null?<div className="py-8 text-center"><Spinner size={20}/></div>:list.length===0?<p className="text-sm text-gray-500 text-center py-6">無員工資料</p>:(<>
@@ -588,23 +579,20 @@ function EmployeeListPage({myAuth}){
   },[list,sortMode,codeDir,codeRange,shiftFilter,langFilter,genderFilter]);
 
   return(<div className="min-h-screen pb-12 pt-3 px-3 sm:px-4 max-w-md mx-auto space-y-3">
-    {/* 頁首 */}
-    <div className="bg-white p-3.5 rounded-2xl border border-gray-200/80 shadow-xs flex items-center justify-between gap-2">
+    <div className="bg-white p-3.5 rounded-2xl border border-gray-200/80 shadow-2xs flex items-center justify-between gap-2">
       <div className="flex items-center gap-2">
         <h1 className="text-lg font-black text-gray-900 tracking-tight">員工列表</h1>
-        <button onClick={doShareApp} disabled={appShareBusy} title="分享 LINE 訊息" className="w-7 h-7 rounded-full bg-[#06C755] hover:bg-[#05b34c] flex items-center justify-center disabled:opacity-50 transition-all shadow-xs">{appShareBusy?<Spinner size={10}/>:<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.5 2 2 5.6 2 10c0 3.9 3.6 7.2 8.4 7.9.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1.1 1 .6 1.1-.5 6.2-3.7 8.5-6.3C22.1 12.6 22 11.3 22 10c0-4.4-4.5-8-10-8z"/></svg>}</button>
+        <button onClick={doShareApp} disabled={appShareBusy} title="分享 LINE 訊息" className="w-7 h-7 rounded-full bg-[#06C755] hover:bg-[#05b34c] flex items-center justify-center disabled:opacity-50 transition-all shadow-2xs">{appShareBusy?<Spinner size={10}/>:<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.5 2 2 5.6 2 10c0 3.9 3.6 7.2 8.4 7.9.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1.1 1 .6 1.1-.5 6.2-3.7 8.5-6.3C22.1 12.6 22 11.3 22 10c0-4.4-4.5-8-10-8z"/></svg>}</button>
       </div>
       <div className="flex gap-1.5">
-        <button onClick={()=>setShowChart(true)} className="text-xs px-2.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold shadow-xs">📊 圖表</button>
-        <button onClick={()=>setShowLabor(true)} className="text-xs px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-xs">🪙 勞點</button>
-        <button onClick={()=>setShowCreate(true)} className="text-xs px-2.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold shadow-xs">+ 新增</button>
+        <button onClick={()=>setShowChart(true)} className="text-xs px-2.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold shadow-2xs">📊 圖表</button>
+        <button onClick={()=>setShowLabor(true)} className="text-xs px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-2xs">🪙 勞點</button>
+        <button onClick={()=>setShowCreate(true)} className="text-xs px-2.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold shadow-2xs">+ 新增</button>
       </div>
     </div>
 
-    {/* 店面選單 */}
     {canPickStore&&(<div className="bg-white px-3 py-2 rounded-xl border border-gray-200/80 shadow-2xs"><select value={storeFilter} onChange={e=>setStoreFilter(e.target.value)} className="w-full bg-transparent text-xs font-semibold text-gray-800 outline-none cursor-pointer"><option value="">🏠 我的預設店面：{myAuth.store}</option>{stores.map(s=>(<option key={s} value={s}>📍 {s}</option>))}</select></div>)}
 
-    {/* 第一層分類切換 */}
     <div className="grid grid-cols-3 gap-1.5 bg-gray-200/60 p-1 rounded-xl">
       {[
         ['code','🔢 編號'],
@@ -614,11 +602,10 @@ function EmployeeListPage({myAuth}){
         ['gender','🚻 性別'],
         ['time','🕒 時間']
       ].map(([k,l])=>(
-        <button key={k} onClick={()=>setSortMode(k)} className={`text-xs py-1.5 rounded-lg font-bold transition-all ${sortMode===k?'bg-white text-amber-700 shadow-xs':'text-gray-600 hover:text-gray-900'}`}>{l}</button>
+        <button key={k} onClick={()=>setSortMode(k)} className={`text-xs py-1.5 rounded-lg font-bold transition-all ${sortMode===k?'bg-white text-amber-700 shadow-2xs':'text-gray-600 hover:text-gray-900'}`}>{l}</button>
       ))}
     </div>
 
-    {/* 第二層條件細篩 */}
     {sortMode==='code'&&(
       <div className="space-y-1.5 bg-white p-2.5 rounded-xl border border-gray-200/80 shadow-2xs">
         <div className="flex items-center gap-1.5"><span className="text-[10px] font-bold text-gray-400 w-8">順序</span>{[['asc','正序 ▲'],['desc','倒序 ▼']].map(([k,l])=>(<button key={k} onClick={()=>setCodeDir(k)} className={`text-[10px] px-2.5 py-1 rounded-md font-bold transition-all ${codeDir===k?'bg-amber-600 text-white':'bg-gray-100 text-gray-600'}`}>{l}</button>))}</div>
@@ -638,7 +625,6 @@ function EmployeeListPage({myAuth}){
       <div className="flex gap-1.5 bg-white p-2 rounded-xl border border-gray-200/80 shadow-2xs">{[['workStart','上工時間'],['workEnd','下工時間']].map(([k,l])=>(<button key={k} onClick={()=>setTimeField(k)} className={`flex-1 text-[11px] py-1 rounded-lg font-bold transition-all ${timeField===k?'bg-amber-600 text-white':'bg-gray-50 text-gray-600'}`}>{l}</button>))}</div>
     )}
 
-    {/* 列表內容區 */}
     {sortMode==='time'?(
       list===null?<div className="py-12 text-center"><Spinner size={24}/></div>:<TimeGroupedView list={filtered} timeField={timeField} onSelect={setViewCode}/>
     ):(
