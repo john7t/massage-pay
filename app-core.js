@@ -338,6 +338,44 @@ function PinDotsClickable({length,total,digits,active,onClick,onClear}){
   </div>);
 }
 
+// 忘記密碼:鎖屏畫面點了跳出來,直接設新密碼,不用先驗證舊密碼
+function ForgotPwdModal({settings,onClose,onSuccess}){
+  const[pwd1,setPwd1]=useState('');const[pwd2,setPwd2]=useState('');
+  const[activeField,setActiveField]=useState('');
+  const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');
+  const pwdOk=isValidPin(pwd1);
+  const doReset=async()=>{
+    if(!pwdOk||pwd1!==pwd2)return;
+    setBusy(true);setMsg('');
+    try{
+      const r=await gasSetInitialPwd(settings.code,lockPwdCred(settings.code,pwd1));
+      if(r&&r.ok){onSuccess(pwd1);setMsg('✓ 密碼已更新')}
+      else{setMsg((r&&r.error)||'更新失敗')}
+    }catch(e){setMsg(String(e))}
+    setBusy(false);
+  };
+  return(<div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="bg-gray-900 border border-white/[0.08] rounded-2xl p-5 w-full max-w-xs space-y-3" onClick={e=>e.stopPropagation()}>
+      <p className="text-sm font-bold text-gray-100 text-center">忘記密碼</p>
+      <div className="space-y-1.5"><p className="text-xs text-gray-400 text-center">設定新密碼（不可4碼相同或連續遞增/遞減）</p>
+        <PinDotsClickable length={pwd1.length} total={4} active={activeField==='p1'} onClick={()=>setActiveField(f=>f==='p1'?'':'p1')} onClear={()=>setPwd1('')}/>
+        {activeField==='p1'&&<PinKeypadCompact onDigit={d=>{if(pwd1.length>=4)return;setPwd1(pwd1+d)}} onBackspace={()=>setPwd1(v=>v.slice(0,-1))}/>}
+      </div>
+      <div className="space-y-1.5"><p className="text-xs text-gray-400 text-center">再輸入一次確認</p>
+        <PinDotsClickable length={pwd2.length} total={4} active={activeField==='p2'} onClick={()=>setActiveField(f=>f==='p2'?'':'p2')} onClear={()=>setPwd2('')}/>
+        {activeField==='p2'&&<PinKeypadCompact onDigit={d=>{if(pwd2.length>=4)return;setPwd2(pwd2+d)}} onBackspace={()=>setPwd2(v=>v.slice(0,-1))}/>}
+      </div>
+      {pwd1.length===4&&!pwdOk&&<p className="text-xs text-red-400 text-center">密碼不可4碼相同或連續遞增/遞減</p>}
+      {pwd2.length===4&&pwd1!==pwd2&&<p className="text-xs text-red-400 text-center">兩次輸入不一致</p>}
+      {msg&&<p className={`text-xs text-center ${msg.startsWith('✓')?'text-emerald-400':'text-red-400'}`}>{msg}</p>}
+      <div className="flex gap-2">
+        <button onClick={onClose} className="flex-1 py-2.5 rounded-xl bg-white/[0.06] text-gray-400 text-sm">關閉</button>
+        <button onClick={doReset} disabled={busy||!pwdOk||pwd1!==pwd2} className="flex-1 py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 disabled:bg-white/[0.06] disabled:text-gray-600">{busy?'處理中…':'確認更新'}</button>
+      </div>
+    </div>
+  </div>);
+}
+
 function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
   const code=settings.code;
   const actionCode=type==='basic'?'B':'S';
@@ -374,6 +412,7 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
   const[setupStep,setSetupStep]=useState(1); // 1=第一次輸入 2=再輸入一次確認
   const[setupPwd,setSetupPwd]=useState('');const[setupPwd1,setSetupPwd1]=useState('');const[setupErr,setSetupErr]=useState('');const[setupBusy,setSetupBusy]=useState(false);
   const[unlockInput,setUnlockInput]=useState('');const[unlockErr,setUnlockErr]=useState('');const[unlockShake,setUnlockShake]=useState(false);
+  const[showForgotPwd,setShowForgotPwd]=useState(false);
   const[unlockBusy,setUnlockBusy]=useState(false);
 
   const[mode,setMode]=useState(()=>pending?'ticket':'view'); // view/edit/ticket
@@ -536,8 +575,17 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
         {unlockBusy&&<span className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/>}
         {unlockErr&&<p className="text-xs text-red-400 text-center">{unlockErr}</p>}
         <PinKeypad onDigit={pressUnlockDigit} onBackspace={()=>setUnlockInput(v=>v.slice(0,-1))}/>
-        <button onClick={onClose} className="pinGateBody text-xs">✕ 取消</button>
+        <div className="flex items-center gap-4">
+          <button onClick={onClose} className="pinGateBody text-xs">✕ 取消</button>
+          <button onClick={()=>setShowForgotPwd(true)} className="pinGateBody text-xs underline">忘記密碼</button>
+        </div>
       </div>
+      {showForgotPwd&&<ForgotPwdModal settings={settings} onClose={()=>setShowForgotPwd(false)} onSuccess={(newPwd)=>{
+        const updated={...settings,lockPwd:newPwd};
+        if(onUpdateSettings)onUpdateSettings(updated);
+        try{LS.set('app-settings',updated)}catch(_e){}
+        setTimeout(()=>{setShowForgotPwd(false);setGate('none')},1000);
+      }}/>}
     </div>);
   }
 
