@@ -28,7 +28,7 @@
       var root=document.getElementById("root");if(root)root.style.display="none";
     }catch(e){}
   };
-  window.addEventListener("error",function(e){window.__showFallback(1,{lineno:e.lineno})},true);
+  window.addEventListener("error",function(e){try{alert('除錯訊息(請截圖給我):\n'+(e.message||'')+'\n檔案:'+(e.filename||'')+'\n行號:'+e.lineno+':'+e.colno)}catch(_e){}window.__showFallback(1,{lineno:e.lineno})},true);
   window.addEventListener("unhandledrejection",function(e){try{console.warn('unhandledrejection:',e&&e.reason)}catch(_e){}try{if(e&&e.preventDefault)e.preventDefault()}catch(_e){}});
 })();
 </script>
@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-080</title>
+<title>薪資追蹤 v1.12-081</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
