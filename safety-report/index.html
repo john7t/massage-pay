@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>安全回報 v1.12-058</title>
+<title>安全回報 v1.12-059</title>
 <meta property="og:title" content="天然災害每日安全回報中心">
 <meta property="og:description" content="請點擊連結進行安全回報">
 <meta property="og:type" content="website">
@@ -285,10 +285,10 @@ function RegisterFlow({profile,onDone,sid}){
     setPwdBusy(false);
   };
   // 設定新密碼:雙欄同時顯示可互相對照,點哪個欄位就對哪個輸入,不會卡住回不去
-  const pwd1Digit=(d)=>{if(pwdInput.length>=4)return;setPwdInput(pwdInput+d);setPwdErr('')};
+  const pwd1Digit=(d)=>{if(pwdInput.length>=4)return;const next=pwdInput+d;setPwdInput(next);setPwdErr('');if(next.length>=4)setActiveField('')};
   const pwd1Backspace=()=>setPwdInput(v=>v.slice(0,-1));
   const pwd1Clear=()=>setPwdInput('');
-  const pwd2Digit=(d)=>{if(pwdInput2.length>=4)return;setPwdInput2(pwdInput2+d);setPwdErr('')};
+  const pwd2Digit=(d)=>{if(pwdInput2.length>=4)return;const next=pwdInput2+d;setPwdInput2(next);setPwdErr('');if(next.length>=4)setActiveField('')};
   const pwd2Backspace=()=>setPwdInput2(v=>v.slice(0,-1));
   const pwd2Clear=()=>setPwdInput2('');
   const pwd1Ok=isValidPin(pwdInput);
@@ -361,15 +361,17 @@ function RegisterFlow({profile,onDone,sid}){
       {personType==='teacher'&&(<div className="space-y-3">
         <div className="space-y-2">
           <label className="text-sm text-gray-400 block text-center">{t.teacherCodePh}</label>
-          <MiniPinDotsClickable length={code.length} total={3} digits={code} active={activeField==='code'} onClick={()=>toggleField('code')} onClear={()=>{setCode('');setCheckFound(null);setCheckMsg('');setPwdMode('');setPwdVerified(false);setPwdInput('');setPwdInput2('');setPwdErr('')}}/>
-          {activeField==='code'&&<MiniPinKeypad onDigit={d=>{if(code.length>=3)return;setCode(code+d);setCheckFound(null);setCheckMsg('');setPwdMode('');setPwdVerified(false);setPwdInput('');setPwdInput2('');setPwdErr('')}} onBackspace={()=>{setCode(c=>c.slice(0,-1));setCheckFound(null);setCheckMsg('');setPwdMode('');setPwdVerified(false);setPwdInput('');setPwdInput2('');setPwdErr('')}}/>}
+          <div className="relative flex justify-center">
+            <MiniPinDotsClickable length={code.length} total={3} digits={code} active={activeField==='code'} onClick={()=>toggleField('code')} onClear={()=>{setCode('');setCheckFound(null);setCheckMsg('');setPwdMode('');setPwdVerified(false);setPwdInput('');setPwdInput2('');setPwdErr('')}}/>
+            {activeField==='code'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><MiniPinKeypad onDigit={d=>{if(code.length>=3)return;const next=code+d;setCode(next);setCheckFound(null);setCheckMsg('');setPwdMode('');setPwdVerified(false);setPwdInput('');setPwdInput2('');setPwdErr('');if(next.length>=3)setActiveField('')}} onBackspace={()=>{setCode(c=>c.slice(0,-1));setCheckFound(null);setCheckMsg('');setPwdMode('');setPwdVerified(false);setPwdInput('');setPwdInput2('');setPwdErr('')}}/></div>}
+          </div>
           <button onClick={doCheck} disabled={checkBusy||!code.trim()} className="w-full py-2.5 rounded-xl bg-white/[0.08] text-gray-300 text-sm font-semibold disabled:opacity-50">{checkBusy?<Spinner size={14}/>:'檢查'}</button>
           {checkMsg&&<p className={`text-xs text-center ${checkFound?'text-emerald-400':'text-amber-400'}`}>{checkMsg}</p>}
         </div>
-        {pwdMode==='verify'&&!pwdVerified&&(<div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-3 space-y-2"><p className="text-xs text-gray-400 text-center">請輸入你原本設定的4位數密碼</p><MiniPinDotsClickable length={pwdInput.length} total={4} active={activeField==='pwd'} onClick={()=>toggleField('pwd')} onClear={()=>{setPwdInput('');setPwdErr('')}}/>{activeField==='pwd'&&<MiniPinKeypad onDigit={d=>{if(pwdInput.length>=4)return;setPwdInput(v=>v+d);setPwdErr('')}} onBackspace={()=>{setPwdInput(v=>v.slice(0,-1));setPwdErr('')}}/>}{pwdErr&&<p className="text-xs text-red-400 text-center">{pwdErr}</p>}<button onClick={doPwdVerify} disabled={pwdBusy||pwdInput.length!==4} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 disabled:bg-white/[0.06] disabled:text-gray-600">{pwdBusy?<Spinner size={14}/>:'登入'}</button></div>)}
+        {pwdMode==='verify'&&!pwdVerified&&(<div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-3 space-y-2"><p className="text-xs text-gray-400 text-center">請輸入你原本設定的4位數密碼</p><div className="relative flex justify-center"><MiniPinDotsClickable length={pwdInput.length} total={4} active={activeField==='pwd'} onClick={()=>toggleField('pwd')} onClear={()=>{setPwdInput('');setPwdErr('')}}/>{activeField==='pwd'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><MiniPinKeypad onDigit={d=>{if(pwdInput.length>=4)return;const next=pwdInput+d;setPwdInput(next);setPwdErr('');if(next.length>=4)setActiveField('')}} onBackspace={()=>{setPwdInput(v=>v.slice(0,-1));setPwdErr('')}}/></div>}</div>{pwdErr&&<p className="text-xs text-red-400 text-center">{pwdErr}</p>}<button onClick={doPwdVerify} disabled={pwdBusy||pwdInput.length!==4} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 disabled:bg-white/[0.06] disabled:text-gray-600">{pwdBusy?<Spinner size={14}/>:'登入'}</button></div>)}
         {pwdMode==='setup'&&!pwdVerified&&(<div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-3 space-y-3">
-          <div className="space-y-1.5"><p className="text-xs text-gray-400 text-center">設定4位數密碼（不可4碼相同或連續遞增/遞減）</p><MiniPinDotsClickable length={pwdInput.length} total={4} active={activeField==='pwd'} onClick={()=>toggleField('pwd')} onClear={pwd1Clear}/>{activeField==='pwd'&&<MiniPinKeypad onDigit={pwd1Digit} onBackspace={pwd1Backspace}/>}</div>
-          <div className="space-y-1.5"><p className="text-xs text-gray-400 text-center">請再輸入一次確認</p><MiniPinDotsClickable length={pwdInput2.length} total={4} active={activeField==='pwd2'} onClick={()=>toggleField('pwd2')} onClear={pwd2Clear}/>{activeField==='pwd2'&&<MiniPinKeypad onDigit={pwd2Digit} onBackspace={pwd2Backspace}/>}</div>
+          <div className="space-y-1.5"><p className="text-xs text-gray-400 text-center">設定4位數密碼（不可4碼相同或連續遞增/遞減）</p><div className="relative flex justify-center"><MiniPinDotsClickable length={pwdInput.length} total={4} active={activeField==='pwd'} onClick={()=>toggleField('pwd')} onClear={pwd1Clear}/>{activeField==='pwd'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><MiniPinKeypad onDigit={pwd1Digit} onBackspace={pwd1Backspace}/></div>}</div></div>
+          <div className="space-y-1.5"><p className="text-xs text-gray-400 text-center">請再輸入一次確認</p><div className="relative flex justify-center"><MiniPinDotsClickable length={pwdInput2.length} total={4} active={activeField==='pwd2'} onClick={()=>toggleField('pwd2')} onClear={pwd2Clear}/>{activeField==='pwd2'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><MiniPinKeypad onDigit={pwd2Digit} onBackspace={pwd2Backspace}/></div>}</div></div>
           {pwdErr&&<p className="text-xs text-red-400 text-center">{pwdErr}</p>}
           <button onClick={confirmPwdSetup} disabled={pwdInput.length!==4||pwdInput2.length!==4} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 disabled:bg-white/[0.06] disabled:text-gray-600">確認設定</button>
         </div>)}
