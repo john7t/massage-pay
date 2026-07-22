@@ -1,4 +1,4 @@
-/* notice-modal.js v1.12-045 — 共用公告詳情彈窗元件(index與公告頁共用)
+/* notice-modal.js v1.12-046 — 共用公告詳情彈窗元件(index與公告頁共用)
    用法:<NoticeDetailModal notice={n} settings={settings} t={t} onClose={()=>...} onMore={()=>...}/>
    依賴 window.MP 的:noticeBody,hasMyKey,markNoticeRead,autoClaimKey,isNoticeRead,getNoticeReadCount,getNoticeReaders,getNoticeShow,isValidPin,lockPwdCred,gasSetInitialPwd,gasVerifyKey,getMyKey,LS
    v1.12-019:密碼關卡通過後,再背景驗證金鑰是否有效(離職時金鑰會被設過期/停用)。金鑰失效→即使密碼對也擋內容,顯示「憑證已失效」;沒有金鑰或網路失敗時不擋(容錯優先,避免誤傷正常老師) */
@@ -53,6 +53,7 @@
     const[setupStep,setSetupStep]=useState(1);
     const[setupPwd,setSetupPwd]=useState('');const[setupPwd1,setSetupPwd1]=useState('');const[setupErr,setSetupErr]=useState('');const[setupBusy,setSetupBusy]=useState(false);
     const[unlockInput,setUnlockInput]=useState('');const[unlockErr,setUnlockErr]=useState('');const[unlockShake,setUnlockShake]=useState(false);
+    const[showForgotPwd,setShowForgotPwd]=useState(false);
     const[nvLang,setNvLang]=useState({zh:!vi,vi:!!vi});
     const[act,setAct]=useState('');
     const[readCount,setReadCount]=useState(()=>{try{return MP.getNoticeReadCount?MP.getNoticeReadCount(notice.id):null}catch(_e){return null}});
@@ -132,8 +133,17 @@
           <div className={unlockShake?'text-red-500':''}><PinDots length={unlockInput.length}/></div>
           {unlockErr&&<p className="text-xs text-red-400 text-center">{unlockErr}</p>}
           <PinKeypad onDigit={pressUnlockDigit} onBackspace={()=>setUnlockInput(v=>v.slice(0,-1))}/>
-          <button onClick={onClose} className="pinGateBody text-xs">✕ 取消</button>
+          <div className="flex items-center gap-4">
+            <button onClick={onClose} className="pinGateBody text-xs">✕ 取消</button>
+            <button onClick={()=>setShowForgotPwd(true)} className="pinGateBody text-xs underline">忘記密碼</button>
+          </div>
         </div>
+        {showForgotPwd&&<ForgotPwdModal settings={getFreshSettings()} onClose={()=>setShowForgotPwd(false)} onSuccess={(newPwd)=>{
+          const updated=Object.assign({},getFreshSettings(),{lockPwd:newPwd});
+          try{if(MP.LS)MP.LS.set('app-settings',updated)}catch(_e){}
+          setUnlockTs(code);
+          setTimeout(()=>{setShowForgotPwd(false);setGate('none')},1000);
+        }}/>}
       </div>);
     }
     if(keyCheck==='invalid'){
