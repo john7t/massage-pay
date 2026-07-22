@@ -2,7 +2,7 @@
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
-g
+
 
 function NoticeBox({t,agreed,setAgreed}){return(<div className="mt-6 space-y-2"><button onClick={()=>setAgreed(!agreed)} className="flex items-center gap-2 w-full text-left"><span className={`w-5 h-5 rounded flex items-center justify-center text-xs flex-shrink-0 ${agreed?'bg-amber-600 text-white':'bg-white/[0.06] border border-white/[0.12] text-transparent'}`}>✓</span><span className="text-[13px] text-gray-300 font-semibold">{t.readConfirm}</span></button><div className="space-y-1.5 text-[11px] text-gray-500 leading-relaxed pl-7"><p>{t.privacyBody}</p><p>{t.browserNote}</p><p>{t.myBookingNote}</p><p className="text-red-400/80">{t.backupReminder}</p></div></div>)}
 
@@ -44,23 +44,23 @@ function Onboarding({onComplete}){
   const goChoice=()=>{clearPending();setMode('choice');setErr('');setFieldErr('');setChecking(false);setTicketStatus('');setCooldown(0);setPwd('');setPwd2('');setForgotPwd('');setForgotPwd2('');setLoginPwdInput('');setActiveField('')};
 
   const onCodeChange=(v)=>{setCode(v.replace(/[^a-zA-Z0-9]/g,''));setCodeCheck(null)};
-  const codeDigit=(d)=>{if(code.length>=3)return;onCodeChange(code+d)};
+  const codeDigit=(d)=>{if(code.length>=3)return;const next=code+d;onCodeChange(next);if(next.length>=3)setActiveField('')};
   const codeBackspace=()=>{onCodeChange(code.slice(0,-1))};
   const codeClear=()=>onCodeChange('');
   // 新老師啟動密碼:點哪個欄位(pwd/pwd2)就對哪個欄位輸入,兩欄同時顯示方便前後比對,不會卡住回不去
-  const pwdDigit=(d)=>{if(pwd.length>=4)return;setPwd(pwd+d);setFieldErr('')};
+  const pwdDigit=(d)=>{if(pwd.length>=4)return;const next=pwd+d;setPwd(next);setFieldErr('');if(next.length>=4)setActiveField('')};
   const pwdBackspace=()=>setPwd(v=>v.slice(0,-1));
   const pwdClear=()=>setPwd('');
-  const pwd2Digit=(d)=>{if(pwd2.length>=4)return;setPwd2(pwd2+d);setFieldErr('')};
+  const pwd2Digit=(d)=>{if(pwd2.length>=4)return;const next=pwd2+d;setPwd2(next);setFieldErr('');if(next.length>=4)setActiveField('')};
   const pwd2Backspace=()=>setPwd2(v=>v.slice(0,-1));
   const pwd2Clear=()=>setPwd2('');
-  const forgotPwdDigit=(d)=>{if(forgotPwd.length>=4)return;setForgotPwd(forgotPwd+d);setFieldErr('')};
+  const forgotPwdDigit=(d)=>{if(forgotPwd.length>=4)return;const next=forgotPwd+d;setForgotPwd(next);setFieldErr('');if(next.length>=4)setActiveField('')};
   const forgotPwdBackspace=()=>setForgotPwd(v=>v.slice(0,-1));
   const forgotPwdClear=()=>setForgotPwd('');
-  const forgotPwd2Digit=(d)=>{if(forgotPwd2.length>=4)return;setForgotPwd2(forgotPwd2+d);setFieldErr('')};
+  const forgotPwd2Digit=(d)=>{if(forgotPwd2.length>=4)return;const next=forgotPwd2+d;setForgotPwd2(next);setFieldErr('');if(next.length>=4)setActiveField('')};
   const forgotPwd2Backspace=()=>setForgotPwd2(v=>v.slice(0,-1));
   const forgotPwd2Clear=()=>setForgotPwd2('');
-  const loginPwdDigit=(d)=>{if(loginPwdInput.length>=4)return;setLoginPwdInput(loginPwdInput+d)};
+  const loginPwdDigit=(d)=>{if(loginPwdInput.length>=4)return;const next=loginPwdInput+d;setLoginPwdInput(next);if(next.length>=4)setActiveField('')};
   const loginPwdBackspace=()=>setLoginPwdInput(v=>v.slice(0,-1));
   const loginPwdClear=()=>setLoginPwdInput('');
   const doCheckCode=async()=>{
@@ -200,8 +200,10 @@ function Onboarding({onComplete}){
 
     {mode==='new'&&(()=>{const locked=codeCheck!=='new';return(<div className="space-y-5">
     <div className="space-y-2"><label className="text-sm text-gray-400 block text-center">{t.teacherCode}</label>
-      <PinDotsClickable length={code.length} total={3} digits={code} active={activeField==='code'} onClick={()=>toggleField('code')} onClear={codeClear}/>
-      {activeField==='code'&&<PinKeypadCompact onDigit={codeDigit} onBackspace={codeBackspace}/>}
+      <div className="relative flex justify-center">
+        <PinDotsClickable length={code.length} total={3} digits={code} active={activeField==='code'} onClick={()=>toggleField('code')} onClear={codeClear}/>
+        {activeField==='code'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><PinKeypadCompact onDigit={codeDigit} onBackspace={codeBackspace}/></div>}
+      </div>
       <button onClick={doCheckCode} disabled={!code.trim()||codeCheck==='checking'||codeCheck==='new'} className={`w-full py-3 rounded-xl text-sm font-bold ${codeCheck==='new'?'bg-emerald-600 text-white':code.trim()?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600'}`}>{codeCheck==='checking'?t.checkingCode:codeCheck==='new'?'✓':t.checkCodeBtn}</button>
       {codeCheck==='new'&&<p className="text-xs text-emerald-500 mt-1.5 text-center">{t.codeAvailHint}</p>}
       {codeCheck==='error'&&<p className="text-xs text-red-400 mt-1.5 text-center">{err}</p>}
@@ -213,12 +215,16 @@ function Onboarding({onComplete}){
     <div className="grid grid-cols-2 gap-2"><div><label className="text-sm text-gray-400 mb-1.5 block">{t.workStart}</label><select value={workStart} onChange={e=>onWorkStartChange(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3.5 text-base text-center text-gray-100 focus:outline-none focus:border-amber-500 appearance-none">{TIME_OPTS.map(o=><option key={o} value={o}>{o}</option>)}</select></div><div><label className="text-sm text-gray-400 mb-1.5 block">{t.workEnd}</label><select value={workEnd} onChange={e=>onWorkEndChange(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3.5 text-base text-center text-gray-100 focus:outline-none focus:border-amber-500 appearance-none">{TIME_OPTS.map(o=><option key={o} value={o}>{o}</option>)}</select></div></div>
     <div className="space-y-3"><label className="text-sm text-gray-400 mb-1.5 block text-center">{t.lockPwdTitle}</label>
       <div className="space-y-1.5"><p className="text-[11px] text-gray-600 text-center">{t.lockPwdHint}</p>
-        <PinDotsClickable length={pwd.length} total={4} active={activeField==='pwd1'} onClick={()=>toggleField('pwd1')} onClear={pwdClear}/>
-        {activeField==='pwd1'&&<PinKeypadCompact onDigit={pwdDigit} onBackspace={pwdBackspace}/>}
+        <div className="relative flex justify-center">
+          <PinDotsClickable length={pwd.length} total={4} active={activeField==='pwd1'} onClick={()=>toggleField('pwd1')} onClear={pwdClear}/>
+          {activeField==='pwd1'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><PinKeypadCompact onDigit={pwdDigit} onBackspace={pwdBackspace}/></div>}
+        </div>
       </div>
       <div className="space-y-1.5"><p className="text-[11px] text-gray-600 text-center">{t.lockPwdConfirm}</p>
-        <PinDotsClickable length={pwd2.length} total={4} active={activeField==='pwd2'} onClick={()=>toggleField('pwd2')} onClear={pwd2Clear}/>
-        {activeField==='pwd2'&&<PinKeypadCompact onDigit={pwd2Digit} onBackspace={pwd2Backspace}/>}
+        <div className="relative flex justify-center">
+          <PinDotsClickable length={pwd2.length} total={4} active={activeField==='pwd2'} onClick={()=>toggleField('pwd2')} onClear={pwd2Clear}/>
+          {activeField==='pwd2'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><PinKeypadCompact onDigit={pwd2Digit} onBackspace={pwd2Backspace}/></div>}
+        </div>
       </div>
       {pwd.length===4&&!pinOk&&<p className="text-xs text-red-400 text-center">{t.lockPwdInvalid}</p>}
       {pwd2.length===4&&pwd!==pwd2&&<p className="text-xs text-red-400 text-center">{t.lockPwdMismatch}</p>}
@@ -237,8 +243,8 @@ function Onboarding({onComplete}){
     {mode==='login'&&(<div className="space-y-4">
       <p className="text-sm text-amber-400 text-center font-medium">{codeCheck==='exists'?t.codeExistsHint:t.pwdLoginHint}</p>
       {loginNotice&&<p className="text-sm text-emerald-500 text-center font-semibold">✓ {loginNotice}</p>}
-      <div className="space-y-2"><label className="text-sm text-gray-400 block text-center">{t.teacherCode}</label><PinDotsClickable length={code.length} total={3} digits={code} active={activeField==='code'} onClick={()=>toggleField('code')} onClear={()=>{codeClear();setLoginNotice('')}}/>{activeField==='code'&&<PinKeypadCompact onDigit={codeDigit} onBackspace={()=>{codeBackspace();setLoginNotice('')}}/>}</div>
-      <div className="space-y-2"><label className="text-sm text-gray-400 block text-center">{t.pwdInputPh}</label><PinDotsClickable length={loginPwdInput.length} total={4} active={activeField==='loginPwd'} onClick={()=>toggleField('loginPwd')} onClear={loginPwdClear}/>{activeField==='loginPwd'&&<PinKeypadCompact onDigit={loginPwdDigit} onBackspace={loginPwdBackspace}/>}</div>
+      <div className="space-y-2"><label className="text-sm text-gray-400 block text-center">{t.teacherCode}</label><div className="relative flex justify-center"><PinDotsClickable length={code.length} total={3} digits={code} active={activeField==='code'} onClick={()=>toggleField('code')} onClear={()=>{codeClear();setLoginNotice('')}}/>{activeField==='code'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><PinKeypadCompact onDigit={codeDigit} onBackspace={()=>{codeBackspace();setLoginNotice('')}}/></div>}</div></div>
+      <div className="space-y-2"><label className="text-sm text-gray-400 block text-center">{t.pwdInputPh}</label><div className="relative flex justify-center"><PinDotsClickable length={loginPwdInput.length} total={4} active={activeField==='loginPwd'} onClick={()=>toggleField('loginPwd')} onClear={loginPwdClear}/>{activeField==='loginPwd'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><PinKeypadCompact onDigit={loginPwdDigit} onBackspace={loginPwdBackspace}/></div>}</div></div>
       {err&&<p className="text-red-400 text-sm text-center fi">{err}</p>}
       <button onClick={doLogin} disabled={checking||!code.trim()||loginPwdInput.length!==4} className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${!checking&&code.trim()&&loginPwdInput.length===4?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{checking?t.adminWelcome:t.pwdLoginBtn}</button>
       <button onClick={()=>{setMode('forgot');setErr('');setFieldErr('')}} className="w-full text-center text-xs text-gray-500 underline">{t.forgotPwdLink}</button>
@@ -247,15 +253,19 @@ function Onboarding({onComplete}){
 
     {mode==='forgot'&&(<div className="space-y-4">
       <p className="text-sm text-amber-400 text-center font-medium">{t.forgotPwdHint}</p>
-      <div className="space-y-2"><label className="text-sm text-gray-400 block text-center">{t.teacherCode}</label><PinDotsClickable length={code.length} total={3} digits={code} active={activeField==='code'} onClick={()=>toggleField('code')} onClear={codeClear}/>{activeField==='code'&&<PinKeypadCompact onDigit={codeDigit} onBackspace={codeBackspace}/>}</div>
+      <div className="space-y-2"><label className="text-sm text-gray-400 block text-center">{t.teacherCode}</label><div className="relative flex justify-center"><PinDotsClickable length={code.length} total={3} digits={code} active={activeField==='code'} onClick={()=>toggleField('code')} onClear={codeClear}/>{activeField==='code'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><PinKeypadCompact onDigit={codeDigit} onBackspace={codeBackspace}/></div>}</div></div>
       <div className="space-y-3"><label className="text-sm text-gray-400 mb-1.5 block text-center">{t.newPwdTitle}</label>
         <div className="space-y-1.5"><p className="text-[11px] text-gray-600 text-center">{t.newPwdHint}</p>
-          <PinDotsClickable length={forgotPwd.length} total={4} active={activeField==='forgotPwd1'} onClick={()=>toggleField('forgotPwd1')} onClear={forgotPwdClear}/>
-          {activeField==='forgotPwd1'&&<PinKeypadCompact onDigit={forgotPwdDigit} onBackspace={forgotPwdBackspace}/>}
+          <div className="relative flex justify-center">
+            <PinDotsClickable length={forgotPwd.length} total={4} active={activeField==='forgotPwd1'} onClick={()=>toggleField('forgotPwd1')} onClear={forgotPwdClear}/>
+            {activeField==='forgotPwd1'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><PinKeypadCompact onDigit={forgotPwdDigit} onBackspace={forgotPwdBackspace}/></div>}
+          </div>
         </div>
         <div className="space-y-1.5"><p className="text-[11px] text-gray-600 text-center">{t.lockPwdConfirm}</p>
-          <PinDotsClickable length={forgotPwd2.length} total={4} active={activeField==='forgotPwd2'} onClick={()=>toggleField('forgotPwd2')} onClear={forgotPwd2Clear}/>
-          {activeField==='forgotPwd2'&&<PinKeypadCompact onDigit={forgotPwd2Digit} onBackspace={forgotPwd2Backspace}/>}
+          <div className="relative flex justify-center">
+            <PinDotsClickable length={forgotPwd2.length} total={4} active={activeField==='forgotPwd2'} onClick={()=>toggleField('forgotPwd2')} onClear={forgotPwd2Clear}/>
+            {activeField==='forgotPwd2'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><PinKeypadCompact onDigit={forgotPwd2Digit} onBackspace={forgotPwd2Backspace}/></div>}
+          </div>
         </div>
         {forgotPwd.length===4&&!forgotPinOk&&<p className="text-xs text-red-400 text-center">{t.lockPwdInvalid}</p>}
         {forgotPwd2.length===4&&forgotPwd!==forgotPwd2&&<p className="text-xs text-red-400 text-center">{t.lockPwdMismatch}</p>}
@@ -338,6 +348,7 @@ function PinDotsClickable({length,total,digits,active,onClick,onClear}){
   </div>);
 }
 
+
 // 忘記密碼:鎖屏畫面點了跳出來,直接設新密碼,不用先驗證舊密碼
 function ForgotPwdModal({settings,onClose,onSuccess}){
   const[pwd1,setPwd1]=useState('');const[pwd2,setPwd2]=useState('');
@@ -358,12 +369,16 @@ function ForgotPwdModal({settings,onClose,onSuccess}){
     <div className="bg-gray-900 border border-white/[0.08] rounded-2xl p-5 w-full max-w-xs space-y-3" onClick={e=>e.stopPropagation()}>
       <p className="text-sm font-bold text-gray-100 text-center">忘記密碼</p>
       <div className="space-y-1.5"><p className="text-xs text-gray-400 text-center">設定新密碼（不可4碼相同或連續遞增/遞減）</p>
-        <PinDotsClickable length={pwd1.length} total={4} active={activeField==='p1'} onClick={()=>setActiveField(f=>f==='p1'?'':'p1')} onClear={()=>setPwd1('')}/>
-        {activeField==='p1'&&<PinKeypadCompact onDigit={d=>{if(pwd1.length>=4)return;setPwd1(pwd1+d)}} onBackspace={()=>setPwd1(v=>v.slice(0,-1))}/>}
+        <div className="relative flex justify-center">
+          <PinDotsClickable length={pwd1.length} total={4} active={activeField==='p1'} onClick={()=>setActiveField(f=>f==='p1'?'':'p1')} onClear={()=>setPwd1('')}/>
+          {activeField==='p1'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><PinKeypadCompact onDigit={d=>{if(pwd1.length>=4)return;const next=pwd1+d;setPwd1(next);if(next.length>=4)setActiveField('')}} onBackspace={()=>setPwd1(v=>v.slice(0,-1))}/></div>}
+        </div>
       </div>
       <div className="space-y-1.5"><p className="text-xs text-gray-400 text-center">再輸入一次確認</p>
-        <PinDotsClickable length={pwd2.length} total={4} active={activeField==='p2'} onClick={()=>setActiveField(f=>f==='p2'?'':'p2')} onClear={()=>setPwd2('')}/>
-        {activeField==='p2'&&<PinKeypadCompact onDigit={d=>{if(pwd2.length>=4)return;setPwd2(pwd2+d)}} onBackspace={()=>setPwd2(v=>v.slice(0,-1))}/>}
+        <div className="relative flex justify-center">
+          <PinDotsClickable length={pwd2.length} total={4} active={activeField==='p2'} onClick={()=>setActiveField(f=>f==='p2'?'':'p2')} onClear={()=>setPwd2('')}/>
+          {activeField==='p2'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><PinKeypadCompact onDigit={d=>{if(pwd2.length>=4)return;const next=pwd2+d;setPwd2(next);if(next.length>=4)setActiveField('')}} onBackspace={()=>setPwd2(v=>v.slice(0,-1))}/></div>}
+        </div>
       </div>
       {pwd1.length===4&&!pwdOk&&<p className="text-xs text-red-400 text-center">密碼不可4碼相同或連續遞增/遞減</p>}
       {pwd2.length===4&&pwd1!==pwd2&&<p className="text-xs text-red-400 text-center">兩次輸入不一致</p>}
