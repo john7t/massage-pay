@@ -1,4 +1,4 @@
-// app-core.js v1.0-004 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.0-007 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
@@ -349,49 +349,7 @@ function PinDotsClickable({length,total,digits,active,onClick,onClear}){
 }
 
 
-// 忘記密碼:鎖屏畫面點了跳出來,直接設新密碼,不用先驗證舊密碼
-function ForgotPwdModal({settings,onClose,onSuccess}){
-  const[pwd1,setPwd1]=useState('');const[pwd2,setPwd2]=useState('');
-  const[activeField,setActiveField]=useState('');
-  const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');
-  const pwdOk=isValidPin(pwd1);
-  const doReset=async()=>{
-    if(!pwdOk||pwd1!==pwd2)return;
-    setBusy(true);setMsg('');
-    try{
-      const r=await gasResetLockPwd(settings.code,lockPwdCred(settings.code,pwd1));
-      if(r&&r.ok){onSuccess(pwd1);setMsg('✓ 密碼已更新')}
-      else{setMsg((r&&r.error)||'更新失敗')}
-    }catch(e){setMsg(String(e))}
-    setBusy(false);
-  };
-  return(<div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
-    <div className="bg-gray-900 border border-white/[0.08] rounded-2xl p-5 w-full max-w-xs space-y-3" onClick={e=>e.stopPropagation()}>
-      <p className="text-sm font-bold text-gray-100 text-center">忘記密碼</p>
-      <div className="space-y-1.5"><p className="text-xs text-gray-400 text-center">設定新密碼（不可4碼相同或連續遞增/遞減）</p>
-        <div className="relative flex justify-center">
-          <PinDotsClickable length={pwd1.length} total={4} active={activeField==='p1'} onClick={()=>setActiveField(f=>f==='p1'?'':'p1')} onClear={()=>setPwd1('')}/>
-          {activeField==='p1'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-900 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><PinKeypadCompact onDigit={d=>{if(pwd1.length>=4)return;const next=pwd1+d;setPwd1(next);if(next.length>=4)setActiveField('')}} onBackspace={()=>setPwd1(v=>v.slice(0,-1))}/></div>}
-        </div>
-      </div>
-      <div className="space-y-1.5"><p className="text-xs text-gray-400 text-center">再輸入一次確認</p>
-        <div className="relative flex justify-center">
-          <PinDotsClickable length={pwd2.length} total={4} active={activeField==='p2'} onClick={()=>setActiveField(f=>f==='p2'?'':'p2')} onClear={()=>setPwd2('')}/>
-          {activeField==='p2'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-900 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><PinKeypadCompact onDigit={d=>{if(pwd2.length>=4)return;const next=pwd2+d;setPwd2(next);if(next.length>=4)setActiveField('')}} onBackspace={()=>setPwd2(v=>v.slice(0,-1))}/></div>}
-        </div>
-      </div>
-      {pwd1.length===4&&!pwdOk&&<p className="text-xs text-red-400 text-center">密碼不可4碼相同或連續遞增/遞減</p>}
-      {pwd2.length===4&&pwd1!==pwd2&&<p className="text-xs text-red-400 text-center">兩次輸入不一致</p>}
-      {msg&&<p className={`text-xs text-center ${msg.startsWith('✓')?'text-emerald-400':'text-red-400'}`}>{msg}</p>}
-      <div className="flex gap-2">
-        <button onClick={onClose} className="flex-1 py-2.5 rounded-xl bg-white/[0.06] text-gray-400 text-sm">關閉</button>
-        <button onClick={doReset} disabled={busy||!pwdOk||pwd1!==pwd2} className="flex-1 py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 disabled:bg-white/[0.06] disabled:text-gray-600">{busy?'處理中…':'確認更新'}</button>
-      </div>
-    </div>
-  </div>);
-}
-
-function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
+function InfoEditModal({type,settings,t,onClose,onUpdateSettings,onLogout}){
   const code=settings.code;
   const actionCode=type==='basic'?'B':'S';
   const fieldKeys=type==='basic'?BASIC_FIELD_KEYS:STORE_FIELD_KEYS;
@@ -595,12 +553,19 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings}){
           <button onClick={()=>setShowForgotPwd(true)} className="pinGateBody text-xs underline">忘記密碼</button>
         </div>
       </div>
-      {showForgotPwd&&<ForgotPwdModal settings={settings} onClose={()=>setShowForgotPwd(false)} onSuccess={(newPwd)=>{
-        const updated={...settings,lockPwd:newPwd};
-        if(onUpdateSettings)onUpdateSettings(updated);
-        try{LS.set('app-settings',updated)}catch(_e){}
-        setTimeout(()=>{setShowForgotPwd(false);setGate('none')},1000);
-      }}/>}
+      {showForgotPwd&&(<div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4" onClick={()=>setShowForgotPwd(false)}>
+        <div className="bg-gray-900 border border-white/[0.08] rounded-2xl p-5 w-full max-w-xs space-y-3 text-center" onClick={e=>e.stopPropagation()}>
+          <p className="text-2xl">🔒</p>
+          <p className="text-sm font-bold text-gray-100">鎖屏密碼不能直接重設</p>
+          <p className="text-xs text-gray-400 leading-relaxed">鎖屏是為了防止非本人（例如撿到手機、已離職員工）看到公司資料，所以不能自助更改，需要透過登入密碼的忘記密碼流程，送交主管審核後才能重設。</p>
+          <p className="text-xs text-amber-400 leading-relaxed">請先登出，登入畫面就有忘記密碼功能</p>
+          <p className="text-[11px] text-gray-500 leading-relaxed">登出不會刪除本機資料（月報表、客戶資料都還在），但保險起見，建議登出前先到「系統設定」做一次資料備份</p>
+          <div className="flex gap-2 pt-1">
+            <button onClick={()=>setShowForgotPwd(false)} className="flex-1 py-2.5 rounded-xl bg-white/[0.06] text-gray-400 text-sm">取消</button>
+            <button onClick={()=>{if(onLogout)onLogout()}} className="flex-1 py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold">前往登出</button>
+          </div>
+        </div>
+      </div>)}
     </div>);
   }
 
@@ -1035,13 +1000,14 @@ function SupervisorSection(){
   </div>);
 }
 
-function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,onGotoChart,onGotoSuggest,onGotoViolation,onGotoBackup,onGotoManage,onGotoMonthly,onGotoCustomers,onGotoSettings,settingsAlert,onUpdateSettings}){
+function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,onGotoChart,onGotoSuggest,onGotoViolation,onGotoBackup,onGotoManage,onGotoMonthly,onGotoCustomers,onGotoSettings,settingsAlert,onUpdateSettings,onLogout}){
   const now=bizDate();const bp=bizParts();const ty=settings.year||bp.y,tm=bp.m,td=bp.d;
   const[data,setData]=useState(null);const[prev,setPrev]=useState(null);const[otherMode,setOtherMode]=useState(false);const[otherVal,setOtherVal]=useState('');const[editPrev,setEditPrev]=useState(false);const[editToday,setEditToday]=useState(false);
   const[showStoreInfo,setShowStoreInfo]=useState(false);const[showBasicInfo,setShowBasicInfo]=useState(false);
   const[showGroupBuy,setShowGroupBuy]=useState(false);const[showDisasterReport,setShowDisasterReport]=useState(false);const[showLineQr,setShowLineQr]=useState(false);
   const[dailyQueue,setDailyQueue]=useState([]);const[gbPromptData,setGbPromptData]=useState(null);
   const[pwdInput,setPwdInput]=useState('');const[pwdErr,setPwdErr]=useState('');
+  const[showDailyForgotPwd,setShowDailyForgotPwd]=useState(false);
   const advanceQueue=()=>setDailyQueue(q=>q.slice(1));
   useEffect(()=>{
     if(!settings.code)return;
@@ -1126,6 +1092,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
   };
   const todayData=data?.days?.[td]||eDay();const hasToday=todayData.total>0||todayData.status>0||(todayData.skills&&Object.values(todayData.skills).some(v=>v>0));const sal=calcSal(todayData,settings.unitPrice,settings.skills);
   const addUnits=(n)=>{const md=data?JSON.parse(JSON.stringify(data)):eMon();const dd=md.days[td]||eDay();if(!dd.slips)dd.slips=[];dd.slips=[...dd.slips,newSlip(n)];dd.groups=[];dd.total=slipUnitsTotal(dd.slips);dd.laodian=slipLaodianTotal(dd.slips);stamp(dd);md.days[td]=dd;setData({...md});LS.set(dk(settings.code,ty,tm),md);setOtherMode(false);setOtherVal('')};
+  const delSlipHome=(slipId)=>{const md=JSON.parse(JSON.stringify(data));const dd=md.days[td];dd.slips=(dd.slips||[]).filter(s=>s.id!==slipId);dd.total=slipUnitsTotal(dd.slips);dd.laodian=slipLaodianTotal(dd.slips);stamp(dd);md.days[td]=dd;setData({...md});LS.set(dk(settings.code,ty,tm),md)};
   const addLaodian=(n)=>{const md=data?JSON.parse(JSON.stringify(data)):eMon();const dd=md.days[td]||eDay();dd.laodian+=n;stamp(dd);md.days[td]=dd;setData({...md});LS.set(dk(settings.code,ty,tm),md)};
   const setTodayStatus=(s)=>{const md=data?JSON.parse(JSON.stringify(data)):eMon();const dd=md.days[td]||eDay();dd.status=s;if(!canWork[s]){dd.total=0;dd.laodian=0;dd.groups=[];dd.skills={guasha:0,baguang:0,xiujiao:0}}stamp(dd);md.days[td]=dd;setData({...md});LS.set(dk(settings.code,ty,tm),md)};
   const addSkill=(key)=>{const md=data?JSON.parse(JSON.stringify(data)):eMon();const dd=md.days[td]||eDay();if(!dd.skills)dd.skills={guasha:0,baguang:0,xiujiao:0};dd.skills[key]=(dd.skills[key]||0)+1;stamp(dd);md.days[td]=dd;setData({...md});LS.set(dk(settings.code,ty,tm),md)};
@@ -1137,8 +1104,8 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
       <div onClick={()=>setShowStoreInfo(true)} className="flex items-baseline gap-1.5 active:opacity-70 cursor-pointer"><span className="text-base font-bold text-gray-100">雲心閣</span><span className="text-xs text-gray-500">養生會館</span><span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-600 text-white font-bold border border-red-400">24h</span></div>
       <button onClick={()=>setShowBasicInfo(true)} className="text-sm text-gray-500 font-mono active:text-gray-300 px-2 py-1 -mr-1">#{settings.code}</button>
     </div>
-    {showStoreInfo&&<InfoEditModal type="store" settings={settings} t={t} onClose={()=>setShowStoreInfo(false)} onUpdateSettings={onUpdateSettings}/>}
-    {showBasicInfo&&<InfoEditModal type="basic" settings={settings} t={t} onClose={()=>setShowBasicInfo(false)} onUpdateSettings={onUpdateSettings}/>}
+    {showStoreInfo&&<InfoEditModal type="store" settings={settings} t={t} onClose={()=>setShowStoreInfo(false)} onUpdateSettings={onUpdateSettings} onLogout={onLogout}/>}
+    {showBasicInfo&&<InfoEditModal type="basic" settings={settings} t={t} onClose={()=>setShowBasicInfo(false)} onUpdateSettings={onUpdateSettings} onLogout={onLogout}/>}
     {latestNotices.length>0&&(<div className="mb-4"><div className="flex items-center justify-between mb-2 px-1"><span className="text-xs font-semibold text-amber-400">📢 {t.latestNotices||'最新公告'}</span>{onGotoNotices&&<button onClick={()=>onGotoNotices()} className="text-[11px] text-gray-500 active:text-gray-300">{t.viewAll||'看全部'} ›</button>}</div><div className="space-y-1.5">{latestNotices.map(n=>(<div key={n.id} onClick={()=>openNotice(n)} className="bg-white/[0.03] border border-white/[0.05] rounded-xl px-3 py-2.5 active:bg-white/[0.06] cursor-pointer"><div className="flex items-center justify-between gap-2"><p className="text-sm text-gray-200 font-medium truncate flex-1">{typeof noticeSummary==='function'?noticeSummary(n,settings.lang):(n.summary||n.title||'')}</p><span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${isAllStore(n)?'bg-red-500 text-white':'bg-amber-500 text-white'}`}>{isAllStore(n)?(t.allStore||'全店公告'):(t.oneStore||'單店公告')}</span></div><div className="flex items-center justify-between gap-2 mt-1"><span className="text-[10px] text-gray-500 truncate">👤 {n.author||''} · {n.date}</span><span className={`text-[11px] flex-shrink-0 ${isNoticeRead(n.id)?'text-emerald-500':'text-gray-500'}`}>{isNoticeRead(n.id)?('👍 '+(t.noticeReadMark||'已讀')):'○'}</span></div></div>))}</div></div>)}
     {prev&&(<div onClick={()=>setEditPrev(true)} className="bg-white/[0.03] border border-white/[0.05] rounded-2xl p-4 mb-4 active:bg-white/[0.06] cursor-pointer"><div className="flex items-center justify-between"><div><span className="text-lg font-bold text-gray-400">{prev.month}/{prev.day}</span><span className="text-sm text-gray-600 ml-1">({t.dn[prevDow]})</span></div><div className="text-right">{canWork[prev.status||0]?(<span className="text-xl font-bold text-gray-400 tabular-nums">${calcSal(prev,settings.unitPrice,settings.skills).toLocaleString()}</span>):(<span className={`text-sm px-2 py-0.5 rounded-full ${SBG[prev.status]} ${STC[prev.status]}`}>{t[SK[prev.status]]}</span>)}</div></div>{canWork[prev.status||0]&&(<div className="flex items-center justify-between mt-0.5"><span className="text-xs text-gray-600">{prev.total}{t.units}{prev.laodian>0?` · ${prev.laodian}${t.laodian}`:''}</span><svg className="w-3.5 h-3.5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg></div>)}</div>)}
     <div onClick={()=>setEditToday(true)} className="bg-emerald-500/10 border border-emerald-500/25 rounded-2xl p-4 mb-4 active:bg-emerald-500/15 cursor-pointer"><div className="flex items-center justify-between"><div className="flex items-center gap-2"><span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${(canWork[todayData.status||0]&&todayData.total>0)?'led-green':'led-gray'}`}/><span className="text-lg font-bold text-gray-100">{tm}/{td}</span><span className="text-sm text-gray-500 ml-0.5">({t.dn[now.getDay()]})</span></div><div className="text-right">{canWork[todayData.status||0]?(<span className="text-xl font-bold text-emerald-400 tabular-nums">${sal.toLocaleString()}</span>):(<span className={`text-sm px-2 py-0.5 rounded-full ${SBG[todayData.status]} ${STC[todayData.status]}`}>{t[SK[todayData.status]]}</span>)}</div></div>{canWork[todayData.status||0]&&(<div className="flex items-center justify-between mt-0.5"><span className="text-xs text-gray-500">{todayData.total}{t.units}{todayData.laodian>0?` · ${todayData.laodian}${t.laodian}`:''}</span><svg className={`w-3.5 h-3.5 ${todayData.total>0?'text-red-500 arrow-blink':'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg></div>)}</div>
@@ -1146,7 +1113,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
     <div className="mb-6"><p className="text-sm text-gray-400 mb-3">{hasToday?t.continueAdd:t.startAdd}</p><div className="grid grid-cols-5 gap-2">{[1,2,3].map(n=>(<button key={n} onClick={()=>addUnits(n)} className="py-4 rounded-xl bg-amber-600/15 border border-amber-600/20 text-amber-300 text-lg font-bold active:bg-amber-600/30 transition-all">+{n}</button>))}{!otherMode?(<button onClick={()=>setOtherMode(true)} className="col-span-2 py-4 rounded-xl bg-white/[0.04] border border-white/[0.06] text-gray-500 text-sm font-medium active:bg-white/[0.08]">{t.other}</button>):(<><input type="number" inputMode="numeric" value={otherVal} onChange={e=>setOtherVal(e.target.value)} autoFocus className="bg-white/[0.06] border border-amber-500/50 rounded-xl px-1 py-2 text-center text-lg text-gray-100 font-bold focus:outline-none" placeholder="?"/><button onClick={()=>{const v=parseInt(otherVal);if(v>0)addUnits(v)}} className="rounded-xl bg-amber-600 text-white font-bold">OK</button></>)}</div></div>
     {false&&<div className="mb-6"><p className="text-sm text-gray-400 mb-3">{t.addLaodian}</p><div className="grid grid-cols-6 gap-2">{[1,2,3,4,5,6].map(n=>(<button key={n} onClick={()=>addLaodian(n)} className="py-3.5 rounded-xl bg-orange-500/10 border border-orange-500/15 text-orange-400 font-bold active:bg-orange-500/25 transition-all">+{n}</button>))}</div></div>}
     {SKILL_KEYS.some(k=>settings.skills?.[k])&&(<div className="mb-6"><p className="text-sm text-gray-400 mb-3">{t.skills}</p><div className="grid grid-cols-3 gap-2">{SKILL_KEYS.map((k,i)=>settings.skills?.[k]?(<button key={k} onClick={()=>addSkill(k)} className="py-3 rounded-xl bg-white/[0.04] border border-white/[0.06] active:bg-white/[0.08] transition-all text-center"><div className={`text-sm font-bold ${SKILL_COLORS[i]}`}>{t[SKILL_SHORT[i]]}{(todayData.skills?.[k]||0)>0?` ×${todayData.skills[k]}`:''}</div><div className="text-[10px] text-gray-600">{t[k]} ${SKILL_PRICES[i]}</div></button>):null)}</div></div>)}
-    {/* 今日流水列表已移除,改由點今日標題開編輯器 */}
+    {(todayData.slips||[]).length>0&&(<div className="mb-6"><p className="text-sm text-gray-400 mb-3">{t.slipList}（{todayData.slips.length}）</p><div className="space-y-1.5">{todayData.slips.map(s=>(<div key={s.id} className="flex items-center gap-2 bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2"><span className="text-sm font-bold text-amber-300 tabular-nums whitespace-nowrap">{s.units}{t===T.zh?'支':''} {slipSvcLabel(s,t===T.zh?"zh":"vi")}</span>{(s.laodian||0)>0&&<span className="text-xs font-semibold text-orange-400 whitespace-nowrap">{t.laodian}:{s.laodian}</span>}<span className="text-xs text-gray-500 tabular-nums ml-auto whitespace-nowrap">{(()=>{const d=new Date(s.startAt||s.createdAt);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')})()}</span><button onClick={()=>delSlipHome(s.id)} className="text-gray-600 text-xs px-1 flex-shrink-0">✕</button></div>))}</div></div>)}
     <div><p className="text-sm text-gray-400 mb-3">{t.status}</p><div className="grid grid-cols-3 gap-2">{[0,3,4,1,2,5].map(s=>(<button key={s} onClick={()=>setTodayStatus(s)} className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${todayData.status===s?(s===0?'bg-gray-600 text-white ring-2 ring-gray-500':`${SBG[s].replace('/20','/30')} ${STC[s]} ring-2 ring-current`):'bg-white/[0.04] text-gray-600'}`}>{t[SK[s]]}</button>))}</div></div>
     <div className="grid grid-cols-4 gap-y-3 mt-3">
       <button onClick={()=>onGotoMonthly&&onGotoMonthly()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="4" width="18" height="17" rx="2"/><path strokeWidth={1.8} d="M3 9h18M8 2v4M16 2v4"/></svg></span><span className="text-[10px] text-gray-500">{t.monthly}</span></button>
@@ -1181,6 +1148,20 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
       <div className={pwdShake?'text-red-500':''}><PinDots length={pwdInput.length}/></div>
       {pwdErr&&<p className="text-xs text-red-400 text-center">{pwdErr}</p>}
       <PinKeypad onDigit={pressPwdDigit} onBackspace={()=>setPwdInput(v=>v.slice(0,-1))}/>
+      <button onClick={()=>setShowDailyForgotPwd(true)} className="pinGateBody text-xs underline">忘記密碼</button>
+      {showDailyForgotPwd&&(<div className="fixed inset-0 z-[80] bg-black/60 flex items-center justify-center p-4" onClick={()=>setShowDailyForgotPwd(false)}>
+        <div className="bg-gray-900 border border-white/[0.08] rounded-2xl p-5 w-full max-w-xs space-y-3 text-center" onClick={e=>e.stopPropagation()}>
+          <p className="text-2xl">🔒</p>
+          <p className="text-sm font-bold text-gray-100">鎖屏密碼不能直接重設</p>
+          <p className="text-xs text-gray-400 leading-relaxed">鎖屏是為了防止非本人（例如撿到手機、已離職員工）看到公司資料，所以不能自助更改，需要透過登入密碼的忘記密碼流程，送交主管審核後才能重設。</p>
+          <p className="text-xs text-amber-400 leading-relaxed">請先登出，登入畫面就有忘記密碼功能</p>
+          <p className="text-[11px] text-gray-500 leading-relaxed">登出不會刪除本機資料（月報表、客戶資料都還在），但保險起見，建議登出前先到「系統設定」做一次資料備份</p>
+          <div className="flex gap-2 pt-1">
+            <button onClick={()=>setShowDailyForgotPwd(false)} className="flex-1 py-2.5 rounded-xl bg-white/[0.06] text-gray-400 text-sm">取消</button>
+            <button onClick={()=>{if(onLogout)onLogout()}} className="flex-1 py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold">前往登出</button>
+          </div>
+        </div>
+      </div>)}
     </div>)}
     {dailyQueue[0]==='groupbuy'&&gbPromptData&&(<div className="fixed inset-0 z-[70] bg-black/80 flex items-end sm:items-center justify-center"><div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl" onClick={e=>e.stopPropagation()}>
       <div className="p-4 border-b border-white/[0.06]"><h3 className="text-base font-bold text-gray-100">{t.groupBuyPopupTitle}</h3></div>
@@ -1192,7 +1173,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
     </div></div>)}
     {editPrev&&prev&&(<DayEditor day={{groups:prev.groups||[],total:prev.total,laodian:prev.laodian,status:prev.status,skills:prev.skills||{},slips:prev.slips||[]}} d={prev.day} y={prev.year} m={prev.month} t={t} up={settings.unitPrice} sk={settings.skills} code={settings.code} onSave={savePrevDay} onCancel={()=>setEditPrev(false)}/>)}
     {editToday&&(<DayEditor day={{groups:todayData.groups||[],total:todayData.total,laodian:todayData.laodian,status:todayData.status,skills:todayData.skills||{},slips:todayData.slips||[]}} d={td} y={ty} m={tm} t={t} up={settings.unitPrice} sk={settings.skills} code={settings.code} onSave={saveTodayDay} onCancel={()=>setEditToday(false)}/>)}
-    {noticeView&&window.NoticeDetailModal&&(()=>{const NDM=window.NoticeDetailModal;return <NDM notice={noticeView} settings={settings} t={t} onClose={()=>setNoticeView(null)} onMore={()=>{setNoticeView(null);if(onGotoNotices)onGotoNotices()}}/>;})()}
+    {noticeView&&window.NoticeDetailModal&&(()=>{const NDM=window.NoticeDetailModal;return <NDM notice={noticeView} settings={settings} t={t} onClose={()=>setNoticeView(null)} onMore={()=>{setNoticeView(null);if(onGotoNotices)onGotoNotices()}} onLogout={onLogout}/>;})()}
   </div>)}
 
 /* ══════════ Shared components ══════════ */
