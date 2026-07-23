@@ -1,4 +1,4 @@
-/* notice-modal.js v1.12-046 — 共用公告詳情彈窗元件(index與公告頁共用)
+/* notice-modal.js v1.12-047 — 共用公告詳情彈窗元件(index與公告頁共用)
    用法:<NoticeDetailModal notice={n} settings={settings} t={t} onClose={()=>...} onMore={()=>...}/>
    依賴 window.MP 的:noticeBody,hasMyKey,markNoticeRead,autoClaimKey,isNoticeRead,getNoticeReadCount,getNoticeReaders,getNoticeShow,isValidPin,lockPwdCred,gasSetInitialPwd,gasVerifyKey,getMyKey,LS
    v1.12-019:密碼關卡通過後,再背景驗證金鑰是否有效(離職時金鑰會被設過期/停用)。金鑰失效→即使密碼對也擋內容,顯示「憑證已失效」;沒有金鑰或網路失敗時不擋(容錯優先,避免誤傷正常老師) */
@@ -36,7 +36,7 @@
   function setCachedKeyCheck(code,result){
     try{const today=new Date().toISOString().slice(0,10);localStorage.setItem('key-check-date-'+code,today);localStorage.setItem('key-check-result-'+code,result);}catch(_e){}
   }
-  function NoticeDetailModal({notice,settings,t,onClose,onMore,skipGate}){
+  function NoticeDetailModal({notice,settings,t,onClose,onMore,skipGate,onLogout}){
     const code=settings&&settings.code;
     const vi=settings&&settings.lang==='vi';
     const getFreshSettings=()=>{try{return(MP.LS&&MP.LS.get('app-settings'))||settings||{}}catch(_e){return settings||{}}};
@@ -138,12 +138,19 @@
             <button onClick={()=>setShowForgotPwd(true)} className="pinGateBody text-xs underline">忘記密碼</button>
           </div>
         </div>
-        {showForgotPwd&&<ForgotPwdModal settings={getFreshSettings()} onClose={()=>setShowForgotPwd(false)} onSuccess={(newPwd)=>{
-          const updated=Object.assign({},getFreshSettings(),{lockPwd:newPwd});
-          try{if(MP.LS)MP.LS.set('app-settings',updated)}catch(_e){}
-          setUnlockTs(code);
-          setTimeout(()=>{setShowForgotPwd(false);setGate('none')},1000);
-        }}/>}
+        {showForgotPwd&&(<div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4" onClick={()=>setShowForgotPwd(false)}>
+          <div className="bg-gray-900 border border-white/[0.08] rounded-2xl p-5 w-full max-w-xs space-y-3 text-center" onClick={e=>e.stopPropagation()}>
+            <p className="text-2xl">🔒</p>
+            <p className="text-sm font-bold text-gray-100">鎖屏密碼不能直接重設</p>
+            <p className="text-xs text-gray-400 leading-relaxed">鎖屏是為了防止非本人（例如撿到手機、已離職員工）看到公司資料，所以不能自助更改，需要透過登入密碼的忘記密碼流程，送交主管審核後才能重設。</p>
+            <p className="text-xs text-amber-400 leading-relaxed">請先登出，登入畫面就有忘記密碼功能</p>
+            <p className="text-[11px] text-gray-500 leading-relaxed">登出不會刪除本機資料（月報表、客戶資料都還在），但保險起見，建議登出前先到「系統設定」做一次資料備份</p>
+            <div className="flex gap-2 pt-1">
+              <button onClick={()=>setShowForgotPwd(false)} className="flex-1 py-2.5 rounded-xl bg-white/[0.06] text-gray-400 text-sm">取消</button>
+              <button onClick={()=>{if(onLogout)onLogout()}} className="flex-1 py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold">前往登出</button>
+            </div>
+          </div>
+        </div>)}
       </div>);
     }
     if(keyCheck==='invalid'){
