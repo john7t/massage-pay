@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>櫃台差勤 v1.0-015</title>
+<title>櫃台差勤 v1.0-019</title>
 <meta property="og:title" content="櫃台差勤管理">
 <meta property="og:description" content="排休、請假、特休管理">
 <meta property="og:type" content="website">
@@ -91,6 +91,7 @@ async function fdSubmitHandover(staffId,date,text){return gasCallPost('fdSubmitH
 async function fdListHandover(date){return gasCall('fdListHandover',{date});}
 async function fdDayLeaves(date){return gasCall('fdDayLeaves',{date});}
 async function fdListActiveStaff(){return gasCall('fdListActiveStaff',{});}
+async function blacklistSearch(q){return gasCall('blacklistSearch',{q});}
 async function fdListApprovalHistory(lineUserId){return gasCall('fdListApprovalHistory',{lineUserId});}
 async function fdWipeLeaveAndSchedule(lineUserId){return gasCallPost('fdWipeLeaveAndSchedule',{lineUserId});}
 async function fdSubmitLeaveBatch(staffId,type,entries,reason){return gasCallPost('fdSubmitLeaveBatch',{staffId,type,entries,reason});}
@@ -101,6 +102,7 @@ async function fdSetNotifyPref(lineUserId,notify){return gasCallPost('fdSetNotif
 async function fdRequestFieldChange(staffId,field,newValue){return gasCallPost('fdRequestFieldChange',{staffId,field,newValue});}
 async function fdApproveFieldChange(id,approve,approver,lineUserId){return gasCallPost('fdApproveFieldChange',{id,approve,approver,lineUserId});}
 async function fdListPendingFieldChanges(lineUserId){return gasCall('fdListPendingFieldChanges',{lineUserId});}
+async function breakConfirm(lineUserId,reqId,kind,onDutyName){return gasCallPost('breakConfirm',{lineUserId,reqId,kind,onDutyName});}
 
 const Spinner=({size})=>(<svg className="animate-spin" width={size||14} height={size||14} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>);
 const pad2=(n)=>String(n).padStart(2,'0');
@@ -183,15 +185,16 @@ function RegisterFlow({profile,onDone}){
   const[shift,setShift]=useState('');
   const[phone,setPhone]=useState('');
   const[mgmtOnly,setMgmtOnly]=useState(false);
+  const[dutyPhone,setDutyPhone]=useState(false);
   const[personType,setPersonType]=useState('');
   const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
   const PERSON_TYPES=['執行長','區經理','經理','組長','副理','實習副理'];
-  const canSubmit=lastName.trim()&&firstName.trim()&&(mgmtOnly?!!personType:(hireDate&&shift));
+  const canSubmit=lastName.trim()&&firstName.trim()&&(dutyPhone?true:mgmtOnly?!!personType:(hireDate&&shift));
   const submit=async()=>{
     if(!canSubmit)return;
     setBusy(true);setErr('');
     try{
-      const r=await fdRegister({lineUserId:profile.userId,phone:phone.trim(),lastName:lastName.trim(),firstName:firstName.trim(),nickname:nickname.trim(),hireDate,shift,isManagementOnly:mgmtOnly,personType:mgmtOnly?personType:''});
+      const r=await fdRegister({lineUserId:profile.userId,phone:phone.trim(),lastName:lastName.trim(),firstName:firstName.trim(),nickname:nickname.trim(),hireDate,shift,isManagementOnly:mgmtOnly,personType:mgmtOnly?personType:'',isDutyPhone:dutyPhone});
       if(r&&r.ok){onDone()}else{setErr((r&&r.error)||'登記失敗')}
     }catch(e){setErr(String(e))}
     setBusy(false);
@@ -202,9 +205,10 @@ function RegisterFlow({profile,onDone}){
       <div className="grid grid-cols-2 gap-2"><input value={lastName} onChange={e=>setLastName(e.target.value)} placeholder="姓" className="bg-gray-100 border border-gray-300 rounded-xl px-3 py-3 text-sm text-gray-900"/><input value={firstName} onChange={e=>setFirstName(e.target.value)} placeholder="名" className="bg-gray-100 border border-gray-300 rounded-xl px-3 py-3 text-sm text-gray-900"/></div>
       <input value={nickname} onChange={e=>setNickname(e.target.value)} placeholder="暱稱（不填自動取名字最後一字）" className="w-full bg-gray-100 border border-gray-300 rounded-xl px-3 py-3 text-sm text-gray-900"/>
       <input value={phone} onChange={e=>setPhone(e.target.value.replace(/[^\d]/g,''))} inputMode="numeric" placeholder="手機（聯絡用，選填）" className="w-full bg-gray-100 border border-gray-300 rounded-xl px-3 py-3 text-sm text-gray-900"/>
-      <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={mgmtOnly} onChange={e=>setMgmtOnly(e.target.checked)} className="w-4 h-4 rounded accent-amber-500"/><span className="text-sm text-gray-700">此帳號僅用於管理，不需排班／排休</span></label>
-      {mgmtOnly&&(<div><label className="text-xs text-gray-500 block mb-1">人員別</label><div className="grid grid-cols-3 gap-2">{PERSON_TYPES.map(t=>(<button key={t} onClick={()=>setPersonType(t)} className={`py-2.5 rounded-xl text-xs font-semibold ${personType===t?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'}`}>{t}</button>))}</div>{(personType==='副理'||personType==='實習副理')&&<p className="text-[10px] text-gray-500 mt-1">此人員別可查看組長畫面，但沒有核准／拒絕的權限</p>}</div>)}
-      {!mgmtOnly&&(<>
+      <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={dutyPhone} onChange={e=>{setDutyPhone(e.target.checked);if(e.target.checked)setMgmtOnly(false)}} className="w-4 h-4 rounded accent-amber-500"/><span className="text-sm text-gray-700">此帳號為公務機（多人共用，不綁定特定個人）</span></label>
+      {!dutyPhone&&(<label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={mgmtOnly} onChange={e=>setMgmtOnly(e.target.checked)} className="w-4 h-4 rounded accent-amber-500"/><span className="text-sm text-gray-700">此帳號僅用於管理，不需排班／排休</span></label>)}
+      {!dutyPhone&&mgmtOnly&&(<div><label className="text-xs text-gray-500 block mb-1">人員別</label><div className="grid grid-cols-3 gap-2">{PERSON_TYPES.map(t=>(<button key={t} onClick={()=>setPersonType(t)} className={`py-2.5 rounded-xl text-xs font-semibold ${personType===t?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'}`}>{t}</button>))}</div>{(personType==='副理'||personType==='實習副理')&&<p className="text-[10px] text-gray-500 mt-1">此人員別可查看組長畫面，但沒有核准／拒絕的權限</p>}</div>)}
+      {!dutyPhone&&!mgmtOnly&&(<>
         <div><label className="text-xs text-gray-500 block mb-1">到職日</label><input type="date" value={hireDate} onChange={e=>setHireDate(e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-xl px-3 py-3 text-sm text-gray-900"/></div>
         <div><label className="text-xs text-gray-500 block mb-1">班別</label><div className="grid grid-cols-3 gap-2">{SHIFT_ORDER.map(s=>(<button key={s} onClick={()=>setShift(s)} className={`py-2.5 rounded-xl text-xs font-semibold ${shift===s?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'}`}>{SHIFT_SHORT_LABEL[s]}</button>))}</div></div>
       </>)}
@@ -276,13 +280,11 @@ function OffScheduleModal({myStaff,year,month,onClose,onSubmitted}){
     for(const d in monthData.offMap){if(monthData.offMap[d].includes(myStaff.id))n++;}
     return n;
   },[monthData,myStaff]);
-  // 已選(淨變化後的天數) = 目前已排休天數 - 待取消 + 待新增
   const netSelected=myOffCount-pendingRemove.size+pendingAdd.size;
   const toggleDay=(dateStr)=>{
     if(!monthData||monthData.locked)return;
     const isMine=(monthData.offMap[dateStr]||[]).includes(myStaff.id);
     if(isMine){
-      // 已排休的日期:綠色跟黃色不會同時存在,直接在「待取消」清單裡切換
       setPendingRemove(prev=>{const next=new Set(prev);if(next.has(dateStr))next.delete(dateStr);else next.add(dateStr);return next});
       return;
     }
@@ -721,7 +723,7 @@ function LeaveTab({myStaff}){
   const[lastUpdated,setLastUpdated]=useState('');
   const[updateBusy,setUpdateBusy]=useState(false);
   const[cooldown,setCooldown]=useState(0);
-  const[sortMode,setSortMode]=useState('occur'); // occur(發生時間)/submit(申請時間)/type(假別)
+  const[sortMode,setSortMode]=useState('occur');
   const[showModal,setShowModal]=useState(false);
   const[viewErr,setViewErr]=useState('');
   const[cancelBusy,setCancelBusy]=useState('');
@@ -765,7 +767,7 @@ function LeaveTab({myStaff}){
     return()=>clearTimeout(t);
   },[cooldown]);
   const STATUS_LABEL={pending:'待審核',approved:'已核准',rejected:'已拒絕'};
-  const[timeRange,setTimeRange]=useState('all'); // all/today/week/month
+  const[timeRange,setTimeRange]=useState('all');
   const inRange=(dateStr)=>{
     if(timeRange==='all')return true;
     const d=new Date(dateStr);const now=new Date();
@@ -849,7 +851,6 @@ function AnnualAllTab(){
     setUpdateBusy(false);setCooldown(60);
   };
   useEffect(()=>{
-    // 開啟頁面優先用本機快取,快取不存在才第一次去GAS撈
     try{
       const cached=localStorage.getItem(ANNUAL_CACHE_KEY);
       if(cached){const obj=JSON.parse(cached);setList(obj.list);setLastUpdated(obj.ts);return}
@@ -913,7 +914,7 @@ function ApprovalTab({myStaff}){
     <div>
       <p className="text-sm text-gray-700 font-semibold mb-2">待審核帳號（{pendingStaff?pendingStaff.length:0}）</p>
       {pendingStaff===null?<Spinner size={16}/>:pendingStaff.length===0?<p className="text-xs text-gray-500">目前沒有待審核帳號</p>:pendingStaff.map((s,i)=>(
-        <div key={s.id} className={`rounded-lg px-3 py-2 flex items-center justify-between mb-1.5 ${i%2===0?'bg-white':'bg-gray-100'}`}><p className="text-sm text-gray-800">{s.lastName}{s.firstName}（{s.nickname}）{s.isManagementOnly?('・'+(s.personType||'管理專用')):('・'+SHIFT_SHORT_LABEL[s.shift])}</p><ActionBtns id={s.id} onAct={(ok)=>doStaff(s.id,ok)}/></div>
+        <div key={s.id} className={`rounded-lg px-3 py-2 flex items-center justify-between mb-1.5 ${i%2===0?'bg-white':'bg-gray-100'}`}><p className="text-sm text-gray-800">{s.lastName}{s.firstName}（{s.nickname}）{s.isDutyPhone?'・公務機':s.isManagementOnly?('・'+(s.personType||'管理專用')):('・'+SHIFT_SHORT_LABEL[s.shift])}</p><ActionBtns id={s.id} onAct={(ok)=>doStaff(s.id,ok)}/></div>
       ))}
     </div>
     <div>
@@ -1032,12 +1033,39 @@ function AttendanceSettingsModal({myStaff,onClose}){
   </div>);
 }
 
-function MainApp({myStaff,onProfileSaved}){
+// 拒接名單查詢:櫃台接電話預約時,可查手機/姓名/稱謂/拒接老師編號,確認是不是拒接客人
+function BlacklistSearchTab(){
+  const[q,setQ]=useState('');
+  const[list,setList]=useState(null);
+  const[busy,setBusy]=useState(false);
+  const bookTitleName=(window.MP&&window.MP.bookTitleName)||((v)=>v);
+  const load=async(query)=>{
+    setBusy(true);
+    try{const r=await blacklistSearch(query||'');if(r&&r.ok)setList(r.list);else setList([])}catch(_e){setList([])}
+    setBusy(false);
+  };
+  useEffect(()=>{load('')},[]);
+  return(<div className="space-y-2">
+    <div className="flex gap-2"><input value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')load(q)}} placeholder="手機／姓名／稱謂／拒接老師編號" className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-amber-500"/><button onClick={()=>load(q)} disabled={busy} className="px-4 rounded-lg bg-amber-600 text-white text-sm font-semibold disabled:opacity-50">{busy?<Spinner size={14}/>:'搜尋'}</button></div>
+    {list===null?<p className="text-center py-8"><Spinner size={20}/></p>:list.length===0?<p className="text-sm text-gray-400 text-center py-8">查無資料</p>:(
+      <div className="space-y-1.5">{list.map((row,i)=>(
+        <div key={i} className="bg-white border border-gray-200 rounded-xl p-3 space-y-1">
+          <div className="flex items-center gap-2"><span className="text-sm text-gray-900 font-semibold">{row.custName}{row.custTitle?bookTitleName(row.custTitle,'zh'):''}</span><span className="text-xs text-gray-500">{row.custPhone}</span></div>
+          <p className="text-xs text-red-500">拒接原因：{row.reason}</p>
+          <p className="text-[11px] text-gray-400">服務項目：{row.svc||'—'}　事發時段：{row.startAt||'—'}</p>
+          <p className="text-[11px] text-gray-400">拒接老師編號：{row.teacherCode}　同意主管編號：{row.approvedBy}</p>
+        </div>
+      ))}</div>
+    )}
+  </div>);
+}
+
+function MainApp({myStaff,onProfileSaved,initialTab}){
   const isSupervisor=myStaff.role==='supervisor'||myStaff.role==='admin';
-  const[tab,setTab]=useState('schedule');
+  const[tab,setTab]=useState(initialTab||'schedule');
   const[showProfile,setShowProfile]=useState(false);
   const[showSettings,setShowSettings]=useState(false);
-  const TABS=[['schedule','班表'],['leave','請假'],['annual','特休總表']];
+  const TABS=[['schedule','班表'],['leave','請假'],['annual','特休總表'],['blacklist','拒接名單']];
   if(isSupervisor)TABS.push(['approval','審核']);
   return(<div className="min-h-screen p-4 pb-10">
     <div className="max-w-md mx-auto space-y-4">
@@ -1054,10 +1082,60 @@ function MainApp({myStaff,onProfileSaved}){
       {tab==='schedule'&&<ScheduleTab myStaff={myStaff}/>}
       {tab==='leave'&&<LeaveTab myStaff={myStaff}/>}
       {tab==='annual'&&<AnnualAllTab/>}
+      {tab==='blacklist'&&<BlacklistSearchTab/>}
       {tab==='approval'&&isSupervisor&&<ApprovalTab myStaff={myStaff}/>}
     </div>
     {showProfile&&<ProfileView myStaff={myStaff} onClose={()=>setShowProfile(false)} onSaved={(p)=>{onProfileSaved(p);setShowProfile(false)}}/>}
     {showSettings&&<AttendanceSettingsModal myStaff={myStaff} onClose={()=>setShowSettings(false)}/>}
+  </div>);
+}
+
+// ===== 翻綠(休息)計時器確認畫面:主程式那邊分享來的Flex連結會帶?breakConfirm=green/white&reqId=... =====
+function BreakConfirmScreen({myStaff,kind,reqId}){
+  const[status,setStatus]=useState('');
+  const[staffList,setStaffList]=useState(null);
+  const[onDutyName,setOnDutyName]=useState('');
+  const[showAddQr,setShowAddQr]=useState(false);
+  const label=kind==='green'?'🟢 確認老師開始休息(翻綠)':'⚪ 確認老師結束休息(回牌)';
+  const reload=()=>{fdListActiveStaff().then(r=>{if(r&&r.ok)setStaffList(r.list)})};
+  useEffect(()=>{reload()},[]);
+  const doConfirm=()=>{
+    // 櫃台很忙,不等GAS回應,點了直接顯示完成,GAS在背景繼續處理
+    setStatus('done');
+    breakConfirm(myStaff.lineUserId,reqId,kind,onDutyName).catch(()=>{});
+  };
+  const REGISTER_URL='https://liff.line.me/'+LIFF_ID_HARDCODED;
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-5 p-6 text-center">
+    <div className="text-5xl">{kind==='green'?'🟢':'⚪'}</div>
+    <div><p className="text-lg text-gray-900 font-bold">{label}</p><p className="text-xs text-gray-500 mt-1 font-mono">代碼：{reqId}</p></div>
+    {status!=='done'&&myStaff.isDutyPhone&&(
+      <div className="w-full max-w-xs space-y-1.5">
+        <p className="text-[11px] text-gray-500">目前值班人員（選填，方便之後對照是誰確認的）</p>
+        {staffList===null?<Spinner size={14}/>:(
+          <select value={onDutyName} onChange={e=>setOnDutyName(e.target.value)} className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900">
+            <option value="">（不指定，直接用公務機身分）</option>
+            {staffList.map(s=>(<option key={s.id} value={s.nickname}>{s.nickname}</option>))}
+          </select>
+        )}
+        {!showAddQr?(
+          <button onClick={()=>setShowAddQr(true)} className="text-xs text-amber-600 underline">名單裡沒有我？+ 新增人員</button>
+        ):(
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2 fi">
+            <p className="text-xs text-gray-600">請用自己的手機掃描以下 QR Code，會直接跳到登記頁面：</p>
+            <img src={'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data='+encodeURIComponent(REGISTER_URL)} alt="登記QR Code" className="w-40 h-40 mx-auto"/>
+            <div className="flex gap-2">
+              <button onClick={()=>setShowAddQr(false)} className="flex-1 py-2 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold">收起</button>
+              <button onClick={reload} className="flex-1 py-2 rounded-lg bg-amber-600 text-white text-xs font-semibold">登記完了？重新整理名單</button>
+            </div>
+          </div>
+        )}
+      </div>
+    )}
+    {status==='done'?(
+      <div><div className="text-4xl mb-2">✓</div><p className="text-emerald-600 font-semibold">已確認</p></div>
+    ):(
+      <button onClick={doConfirm} className={`px-10 py-4 rounded-2xl text-white text-lg font-bold ${kind==='green'?'bg-emerald-600':'bg-gray-500'} active:opacity-80`}>{kind==='green'?'確認翻綠':'確認回牌'}</button>
+    )}
   </div>);
 }
 
@@ -1067,6 +1145,9 @@ function App(){
   const[myStaff,setMyStaff]=useState(null);
   const[liffErr,setLiffErr]=useState('');
   const[locked,setLocked]=useState(false);
+  const initialTab=new URLSearchParams(location.search).get('tab')||'';
+  const breakConfirmKind=new URLSearchParams(location.search).get('breakConfirm')||''; // green或white,休息確認用
+  const breakReqId=new URLSearchParams(location.search).get('reqId')||'';
 
   useEffect(()=>{
     const initLiff=(id)=>liff.init({liffId:id}).then(()=>{
@@ -1077,6 +1158,7 @@ function App(){
           if(r&&r.ok&&r.exists){
             setMyStaff(r.profile);
             if(r.profile.status!=='approved'){setPhase('pending');return}
+            if(breakConfirmKind&&breakReqId){setPhase('breakConfirm');return} // 休息確認是緊急動作,approved就能用,不用先過PIN鎖
             if(!getPin()){setPhase('pinSetup');return}
             if(isLocked()){setLocked(true)}else{touchUnlock()}
             setPhase('main');
@@ -1106,14 +1188,15 @@ function App(){
   if(phase==='register')return(<RegisterFlow profile={profile} onDone={()=>{
     setPhase('loading');
     fdGetSelf(profile.userId).then(r=>{
-      if(r&&r.ok&&r.exists){setMyStaff(r.profile);setPhase('pending')} // 剛登記完一定是pending狀態,先進待審核畫面
-      else{setPhase('register')} // 萬一查不到,退回登記頁重試
+      if(r&&r.ok&&r.exists){setMyStaff(r.profile);setPhase('pending')}
+      else{setPhase('register')}
     }).catch(()=>setPhase('register'));
   }}/>);
   if(phase==='pending')return(<PendingScreen profile={profile} onApproved={()=>{fdGetSelf(profile.userId).then(r=>{if(r&&r.ok&&r.exists){setMyStaff(r.profile);setPhase('pinSetup')}})}}/>);
   if(phase==='pinSetup')return(<PinSetup onDone={()=>setPhase('main')}/>);
+  if(phase==='breakConfirm')return(<BreakConfirmScreen myStaff={myStaff} kind={breakConfirmKind} reqId={breakReqId}/>);
   if(locked)return(<LockScreen onUnlock={()=>setLocked(false)}/>);
-  return(<MainApp myStaff={myStaff} onProfileSaved={setMyStaff}/>);
+  return(<MainApp myStaff={myStaff} onProfileSaved={setMyStaff} initialTab={initialTab}/>);
 }
 
 class __EB extends React.Component{constructor(p){super(p);this.state={e:false}}static getDerivedStateFromError(){return{e:true}}componentDidCatch(err){try{window.__showFallback(3,{lineno:0,msg:(err&&err.message)||String(err)})}catch(e){}}render(){return this.state.e?null:this.props.children}}
