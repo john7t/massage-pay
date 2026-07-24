@@ -1,4 +1,4 @@
-// app-core.js v1.0-015 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.0-017 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
@@ -966,7 +966,33 @@ function BreakTimerSection({settings}){
   </div>);
 }
 
-function SupervisorSection(){
+// 拒接名單查詢頁面:上方搜尋框(手機/姓名/稱謂/拒接老師編號都能查),下方列出已核准的黑名單
+function BlacklistViewPage({t,onClose}){
+  const[q,setQ]=useState('');
+  const[list,setList]=useState(null);
+  const[busy,setBusy]=useState(false);
+  const load=async(query)=>{
+    setBusy(true);
+    try{const r=await gasBlacklistSearch(query||'');if(r&&r.ok)setList(r.list);else setList([])}catch(_e){setList([])}
+    setBusy(false);
+  };
+  useEffect(()=>{load('')},[]);
+  return(<div className="fi space-y-3 max-w-lg mx-auto px-4 py-2">
+    <div className="flex items-center justify-between"><h2 className="text-lg font-bold text-gray-100">{t.blacklistTab||'拒接名單'}</h2><button onClick={()=>onClose&&onClose()} className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-gray-400 active:bg-white/[0.12]">✕</button></div>
+    <div className="flex gap-2"><input value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')load(q)}} placeholder={t.blacklistSearchPh||'手機／姓名／稱謂／拒接老師編號'} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/><button onClick={()=>load(q)} disabled={busy} className="px-4 rounded-lg bg-amber-600 text-white text-sm font-semibold disabled:opacity-50">{busy?'…':'搜尋'}</button></div>
+    {list===null?<p className="text-center py-8"><span className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin inline-block"/></p>:list.length===0?<p className="text-sm text-gray-500 text-center py-8">{t.noMatch}</p>:(
+      <div className="space-y-1.5">{list.map((row,i)=>(
+        <div key={i} className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 space-y-1">
+          <div className="flex items-center gap-2"><span className="text-sm text-gray-200 font-semibold">{row.custName}{row.custTitle?bookTitleName(row.custTitle,t===T.zh?'zh':'vi'):''}</span><span className="text-xs text-gray-500">{row.custPhone}</span></div>
+          <p className="text-xs text-red-400">拒接原因：{row.reason}</p>
+          <p className="text-[11px] text-gray-600">拒接老師編號：{row.teacherCode}　同意主管編號：{row.approvedBy}　同意拒接日期：{row.approvedAt}</p>
+        </div>
+      ))}</div>
+    )}
+  </div>);
+}
+
+function SupervisorSection({t,onOpenBlacklist}){
   const[phase,setPhase]=useState('locked'); // locked/checking/denied/granted
   const[errMsg,setErrMsg]=useState('');
   const SUP_LIFF_ID='2010673151-AU7Cpo5v'; // 借用employees.html的LIFF App做登入驗證,指定redirectUri導回本頁,不會跳去employees頁面
@@ -992,10 +1018,11 @@ function SupervisorSection(){
   if(phase==='denied')return(<div className="mt-5 pt-4 border-t border-white/[0.06]"><p className="text-xs text-gray-500 text-center py-3">您目前不是主管身分</p></div>);
   return(<div className="mt-5 pt-4 border-t border-white/[0.06] space-y-2">
     <p className="text-xs font-semibold text-purple-400 px-1">主管專用</p>
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-4 gap-3">
       <a href="https://liff.line.me/2010673151-AU7Cpo5v" className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-lg">👥</span><span className="text-[10px] text-gray-500">員工管理</span></a>
       <a href="https://liff.line.me/2010673151-PEhuHeqe" className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-lg">📋</span><span className="text-[10px] text-gray-500">公告管理</span></a>
       <a href="https://liff.line.me/2010673151-kemVP4Pi" className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-lg">⚠️</span><span className="text-[10px] text-gray-500">安全回報</span></a>
+      <button onClick={()=>onOpenBlacklist&&onOpenBlacklist()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-lg">🚫</span><span className="text-[10px] text-gray-500">{(t&&t.blacklistTab)||'拒接名單'}</span></button>
     </div>
   </div>);
 }
@@ -1008,6 +1035,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
   const[dailyQueue,setDailyQueue]=useState([]);const[gbPromptData,setGbPromptData]=useState(null);
   const[pwdInput,setPwdInput]=useState('');const[pwdErr,setPwdErr]=useState('');
   const[showDailyForgotPwd,setShowDailyForgotPwd]=useState(false);
+  const[showBlacklistView,setShowBlacklistView]=useState(false);
   const advanceQueue=()=>setDailyQueue(q=>q.slice(1));
   useEffect(()=>{
     if(!settings.code)return;
@@ -1143,7 +1171,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
       <button onClick={()=>setShowDisasterReport(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg></span><span className="text-[10px] text-gray-500">{t.drBtn}</span></button>
     </div>
     <BreakTimerSection settings={settings}/>
-    <SupervisorSection/>
+    <SupervisorSection t={t} onOpenBlacklist={()=>setShowBlacklistView(true)}/>
     {showGroupBuy&&<GroupBuyModal t={t} settings={settings} onClose={()=>setShowGroupBuy(false)}/>}
     {showLineQr&&(<div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 p-6" style={{background:'rgba(0,0,0,0.9)'}} onClick={()=>setShowLineQr(false)}>
       <div onClick={e=>e.stopPropagation()} className="bg-white rounded-2xl p-5 flex flex-col items-center gap-3 max-w-xs">
@@ -1154,6 +1182,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
       </div>
     </div>)}
     {showDisasterReport&&<DisasterReportModal t={t} settings={settings} onClose={()=>setShowDisasterReport(false)} onSaved={(patch)=>{if(onUpdateSettings)onUpdateSettings(Object.assign({},settings,patch));try{LS.set('app-settings',Object.assign({},settings,patch))}catch(_e){}}}/>}
+    {showBlacklistView&&(<div className="fixed inset-0 z-50 bg-gray-950 overflow-y-auto"><BlacklistViewPage t={t} onClose={()=>setShowBlacklistView(false)}/></div>)}
     {dailyQueue[0]==='pwd'&&(<div className="pinGateBackdrop fixed inset-0 z-[70] flex flex-col items-center justify-center gap-6 p-6">
       <p className="pinGateTitle text-base font-bold text-center">{t.homePwdPopupTitle}</p>
       <p className="pinGateBody text-xs text-center max-w-xs -mt-3">{t.homePwdPopupBody}</p>
@@ -1218,6 +1247,11 @@ function SlipEditFields({s,t,editorCode,custQuery,setCustQuery,onUpdate,onDelete
     <div className="relative"><input value={custQuery[s.id]||''} onChange={e=>setCustQuery(q=>({...q,[s.id]:e.target.value}))} placeholder={t.custSearchHint} className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>{(custQuery[s.id]||'').trim()&&(()=>{const res=searchCustDB(editorCode,custQuery[s.id]);return res.length>0?(<div className="mt-1 bg-gray-800 border border-white/[0.08] rounded-lg overflow-hidden">{res.map((c,i)=>(<div key={i} onClick={()=>applyCust(c)} className="px-2 py-1.5 text-xs text-gray-200 active:bg-white/[0.06] border-b border-white/[0.04] last:border-0">{c.custName}{c.custTitle?' '+bookTitleName(c.custTitle,t===T.zh?'zh':'vi'):''} {c.custPhone||''}</div>))}</div>):(<p className="mt-1 text-[10px] text-amber-500/70">{t.custNewHint}</p>)})()}</div>
     <div className="grid grid-cols-2 gap-2"><input value={s.custName||''} onChange={e=>onUpdate({custName:e.target.value})} placeholder={t.custName} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/><select value={s.custTitle||''} onChange={e=>onUpdate({custTitle:e.target.value})} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-amber-500"><option value="">{t.custTitle}</option>{BOOK_TITLES.map(o=><option key={o.v} value={o.v}>{o[t===T.zh?'zh':'vi']}</option>)}</select></div>
     <input value={s.custPhone||''} onChange={e=>onUpdate({custPhone:e.target.value})} inputMode="numeric" placeholder={t.custPhone} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>
+    <div className="flex items-center gap-2">
+      <label className="flex items-center gap-1.5 cursor-pointer flex-shrink-0"><input type="checkbox" checked={!!s.blacklist} onChange={e=>{const on=e.target.checked;onUpdate({blacklist:on,blacklistReason:on?(s.blacklistReason||'騷擾'):s.blacklistReason})}} className="accent-red-500"/><span className="text-xs text-red-400 font-semibold">{t.blacklistCheck||'拒接'}</span></label>
+      <select value={(s.blacklistReason==='騷擾'||!s.blacklistReason)?'騷擾':'其他'} disabled={!s.blacklist} onChange={e=>onUpdate({blacklistReason:e.target.value==='騷擾'?'騷擾':''})} className={`flex-1 border rounded-lg px-2 py-1.5 text-sm focus:outline-none ${s.blacklist?'bg-white/[0.06] border-white/[0.08] text-gray-100 focus:border-red-500':'bg-white/[0.02] border-white/[0.04] text-gray-600'}`}><option value="騷擾">{t.blacklistReasonHarass||'騷擾'}</option><option value="其他">{t.blacklistReasonOther||'其他'}</option></select>
+    </div>
+    {s.blacklist&&s.blacklistReason!=='騷擾'&&<input value={s.blacklistReason||''} onChange={e=>onUpdate({blacklistReason:e.target.value})} placeholder={t.blacklistReasonPh||'請輸入原因'} className="w-full bg-white/[0.06] border border-red-500/30 rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-red-500"/>}
     <SlipTags slip={s} t={t} code={editorCode} onAdd={(id,tag)=>{tag=(tag||'').trim();if(!tag)return;if(s.tags&&s.tags.includes(tag))return;onUpdate({tags:[...(s.tags||[]),tag]});if(editorCode)addTagHistory(editorCode,tag)}} onDel={(id,tag)=>onUpdate({tags:(s.tags||[]).filter(x=>x!==tag)})}/>
     <div className="pt-2 mt-1 border-t border-white/[0.04] space-y-2">
       <div className="grid grid-cols-2 gap-2"><div><label className="text-[10px] text-gray-600 block mb-0.5">{t.pressBody}</label><div className="flex gap-1">{PRESS_LEVELS.map(pl=>(<button key={pl} onClick={()=>onUpdate({pressBody:s.pressBody===pl?'':pl})} className={`flex-1 py-1 rounded text-[11px] ${s.pressBody===pl?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t['press'+pl.charAt(0).toUpperCase()+pl.slice(1)]}</button>))}</div></div><div><label className="text-[10px] text-gray-600 block mb-0.5">{t.pressFoot}</label><div className="flex gap-1">{PRESS_LEVELS.map(pl=>(<button key={pl} onClick={()=>onUpdate({pressFoot:s.pressFoot===pl?'':pl})} className={`flex-1 py-1 rounded text-[11px] ${s.pressFoot===pl?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t['press'+pl.charAt(0).toUpperCase()+pl.slice(1)]}</button>))}</div></div></div>
