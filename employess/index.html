@@ -2,8 +2,11 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>員工列表 v1.0-017</title>
+<title>員工列表 v1.0-018</title>
 <script>
   var PAGE="employees",PCODE="04";
   window.__fbLang='zh';
@@ -57,6 +60,7 @@ async function gasEmployeeDetail(lineUserId,code){const r=await gasCall('employe
 async function gasEmployeeSave(lineUserId,code,patch){const r=await window.MP.gasCallPost('employeeSave',{lineUserId,code,patch:JSON.stringify(patch||{})},15000);return r||{ok:false,error:'GAS無回應'};}
 async function gasEmployeeAppointSupervisor(lineUserId,code,level){const r=await window.MP.gasCallPost('employeeAppointSupervisor',{lineUserId,code,level},15000);return r||{ok:false,error:'GAS無回應'};}
 async function gasEmployeeSetStatus(lineUserId,code,status){const r=await window.MP.gasCallPost('employeeSetStatus',{lineUserId,code,status},15000);return r||{ok:false,error:'GAS無回應'};}
+window.employeeSetStatus=gasEmployeeSetStatus; // 保險:避免LINE App內建瀏覽器快取殘留舊版腳本片段時,裸名呼叫找不到函式
 async function gasEmployeeDelete(lineUserId,code){const r=await window.MP.gasCallPost('employeeDelete',{lineUserId,code},15000);return r||{ok:false,error:'GAS無回應'};}
 async function gasEmployeeAuditLog(lineUserId,code){const r=await gasCall('employeeAuditLog',{lineUserId,code},10000);return r||{ok:false,error:'GAS無回應'};}
 async function loadStoresLocal(){try{const res=await fetch('../stores.cfg',{cache:'no-store'});if(!res.ok)return['龍山寺店'];const text=(await res.text()).trim();const stores=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));return stores.length?stores:['龍山寺店'];}catch(_e){return['龍山寺店']}}
