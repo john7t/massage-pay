@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>安全回報 v1.12-059</title>
+<title>安全回報 v1.12-061</title>
 <meta property="og:title" content="天然災害每日安全回報中心">
 <meta property="og:description" content="請點擊連結進行安全回報">
 <meta property="og:type" content="website">
@@ -139,8 +139,8 @@ function MiniPinDots({length,total,digits}){
   })}</div>);
 }
 function MiniPinKeypad({onDigit,onBackspace}){
-  const BtnCls="w-9 h-11 rounded-lg bg-white/[0.08] text-gray-100 text-base font-semibold active:bg-white/[0.15] flex items-center justify-center flex-shrink-0";
-  return(<div className="grid grid-cols-3 gap-1.5 justify-items-center max-w-[168px] mx-auto">
+  const BtnCls="w-11 h-12 rounded-lg bg-white/[0.08] text-gray-100 text-base font-semibold active:bg-white/[0.15] flex items-center justify-center flex-shrink-0";
+  return(<div className="grid grid-cols-3 gap-5 justify-items-center max-w-[260px] mx-auto">
     {['1','2','3','4','5','6','7','8','9'].map(k=>(<button key={k} type="button" onClick={()=>onDigit(k)} className={BtnCls}>{k}</button>))}
     <div/>
     <button type="button" onClick={()=>onDigit('0')} className={BtnCls}>0</button>
