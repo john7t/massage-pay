@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>櫃台差勤 v1.0-019</title>
+<title>櫃台專區 v1.0-021</title>
 <meta property="og:title" content="櫃台差勤管理">
 <meta property="og:description" content="排休、請假、特休管理">
 <meta property="og:type" content="website">
@@ -1034,26 +1034,53 @@ function AttendanceSettingsModal({myStaff,onClose}){
 }
 
 // 拒接名單查詢:櫃台接電話預約時,可查手機/姓名/稱謂/拒接老師編號,確認是不是拒接客人
-function BlacklistSearchTab(){
+// 存本機快取,開啟時直接顯示上次的清單,要按「更新」才會真的去問GAS有沒有新名單
+function BlacklistSearchTab({myStaff}){
+  const isSupervisor=myStaff&&(myStaff.role==='supervisor'||myStaff.role==='admin');
+  const CACHE_KEY='bl-cache-list';
   const[q,setQ]=useState('');
-  const[list,setList]=useState(null);
+  const[fullList,setFullList]=useState(()=>{try{const c=localStorage.getItem(CACHE_KEY);return c?JSON.parse(c):null}catch(_e){return null}});
   const[busy,setBusy]=useState(false);
+  const[blockBusy,setBlockBusy]=useState(null);
   const bookTitleName=(window.MP&&window.MP.bookTitleName)||((v)=>v);
-  const load=async(query)=>{
+  const doRefresh=async()=>{
     setBusy(true);
-    try{const r=await blacklistSearch(query||'');if(r&&r.ok)setList(r.list);else setList([])}catch(_e){setList([])}
+    try{
+      const r=await blacklistSearch('');
+      if(r&&r.ok){setFullList(r.list);try{localStorage.setItem(CACHE_KEY,JSON.stringify(r.list))}catch(_e){}}
+    }catch(_e){}
     setBusy(false);
   };
-  useEffect(()=>{load('')},[]);
+  useEffect(()=>{if(fullList===null)doRefresh()},[]);
+  const list=useMemo(()=>{
+    if(!fullList)return fullList;
+    const query=q.trim().toLowerCase();
+    if(!query)return fullList;
+    return fullList.filter(row=>(row.custPhone+row.custName+row.custTitle+row.teacherCode).toLowerCase().indexOf(query)>=0);
+  },[fullList,q]);
+  const doStoreBlock=async(row)=>{
+    setBlockBusy(row.reqId);
+    try{
+      const on=!row.storeBlockAt;
+      const r=await gasCall('blacklistStoreBlock',{reqId:row.reqId,lineUserId:myStaff.lineUserId,on});
+      if(r&&r.ok)doRefresh();else alert((r&&r.error)||'操作失敗');
+    }catch(e){alert(String(e))}
+    setBlockBusy(null);
+  };
   return(<div className="space-y-2">
-    <div className="flex gap-2"><input value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')load(q)}} placeholder="手機／姓名／稱謂／拒接老師編號" className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-amber-500"/><button onClick={()=>load(q)} disabled={busy} className="px-4 rounded-lg bg-amber-600 text-white text-sm font-semibold disabled:opacity-50">{busy?<Spinner size={14}/>:'搜尋'}</button></div>
+    <div className="flex gap-2">
+      <div className="flex-1 relative"><input value={q} onChange={e=>setQ(e.target.value)} placeholder="手機／姓名／稱謂／拒接老師編號" className="w-full bg-white border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm text-gray-900 focus:outline-none focus:border-amber-500"/>{q&&<button onClick={()=>setQ('')} className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-200 text-gray-500 text-xs flex items-center justify-center">✕</button>}</div>
+      <button onClick={doRefresh} disabled={busy} className="px-4 rounded-lg bg-amber-600 text-white text-sm font-semibold disabled:opacity-50">{busy?<Spinner size={14}/>:'更新'}</button>
+    </div>
     {list===null?<p className="text-center py-8"><Spinner size={20}/></p>:list.length===0?<p className="text-sm text-gray-400 text-center py-8">查無資料</p>:(
       <div className="space-y-1.5">{list.map((row,i)=>(
         <div key={i} className="bg-white border border-gray-200 rounded-xl p-3 space-y-1">
-          <div className="flex items-center gap-2"><span className="text-sm text-gray-900 font-semibold">{row.custName}{row.custTitle?bookTitleName(row.custTitle,'zh'):''}</span><span className="text-xs text-gray-500">{row.custPhone}</span></div>
+          <div className="flex items-center gap-2"><span className="text-sm text-gray-900 font-semibold">{row.custName}{row.custTitle?bookTitleName(row.custTitle,'zh'):''}</span><span className="text-xs text-gray-500">{row.custPhone}</span>{row.storeBlockAt&&<span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-600 font-semibold ml-auto">全店拒接</span>}</div>
           <p className="text-xs text-red-500">拒接原因：{row.reason}</p>
           <p className="text-[11px] text-gray-400">服務項目：{row.svc||'—'}　事發時段：{row.startAt||'—'}</p>
           <p className="text-[11px] text-gray-400">拒接老師編號：{row.teacherCode}　同意主管編號：{row.approvedBy}</p>
+          {row.storeBlockAt&&<p className="text-[11px] text-red-400">全店拒接時間：{row.storeBlockAt}　操作主管：{row.storeBlockBy}</p>}
+          {isSupervisor&&<button onClick={()=>doStoreBlock(row)} disabled={blockBusy===row.reqId} className={`w-full py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50 ${row.storeBlockAt?'bg-gray-100 text-gray-500':'bg-red-500 text-white'}`}>{blockBusy===row.reqId?<Spinner size={12}/>:row.storeBlockAt?'取消全店拒接':'設為全店拒接'}</button>}
         </div>
       ))}</div>
     )}
@@ -1072,7 +1099,7 @@ function MainApp({myStaff,onProfileSaved,initialTab}){
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {isSupervisor&&<button onClick={()=>setShowSettings(true)} className="text-gray-500 text-base leading-none">⚙️</button>}
-          <h1 className="text-base font-bold text-gray-900">櫃台差勤</h1>
+          <h1 className="text-base font-bold text-gray-900">櫃台專區</h1>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={()=>setShowProfile(true)} className="text-xs text-gray-500 truncate max-w-[120px]">{myStaff.nickname||myStaff.firstName}</button>
@@ -1082,7 +1109,7 @@ function MainApp({myStaff,onProfileSaved,initialTab}){
       {tab==='schedule'&&<ScheduleTab myStaff={myStaff}/>}
       {tab==='leave'&&<LeaveTab myStaff={myStaff}/>}
       {tab==='annual'&&<AnnualAllTab/>}
-      {tab==='blacklist'&&<BlacklistSearchTab/>}
+      {tab==='blacklist'&&<BlacklistSearchTab myStaff={myStaff}/>}
       {tab==='approval'&&isSupervisor&&<ApprovalTab myStaff={myStaff}/>}
     </div>
     {showProfile&&<ProfileView myStaff={myStaff} onClose={()=>setShowProfile(false)} onSaved={(p)=>{onProfileSaved(p);setShowProfile(false)}}/>}
