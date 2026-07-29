@@ -1,4 +1,4 @@
-// app-core.js v1.0-024 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.0-025 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
@@ -966,21 +966,13 @@ function BreakTimerSection({settings}){
   </div>);
 }
 
-// 底部彈出視窗:70%高度從下滑出,蓋在首頁上面(不是整頁切換),點上方空白或往下滑動都能關閉,不需要額外的X按鈕
+// 底部彈出視窗:70%高度從下滑出,蓋在首頁上面(不是整頁切換),點上方空白處就能關閉,不需要額外的X按鈕
 function BottomSheetModal({onClose,children}){
-  const[dragY,setDragY]=useState(0);
-  const[dragging,setDragging]=useState(false);
-  const startYRef=React.useRef(0);
-  const onTouchStart=(e)=>{startYRef.current=e.touches[0].clientY;setDragging(true)};
-  const onTouchMove=(e)=>{if(!dragging)return;const delta=e.touches[0].clientY-startYRef.current;if(delta>0)setDragY(delta)};
-  const onTouchEnd=()=>{setDragging(false);if(dragY>90){onClose&&onClose()}setDragY(0)};
   return(<div className="fixed inset-0 z-40 flex flex-col justify-end">
     <div className="flex-1" onClick={()=>onClose&&onClose()}/>
-    <div className="bg-gray-950 rounded-t-3xl overflow-hidden flex flex-col shadow-2xl" style={{height:'70vh',transform:`translateY(${dragY}px)`,transition:dragging?'none':'transform 0.25s ease-out'}}>
-      <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} className="flex justify-center py-2.5 flex-shrink-0 cursor-grab">
-        <div className="w-10 h-1.5 rounded-full bg-white/20"/>
-      </div>
-      <div className="flex-1 overflow-y-auto">{children}</div>
+    <div className="bg-gray-950 rounded-t-3xl overflow-hidden flex flex-col shadow-2xl" style={{height:'70vh'}}>
+      <div className="flex justify-center pt-1.5 pb-0.5 flex-shrink-0"><div className="w-9 h-1 rounded-full bg-white/15"/></div>
+      <div className="flex-1 overflow-y-auto min-h-0">{children}</div>
     </div>
   </div>);
 }
@@ -1269,7 +1261,7 @@ function MonthlyPage({settings,curM,setCurM,t,onGotoYear,onClose}){
   const dm=dim(y,curM);
   const calc=useMemo(()=>{if(!data)return{prev:{units:0,salary:0,laodian:0},next:{units:0,salary:0,laodian:0},month:{units:0,salary:0,laodian:0}};let pu=0,ps=0,pl=0,nu=0,ns=0,nl=0;for(let d=1;d<=dm;d++){const day=data.days[d]||eDay();const u=day.total||0,lo=day.laodian||0,s=calcSal(day,settings.unitPrice,settings.skills);if(d<=15){pu+=u;ps+=s;pl+=lo}else{nu+=u;ns+=s;nl+=lo}}return{prev:{units:pu,salary:ps,laodian:pl},next:{units:nu,salary:ns,laodian:nl},month:{units:pu+nu,salary:ps+ns,laodian:pl+nl}}},[data,dm,settings.unitPrice,settings.skills]);
   return(<div className="max-w-lg mx-auto fi"><div className="sticky top-0 z-10 bg-gray-950 pb-1">
-  <div className="flex items-center justify-between px-3 pt-2"><h2 className="text-base font-bold text-gray-100">{t.monthly}</h2></div>
+  <div className="flex items-center justify-center px-3 py-1.5"><h2 className="text-sm font-semibold text-gray-300">{t.monthly}</h2></div>
   <div className="px-2 py-2 flex gap-1 overflow-x-auto no-sb"><button onClick={()=>onGotoYear&&onGotoYear()} className="px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 bg-emerald-600 text-white">{t.yearly}</button>{Array.from({length:12},(_,i)=>i+1).map(m=>(<button key={m} onClick={()=>setCurM(m)} className={`px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 ${m===curM?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-600'}`}>{t.months[m-1]}</button>))}<button onClick={()=>onGotoYear&&onGotoYear()} className="px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 bg-emerald-600 text-white">{t.yearly}</button></div><div className="px-3 py-2"><SummaryTable prev={calc.prev} next={calc.next} month={calc.month} t={t}/></div></div>
   <div className="px-3 py-1.5 bg-amber-600/[0.06] border-b border-amber-500/10"><span className="text-[11px] text-amber-500/80 font-semibold">{t.p1}</span></div>
   {Array.from({length:Math.min(15,dm)},(_,i)=>i+1).map(d=>(<DayRow key={d} d={d} day={data?.days[d]||eDay()} y={y} m={curM} t={t} up={settings.unitPrice} sk={settings.skills} onEdit={setEditDay} isToday={curM===bizParts().m&&y===bizParts().y&&d===bizParts().d}/>))}
