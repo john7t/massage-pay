@@ -1,4 +1,4 @@
-// app-core.js v1.0-026 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.0-028 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
@@ -916,50 +916,68 @@ function DisasterReportModal({t,settings,onClose,onSaved}){
   </div></div>);
 }
 function BreakTimerSection({settings}){
-  const[status,setStatus]=useState(null); // null=載入中, {exists,isOpen,remainSeconds,reqId,...}
+  const[status,setStatus]=useState(null); // null=載入中, {exists,usedSeconds,...}(不含isOpen/remainSeconds即時倒數,那些改本機算)
   const[busy,setBusy]=useState(false);
-  const[tick,setTick]=useState(0); // 每秒觸發重新渲染,讓倒數畫面動起來
-  const syncedAtRef=React.useRef(Date.now()); // 上次跟伺服器同步remainSeconds的本機時間點
-  const FD_QUICK_URL='https://john7t.github.io/massage-pay/fd-quick.html';
+  const[tick,setTick]=useState(0); // 每秒觸發重新渲染,讓計時畫面動起來
+  const[localOpen,setLocalOpen]=useState(false); // 本機立刻知道的翻綠狀態,不用等GAS回應
+  const[localGreenAt,setLocalGreenAt]=useState(0); // 本機這次翻綠的開始時間(ms),用來算「本次翻綠了幾分幾秒」
+  const[lastSessionMsg,setLastSessionMsg]=useState(''); // 剛翻回白牌時,先顯示「本次翻綠了X分Y秒」,等GAS回應才換成總計
   const load=async()=>{
-    try{const r=await gasCall('breakGetStatus',{code:settings.code,workStart:settings.workStart||'',workEnd:settings.workEnd||''},10000);syncedAtRef.current=Date.now();if(r&&r.ok)setStatus(r);else setStatus({exists:false})}catch(_e){setStatus({exists:false})}
+    try{
+      const r=await gasCall('breakGetStatus',{code:settings.code,workStart:settings.workStart||'',workEnd:settings.workEnd||''},10000);
+      if(r&&r.ok){
+        setStatus(r);
+        if(r.isOpen&&r.sessions&&r.sessions.length){
+          const last=r.sessions[r.sessions.length-1];
+          if(last&&last.greenAt&&!last.whiteAt){
+            setLocalOpen(true);
+            if(!localGreenAt){const ms=new Date(last.greenAt.replace(' ','T')+'+08:00').getTime();if(ms)setLocalGreenAt(ms)}
+          }
+        }
+      }else setStatus({exists:false});
+    }catch(_e){setStatus({exists:false})}
   };
   useEffect(()=>{load()},[]);
   useEffect(()=>{const iv=setInterval(()=>setTick(x=>x+1),1000);return()=>clearInterval(iv)},[]);
-  useEffect(()=>{const iv=setInterval(load,30000);return()=>clearInterval(iv)},[]); // 每30秒跟伺服器對一次時間,避免本機計時漂移
-  // 顯示用的剩餘秒數:上次同步的秒數,扣掉本機這段時間又過去的秒數,每次tick都會重算,畫面才會真的跳動
-  const liveRemain=status&&status.isOpen?status.remainSeconds-Math.floor((Date.now()-syncedAtRef.current)/1000):null;
+  // 本次翻綠已經過去的秒數:純本機計算,從點翻綠那一刻算起,不用問GAS,所以不需要每30秒對時
+  const localElapsed=localOpen&&localGreenAt?Math.floor((Date.now()-localGreenAt)/1000):0;
   const fmtSec=(s)=>{const neg=s<0;const a=Math.abs(s);return (neg?'-':'')+String(Math.floor(a/3600)).padStart(2,'0')+':'+String(Math.floor(a/60)%60).padStart(2,'0')+':'+String(a%60).padStart(2,'0')};
   const[actionErr,setActionErr]=useState('');
-  const doFlipGreen=async()=>{
-    setBusy(true);setActionErr('');
-    try{
-      const r=await gasCallPost('breakFlipGreen',{code:settings.code,store:settings.store||'',workStart:settings.workStart||'',workEnd:settings.workEnd||''},10000);
-      if(r&&r.ok){await load()}else{setActionErr((r&&r.error)||'翻綠失敗，請稍後再試')}
-    }catch(e){setActionErr('連線失敗：'+String(e))}
-    setBusy(false);
+  const doFlipGreen=()=>{
+    // 立刻本機開始計時,不等GAS回應
+    setLocalOpen(true);setLocalGreenAt(Date.now());setActionErr('');setLastSessionMsg('');
+    gasCallPost('breakFlipGreen',{code:settings.code,store:settings.store||'',workStart:settings.workStart||'',workEnd:settings.workEnd||''},10000)
+      .then(r=>{if(!(r&&r.ok)){setActionErr((r&&r.error)||'翻綠失敗，請稍後再試');setLocalOpen(false);setLocalGreenAt(0)}})
+      .catch(e=>{setActionErr('連線失敗：'+String(e));setLocalOpen(false);setLocalGreenAt(0)});
   };
   const doFlipWhite=async()=>{
-    if(!status||!status.reqId)return;
-    setBusy(true);setActionErr('');
+    // 立刻顯示本次翻綠了多久,不等GAS回應;GAS回應後再補上總計/剩餘
+    const thisSessionSec=localElapsed;
+    setLocalOpen(false);setActionErr('');
+    setLastSessionMsg('本次翻綠了 '+fmtSec(thisSessionSec).replace(/^00:/,'')+'，計算總計中…');
+    setBusy(true);
     try{
-      const r=await gasCallPost('breakFlipWhite',{reqId:status.reqId},10000);
-      if(r&&r.ok){await load()}else{setActionErr((r&&r.error)||'回牌失敗，請稍後再試')}
-    }catch(e){setActionErr('連線失敗：'+String(e))}
+      const r=await gasCallPost('breakFlipWhite',{reqId:status&&status.reqId||'',code:settings.code,workStart:settings.workStart||'',workEnd:settings.workEnd||''},10000);
+      if(r&&r.ok){
+        setLastSessionMsg('本次翻綠了 '+fmtSec(thisSessionSec).replace(/^00:/,''));
+        await load();
+      }else{setLastSessionMsg('本次翻綠了 '+fmtSec(thisSessionSec).replace(/^00:/,'')+'（總計同步失敗，稍後會自動補上）')}
+    }catch(e){setLastSessionMsg('本次翻綠了 '+fmtSec(thisSessionSec).replace(/^00:/,'')+'（總計同步失敗，稍後會自動補上）')}
+    setLocalGreenAt(0);
     setBusy(false);
   };
   if(status===null)return(<div className="mt-5 pt-4 border-t border-white/[0.06] flex justify-center py-3"><span className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/></div>);
   return(<div className="mt-5 pt-4 border-t border-white/[0.06] space-y-2">
     <p className="text-xs font-semibold text-emerald-400 px-1">翻綠（休息）計時</p>
     {actionErr&&<p className="text-xs text-red-400 text-center px-2">{actionErr}</p>}
-    {!status.isOpen?(<>
+    {!localOpen?(<>
       <button onClick={doFlipGreen} disabled={busy} className="w-full py-3 rounded-xl bg-white text-gray-900 text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2 border border-white/20">{busy&&<span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"/>}⚪ 翻綠（開始休息）</button>
+      {lastSessionMsg&&<p className="text-[11px] text-emerald-400 text-center">{lastSessionMsg}</p>}
       {status.exists&&status.usedSeconds>0&&<p className="text-[11px] text-gray-500 text-center">今天已累計使用 {fmtSec(status.usedSeconds)}／01:00:00</p>}
     </>):(<>
       <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-center">
-        <p className="text-[11px] text-gray-500 mb-1">剩餘休息時間</p>
-        <p className={`text-3xl font-bold tabular-nums ${liveRemain<0?'text-red-400':'text-emerald-400'}`}>{fmtSec(liveRemain)}</p>
-        {liveRemain<0&&<p className="text-[11px] text-red-400 mt-1">已超過1小時額度</p>}
+        <p className="text-[11px] text-gray-500 mb-1">本次已翻綠時間</p>
+        <p className="text-3xl font-bold tabular-nums text-emerald-400">{fmtSec(localElapsed)}</p>
       </div>
       <button onClick={doFlipWhite} disabled={busy} className="w-full py-3 rounded-xl bg-emerald-600 text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{busy&&<span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>}🟢 回牌（結束休息）</button>
     </>)}
@@ -1276,4 +1294,3 @@ function YearlyPage({settings,t,onBack}){
   const rows=useMemo(()=>{const r=[];for(let m=1;m<=12;m++){const d=LS.get(dk(settings.code,y,m));let u=0,lo=0,sal=0;if(d?.days){for(let i=1;i<=dim(y,m);i++){const day=d.days[i];if(day){u+=day.total||0;lo+=day.laodian||0;sal+=calcSal(day,settings.unitPrice,settings.skills)}}}r.push({month:m,units:u,salary:sal,laodian:lo})}return r},[settings.code,y,settings.unitPrice]);
   const tot=rows.reduce((a,r)=>({u:a.u+r.units,s:a.s+r.salary,l:a.l+r.laodian}),{u:0,s:0,l:0});
   return(<div className="max-w-lg mx-auto fi"><div className="px-4 py-3 flex items-baseline justify-between"><h2 className="text-xl font-bold text-gray-100"><button onClick={()=>onBack&&onBack()} className="mr-2 text-gray-500 active:text-gray-300 align-middle"><svg className="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg></button>{y} {t.yearly}</h2><span className="text-xs text-gray-600 font-mono">#{settings.code}</span></div><div className="flex px-3 py-2 border-b border-white/[0.06] text-[11px] text-gray-600 font-medium"><div className="w-12"></div><div className="flex-1 text-right">{t.units}</div><div className="flex-1 text-right">{t.salary}</div><div className="w-12 text-right">{t.laodian}</div><div className="flex-1 text-right">{t.subtotal}</div></div>{rows.map(r=>(<div key={r.month} className={`flex items-center px-3 py-3 border-b border-white/[0.03] ${r.units>0?'':'opacity-30'}`}><div className="w-12 text-sm font-medium text-gray-300">{t.months[r.month-1]}</div><div className="flex-1 text-right text-sm text-gray-400 tabular-nums">{r.units}</div><div className="flex-1 text-right text-sm text-emerald-400/80 tabular-nums">{r.salary.toLocaleString()}</div><div className="w-12 text-right text-sm text-orange-400/80 tabular-nums">{r.laodian}</div><div className="flex-1 text-right text-sm text-emerald-400 font-semibold tabular-nums">{r.salary.toLocaleString()}</div></div>))}<div className="flex items-center px-3 py-3.5 bg-amber-600/10 border-t-2 border-amber-500/40"><div className="w-12 text-sm font-bold text-amber-400">{t.total}</div><div className="flex-1 text-right text-sm text-amber-300 font-bold tabular-nums">{tot.u}</div><div className="flex-1 text-right text-sm text-emerald-400 font-bold tabular-nums">{tot.s.toLocaleString()}</div><div className="w-12 text-right text-sm text-orange-400 font-bold tabular-nums">{tot.l}</div><div className="flex-1 text-right text-sm text-emerald-400 font-bold tabular-nums">{tot.s.toLocaleString()}</div></div></div>)}
-
