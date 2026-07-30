@@ -1,4 +1,4 @@
-// app-core.js v1.0-028 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.0-029 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
@@ -996,7 +996,7 @@ function BottomSheetModal({onClose,children,heightPct}){
   </div>);
 }
 
-function SupervisorSection({t}){
+function SupervisorSection({t,settings}){
   return(<div className="mt-5 pt-4 border-t border-white/[0.06] space-y-2">
     <p className="text-xs font-semibold text-purple-400 px-1">主管專用</p>
     <div className="grid grid-cols-4 gap-3">
@@ -1004,6 +1004,7 @@ function SupervisorSection({t}){
       <a href="https://liff.line.me/2010673151-PEhuHeqe" className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-lg">📋</span><span className="text-[10px] text-gray-500">公告管理</span></a>
       <a href="https://liff.line.me/2010673151-kemVP4Pi" className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-lg">⚠️</span><span className="text-[10px] text-gray-500">安全回報</span></a>
       <a href="https://liff.line.me/2010673151-OMHcBUjJ?tab=blacklist" className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-lg">🚫</span><span className="text-[10px] text-gray-500">{(t&&t.blacklistTab)||'拒接名單'}</span></a>
+      <button onClick={()=>{location.href='./auth.html#lang='+((settings&&settings.lang)||'zh')}} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-lg">⚙️</span><span className="text-[10px] text-gray-500">{(t&&t.tabManage)||'管理中心'}</span></button>
     </div>
   </div>);
 }
@@ -1012,7 +1013,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
   const now=bizDate();const bp=bizParts();const ty=settings.year||bp.y,tm=bp.m,td=bp.d;
   const[data,setData]=useState(null);const[prev,setPrev]=useState(null);const[otherMode,setOtherMode]=useState(false);const[otherVal,setOtherVal]=useState('');const[editPrev,setEditPrev]=useState(false);const[editToday,setEditToday]=useState(false);
   const[showStoreInfo,setShowStoreInfo]=useState(false);const[showBasicInfo,setShowBasicInfo]=useState(false);
-  const[showGroupBuy,setShowGroupBuy]=useState(false);const[showDisasterReport,setShowDisasterReport]=useState(false);const[showLineQr,setShowLineQr]=useState(false);
+  const[showGroupBuy,setShowGroupBuy]=useState(false);const[showDisasterReport,setShowDisasterReport]=useState(false);const[showLineQr,setShowLineQr]=useState(false);const[lineQrIdx,setLineQrIdx]=useState(0);
   const[dailyQueue,setDailyQueue]=useState([]);const[gbPromptData,setGbPromptData]=useState(null);
   const[pwdInput,setPwdInput]=useState('');const[pwdErr,setPwdErr]=useState('');
   const[showDailyForgotPwd,setShowDailyForgotPwd]=useState(false);
@@ -1145,22 +1146,31 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
       <button onClick={()=>onGotoSuggest&&onGotoSuggest()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7V17h8v-2.3A7 7 0 0012 2z"/></svg></span><span className="text-[10px] text-gray-500">{t.tabSuggest}</span></button>
       <button onClick={()=>onGotoViolation&&onGotoViolation()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M4 22V4a1 1 0 011-1h13.5a.5.5 0 01.4.8l-2.9 3.7 2.9 3.7a.5.5 0 01-.4.8H5"/></svg></span><span className="text-[10px] text-gray-500">{t.tabViolation}</span></button>
       <button onClick={()=>onGotoBackup&&onGotoBackup()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg></span><span className="text-[10px] text-gray-500">{t.tabBackup||'備份'}</span></button>
-      <button onClick={()=>onGotoManage&&onGotoManage()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 14.4 7.2 17l.9-5.4L4.2 7.8l5.4-.8L12 2z"/></svg></span><span className="text-[10px] text-gray-500">{t.tabManage||'管理中心'}</span></button>
+
       <button onClick={()=>setShowGroupBuy(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></span><span className="text-[10px] text-gray-500">{t.groupBuyBtn}</span></button>
       <button onClick={()=>setShowLineQr(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z"/></svg></span><span className="text-[10px] text-gray-500">LINE Bot</span></button>
       <button onClick={()=>setShowDisasterReport(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg></span><span className="text-[10px] text-gray-500">{t.drBtn}</span></button>
     </div>
     <BreakTimerSection settings={settings}/>
-    <SupervisorSection t={t}/>
+    <SupervisorSection t={t} settings={settings}/>
     {showGroupBuy&&<GroupBuyModal t={t} settings={settings} onClose={()=>setShowGroupBuy(false)}/>}
-    {showLineQr&&(<div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 p-6" style={{background:'rgba(0,0,0,0.9)'}} onClick={()=>setShowLineQr(false)}>
-      <div onClick={e=>e.stopPropagation()} className="bg-white rounded-2xl p-5 flex flex-col items-center gap-3 max-w-xs">
-        <p className="text-sm font-bold text-gray-900">加入 LINE Bot</p>
-        <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=https%3A%2F%2Flin.ee%2F58Dsob3" alt="LINE Bot QR Code" className="w-56 h-56"/>
-        <a href="https://lin.ee/58Dsob3" target="_blank" rel="noopener" className="w-full py-2.5 rounded-xl bg-[#06C755] text-white text-sm font-bold text-center">直接開啟</a>
-        <button onClick={()=>setShowLineQr(false)} className="text-xs text-gray-500">關閉</button>
-      </div>
-    </div>)}
+    {showLineQr&&(()=>{
+      const qrPages=[
+        {title:'加入 LINE Bot',data:'https://lin.ee/58Dsob3',label:'直接開啟'},
+        {title:'開啟網頁版',data:'https://john7t.github.io/massage-pay/',label:'直接開啟'},
+      ];
+      const idx=lineQrIdx%qrPages.length;
+      const page=qrPages[idx];
+      return(<div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 p-6" style={{background:'rgba(0,0,0,0.9)'}} onClick={()=>setShowLineQr(false)}>
+        <div onClick={e=>e.stopPropagation()} className="bg-white rounded-2xl p-5 flex flex-col items-center gap-3 max-w-xs">
+          <p className="text-sm font-bold text-gray-900">{page.title}</p>
+          <img src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(page.data)}`} alt="QR Code" className="w-56 h-56"/>
+          <div className="flex items-center gap-4"><button onClick={()=>setLineQrIdx(i=>(i-1+qrPages.length)%qrPages.length)} className="w-9 h-9 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-lg">‹</button><div className="flex gap-1.5">{qrPages.map((_,i)=>(<span key={i} className={`w-1.5 h-1.5 rounded-full ${i===idx?'bg-gray-800':'bg-gray-300'}`}/>))}</div><button onClick={()=>setLineQrIdx(i=>(i+1)%qrPages.length)} className="w-9 h-9 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-lg">›</button></div>
+          <a href={page.data} target="_blank" rel="noopener" className="w-full py-2.5 rounded-xl bg-[#06C755] text-white text-sm font-bold text-center">{page.label}</a>
+          <button onClick={()=>setShowLineQr(false)} className="text-xs text-gray-500">關閉</button>
+        </div>
+      </div>);
+    })()}
     {showDisasterReport&&<DisasterReportModal t={t} settings={settings} onClose={()=>setShowDisasterReport(false)} onSaved={(patch)=>{if(onUpdateSettings)onUpdateSettings(Object.assign({},settings,patch));try{LS.set('app-settings',Object.assign({},settings,patch))}catch(_e){}}}/>}
 
     {dailyQueue[0]==='pwd'&&(<div className="pinGateBackdrop fixed inset-0 z-[70] flex flex-col items-center justify-center gap-6 p-6">
