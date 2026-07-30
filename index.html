@@ -40,7 +40,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-121</title>
+<title>薪資追蹤 v1.12-122</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -219,6 +219,7 @@ function App(){
   useEffect(()=>{document.documentElement.setAttribute('data-theme',theme);document.documentElement.style.setProperty('--bg',bgColor)},[bgColor,theme]);
   useEffect(()=>{localStorage.setItem('app-theme',theme)},[theme]);
   useEffect(()=>{buildDynamicKey()},[]);
+  useEffect(()=>{const tmr=setTimeout(()=>{if(!ready)window.__showFallback(4,{lineno:0,msg:'初始化逾時(8秒)，可能是網路較慢或本機資料異常'})},8000);return()=>clearTimeout(tmr)},[ready]);
   useEffect(()=>{if(!settings||!settings.code)return;const _bd=bizDate();const today=_bd.getFullYear()+'-'+String(_bd.getMonth()+1).padStart(2,'0')+'-'+String(_bd.getDate()).padStart(2,'0');const lastCheck=localStorage.getItem('staff-sync-date');(async()=>{
     try{const staff=await readStaff({});const me=Array.isArray(staff)?staff.find(s=>String(s.code)===String(settings.code)):null;
       if(me){
@@ -259,7 +260,7 @@ function App(){
   const updateSettings=(s)=>{setSettings(s);LS.set('app-settings',s)};
   // ===== 引導學習點A 已移除(7/1後):不再自動填工作證到期日,尊重使用者留空 =====
   const handleTab=(id)=>{setTab(id);if(id==='home')setRefreshKey(k=>k+1)};
-  if(!ready)return<div className="min-h-screen flex items-center justify-center" style={{backgroundColor:bgColor}}><div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/></div>;
+  if(!ready)return<div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',backgroundColor:bgColor}}><div style={{width:32,height:32,border:'3px solid rgba(245,158,11,0.9)',borderTopColor:'transparent',borderRadius:'50%',animation:'fbspin 0.8s linear infinite'}}/></div>;
   if(needOnboard)return<Onboarding onComplete={onOnboardComplete}/>;
   if(!settings)return null;
   const lang=settings.lang||'zh';const t=T[lang];
