@@ -1,4 +1,4 @@
-// app-core.js v1.0-033 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.0-034 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
@@ -670,18 +670,26 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings,onLogout}){
   </div></div>);
 }
 
-function fmtCountdown(deadline){
+function fmtCountdown(deadline,t){
   if(!deadline)return '-';
   const diff=new Date(deadline).getTime()-Date.now();
-  if(diff<=0)return '已截止';
+  const isVi=t&&t.gbDayUnit==='ngày';
+  if(diff<=0)return (t&&t.groupBuyClosedTag)||'已截止';
   const days=Math.floor(diff/86400000);
   const hours=Math.floor((diff%86400000)/3600000);
   const mins=Math.floor((diff%3600000)/60000);
-  if(days>0)return days+'天'+hours+'時';
-  if(hours>0)return hours+'時'+mins+'分';
-  return mins+'分';
+  const dU=(t&&t.gbDayUnit)||'天',hU=(t&&t.gbHourUnit)||'時',mU=(t&&t.gbMinUnit)||'分';
+  if(isVi){
+    if(days>0)return days+dU+' '+hours+hU;
+    if(hours>0)return hours+hU+' '+mins+mU;
+    return mins+mU;
+  }
+  if(days>0)return days+dU+hours+hU;
+  if(hours>0)return hours+hU+mins+mU;
+  return mins+mU;
 }
 const Spinner=({size})=>(<svg className="animate-spin" width={size||14} height={size||14} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>);
+const fmtBy=(creator,t)=>((t&&t.groupBuyByLabel)||'由{0}發起').replace('{0}',creator);
 function GroupBuyModal({t,settings,onClose}){
   const code=settings.code;
   const[tab,setTab]=useState('list'); // list/mine/created
@@ -691,8 +699,12 @@ function GroupBuyModal({t,settings,onClose}){
   const[regBuy,setRegBuy]=useState(null); // 正在填寫登記表單(尺寸/數量)的團購
   const[regSize,setRegSize]=useState(settings.gloveSize||'M');const[regQty,setRegQty]=useState('1');
   const[showCreate,setShowCreate]=useState(false);
-  const[newItem,setNewItem]=useState('glove');const[newCustomItem,setNewCustomItem]=useState('');
-  const[newAmount,setNewAmount]=useState('');const[newDeadline,setNewDeadline]=useState('');const[newScope,setNewScope]=useState('');
+  const tomorrow2359=()=>{const d=new Date();d.setDate(d.getDate()+1);d.setHours(23,59,0,0);const pad=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T23:59`};
+  const[newItem,setNewItem]=useState('custom');const[newCustomItem,setNewCustomItem]=useState('');
+  const[newAmount,setNewAmount]=useState('');const[newDeadline,setNewDeadline]=useState(tomorrow2359);const[newScope,setNewScope]=useState('none');
+  const[isSup,setIsSup]=useState(false);
+  useEffect(()=>{gasCheckCode(code).then(r=>{if(r&&r.ok&&r.found&&(r.role==='supervisor'||r.role==='admin'))setIsSup(true)}).catch(()=>{})},[code]);
+  const hasActiveGlove=useMemo(()=>(list||[]).some(g=>g.item==='glove'&&g.status==='open'),[list]);
   const[createBusy,setCreateBusy]=useState(false);const[createErr,setCreateErr]=useState('');
   const[detailBuy,setDetailBuy]=useState(null);const[detail,setDetail]=useState(null);
   const[listErr,setListErr]=useState('');
@@ -743,7 +755,7 @@ function GroupBuyModal({t,settings,onClose}){
   const isCreator=detailBuy&&detailBuy.creator===code;
   const created=useMemo(()=>(list||[]).filter(g=>g.creator===code),[list,code]);
   // 依狀態分區:進行中/已截止/收錢中/貨運寄送中/已結束
-  const SECTION_META={open:{label:'進行中',color:'text-emerald-400'},closed:{label:'已截止',color:'text-gray-500'},collecting:{label:'收錢中',color:'text-amber-400'},shipping:{label:'貨運寄送中',color:'text-sky-400'},ended:{label:'已結束',color:'text-gray-600'}};
+  const SECTION_META={open:{label:t.gbStatusOpen||'進行中',color:'text-emerald-400'},closed:{label:t.gbStatusClosed||'已截止',color:'text-gray-500'},collecting:{label:t.gbStatusCollecting||'收錢中',color:'text-amber-400'},shipping:{label:t.gbStatusShipping||'貨運寄送中',color:'text-sky-400'},ended:{label:t.gbStatusEnded||'已結束',color:'text-gray-600'}};
   const SECTION_ORDER=['open','collecting','shipping','closed','ended'];
   const sectionOf=(status)=>SECTION_META[status]?status:'open';
   const groupBySection=(arr,statusOf)=>{
@@ -759,12 +771,12 @@ function GroupBuyModal({t,settings,onClose}){
     setStatusChangeBusy(false);
   };
   return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}><div className="bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
-    <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{t.groupBuyTitle}</h3><div className="flex items-center gap-2">{!detailBuy&&<button onClick={()=>setShowCreate(v=>!v)} className="text-xs px-2.5 py-1.5 rounded-lg bg-amber-600 text-white font-semibold">+ {t.groupBuyCreateBtn}</button>}<button onClick={onClose} className="text-gray-500 text-sm">✕</button></div></div>
+    <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{t.groupBuyTitle}</h3>{!detailBuy&&<button onClick={()=>setShowCreate(v=>!v)} className="text-xs px-2.5 py-1.5 rounded-lg bg-amber-600 text-white font-semibold">+ {t.groupBuyCreateBtn}</button>}</div>
 
     {detailBuy?(<div className="p-4 space-y-3">
       <button onClick={()=>setDetailBuy(null)} className="text-xs text-gray-500">← {t.backToChoice||'返回'}</button>
-      <p className="text-sm text-gray-200 font-medium">{detailBuy.title}（由{detailBuy.creator}發起）</p>
-      <p className="text-xs text-gray-500">{t.groupBuyAmountLabel}：{detailBuy.amount}｜{fmtCountdown(detailBuy.deadline)}{detailBuy.status!=='open'?'・'+t.groupBuyClosedTag:''}</p>
+      <p className="text-sm text-gray-200 font-medium">{detailBuy.title}（{fmtBy(detailBuy.creator,t)}）</p>
+      <p className="text-xs text-gray-500">{t.groupBuyAmountLabel}：{detailBuy.amount}｜{fmtCountdown(detailBuy.deadline,t)}{detailBuy.status!=='open'?'・'+t.groupBuyClosedTag:''}</p>
       {detail===null?<p className="text-xs text-gray-600 text-center py-4">{t.loading||'載入中…'}</p>:(<>
         {isCreator?(<>
           <p className="text-sm text-amber-400 font-semibold">{fmtLog(t.groupBuyCreatedCount,[String(detail.joined.length)])}</p>
@@ -775,12 +787,12 @@ function GroupBuyModal({t,settings,onClose}){
           <div><p className="text-xs text-gray-500 mb-1.5 mt-2">{t.groupBuyViewDeclined}（{detail.declined.length}）</p><div className="flex flex-wrap gap-1.5">{detail.declined.map((o,i)=>(<span key={i} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-500">{o.code}</span>))}</div></div>
           <div><p className="text-xs text-gray-500 mb-1.5">{t.groupBuyViewOpens}（{detail.opens.length}）</p><div className="flex flex-wrap gap-1.5">{detail.opens.map((o,i)=>(<span key={i} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-500">{o.code}</span>))}</div></div>
           <div className="pt-2 border-t border-white/[0.06] space-y-1.5">
-            <p className="text-[11px] text-gray-500">變更狀態（目前：{SECTION_META[sectionOf(detailBuy.status)].label}）</p>
+            <p className="text-[11px] text-gray-500">{(t.gbChangeStatusLabel||'變更狀態（目前：{0}）').replace('{0}',SECTION_META[sectionOf(detailBuy.status)].label)}</p>
             <div className="grid grid-cols-2 gap-2">
-              <button onClick={()=>doSetStatus('closed')} disabled={statusChangeBusy||detailBuy.status==='closed'} className="py-2 rounded-lg bg-white/[0.06] text-gray-300 text-xs font-semibold disabled:opacity-40">提前截止</button>
-              <button onClick={()=>doSetStatus('collecting')} disabled={statusChangeBusy||detailBuy.status==='collecting'} className="py-2 rounded-lg bg-amber-600/20 text-amber-400 text-xs font-semibold disabled:opacity-40">收錢中</button>
-              <button onClick={()=>doSetStatus('shipping')} disabled={statusChangeBusy||detailBuy.status==='shipping'} className="py-2 rounded-lg bg-sky-600/20 text-sky-400 text-xs font-semibold disabled:opacity-40">貨運寄送中</button>
-              <button onClick={()=>doSetStatus('ended')} disabled={statusChangeBusy||detailBuy.status==='ended'} className="py-2 rounded-lg bg-red-600/20 text-red-400 text-xs font-semibold disabled:opacity-40">已結束</button>
+              <button onClick={()=>doSetStatus('closed')} disabled={statusChangeBusy||detailBuy.status==='closed'} className="py-2 rounded-lg bg-white/[0.06] text-gray-300 text-xs font-semibold disabled:opacity-40">{t.gbStatusClosed||'提前截止'}</button>
+              <button onClick={()=>doSetStatus('collecting')} disabled={statusChangeBusy||detailBuy.status==='collecting'} className="py-2 rounded-lg bg-amber-600/20 text-amber-400 text-xs font-semibold disabled:opacity-40">{t.gbStatusCollecting||'收錢中'}</button>
+              <button onClick={()=>doSetStatus('shipping')} disabled={statusChangeBusy||detailBuy.status==='shipping'} className="py-2 rounded-lg bg-sky-600/20 text-sky-400 text-xs font-semibold disabled:opacity-40">{t.gbStatusShipping||'貨運寄送中'}</button>
+              <button onClick={()=>doSetStatus('ended')} disabled={statusChangeBusy||detailBuy.status==='ended'} className="py-2 rounded-lg bg-red-600/20 text-red-400 text-xs font-semibold disabled:opacity-40">{t.gbStatusEnded||'已結束'}</button>
             </div>
           </div>
         </>):(<>
@@ -796,11 +808,11 @@ function GroupBuyModal({t,settings,onClose}){
     <div className="p-4 space-y-3">
       {tab==='list'&&(<>
         {showCreate&&(<div className="bg-white/[0.03] rounded-xl p-3 space-y-2.5">
-          <div><label className="text-xs text-gray-500 block mb-1">{t.groupBuyItemLabel}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setNewItem('glove')} className={`py-2 rounded-lg text-sm font-semibold ${newItem==='glove'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.groupBuyItemGlove}</button><button onClick={()=>setNewItem('custom')} className={`py-2 rounded-lg text-sm font-semibold ${newItem==='custom'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.groupBuyItemCustom}</button></div></div>
+          <div><label className="text-xs text-gray-500 block mb-1">{t.groupBuyItemLabel}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>!hasActiveGlove&&setNewItem('glove')} disabled={hasActiveGlove} className={`py-2 rounded-lg text-sm font-semibold ${hasActiveGlove?'bg-white/[0.02] text-gray-700 cursor-not-allowed':newItem==='glove'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.groupBuyItemGlove}{hasActiveGlove&&'（進行中）'}</button><button onClick={()=>setNewItem('custom')} className={`py-2 rounded-lg text-sm font-semibold ${newItem==='custom'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.groupBuyItemCustom}</button></div>{hasActiveGlove&&<p className="text-[10px] text-gray-600 mt-1">同時間只能有一筆手套團購，請等進行中的結束後再發起</p>}</div>
           {newItem==='custom'&&<input value={newCustomItem} onChange={e=>setNewCustomItem(e.target.value)} placeholder={t.groupBuyCustomItemPh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/>}
           <div><label className="text-xs text-gray-500 block mb-1">{t.groupBuyAmountLabel}</label><input value={newAmount} onChange={e=>setNewAmount(e.target.value.replace(/[^\d]/g,''))} inputMode="numeric" placeholder={t.groupBuyAmountPh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/></div>
-          <div><label className="text-xs text-gray-500 block mb-1">{t.groupBuyDeadlineLabel}</label><input type="datetime-local" value={newDeadline} onChange={e=>setNewDeadline(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/><p className="text-[10px] text-gray-600 mt-1">{t.groupBuyDeadline24hHint}</p></div>
-          <div><label className="text-xs text-gray-500 block mb-1">{t.groupBuyScopeLabel}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setNewScope('store')} className={`py-2 rounded-lg text-xs font-semibold ${newScope==='store'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.groupBuyScopeStore}</button><button onClick={()=>setNewScope('all')} className={`py-2 rounded-lg text-xs font-semibold ${newScope==='all'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.groupBuyScopeAll}</button></div></div>
+          <div><label className="text-xs text-gray-500 block mb-1">{t.groupBuyDeadlineLabel}</label><input type="datetime-local" value={newDeadline} onChange={e=>isSup&&setNewDeadline(e.target.value)} disabled={!isSup} className={`w-full border rounded-lg px-3 py-2 text-sm ${isSup?'bg-white/[0.06] border-white/[0.08] text-gray-100':'bg-white/[0.02] border-white/[0.04] text-gray-600 cursor-not-allowed'}`}/><p className="text-[10px] text-gray-600 mt-1">{isSup?t.groupBuyDeadline24hHint:'預設明天23:59截止，只有主管可以自訂截止時間'}</p></div>
+          <div><label className="text-xs text-gray-500 block mb-1">{t.groupBuyScopeLabel}</label><div className="grid grid-cols-3 gap-2"><button onClick={()=>setNewScope('none')} className={`py-2 rounded-lg text-xs font-semibold ${newScope==='none'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.groupBuyScopeNone||'不公告'}</button><button onClick={()=>setNewScope('store')} className={`py-2 rounded-lg text-xs font-semibold ${newScope==='store'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.groupBuyScopeStore}</button><button onClick={()=>setNewScope('all')} className={`py-2 rounded-lg text-xs font-semibold ${newScope==='all'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.groupBuyScopeAll}</button></div></div>
           {createErr&&<p className="text-xs text-red-400 text-center">{createErr}</p>}
           <button onClick={doCreate} disabled={createBusy} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50">{createBusy?'…':t.groupBuyCreateBtn}</button>
         </div>)}
@@ -808,8 +820,8 @@ function GroupBuyModal({t,settings,onClose}){
         {list===null?<p className="text-xs text-gray-600 text-center py-4">{t.loading||'載入中…'}</p>:(<>
         {list.filter(g=>g.status==='open').length===0?<p className="text-xs text-gray-600 text-center py-4">{t.groupBuyEmpty}</p>:list.filter(g=>g.status==='open').map(g=>(
           <div key={g.id} className="bg-white/[0.03] rounded-xl p-3 space-y-2">
-            <div onClick={()=>openDetail(g)} className="flex items-center justify-between gap-2 cursor-pointer"><p className="text-sm text-gray-200 font-medium flex items-center gap-1.5"><span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-mono flex-shrink-0">{g.id}</span>{g.title}（由{g.creator}發起）</p><span className="text-xs text-amber-400 font-semibold flex-shrink-0">{fmtCountdown(g.deadline)}</span></div>
-            <p className="text-[11px] text-gray-500">{t.groupBuyAmountLabel}：{g.amount}｜{g.orderCount}{t.groupBuyOrderCount}{g.declineCount?('｜'+t.groupBuyDeclineCountLabel+'：'+g.declineCount+'人'):''}</p>
+            <div onClick={()=>openDetail(g)} className="flex items-center justify-between gap-2 cursor-pointer"><p className="text-sm text-gray-200 font-medium flex items-center gap-1.5"><span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-mono flex-shrink-0">{g.id}</span>{g.title}（{fmtBy(g.creator,t)}）</p><span className="text-xs text-amber-400 font-semibold flex-shrink-0">{fmtCountdown(g.deadline,t)}</span></div>
+            <p className="text-[11px] text-gray-500">{t.groupBuyAmountLabel}：{g.amount}｜{g.orderCount}{t.groupBuyOrderCount}{g.declineCount?('｜'+t.groupBuyDeclineCountLabel+'：'+g.declineCount):''}</p>
             {regBuy&&regBuy.id===g.id?(<div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2.5 space-y-2">
               {g.item==='glove'&&<div><label className="text-[11px] text-gray-500 block mb-1">{t.gloveSize}</label><div className="grid grid-cols-5 gap-1">{['XS','S','M','L','XL'].map(sz=>(<button key={sz} onClick={()=>setRegSize(sz)} className={`py-1.5 rounded text-[11px] font-semibold ${regSize===sz?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{sz}</button>))}</div></div>}
               <div><label className="text-[11px] text-gray-500 block mb-1">{t.groupBuyQtyLabel}</label><input value={regQty} onChange={e=>setRegQty(e.target.value.replace(/[^\d]/g,'')||'1')} inputMode="numeric" className="w-20 bg-white/[0.06] border border-white/[0.08] rounded px-2 py-1.5 text-sm text-gray-100 text-center"/></div>
@@ -821,7 +833,7 @@ function GroupBuyModal({t,settings,onClose}){
         ))}
         {(()=>{const ended=list.filter(g=>g.status!=='open');return ended.length>0&&(<div className="pt-2 border-t border-white/[0.06]">
           <button onClick={()=>setShowEnded(v=>!v)} className="text-xs text-gray-500 flex items-center gap-1">{t.groupBuyEndedTitle||'已結束'}（{ended.length}）{showEnded?'▲':'▼'}</button>
-          {showEnded&&ended.map(g=>(<div key={g.id} onClick={()=>openDetail(g)} className="bg-white/[0.02] rounded-lg px-3 py-2 mt-2 cursor-pointer"><p className="text-xs text-gray-500 flex items-center gap-1.5"><span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-gray-500 font-mono flex-shrink-0">{g.id}</span>{g.title}（由{g.creator}發起）</p></div>))}
+          {showEnded&&ended.map(g=>(<div key={g.id} onClick={()=>openDetail(g)} className="bg-white/[0.02] rounded-lg px-3 py-2 mt-2 cursor-pointer"><p className="text-xs text-gray-500 flex items-center gap-1.5"><span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-gray-500 font-mono flex-shrink-0">{g.id}</span>{g.title}（{fmtBy(g.creator,t)}）</p></div>))}
         </div>);})()}
         </>)}
       </>)}
@@ -830,7 +842,7 @@ function GroupBuyModal({t,settings,onClose}){
         return SECTION_ORDER.filter(k=>buckets[k].length>0).map(k=>(
           <div key={k} className="space-y-1.5"><p className={`text-[11px] font-semibold ${SECTION_META[k].color}`}>{SECTION_META[k].label}（{buckets[k].length}）</p>
             {buckets[k].map((o,i)=>(
-              <div key={i} onClick={()=>openDetail({id:o.buyId,title:o.title,creator:o.creator,amount:o.amount,item:o.size?'glove':'',deadline:o.deadline,status:o.status})} className="bg-white/[0.03] rounded-xl p-3 flex items-center justify-between cursor-pointer active:bg-white/[0.05]"><p className="text-sm text-gray-200">{o.title}（{o.creator}發起）</p><span className="text-xs text-amber-400 font-semibold flex-shrink-0">{o.size?(t.gloveSize+' '+o.size+' '):''}{t.groupBuyQtyLabel}{o.qty}{o.amount?('　'+t.groupBuyAmountLabel+o.amount):''}</span></div>
+              <div key={i} onClick={()=>openDetail({id:o.buyId,title:o.title,creator:o.creator,amount:o.amount,item:o.size?'glove':'',deadline:o.deadline,status:o.status})} className="bg-white/[0.03] rounded-xl p-3 flex items-center justify-between cursor-pointer active:bg-white/[0.05]"><p className="text-sm text-gray-200">{o.title}（{fmtBy(o.creator,t)}）</p><span className="text-xs text-amber-400 font-semibold flex-shrink-0">{o.size?(t.gloveSize+' '+o.size+' '):''}{t.groupBuyQtyLabel}{o.qty}{o.amount?('　'+t.groupBuyAmountLabel+o.amount):''}</span></div>
             ))}
           </div>
         ));
