@@ -36,7 +36,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-113</title>
+<title>薪資追蹤 v1.12-114</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -265,8 +265,8 @@ function App(){
     <div className="flex-1 overflow-y-auto">
       <HomePage settings={settings} t={t} refreshKey={refreshKey} onUpdateSettings={updateSettings} onLogout={doLogout} onGotoProfile={()=>{try{sessionStorage.setItem('__settingsSub','basic')}catch(e){}handleTab('settings')}} onGotoNotices={()=>{try{sessionStorage.setItem('__settingsSub','notice')}catch(e){}handleTab('settings')}} onGotoBook={()=>{try{sessionStorage.setItem('__settingsSub','book')}catch(e){}handleTab('settings')}} onGotoChart={()=>{try{sessionStorage.setItem('__settingsSub','chart')}catch(e){}handleTab('settings')}} onGotoSuggest={()=>{try{sessionStorage.setItem('__settingsSub','suggest')}catch(e){}handleTab('settings')}} onGotoViolation={()=>{try{sessionStorage.setItem('__settingsSub','violation')}catch(e){}handleTab('settings')}} onGotoBackup={()=>{try{sessionStorage.setItem('__settingsSub','backup')}catch(e){}handleTab('settings')}} onGotoManage={()=>{location.href='./auth.html#lang='+(settings.lang||'zh')}} onGotoMonthly={()=>handleTab('monthly')} onGotoCustomers={()=>handleTab('customers')} onGotoSettings={()=>handleTab('settings')} settingsAlert={settingsAlert}/>
       {(tab==='monthly'||tab==='yearly')&&<BottomSheetModal heightPct={90} onClose={()=>handleTab('home')}>{tab==='monthly'?<MonthlyPage settings={settings} curM={curM} setCurM={setCurM} t={t} onGotoYear={()=>handleTab('yearly')} onClose={()=>handleTab('home')}/>:<YearlyPage settings={settings} t={t} onBack={()=>handleTab('monthly')}/>}</BottomSheetModal>}
-      {tab==='customers'&&<BottomSheetModal onClose={()=>handleTab('home')}>{(()=>{const CP=(window.__V&&window.__V.CustomerPage)||(()=>null);return<CP settings={settings} t={t} onClose={()=>handleTab('home')}/>})()}</BottomSheetModal>}
-      {tab==='settings'&&<BottomSheetModal heightPct={90} onClose={()=>handleTab('home')}>{(()=>{const SP=(window.__V&&window.__V.SettingsPage)||(()=>null);return<SP settings={settings} onUpdate={updateSettings} t={t} theme={theme} setTheme={setTheme} onClose={()=>handleTab('home')} onLogout={doLogout}/>})()}</BottomSheetModal>}
+      {tab==='customers'&&<BottomSheetModal heightPct={50} onClose={()=>handleTab('home')}>{(()=>{const CP=(window.__V&&window.__V.CustomerPage)||(()=>null);return<CP settings={settings} t={t} onClose={()=>handleTab('home')}/>})()}</BottomSheetModal>}
+      {tab==='settings'&&(()=>{const SP=(window.__V&&window.__V.SettingsPage)||(()=>null);return<SP settings={settings} onUpdate={updateSettings} t={t} theme={theme} setTheme={setTheme} onClose={()=>handleTab('home')} onLogout={doLogout}/>})()}
     </div>
   </div>)}
 
