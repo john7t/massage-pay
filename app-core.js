@@ -1,6 +1,6 @@
-// app-core.js v1.0-029 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.0-030 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 
@@ -741,6 +741,22 @@ function GroupBuyModal({t,settings,onClose}){
   };
   const isCreator=detailBuy&&detailBuy.creator===code;
   const created=useMemo(()=>(list||[]).filter(g=>g.creator===code),[list,code]);
+  // 依狀態分區:進行中/已截止/收錢中/貨運寄送中/已結束
+  const SECTION_META={open:{label:'進行中',color:'text-emerald-400'},closed:{label:'已截止',color:'text-gray-500'},collecting:{label:'收錢中',color:'text-amber-400'},shipping:{label:'貨運寄送中',color:'text-sky-400'},ended:{label:'已結束',color:'text-gray-600'}};
+  const SECTION_ORDER=['open','collecting','shipping','closed','ended'];
+  const sectionOf=(status)=>SECTION_META[status]?status:'open';
+  const groupBySection=(arr,statusOf)=>{
+    const buckets={};SECTION_ORDER.forEach(k=>buckets[k]=[]);
+    arr.forEach(item=>{const s=sectionOf(statusOf(item));buckets[s].push(item)});
+    return buckets;
+  };
+  const[statusChangeBusy,setStatusChangeBusy]=useState(false);
+  const doSetStatus=async(newStatus)=>{
+    if(!detailBuy||statusChangeBusy)return;
+    setStatusChangeBusy(true);
+    try{const r=await gasSetGroupBuyStatus(detailBuy.id,code,newStatus);if(r&&r.ok){setDetailBuy({...detailBuy,status:newStatus});loadList()}}catch(_e){}
+    setStatusChangeBusy(false);
+  };
   return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}><div className="bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
     <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{t.groupBuyTitle}</h3><div className="flex items-center gap-2">{!detailBuy&&<button onClick={()=>setShowCreate(v=>!v)} className="text-xs px-2.5 py-1.5 rounded-lg bg-amber-600 text-white font-semibold">+ {t.groupBuyCreateBtn}</button>}<button onClick={onClose} className="text-gray-500 text-sm">✕</button></div></div>
 
@@ -757,7 +773,15 @@ function GroupBuyModal({t,settings,onClose}){
           })():(<div className="flex flex-wrap gap-1.5">{detail.joined.map((o,i)=>(<span key={i} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-300">{o.code}{o.qty>1?'×'+o.qty:''}</span>))}</div>)}
           <div><p className="text-xs text-gray-500 mb-1.5 mt-2">{t.groupBuyViewDeclined}（{detail.declined.length}）</p><div className="flex flex-wrap gap-1.5">{detail.declined.map((o,i)=>(<span key={i} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-500">{o.code}</span>))}</div></div>
           <div><p className="text-xs text-gray-500 mb-1.5">{t.groupBuyViewOpens}（{detail.opens.length}）</p><div className="flex flex-wrap gap-1.5">{detail.opens.map((o,i)=>(<span key={i} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-500">{o.code}</span>))}</div></div>
-          {detailBuy.status==='open'&&<button onClick={()=>doClose(detailBuy)} disabled={busy===detailBuy.id} className="w-full py-2.5 rounded-xl bg-red-600/20 text-red-400 text-sm font-semibold disabled:opacity-50">{busy===detailBuy.id?'…':t.groupBuyCloseBtn}</button>}
+          <div className="pt-2 border-t border-white/[0.06] space-y-1.5">
+            <p className="text-[11px] text-gray-500">變更狀態（目前：{SECTION_META[sectionOf(detailBuy.status)].label}）</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={()=>doSetStatus('closed')} disabled={statusChangeBusy||detailBuy.status==='closed'} className="py-2 rounded-lg bg-white/[0.06] text-gray-300 text-xs font-semibold disabled:opacity-40">提前截止</button>
+              <button onClick={()=>doSetStatus('collecting')} disabled={statusChangeBusy||detailBuy.status==='collecting'} className="py-2 rounded-lg bg-amber-600/20 text-amber-400 text-xs font-semibold disabled:opacity-40">收錢中</button>
+              <button onClick={()=>doSetStatus('shipping')} disabled={statusChangeBusy||detailBuy.status==='shipping'} className="py-2 rounded-lg bg-sky-600/20 text-sky-400 text-xs font-semibold disabled:opacity-40">貨運寄送中</button>
+              <button onClick={()=>doSetStatus('ended')} disabled={statusChangeBusy||detailBuy.status==='ended'} className="py-2 rounded-lg bg-red-600/20 text-red-400 text-xs font-semibold disabled:opacity-40">已結束</button>
+            </div>
+          </div>
         </>):(<>
           <div><p className="text-xs text-gray-500 mb-1.5">{t.groupBuyViewJoined}（{detail.joined.length}）</p><div className="flex flex-wrap gap-1.5">{detail.joined.map((o,i)=>(<span key={i} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-300">{o.code}{o.size?'('+o.size+')':''}</span>))}</div></div>
           {(()=>{const mine=detail.joined.find(o=>o.code===code);if(!mine)return null;return(<div className="flex gap-2 pt-2 border-t border-white/[0.06]">
@@ -800,15 +824,27 @@ function GroupBuyModal({t,settings,onClose}){
         </div>);})()}
         </>)}
       </>)}
-      {tab==='mine'&&(mine===null?<p className="text-xs text-gray-600 text-center py-4">{t.loading||'載入中…'}</p>:(mine.filter(o=>o.response!=='decline').length===0)?<p className="text-xs text-gray-600 text-center py-4">{t.groupBuyMineEmpty}</p>:mine.filter(o=>o.response!=='decline').map((o,i)=>(
-        <div key={i} onClick={()=>openDetail({id:o.buyId,title:o.title,creator:o.creator,amount:o.amount,item:o.size?'glove':'',deadline:o.deadline,status:o.status})} className="bg-white/[0.03] rounded-xl p-3 flex items-center justify-between cursor-pointer active:bg-white/[0.05]"><p className="text-sm text-gray-200">{o.title}（{o.creator}發起）</p><span className="text-xs text-amber-400 font-semibold flex-shrink-0">{o.size?(t.gloveSize+' '+o.size+' '):''}{t.groupBuyQtyLabel}{o.qty}{o.amount?('　'+t.groupBuyAmountLabel+o.amount):''}</span></div>
-      )))}
-      {tab==='created'&&(created.length===0?<p className="text-xs text-gray-600 text-center py-4">{t.groupBuyMineCreatedEmpty}</p>:(<>
-        {created.map(g=>{const amt=parseFloat(g.amount)||0;const sub=amt*(g.orderCount||0);return(
-          <div key={g.id} onClick={()=>openDetail(g)} className="bg-white/[0.03] rounded-xl p-3 flex items-center justify-between cursor-pointer"><p className="text-sm text-gray-200">{g.title}</p><div className="text-right flex-shrink-0"><p className="text-xs text-gray-500">{fmtLog(t.groupBuyCreatedCount,[String(g.orderCount)])}</p>{sub>0&&<p className="text-xs text-amber-400 font-semibold">{g.orderCount}×{amt}＝{sub.toLocaleString()}</p>}</div></div>
-        );})}
-        {(()=>{const total=created.reduce((s,g)=>s+(parseFloat(g.amount)||0)*(g.orderCount||0),0);return total>0&&(<div className="flex items-center justify-between pt-2 border-t border-white/[0.08]"><span className="text-sm text-gray-400 font-semibold">{t.groupBuySubtotalLabel||'小計'}</span><span className="text-base text-amber-400 font-bold">{total.toLocaleString()}</span></div>);})()}
-      </>))}
+      {tab==='mine'&&(mine===null?<p className="text-xs text-gray-600 text-center py-4">{t.loading||'載入中…'}</p>:(mine.filter(o=>o.response!=='decline').length===0)?<p className="text-xs text-gray-600 text-center py-4">{t.groupBuyMineEmpty}</p>:(()=>{
+        const buckets=groupBySection(mine.filter(o=>o.response!=='decline'),o=>o.status);
+        return SECTION_ORDER.filter(k=>buckets[k].length>0).map(k=>(
+          <div key={k} className="space-y-1.5"><p className={`text-[11px] font-semibold ${SECTION_META[k].color}`}>{SECTION_META[k].label}（{buckets[k].length}）</p>
+            {buckets[k].map((o,i)=>(
+              <div key={i} onClick={()=>openDetail({id:o.buyId,title:o.title,creator:o.creator,amount:o.amount,item:o.size?'glove':'',deadline:o.deadline,status:o.status})} className="bg-white/[0.03] rounded-xl p-3 flex items-center justify-between cursor-pointer active:bg-white/[0.05]"><p className="text-sm text-gray-200">{o.title}（{o.creator}發起）</p><span className="text-xs text-amber-400 font-semibold flex-shrink-0">{o.size?(t.gloveSize+' '+o.size+' '):''}{t.groupBuyQtyLabel}{o.qty}{o.amount?('　'+t.groupBuyAmountLabel+o.amount):''}</span></div>
+            ))}
+          </div>
+        ));
+      })())}
+      {tab==='created'&&(created.length===0?<p className="text-xs text-gray-600 text-center py-4">{t.groupBuyMineCreatedEmpty}</p>:(()=>{
+        const buckets=groupBySection(created,g=>g.status);
+        return SECTION_ORDER.filter(k=>buckets[k].length>0).map(k=>(
+          <div key={k} className="space-y-1.5"><p className={`text-[11px] font-semibold ${SECTION_META[k].color}`}>{SECTION_META[k].label}（{buckets[k].length}）</p>
+            {buckets[k].map(g=>{const amt=parseFloat(g.amount)||0;const sub=amt*(g.orderCount||0);return(
+              <div key={g.id} onClick={()=>openDetail(g)} className="bg-white/[0.03] rounded-xl p-3 flex items-center justify-between cursor-pointer"><p className="text-sm text-gray-200">{g.title}</p><div className="text-right flex-shrink-0"><p className="text-xs text-gray-500">{fmtLog(t.groupBuyCreatedCount,[String(g.orderCount)])}</p>{sub>0&&<p className="text-xs text-amber-400 font-semibold">{g.orderCount}×{amt}＝{sub.toLocaleString()}</p>}</div></div>
+            );})}
+          </div>
+        ));
+      })())}
+      {tab==='created'&&created.length>0&&(()=>{const total=created.reduce((s,g)=>s+(parseFloat(g.amount)||0)*(g.orderCount||0),0);return total>0&&(<div className="flex items-center justify-between pt-2 border-t border-white/[0.08]"><span className="text-sm text-gray-400 font-semibold">{t.groupBuySubtotalLabel||'小計'}</span><span className="text-base text-amber-400 font-bold">{total.toLocaleString()}</span></div>);})()}
     </div>
     </>)}
   </div></div>);
