@@ -1,0 +1,5886 @@
+{
+ "bodyParts": [
+  {
+   "id": "leg",
+   "zh": "足部與小腿",
+   "vi": "Chân và bắp chân"
+  },
+  {
+   "id": "shoulder",
+   "zh": "肩膀",
+   "vi": "Vai"
+  },
+  {
+   "id": "upperback",
+   "zh": "上背部",
+   "vi": "Lưng trên"
+  },
+  {
+   "id": "lowerback",
+   "zh": "下背部（腰骶部）",
+   "vi": "Lưng dưới (thắt lưng)"
+  },
+  {
+   "id": "hip",
+   "zh": "臀部與大腿",
+   "vi": "Mông và đùi"
+  },
+  {
+   "id": "arm",
+   "zh": "手臂",
+   "vi": "Cánh tay"
+  },
+  {
+   "id": "head",
+   "zh": "頭部",
+   "vi": "Đầu"
+  }
+ ],
+ "points": [
+  {
+   "id": "leg_1",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "湧泉穴",
+    "vi": "Huyệt Dũng Tuyền"
+   },
+   "meridian": {
+    "zh": "足少陰腎經",
+    "vi": "Kinh Thận (Túc Thiếu Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "滋陰補腎",
+     "寧心安神",
+     "緩解下肢疲勞與改善睡眠品質",
+     "湧泉穴",
+     "湧泉"
+    ],
+    "vi": [
+     "bổ thận",
+     "an thần",
+     "giảm mỏi chân",
+     "dễ ngủ"
+    ]
+   },
+   "location": {
+    "zh": "位於足底部，蜷足時足底前部凹陷處（約當足底第2、3趾趾縫紋頭端與足跟連線的前三分之一與後三分之二交點上）",
+    "vi": "Ở lòng bàn chân, khi co ngón chân lại, chỗ lõm phía trước lòng bàn chân xuất hiện (khoảng điểm giao giữa 1/3 trước và 2/3 sau của đường nối đầu kẽ ngón chân 2-3 với gót chân)."
+   },
+   "benefit": {
+    "zh": "滋陰補腎、寧心安神、緩解下肢疲勞與改善睡眠品質",
+    "vi": "Tư âm bổ thận, an thần định tâm, giảm mỏi chân tay dưới và cải thiện chất lượng giấc ngủ."
+   },
+   "technique": {
+    "zh": "用大拇指指腹或指關節由輕到重按壓，或以手掌擦熱足心",
+    "vi": "Dùng đầu ngón cái hoặc khớp ngón tay ấn từ nhẹ đến mạnh, hoặc xoa nóng lòng bàn tay rồi áp vào lòng bàn chân."
+   },
+   "caution": {
+    "zh": "孕婦及經期女性應避免強力刺激或針灸；足底有傷口或感染時暫緩按壓",
+    "vi": "Phụ nữ mang thai và trong kỳ kinh nguyệt nên tránh kích thích mạnh hoặc châm cứu; khi lòng bàn chân có vết thương hoặc nhiễm trùng nên tạm ngưng ấn."
+   }
+  },
+  {
+   "id": "leg_2",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "太衝穴",
+    "vi": "Huyệt Thái Xung"
+   },
+   "meridian": {
+    "zh": "足厥陰肝經",
+    "vi": "Kinh Can (Túc Quyết Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "疏肝理氣",
+     "平肝熄風",
+     "舒緩情緒壓力與足背緊繃",
+     "太衝穴",
+     "太衝"
+    ],
+    "vi": [
+     "sơ can lý khí",
+     "giảm căng thẳng",
+     "bình can"
+    ]
+   },
+   "location": {
+    "zh": "位於足背側，當第一、二趾結合部前方凹陷處（約當趾縫紋頭端向後一寸）",
+    "vi": "Ở mu bàn chân, tại chỗ lõm phía trước điểm nối giữa ngón chân cái và ngón thứ hai (khoảng 1 thốn về phía sau đầu kẽ ngón)."
+   },
+   "benefit": {
+    "zh": "疏肝理氣、平肝熄風、舒緩情緒壓力與足背緊繃",
+    "vi": "Sơ can lý khí, bình can tức phong, giảm căng thẳng cảm xúc và mỏi mu bàn chân."
+   },
+   "technique": {
+    "zh": "以大拇指指腹垂直向下按壓，並做順時針或逆時針的順氣揉動",
+    "vi": "Dùng đầu ngón cái ấn thẳng xuống, xoay tròn theo hoặc ngược chiều kim đồng hồ để dẫn khí."
+   },
+   "caution": {
+    "zh": "孕婦宜平緩按摩，不宜過度強力重壓以免引發宮縮",
+    "vi": "Phụ nữ mang thai nên xoa nhẹ nhàng, không nên dùng lực mạnh để tránh gây co bóp tử cung."
+   }
+  },
+  {
+   "id": "leg_3",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "太溪穴",
+    "vi": "Huyệt Thái Khê"
+   },
+   "meridian": {
+    "zh": "足少陰腎經",
+    "vi": "Kinh Thận (Túc Thiếu Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "滋補腎陰",
+     "強腰膝",
+     "改善下肢冰冷與足踝僵硬",
+     "太溪穴",
+     "太溪"
+    ],
+    "vi": [
+     "bổ thận âm",
+     "giảm lạnh chân",
+     "cứng cổ chân"
+    ]
+   },
+   "location": {
+    "zh": "位於足內側，內踝尖與跟腱之間的凹陷處（內踝尖與阿基里斯腱中點）",
+    "vi": "Ở mặt trong bàn chân, chỗ lõm giữa đỉnh mắt cá trong và gân gót chân (điểm giữa mắt cá trong và gân Achilles)."
+   },
+   "benefit": {
+    "zh": "滋補腎陰、強腰膝、改善下肢冰冷與足踝僵硬",
+    "vi": "Tư bổ thận âm, mạnh lưng gối, cải thiện chân lạnh và cứng cổ chân."
+   },
+   "technique": {
+    "zh": "用大拇指指腹輕柔揉按，力度由輕漸重",
+    "vi": "Dùng đầu ngón cái xoa bóp nhẹ nhàng, lực từ nhẹ tăng dần."
+   },
+   "caution": {
+    "zh": "局部若有急性扭傷、紅腫熱痛時應先冰敷休息，不宜直接大力推拿",
+    "vi": "Nếu vùng này vừa bị bong gân cấp tính, sưng đỏ nóng đau thì nên chườm đá nghỉ ngơi trước, không nên day bấm mạnh ngay."
+   }
+  },
+  {
+   "id": "leg_4",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "三陰交穴",
+    "vi": "Huyệt Tam Âm Giao"
+   },
+   "meridian": {
+    "zh": "足太陰脾經",
+    "vi": "Kinh Tỳ (Túc Thái Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "調節循環",
+     "健脾利濕",
+     "舒緩小腿內側肌肉疲勞",
+     "三陰交穴",
+     "三陰交"
+    ],
+    "vi": [
+     "điều hòa tuần hoàn",
+     "kiện tỳ",
+     "mỏi bắp chân trong"
+    ]
+   },
+   "location": {
+    "zh": "位於小腿內側，內踝尖直上四橫指（自內踝尖上三寸），脛骨後緣凹陷處",
+    "vi": "Ở mặt trong cẳng chân, thẳng lên trên đỉnh mắt cá trong khoảng 4 ngón tay (3 thốn), sát bờ sau xương chày."
+   },
+   "benefit": {
+    "zh": "調節循環、健脾利濕、舒緩小腿內側肌肉疲勞",
+    "vi": "Điều hòa khí huyết, kiện tỳ lợi thấp, giảm mỏi cơ mặt trong cẳng chân."
+   },
+   "technique": {
+    "zh": "以大拇指指腹或食指指腹按揉，配合緩慢呼吸施力",
+    "vi": "Dùng đầu ngón cái hoặc ngón trỏ day ấn, kết hợp thở chậm để điều chỉnh lực."
+   },
+   "caution": {
+    "zh": "孕婦禁按（此穴位通氣血，傳統上為安胎禁忌穴位）",
+    "vi": "**Phụ nữ mang thai tuyệt đối không ấn** (huyệt này thông khí huyết, theo truyền thống là huyệt cấm kỵ khi an thai)."
+   }
+  },
+  {
+   "id": "leg_5",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "足三里穴",
+    "vi": "Huyệt Túc Tam Lý"
+   },
+   "meridian": {
+    "zh": "足陽明胃經",
+    "vi": "Kinh Vị (Túc Dương Minh)"
+   },
+   "keywords": {
+    "zh": [
+     "調理脾胃",
+     "補氣血",
+     "消除下肢沉重與緩解疲勞",
+     "足三里穴",
+     "足三里"
+    ],
+    "vi": [
+     "kiện tỳ vị",
+     "bổ khí huyết",
+     "mỏi chân nặng nề"
+    ]
+   },
+   "location": {
+    "zh": "位於小腿外側，外膝眼直下四橫指（約三寸），脛骨前緣外側一橫指處",
+    "vi": "Ở mặt ngoài cẳng chân, thẳng xuống dưới mắt gối ngoài khoảng 4 ngón tay (3 thốn), cách bờ ngoài xương chày khoảng 1 ngón tay."
+   },
+   "benefit": {
+    "zh": "調理脾胃、補氣血、消除下肢沉重與緩解疲勞",
+    "vi": "Điều lý tỳ vị, bổ khí huyết, giảm cảm giác nặng nề và mỏi ở chi dưới."
+   },
+   "technique": {
+    "zh": "以拇指指腹或掌根按壓、順時針揉動，或用敲擊方式放鬆",
+    "vi": "Dùng đầu ngón cái hoặc gốc bàn tay ấn, xoay tròn theo chiều kim đồng hồ, hoặc dùng cách gõ nhẹ để thư giãn."
+   },
+   "caution": {
+    "zh": "皮膚有濕疹、靜脈曲張嚴重或局部感染處應避開",
+    "vi": "Vùng da có chàm, giãn tĩnh mạch nặng hoặc nhiễm trùng cục bộ nên tránh."
+   }
+  },
+  {
+   "id": "leg_6",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "承山穴",
+    "vi": "Huyệt Thừa Sơn"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "強筋健骨",
+     "放鬆小腿後側肌肉",
+     "緩解腓腸肌痙攣（抽筋）",
+     "承山穴",
+     "承山"
+    ],
+    "vi": [
+     "giảm chuột rút",
+     "thư giãn bắp chân",
+     "cứng cơ"
+    ]
+   },
+   "location": {
+    "zh": "位於小腿後側正中，當伸直小腿或足跟上提時，腓腸肌肌肉腹部下端之交角凹陷處（約小腿後側正中線）",
+    "vi": "Ở giữa mặt sau cẳng chân, khi duỗi thẳng chân hoặc nhón gót, chỗ lõm hình chữ V ở đáy bụng cơ bắp chân (khoảng đường giữa mặt sau cẳng chân)."
+   },
+   "benefit": {
+    "zh": "強筋健骨、放鬆小腿後側肌肉、緩解腓腸肌痙攣（抽筋）",
+    "vi": "Mạnh gân cốt, thư giãn cơ mặt sau cẳng chân, giảm chuột rút cơ bắp chân."
+   },
+   "technique": {
+    "zh": "以大拇指或掌根由下往上推揉，或適度握拳輕捶",
+    "vi": "Dùng đầu ngón cái hoặc gốc bàn tay đẩy day từ dưới lên trên, hoặc nắm tay gõ nhẹ vừa phải."
+   },
+   "caution": {
+    "zh": "力度需依個人耐受度調整，若肌肉處於嚴重撕裂傷或急性拉傷期應避免強力揉捏",
+    "vi": "Lực cần điều chỉnh theo mức chịu đựng từng người; nếu cơ đang bị rách nặng hoặc căng cơ cấp tính thì nên tránh day bấm mạnh."
+   }
+  },
+  {
+   "id": "leg_7",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "行間穴",
+    "vi": "Huyệt Hành Gian"
+   },
+   "meridian": {
+    "zh": "足厥陰肝經",
+    "vi": "Kinh Can (Túc Quyết Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "清肝瀉火",
+     "涼血睦目",
+     "舒緩足部悶熱與情緒亢奮",
+     "行間穴",
+     "行間"
+    ],
+    "vi": [
+     "thanh can hỏa",
+     "giảm nóng trong người",
+     "mu bàn chân"
+    ]
+   },
+   "location": {
+    "zh": "位於足背側，第一、二趾縫紋頭端的赤白肉際處",
+    "vi": "Ở mu bàn chân, tại vùng da đỏ trắng giao nhau ở đầu kẽ giữa ngón chân cái và ngón thứ hai."
+   },
+   "benefit": {
+    "zh": "清肝瀉火、涼血睦目、舒緩足部悶熱與情緒亢奮",
+    "vi": "Thanh can tả hỏa, lương huyết sáng mắt, giảm nóng bức bàn chân và tâm trạng bức bối."
+   },
+   "technique": {
+    "zh": "用大拇指指腹點按並前後推揉",
+    "vi": "Dùng đầu ngón cái điểm ấn kết hợp day tới lui."
+   },
+   "caution": {
+    "zh": "局部有皮膚破損、感染或香港腳潰爛處請避開",
+    "vi": "Nếu da vùng này bị trầy xước, nhiễm trùng hoặc nấm da chân lở loét thì nên tránh."
+   }
+  },
+  {
+   "id": "leg_8",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "大敦穴",
+    "vi": "Huyệt Đại Đôn"
+   },
+   "meridian": {
+    "zh": "足厥陰肝經",
+    "vi": "Kinh Can (Túc Quyết Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "調理下焦",
+     "疏肝理氣",
+     "改善足趾冰冷",
+     "大敦穴",
+     "大敦"
+    ],
+    "vi": [
+     "điều lý hạ tiêu",
+     "giảm lạnh ngón chân"
+    ]
+   },
+   "location": {
+    "zh": "位於足大趾末節外側，趾甲根部旁開約一分（約0.1寸）",
+    "vi": "Ở đốt cuối ngón chân cái phía ngoài, cách chân móng khoảng 0,1 thốn."
+   },
+   "benefit": {
+    "zh": "調理下焦、疏肝理氣、改善足趾冰冷",
+    "vi": "Điều lý hạ tiêu, sơ can lý khí, cải thiện cảm giác lạnh ở ngón chân."
+   },
+   "technique": {
+    "zh": "用指甲輕掐或以指腹輕柔捏按",
+    "vi": "Dùng móng tay day nhẹ hoặc đầu ngón tay bóp nhẹ."
+   },
+   "caution": {
+    "zh": "孕婦及經期女性若要刺激需手法輕柔，避免過度強烈刺激",
+    "vi": "Phụ nữ mang thai và trong kỳ kinh nguyệt nếu muốn kích thích cần thao tác nhẹ nhàng, tránh kích thích quá mạnh."
+   }
+  },
+  {
+   "id": "leg_9",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "隱白穴",
+    "vi": "Huyệt Ẩn Bạch"
+   },
+   "meridian": {
+    "zh": "足太陰脾經",
+    "vi": "Kinh Tỳ (Túc Thái Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "健脾和胃",
+     "統血調經",
+     "放鬆足趾末梢神經",
+     "隱白穴",
+     "隱白"
+    ],
+    "vi": [
+     "kiện tỳ vị",
+     "thư giãn đầu ngón chân"
+    ]
+   },
+   "location": {
+    "zh": "位於足大趾末節內側，趾甲根部旁開約一分（約0.1寸）",
+    "vi": "Ở đốt cuối ngón chân cái phía trong, cách chân móng khoảng 0,1 thốn."
+   },
+   "benefit": {
+    "zh": "健脾和胃、統血調經、放鬆足趾末梢神經",
+    "vi": "Kiện tỳ hòa vị, thống huyết điều kinh, thư giãn thần kinh đầu ngón chân."
+   },
+   "technique": {
+    "zh": "以拇指與食指指腹輕捏並點按趾端",
+    "vi": "Dùng đầu ngón cái và ngón trỏ bóp nhẹ và điểm ấn đầu ngón chân."
+   },
+   "caution": {
+    "zh": "局部皮膚有外傷或感染發炎時暫停按摩",
+    "vi": "Khi da vùng này có vết thương hoặc viêm nhiễm nên tạm ngưng massage."
+   }
+  },
+  {
+   "id": "leg_10",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "然谷穴",
+    "vi": "Huyệt Nhiên Cốc"
+   },
+   "meridian": {
+    "zh": "足少陰腎經",
+    "vi": "Kinh Thận (Túc Thiếu Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "清熱利濕",
+     "滋陰降火",
+     "舒緩足弓內側緊繃感",
+     "然谷穴",
+     "然谷"
+    ],
+    "vi": [
+     "thanh nhiệt lợi thấp",
+     "giảm căng vòm chân"
+    ]
+   },
+   "location": {
+    "zh": "位於足內側，足舟骨粗隆下方凹陷處（赤白肉際交界處）",
+    "vi": "Ở mặt trong bàn chân, chỗ lõm dưới ụ xương thuyền (vùng da đỏ trắng giao nhau)."
+   },
+   "benefit": {
+    "zh": "清熱利濕、滋陰降火、舒緩足弓內側緊繃感",
+    "vi": "Thanh nhiệt lợi thấp, tư âm giáng hỏa, giảm căng ở vòm trong bàn chân."
+   },
+   "technique": {
+    "zh": "以大拇指指腹由下往上輕推按揉",
+    "vi": "Dùng đầu ngón cái đẩy nhẹ từ dưới lên trên."
+   },
+   "caution": {
+    "zh": "孕婦若有習慣性流產傾向者不宜重按",
+    "vi": "Phụ nữ có tiền sử sảy thai quen dạ không nên ấn mạnh."
+   }
+  },
+  {
+   "id": "leg_11",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "公孫穴",
+    "vi": "Huyệt Công Tôn"
+   },
+   "meridian": {
+    "zh": "足太陰脾經",
+    "vi": "Kinh Tỳ (Túc Thái Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "健脾胃",
+     "理氣機",
+     "舒緩胃部不適與足內側痠脹",
+     "公孫穴",
+     "公孫"
+    ],
+    "vi": [
+     "kiện tỳ vị",
+     "giảm khó chịu dạ dày"
+    ]
+   },
+   "location": {
+    "zh": "位於足內側緣，第一蹠骨基底的前下方凹陷處（赤白肉際處）",
+    "vi": "Ở bờ trong bàn chân, chỗ lõm phía trước dưới đáy xương bàn chân thứ nhất (vùng da đỏ trắng giao nhau)."
+   },
+   "benefit": {
+    "zh": "健脾胃、理氣機、舒緩胃部不適與足內側痠脹",
+    "vi": "Kiện tỳ vị, điều khí cơ, giảm khó chịu dạ dày và mỏi mặt trong bàn chân."
+   },
+   "technique": {
+    "zh": "以大拇指腹端順著骨緣前後緩慢推揉",
+    "vi": "Dùng đầu ngón cái day theo bờ xương từ trước ra sau chậm rãi."
+   },
+   "caution": {
+    "zh": "局部有骨骼壓痛或嚴重軟組織發炎時，手法應輕柔和緩",
+    "vi": "Nếu có đau xương cục bộ hoặc viêm mô mềm nặng thì thao tác nên nhẹ nhàng."
+   }
+  },
+  {
+   "id": "leg_12",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "照海穴",
+    "vi": "Huyệt Chiếu Hải"
+   },
+   "meridian": {
+    "zh": "足少陰腎經",
+    "vi": "Kinh Thận (Túc Thiếu Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "滋腎清熱",
+     "寧神調經",
+     "緩解足踝內側腫脹與緊繃",
+     "照海穴",
+     "照海"
+    ],
+    "vi": [
+     "tư thận thanh nhiệt",
+     "giảm sưng cổ chân"
+    ]
+   },
+   "location": {
+    "zh": "位於足內側，內踝尖下方凹陷處（內踝下約一寸）",
+    "vi": "Ở mặt trong bàn chân, chỗ lõm dưới đỉnh mắt cá trong (khoảng 1 thốn dưới mắt cá trong)."
+   },
+   "benefit": {
+    "zh": "滋腎清熱、寧神調經、緩解足踝內側腫脹與緊繃",
+    "vi": "Tư thận thanh nhiệt, an thần điều kinh, giảm sưng và căng mặt trong cổ chân."
+   },
+   "technique": {
+    "zh": "以大拇指指腹輕輕按揉內踝下方凹陷",
+    "vi": "Dùng đầu ngón cái day nhẹ chỗ lõm dưới mắt cá trong."
+   },
+   "caution": {
+    "zh": "局部若有急性扭傷微血管破裂期應避免用力揉捏",
+    "vi": "Nếu vừa bị bong gân cấp tính, mao mạch vỡ thì nên tránh day bấm mạnh."
+   }
+  },
+  {
+   "id": "leg_13",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "金門穴",
+    "vi": "Huyệt Kim Môn"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "安神定驚",
+     "通經活絡",
+     "舒緩足外側抽痛",
+     "金門穴",
+     "金門"
+    ],
+    "vi": [
+     "an thần định kinh",
+     "giảm đau mặt ngoài chân"
+    ]
+   },
+   "location": {
+    "zh": "位於足外側部，足舟骨粗隆下緣，骰骨下方的凹陷處",
+    "vi": "Ở mặt ngoài bàn chân, dưới ụ xương thuyền, phía dưới xương hộp."
+   },
+   "benefit": {
+    "zh": "安神定驚、通經活絡、舒緩足外側抽痛",
+    "vi": "An thần định kinh, thông kinh hoạt lạc, giảm đau nhói mặt ngoài bàn chân."
+   },
+   "technique": {
+    "zh": "以指腹點按或輕柔打圈揉動",
+    "vi": "Dùng đầu ngón tay điểm ấn hoặc xoay tròn nhẹ nhàng."
+   },
+   "caution": {
+    "zh": "足底外側有急性拉傷或痛風發作期不宜強力按壓",
+    "vi": "Nếu mặt ngoài bàn chân vừa bị kéo căng cấp tính hoặc đang phát bệnh gút thì không nên ấn mạnh."
+   }
+  },
+  {
+   "id": "leg_14",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "京骨穴",
+    "vi": "Huyệt Kinh Cốt"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "清熱明目",
+     "舒筋活絡",
+     "緩解足外側緣疲勞",
+     "京骨穴",
+     "京骨"
+    ],
+    "vi": [
+     "sáng mắt",
+     "giảm mỏi mặt ngoài chân"
+    ]
+   },
+   "location": {
+    "zh": "位於足外側部，第五蹠骨粗隆下方，赤白肉際處",
+    "vi": "Ở mặt ngoài bàn chân, dưới ụ xương bàn chân thứ 5, vùng da đỏ trắng giao nhau."
+   },
+   "benefit": {
+    "zh": "清熱明目、舒筋活絡、緩解足外側緣疲勞",
+    "vi": "Thanh nhiệt sáng mắt, thư cân hoạt lạc, giảm mỏi bờ ngoài bàn chân."
+   },
+   "technique": {
+    "zh": "以大拇指指腹順著骨緣上下推按",
+    "vi": "Dùng đầu ngón cái day theo bờ xương từ trên xuống dưới."
+   },
+   "caution": {
+    "zh": "皮膚若有繭過厚或龜裂疼痛時應避免直接用力施壓",
+    "vi": "Nếu da có chai sần dày hoặc nứt nẻ đau thì tránh ấn trực tiếp lực mạnh."
+   }
+  },
+  {
+   "id": "leg_15",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "束骨穴",
+    "vi": "Huyệt Thúc Cốt"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "通經活絡",
+     "散風清熱",
+     "舒緩足小趾及外側僵硬",
+     "束骨穴",
+     "束骨"
+    ],
+    "vi": [
+     "thông kinh hoạt lạc",
+     "cứng ngón chân út"
+    ]
+   },
+   "location": {
+    "zh": "位於足外側，足小趾本節（第五蹠趾關節）的後方赤白肉際處",
+    "vi": "Ở mặt ngoài bàn chân, phía sau khớp gốc ngón chân út (khớp bàn ngón thứ 5), vùng da đỏ trắng giao nhau."
+   },
+   "benefit": {
+    "zh": "通經活絡、散風清熱、舒緩足小趾及外側僵硬",
+    "vi": "Thông kinh hoạt lạc, tán phong thanh nhiệt, giảm cứng ngón chân út và mặt ngoài bàn chân."
+   },
+   "technique": {
+    "zh": "用大拇指指腹點按並做小幅度揉動",
+    "vi": "Dùng đầu ngón cái điểm ấn và day nhẹ."
+   },
+   "caution": {
+    "zh": "孕婦宜輕柔按摩，避免強烈刺激反射區",
+    "vi": "Phụ nữ mang thai nên xoa nhẹ nhàng, tránh kích thích mạnh vùng phản xạ."
+   }
+  },
+  {
+   "id": "leg_16",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "至陰穴",
+    "vi": "Huyệt Chí Âm"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "通經理氣",
+     "調整氣血",
+     "放鬆足趾緊繃感",
+     "至陰穴",
+     "至陰"
+    ],
+    "vi": [
+     "điều khí huyết",
+     "thư giãn ngón chân"
+    ]
+   },
+   "location": {
+    "zh": "位於足小趾末節外側，趾甲根部旁開約一分（約0.1寸）",
+    "vi": "Ở đốt cuối ngón chân út phía ngoài, cách chân móng khoảng 0,1 thốn."
+   },
+   "benefit": {
+    "zh": "通經理氣、調整氣血、放鬆足趾緊繃感",
+    "vi": "Thông kinh lý khí, điều hòa khí huyết, thư giãn ngón chân út."
+   },
+   "technique": {
+    "zh": "以指甲輕掐或指腹輕揉小趾外側",
+    "vi": "Dùng móng tay day nhẹ hoặc đầu ngón tay xoa nhẹ mặt ngoài ngón út."
+   },
+   "caution": {
+    "zh": "孕婦慎用（傳統上此穴多用於轉胎，孕期日常足部按摩若無專業指引請避開此趾末端）",
+    "vi": "Phụ nữ mang thai nên thận trọng (theo truyền thống huyệt này thường dùng để xoay thai, nếu massage chân thường ngày trong thai kỳ nên tránh đầu ngón này nếu không có chỉ dẫn chuyên môn)."
+   }
+  },
+  {
+   "id": "leg_17",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "足臨泣",
+    "vi": "Huyệt Túc Lâm Khấp"
+   },
+   "meridian": {
+    "zh": "足少陽膽經",
+    "vi": "Kinh Đởm (Túc Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "疏肝膽",
+     "清頭目",
+     "舒緩足背外側及腳趾縫間緊繃",
+     "足臨泣"
+    ],
+    "vi": [
+     "sơ can đởm",
+     "giảm căng mu bàn chân"
+    ]
+   },
+   "location": {
+    "zh": "位於足背側，第四、五蹠骨結合部的前方凹陷處",
+    "vi": "Ở mu bàn chân, chỗ lõm phía trước điểm nối xương bàn chân thứ 4 và thứ 5."
+   },
+   "benefit": {
+    "zh": "疏肝膽、清頭目、舒緩足背外側及腳趾縫間緊繃",
+    "vi": "Sơ can đởm, thanh đầu mục, giảm căng mặt ngoài mu bàn chân và kẽ ngón chân."
+   },
+   "technique": {
+    "zh": "以指腹在兩趾骨之間縫隙處按壓揉動",
+    "vi": "Dùng đầu ngón tay ấn day tại khe giữa hai xương ngón."
+   },
+   "caution": {
+    "zh": "孕婦不宜過度強力刺激，以免引起氣血運行過快",
+    "vi": "Phụ nữ mang thai không nên kích thích mạnh, tránh làm khí huyết vận hành quá nhanh."
+   }
+  },
+  {
+   "id": "leg_18",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "丘墟穴",
+    "vi": "Huyệt Khâu Khư"
+   },
+   "meridian": {
+    "zh": "足少陽膽經",
+    "vi": "Kinh Đởm (Túc Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "疏肝利膽",
+     "通絡止痛",
+     "舒緩足踝關節緊繃與外側痠痛",
+     "丘墟穴",
+     "丘墟"
+    ],
+    "vi": [
+     "sơ can lợi đởm",
+     "đau khớp cổ chân"
+    ]
+   },
+   "location": {
+    "zh": "位於足外側，外踝前下方，趾長伸肌腱的外側凹陷處",
+    "vi": "Ở mặt ngoài bàn chân, phía trước dưới mắt cá ngoài, chỗ lõm bờ ngoài gân duỗi ngón dài."
+   },
+   "benefit": {
+    "zh": "疏肝利膽、通絡止痛、舒緩足踝關節緊繃與外側痠痛",
+    "vi": "Sơ can lợi đởm, thông lạc chỉ thống, giảm căng khớp cổ chân và đau mặt ngoài."
+   },
+   "technique": {
+    "zh": "用大拇指指腹在外踝前下方畫圈揉按",
+    "vi": "Dùng đầu ngón cái xoay tròn day trước dưới mắt cá ngoài."
+   },
+   "caution": {
+    "zh": "足踝部若有急性韌帶撕裂或嚴重扭傷腫脹時嚴禁按壓",
+    "vi": "Nếu cổ chân bị rách dây chằng cấp tính hoặc bong gân sưng nặng thì tuyệt đối không ấn."
+   }
+  },
+  {
+   "id": "leg_19",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "懸鐘穴",
+    "vi": "Huyệt Huyền Chung"
+   },
+   "meridian": {
+    "zh": "足少陽膽經",
+    "vi": "Kinh Đởm (Túc Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "疏風清熱",
+     "利膽通絡",
+     "舒緩小腿外側腓骨長短肌緊繃",
+     "懸鐘穴",
+     "懸鐘"
+    ],
+    "vi": [
+     "sơ phong lợi đởm",
+     "mỏi mặt ngoài cẳng chân"
+    ]
+   },
+   "location": {
+    "zh": "位於小腿外側，外踝尖直上三橫指（約三寸），腓骨前緣凹陷處",
+    "vi": "Ở mặt ngoài cẳng chân, thẳng lên trên đỉnh mắt cá ngoài khoảng 3 ngón tay (3 thốn), bờ trước xương mác."
+   },
+   "benefit": {
+    "zh": "疏風清熱、利膽通絡、舒緩小腿外側腓骨長短肌緊繃",
+    "vi": "Sơ phong thanh nhiệt, lợi đởm thông lạc, giảm căng cơ mác dài ngắn mặt ngoài cẳng chân."
+   },
+   "technique": {
+    "zh": "以大拇指指腹強力點揉，或由下往上推按",
+    "vi": "Dùng đầu ngón cái điểm day mạnh, hoặc đẩy từ dưới lên trên."
+   },
+   "caution": {
+    "zh": "孕婦若無特殊需求，小腿外側強刺激穴位宜力道適中",
+    "vi": "Phụ nữ mang thai nếu không có nhu cầu đặc biệt thì kích thích mạnh vùng ngoài cẳng chân nên vừa phải."
+   }
+  },
+  {
+   "id": "leg_20",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "光明穴",
+    "vi": "Huyệt Quang Minh"
+   },
+   "meridian": {
+    "zh": "足少陽膽經",
+    "vi": "Kinh Đởm (Túc Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "清肝明目",
+     "通經活絡",
+     "緩解小腿外側痠脹沉重",
+     "光明穴",
+     "光明"
+    ],
+    "vi": [
+     "sáng mắt",
+     "mỏi nặng mặt ngoài cẳng chân"
+    ]
+   },
+   "location": {
+    "zh": "位於小腿外側，外踝尖直上五橫指（約五寸），腓骨前緣凹陷處",
+    "vi": "Ở mặt ngoài cẳng chân, thẳng lên trên đỉnh mắt cá ngoài khoảng 5 ngón tay (5 thốn), bờ trước xương mác."
+   },
+   "benefit": {
+    "zh": "清肝明目、通經活絡、緩解小腿外側痠脹沉重",
+    "vi": "Thanh can sáng mắt, thông kinh hoạt lạc, giảm mỏi nặng mặt ngoài cẳng chân."
+   },
+   "technique": {
+    "zh": "以大拇指或食指指腹強力點揉或上下推按",
+    "vi": "Dùng đầu ngón cái hoặc ngón trỏ điểm day mạnh hoặc đẩy lên xuống."
+   },
+   "caution": {
+    "zh": "局部皮膚若有靜脈曲張突起或皮膚病變應避開",
+    "vi": "Nếu da vùng này có giãn tĩnh mạch nổi rõ hoặc bệnh da liễu thì nên tránh."
+   }
+  },
+  {
+   "id": "leg_21",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "陽輔穴",
+    "vi": "Huyệt Dương Phụ"
+   },
+   "meridian": {
+    "zh": "足少陽膽經",
+    "vi": "Kinh Đởm (Túc Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "清熱膽經",
+     "通經止痛",
+     "舒緩小腿外側後側肌肉筋膜",
+     "陽輔穴",
+     "陽輔"
+    ],
+    "vi": [
+     "thanh nhiệt kinh đởm",
+     "thư giãn cơ mặt ngoài sau"
+    ]
+   },
+   "location": {
+    "zh": "位於小腿外側，外踝尖直上七橫指（約四寸），腓骨後緣凹陷處",
+    "vi": "Ở mặt ngoài cẳng chân, thẳng lên trên đỉnh mắt cá ngoài khoảng 4 thốn, bờ sau xương mác."
+   },
+   "benefit": {
+    "zh": "清熱膽經、通經止痛、舒緩小腿外側後側肌肉筋膜",
+    "vi": "Thanh nhiệt kinh đởm, thông kinh chỉ thống, thư giãn cân cơ mặt ngoài và sau cẳng chân."
+   },
+   "technique": {
+    "zh": "以指腹按揉或用掌根輕輕推壓外側肌肉",
+    "vi": "Dùng đầu ngón tay day ấn hoặc dùng gốc bàn tay ấn nhẹ cơ mặt ngoài."
+   },
+   "caution": {
+    "zh": "局部若有肌肉急性拉傷或骨膜發炎應避免重壓",
+    "vi": "Nếu cơ vừa bị kéo căng cấp tính hoặc viêm màng xương thì tránh ấn mạnh."
+   }
+  },
+  {
+   "id": "leg_22",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "築賓穴",
+    "vi": "Huyệt Trúc Tân"
+   },
+   "meridian": {
+    "zh": "足少陰腎經",
+    "vi": "Kinh Thận (Túc Thiếu Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "清熱化濕",
+     "寧心安神",
+     "緩解小腿內側深層肌肉緊繃",
+     "築賓穴",
+     "築賓"
+    ],
+    "vi": [
+     "thanh nhiệt hóa thấp",
+     "an thần"
+    ]
+   },
+   "location": {
+    "zh": "位於小腿內側，內踝尖直上約五寸（太溪穴與陰谷穴連線上），腓腸肌肌腹的內下方",
+    "vi": "Ở mặt trong cẳng chân, thẳng lên trên đỉnh mắt cá trong khoảng 5 thốn (trên đường nối huyệt Thái Khê và Âm Cốc), phía dưới trong bụng cơ bắp chân."
+   },
+   "benefit": {
+    "zh": "清熱化濕、寧心安神、緩解小腿內側深層肌肉緊繃",
+    "vi": "Thanh nhiệt hóa thấp, an thần định tâm, giảm căng cơ sâu mặt trong cẳng chân."
+   },
+   "technique": {
+    "zh": "以拇指指腹適度施力按揉",
+    "vi": "Dùng đầu ngón cái day với lực vừa phải."
+   },
+   "caution": {
+    "zh": "孕婦不宜重按，以免造成下腹部不適",
+    "vi": "Phụ nữ mang thai không nên ấn mạnh, tránh gây khó chịu vùng bụng dưới."
+   }
+  },
+  {
+   "id": "leg_23",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "交信穴",
+    "vi": "Huyệt Giao Tín"
+   },
+   "meridian": {
+    "zh": "足少陰腎經",
+    "vi": "Kinh Thận (Túc Thiếu Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "調理氣血",
+     "利濕健脾",
+     "舒緩小腿內側脛骨後肌群緊繃",
+     "交信穴",
+     "交信"
+    ],
+    "vi": [
+     "điều lý khí huyết",
+     "kiện tỳ lợi thấp"
+    ]
+   },
+   "location": {
+    "zh": "位於小腿內側，內踝尖直上二橫指（約二寸），脛骨內側面後緣",
+    "vi": "Ở mặt trong cẳng chân, thẳng lên trên đỉnh mắt cá trong khoảng 2 ngón tay (2 thốn), bờ sau mặt trong xương chày."
+   },
+   "benefit": {
+    "zh": "調理氣血、利濕健脾、舒緩小腿內側脛骨後肌群緊繃",
+    "vi": "Điều lý khí huyết, lợi thấp kiện tỳ, giảm căng nhóm cơ sau xương chày mặt trong."
+   },
+   "technique": {
+    "zh": "以指腹輕輕揉按脛骨後緣凹陷處",
+    "vi": "Dùng đầu ngón tay day nhẹ chỗ lõm bờ sau xương chày."
+   },
+   "caution": {
+    "zh": "懷孕期間按摩應力道溫和，避開強烈強刺激",
+    "vi": "Trong thai kỳ nên massage với lực nhẹ nhàng, tránh kích thích mạnh."
+   }
+  },
+  {
+   "id": "leg_24",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "復溜穴",
+    "vi": "Huyệt Phục Lưu"
+   },
+   "meridian": {
+    "zh": "足少陰腎經",
+    "vi": "Kinh Thận (Túc Thiếu Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "補腎益陰",
+     "濕潤肌膚",
+     "改善下肢水腫與循環不良",
+     "復溜穴",
+     "復溜"
+    ],
+    "vi": [
+     "bổ thận ích âm",
+     "giảm phù chân"
+    ]
+   },
+   "location": {
+    "zh": "位於小腿內側，太溪穴直上二橫指（約二寸），跟腱的前方",
+    "vi": "Ở mặt trong cẳng chân, thẳng lên trên huyệt Thái Khê khoảng 2 thốn, phía trước gân gót chân."
+   },
+   "benefit": {
+    "zh": "補腎益陰、濕潤肌膚、改善下肢水腫與循環不良",
+    "vi": "Bổ thận ích âm, nhuận da, cải thiện phù chi dưới và tuần hoàn kém."
+   },
+   "technique": {
+    "zh": "以大拇指指腹輕柔按揉或上下推移",
+    "vi": "Dùng đầu ngón cái day nhẹ hoặc đẩy lên xuống."
+   },
+   "caution": {
+    "zh": "局部若有靜脈曲張嚴重或皮膚紅腫發炎處請輕柔帶過",
+    "vi": "Nếu có giãn tĩnh mạch nặng hoặc da đỏ sưng viêm thì nên xoa nhẹ nhàng."
+   }
+  },
+  {
+   "id": "leg_25",
+   "bodyPart": "leg",
+   "name": {
+    "zh": "承筋穴",
+    "vi": "Huyệt Thừa Cân"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "強筋健骨",
+     "放鬆小腿後側大塊肌肉",
+     "緩解緊繃與抽筋",
+     "承筋穴",
+     "承筋"
+    ],
+    "vi": [
+     "mạnh gân cốt",
+     "giảm chuột rút bắp chân"
+    ]
+   },
+   "location": {
+    "zh": "位於小腿後側正中，委中穴與承山穴連線的中點，腓腸肌肌腹中央",
+    "vi": "Ở giữa mặt sau cẳng chân, điểm giữa đường nối huyệt Ủy Trung và huyệt Thừa Sơn, giữa bụng cơ bắp chân."
+   },
+   "benefit": {
+    "zh": "強筋健骨、放鬆小腿後側大塊肌肉、緩解緊繃與抽筋",
+    "vi": "Mạnh gân cốt, thư giãn khối cơ lớn mặt sau cẳng chân, giảm căng và chuột rút."
+   },
+   "technique": {
+    "zh": "以掌根或大拇指由下往上推揉小腿肚核心",
+    "vi": "Dùng gốc bàn tay hoặc đầu ngón cái đẩy day từ dưới lên trên phần lõi bắp chân."
+   },
+   "caution": {
+    "zh": "若小腿肌肉正處於嚴重撕裂傷或劇烈抽筋剛過時，應由輕而重，切忌猛力粗暴揉捏",
+    "vi": "Nếu cơ bắp chân đang bị rách nặng hoặc vừa hết chuột rút dữ dội thì nên từ nhẹ đến nặng, tuyệt đối không day bóp mạnh bạo."
+   }
+  },
+  {
+   "id": "shoulder_1",
+   "bodyPart": "shoulder",
+   "name": {
+    "zh": "肩井穴",
+    "vi": "Huyệt Kiên Tỉnh"
+   },
+   "meridian": {
+    "zh": "足少陽膽經",
+    "vi": "Kinh Đởm (Túc Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "疏散風熱",
+     "通經活絡",
+     "緩解肩頸僵硬與落枕",
+     "肩井穴",
+     "肩井"
+    ],
+    "vi": [
+     "vai gáy cứng",
+     "tán phong nhiệt"
+    ]
+   },
+   "location": {
+    "zh": "位於肩上，大椎穴與肩峰端連線的中點，肩部筋肉處",
+    "vi": "Ở điểm cao nhất của vai, trung điểm đường nối huyệt Đại Chùy và đỉnh mỏm cùng vai."
+   },
+   "benefit": {
+    "zh": "疏散風熱、通經活絡、緩解肩頸僵硬與落枕",
+    "vi": "Tán phong nhiệt, thông kinh hoạt lạc, giảm cứng vai gáy và vẹo cổ."
+   },
+   "technique": {
+    "zh": "以大拇指或中指指腹垂直向下按壓，或用掌根輕揉",
+    "vi": "Dùng đầu ngón cái hoặc ngón giữa ấn thẳng xuống, hoặc dùng gốc bàn tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "孕婦禁按（此穴位屬強刺激穴，易引起強烈宮縮）",
+    "vi": "**Phụ nữ mang thai tuyệt đối không ấn** (huyệt này kích thích mạnh, dễ gây co bóp tử cung)."
+   }
+  },
+  {
+   "id": "shoulder_2",
+   "bodyPart": "shoulder",
+   "name": {
+    "zh": "肩髃穴",
+    "vi": "Huyệt Kiên Ngung"
+   },
+   "meridian": {
+    "zh": "手陽明大腸經",
+    "vi": "Kinh Đại Trường (Thủ Dương Minh)"
+   },
+   "keywords": {
+    "zh": [
+     "利關節",
+     "通經絡",
+     "緩解肩關節疼痛與上肢活動不利",
+     "肩髃穴",
+     "肩髃"
+    ],
+    "vi": [
+     "lợi khớp vai",
+     "đau khớp vai"
+    ]
+   },
+   "location": {
+    "zh": "位於肩部，當肩峰端下緣，肩峰與肱骨大結節之間，三角肌上部凹陷處",
+    "vi": "Ở vai, dưới bờ mỏm cùng vai, giữa mỏm cùng vai và ụ lớn xương cánh tay, chỗ lõm phần trên cơ delta."
+   },
+   "benefit": {
+    "zh": "利關節、通經絡、緩解肩關節疼痛與上肢活動不利",
+    "vi": "Lợi khớp, thông kinh lạc, giảm đau khớp vai và hạn chế vận động chi trên."
+   },
+   "technique": {
+    "zh": "用大拇指指腹點按，並配合肩部輕微前後轉動",
+    "vi": "Dùng đầu ngón cái điểm ấn, kết hợp xoay nhẹ vai."
+   },
+   "caution": {
+    "zh": "局部若有急性發炎、紅腫熱痛應避免強力按壓",
+    "vi": "Nếu đang viêm cấp tính, sưng đỏ nóng đau thì nên tránh ấn mạnh."
+   }
+  },
+  {
+   "id": "shoulder_3",
+   "bodyPart": "shoulder",
+   "name": {
+    "zh": "肩髎穴",
+    "vi": "Huyệt Kiên Liêu"
+   },
+   "meridian": {
+    "zh": "手少陽三焦經",
+    "vi": "Kinh Tam Tiêu (Thủ Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "通經活絡",
+     "利關節",
+     "緩解肩背痠痛與手臂麻木",
+     "肩髎穴",
+     "肩髎"
+    ],
+    "vi": [
+     "thông kinh lạc",
+     "mỏi vai sau"
+    ]
+   },
+   "location": {
+    "zh": "位於肩部，肩髃穴後方，當臂外展時，肩峰後下方凹陷處",
+    "vi": "Ở vai, phía sau huyệt Kiên Ngung, khi dang tay ra chỗ lõm phía sau dưới mỏm cùng vai."
+   },
+   "benefit": {
+    "zh": "通經活絡、利關節、緩解肩背痠痛與手臂麻木",
+    "vi": "Thông kinh hoạt lạc, lợi khớp, giảm mỏi vai lưng và tê tay."
+   },
+   "technique": {
+    "zh": "以指腹點按或輕柔打圈揉動",
+    "vi": "Dùng đầu ngón tay điểm ấn hoặc xoay tròn nhẹ nhàng."
+   },
+   "caution": {
+    "zh": "避免局部肌肉拉傷急性期用力揉捏",
+    "vi": "Tránh dùng lực mạnh khi cơ vừa bị kéo căng cấp tính."
+   }
+  },
+  {
+   "id": "shoulder_4",
+   "bodyPart": "shoulder",
+   "name": {
+    "zh": "肩貞穴",
+    "vi": "Huyệt Kiên Trinh"
+   },
+   "meridian": {
+    "zh": "手太陽小腸經",
+    "vi": "Kinh Tiểu Trường (Thủ Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "通經活絡",
+     "散風解表",
+     "緩解肩胛痠痛與手臂無力",
+     "肩貞穴",
+     "肩貞"
+    ],
+    "vi": [
+     "mỏi bả vai",
+     "tay yếu"
+    ]
+   },
+   "location": {
+    "zh": "位於肩關節後下方，當臂內收時，腋後紋頭上1寸處",
+    "vi": "Ở phía sau dưới khớp vai, khi khép tay vào trong, 1 thốn phía trên nếp gấp nách sau."
+   },
+   "benefit": {
+    "zh": "通經活絡、散風解表、緩解肩胛痠痛與手臂無力",
+    "vi": "Thông kinh hoạt lạc, tán phong giải biểu, giảm mỏi bả vai và yếu tay."
+   },
+   "technique": {
+    "zh": "以指腹按揉，力道由輕漸重",
+    "vi": "Dùng đầu ngón tay day ấn, lực từ nhẹ tăng dần."
+   },
+   "caution": {
+    "zh": "局部若有皮膚病變或淋巴結腫大應避開",
+    "vi": "Nếu có bệnh da liễu hoặc sưng hạch bạch huyết cục bộ thì nên tránh."
+   }
+  },
+  {
+   "id": "shoulder_5",
+   "bodyPart": "shoulder",
+   "name": {
+    "zh": "曲垣穴",
+    "vi": "Huyệt Khúc Viên"
+   },
+   "meridian": {
+    "zh": "手太陽小腸經",
+    "vi": "Kinh Tiểu Trường (Thủ Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "舒筋活絡",
+     "利肩胛",
+     "緩解肩背深層肌肉痠脹",
+     "曲垣穴",
+     "曲垣"
+    ],
+    "vi": [
+     "thư cân hoạt lạc",
+     "nặng bả vai"
+    ]
+   },
+   "location": {
+    "zh": "位於肩胛骨岡上窩內側端（在肩胛岡上方凹陷處）",
+    "vi": "Ở đầu trong hố trên gai xương bả vai (chỗ lõm phía trên gai xương bả vai)."
+   },
+   "benefit": {
+    "zh": "舒筋活絡、利肩胛、緩解肩背深層肌肉痠脹",
+    "vi": "Thư cân hoạt lạc, lợi xương bả vai, giảm mỏi nặng cơ sâu vùng lưng vai."
+   },
+   "technique": {
+    "zh": "以大拇指腹由上往下推按或深層點按",
+    "vi": "Dùng đầu ngón cái đẩy day từ trên xuống hoặc điểm ấn sâu."
+   },
+   "caution": {
+    "zh": "應避免施力過猛造成軟組織挫傷",
+    "vi": "Nên tránh dùng lực quá mạnh gây tổn thương mô mềm."
+   }
+  },
+  {
+   "id": "shoulder_6",
+   "bodyPart": "shoulder",
+   "name": {
+    "zh": "天宗穴",
+    "vi": "Huyệt Thiên Tông"
+   },
+   "meridian": {
+    "zh": "手太陽小腸經",
+    "vi": "Kinh Tiểu Trường (Thủ Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "舒筋活絡",
+     "理氣消腫",
+     "緩解肩胛部疼痛與胸悶",
+     "天宗穴",
+     "天宗"
+    ],
+    "vi": [
+     "lý khí tiêu thũng",
+     "đau xương bả vai"
+    ]
+   },
+   "location": {
+    "zh": "位於肩胛骨岡下窩中央凹陷處（約與第四胸椎平齊）",
+    "vi": "Ở giữa chỗ lõm hố dưới gai xương bả vai (ngang mức đốt sống ngực 4)."
+   },
+   "benefit": {
+    "zh": "舒筋活絡、理氣消腫、緩解肩胛部疼痛與胸悶",
+    "vi": "Thư cân hoạt lạc, lý khí tiêu thũng, giảm đau xương bả vai và tức ngực."
+   },
+   "technique": {
+    "zh": "以大拇指指腹深層點壓，配合肩部輕緩旋轉",
+    "vi": "Dùng đầu ngón cái ấn sâu, kết hợp xoay nhẹ vai."
+   },
+   "caution": {
+    "zh": "若伴隨有胸部不適或急性心悸，按摩前應先行評估",
+    "vi": "Nếu kèm khó chịu vùng ngực hoặc hồi hộp tim cấp tính thì nên đánh giá trước khi massage."
+   }
+  },
+  {
+   "id": "shoulder_7",
+   "bodyPart": "shoulder",
+   "name": {
+    "zh": "秉風穴",
+    "vi": "Huyệt Bỉnh Phong"
+   },
+   "meridian": {
+    "zh": "手太陽小腸經",
+    "vi": "Kinh Tiểu Trường (Thủ Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "散風活絡",
+     "利肩胛",
+     "緩解肩背部痠痛與活動受限",
+     "秉風穴",
+     "秉風"
+    ],
+    "vi": [
+     "tán phong hoạt lạc",
+     "hạn chế vận động vai"
+    ]
+   },
+   "location": {
+    "zh": "位於肩胛骨岡上窩中，天宗穴直上，舉臂時有凹陷處",
+    "vi": "Ở hố trên gai xương bả vai, thẳng lên trên huyệt Thiên Tông, chỗ lõm khi giơ tay lên."
+   },
+   "benefit": {
+    "zh": "散風活絡、利肩胛、緩解肩背部痠痛與活動受限",
+    "vi": "Tán phong hoạt lạc, lợi xương bả vai, giảm mỏi vai lưng và hạn chế vận động."
+   },
+   "technique": {
+    "zh": "以指腹點按，配合肩部舒展動作",
+    "vi": "Dùng đầu ngón tay điểm ấn kết hợp động tác giãn vai."
+   },
+   "caution": {
+    "zh": "避免過度強力按壓以免引起肩部韌帶不適",
+    "vi": "Tránh ấn quá mạnh gây khó chịu dây chằng vai."
+   }
+  },
+  {
+   "id": "shoulder_8",
+   "bodyPart": "shoulder",
+   "name": {
+    "zh": "臑俞穴",
+    "vi": "Huyệt Nhu Du"
+   },
+   "meridian": {
+    "zh": "手太陽小腸經",
+    "vi": "Kinh Tiểu Trường (Thủ Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "通經活絡",
+     "利肩關節",
+     "緩解肩部痠痛與上肢活動受限",
+     "臑俞穴",
+     "臑俞"
+    ],
+    "vi": [
+     "thông kinh lạc",
+     "đau vai"
+    ]
+   },
+   "location": {
+    "zh": "位於肩部，當腋後紋頭直上，肩胛岡下緣凹陷處",
+    "vi": "Ở vai, thẳng lên trên nếp gấp nách sau, chỗ lõm bờ dưới gai xương bả vai."
+   },
+   "benefit": {
+    "zh": "通經活絡、利肩關節、緩解肩部痠痛與上肢活動受限",
+    "vi": "Thông kinh hoạt lạc, lợi khớp vai, giảm đau vai và hạn chế vận động chi trên."
+   },
+   "technique": {
+    "zh": "以指腹輕柔按揉",
+    "vi": "Dùng đầu ngón tay day nhẹ nhàng."
+   },
+   "caution": {
+    "zh": "避免局部骨膜炎症狀時大力施壓",
+    "vi": "Tránh ấn mạnh khi có triệu chứng viêm màng xương cục bộ."
+   }
+  },
+  {
+   "id": "shoulder_9",
+   "bodyPart": "shoulder",
+   "name": {
+    "zh": "巨骨穴",
+    "vi": "Huyệt Cự Cốt"
+   },
+   "meridian": {
+    "zh": "手陽明大腸經",
+    "vi": "Kinh Đại Trường (Thủ Dương Minh)"
+   },
+   "keywords": {
+    "zh": [
+     "通經活絡",
+     "利關節",
+     "緩解肩部與鎖骨區域痠痛",
+     "巨骨穴",
+     "巨骨"
+    ],
+    "vi": [
+     "thông kinh lợi khớp",
+     "mỏi vùng xương đòn"
+    ]
+   },
+   "location": {
+    "zh": "位於鎖骨肩峰端與肩胛岡之間凹陷處",
+    "vi": "Ở chỗ lõm giữa đầu mỏm cùng xương đòn và gai xương bả vai."
+   },
+   "benefit": {
+    "zh": "通經活絡、利關節、緩解肩部與鎖骨區域痠痛",
+    "vi": "Thông kinh hoạt lạc, lợi khớp, giảm mỏi vùng vai và xương đòn."
+   },
+   "technique": {
+    "zh": "以指腹輕緩點按",
+    "vi": "Dùng đầu ngón tay điểm ấn nhẹ nhàng."
+   },
+   "caution": {
+    "zh": "此處靠近胸廓，按壓力度宜輕，避免過度壓迫",
+    "vi": "Vùng này gần lồng ngực, lực ấn nên nhẹ, tránh chèn ép quá mức."
+   }
+  },
+  {
+   "id": "shoulder_10",
+   "bodyPart": "shoulder",
+   "name": {
+    "zh": "缺盆穴",
+    "vi": "Huyệt Khuyết Bồn"
+   },
+   "meridian": {
+    "zh": "足陽明胃經",
+    "vi": "Kinh Vị (Túc Dương Minh)"
+   },
+   "keywords": {
+    "zh": [
+     "寬胸利膈",
+     "通經活絡",
+     "緩解肩頸部氣血不暢",
+     "缺盆穴",
+     "缺盆"
+    ],
+    "vi": [
+     "khoan hung lợi cách",
+     "tắc khí vai gáy"
+    ]
+   },
+   "location": {
+    "zh": "位於鎖骨上窩中央凹陷處",
+    "vi": "Ở giữa hố trên xương đòn."
+   },
+   "benefit": {
+    "zh": "寬胸利膈、通經活絡、緩解肩頸部氣血不暢",
+    "vi": "Khoan ngực lợi cách, thông kinh hoạt lạc, giảm tắc khí huyết vùng vai gáy."
+   },
+   "technique": {
+    "zh": "輕柔點按",
+    "vi": "Ấn day nhẹ nhàng."
+   },
+   "caution": {
+    "zh": "此處靠近頸動脈，嚴禁粗暴重壓，僅適度輕觸或輕揉",
+    "vi": "Vùng này gần động mạch cổ, tuyệt đối không được ấn mạnh thô bạo, chỉ nên chạm nhẹ hoặc xoa nhẹ."
+   }
+  },
+  {
+   "id": "shoulder_11",
+   "bodyPart": "shoulder",
+   "name": {
+    "zh": "天鼎穴",
+    "vi": "Huyệt Thiên Đỉnh"
+   },
+   "meridian": {
+    "zh": "手陽明大腸經",
+    "vi": "Kinh Đại Trường (Thủ Dương Minh)"
+   },
+   "keywords": {
+    "zh": [
+     "清利咽喉",
+     "通經活絡",
+     "舒緩肩頸緊繃與頸部活動受限",
+     "天鼎穴",
+     "天鼎"
+    ],
+    "vi": [
+     "lợi yết hầu",
+     "căng vai gáy"
+    ]
+   },
+   "location": {
+    "zh": "位於頸部側面，胸鎖乳突肌後緣，扶突穴直下一寸處",
+    "vi": "Ở mặt bên cổ, bờ sau cơ ức đòn chũm, thẳng xuống dưới huyệt Phù Đột 1 thốn."
+   },
+   "benefit": {
+    "zh": "清利咽喉、通經活絡、舒緩肩頸緊繃與頸部活動受限",
+    "vi": "Lợi yết hầu thông kinh, giảm căng vai gáy và hạn chế vận động cổ."
+   },
+   "technique": {
+    "zh": "以指腹輕揉按壓",
+    "vi": "Dùng đầu ngón tay xoa ấn nhẹ nhàng."
+   },
+   "caution": {
+    "zh": "避免過度壓迫頸動脈",
+    "vi": "Tránh chèn ép động mạch cổ quá mức."
+   }
+  },
+  {
+   "id": "shoulder_12",
+   "bodyPart": "shoulder",
+   "name": {
+    "zh": "扶突穴",
+    "vi": "Huyệt Phù Đột"
+   },
+   "meridian": {
+    "zh": "手陽明大腸經",
+    "vi": "Kinh Đại Trường (Thủ Dương Minh)"
+   },
+   "keywords": {
+    "zh": [
+     "理氣降逆",
+     "清利咽喉",
+     "改善頸部循環",
+     "扶突穴",
+     "扶突"
+    ],
+    "vi": [
+     "lý khí giáng nghịch",
+     "tuần hoàn cổ"
+    ]
+   },
+   "location": {
+    "zh": "位於頸部側面，喉結旁開三寸，胸鎖乳突肌胸骨頭與鎖骨頭之間",
+    "vi": "Ở mặt bên cổ, cách hầu kết 3 thốn, giữa đầu ức và đầu đòn cơ ức đòn chũm."
+   },
+   "benefit": {
+    "zh": "理氣降逆、清利咽喉、改善頸部循環",
+    "vi": "Lý khí giáng nghịch, lợi yết hầu, cải thiện tuần hoàn vùng cổ."
+   },
+   "technique": {
+    "zh": "以指腹輕輕按揉",
+    "vi": "Dùng đầu ngón tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "此處結構敏感，嚴禁重力壓迫",
+    "vi": "Vùng này cấu trúc nhạy cảm, tuyệt đối không được ấn mạnh."
+   }
+  },
+  {
+   "id": "shoulder_13",
+   "bodyPart": "shoulder",
+   "name": {
+    "zh": "大椎穴",
+    "vi": "Huyệt Đại Chùy"
+   },
+   "meridian": {
+    "zh": "督脈",
+    "vi": "Mạch Đốc"
+   },
+   "keywords": {
+    "zh": [
+     "解表清熱",
+     "疏通經絡",
+     "緩解頸部僵硬與頭痛",
+     "大椎穴",
+     "大椎"
+    ],
+    "vi": [
+     "giải biểu thanh nhiệt",
+     "cứng cổ",
+     "đau đầu"
+    ]
+   },
+   "location": {
+    "zh": "位於第7頸椎棘突下凹陷處（低頭時最凸出的骨頭下方）",
+    "vi": "Ở chỗ lõm dưới gai đốt sống cổ 7 (xương nhô cao nhất khi cúi đầu)."
+   },
+   "benefit": {
+    "zh": "解表清熱、疏通經絡、緩解頸部僵硬與頭痛",
+    "vi": "Giải biểu thanh nhiệt, thông kinh lạc, giảm cứng cổ và đau đầu."
+   },
+   "technique": {
+    "zh": "以掌根或大拇指腹輕揉，配合頸部輕緩活動",
+    "vi": "Dùng gốc bàn tay hoặc đầu ngón cái xoa nhẹ, kết hợp vận động cổ nhẹ nhàng."
+   },
+   "caution": {
+    "zh": "避免骨骼疏鬆或頸椎損傷者大力按壓",
+    "vi": "Người loãng xương hoặc tổn thương đốt sống cổ tránh ấn mạnh."
+   }
+  },
+  {
+   "id": "shoulder_14",
+   "bodyPart": "shoulder",
+   "name": {
+    "zh": "肩中俞穴",
+    "vi": "Huyệt Kiên Trung Du"
+   },
+   "meridian": {
+    "zh": "手太陽小腸經",
+    "vi": "Kinh Tiểu Trường (Thủ Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "舒筋活絡",
+     "聰耳明目",
+     "緩解肩背部痠痛與頸部僵硬",
+     "肩中俞穴",
+     "肩中俞"
+    ],
+    "vi": [
+     "thư cân hoạt lạc",
+     "sáng tai mắt"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第7頸椎棘突下旁開二寸",
+    "vi": "Ở lưng, cách gai đốt sống cổ 7 ra ngoài 2 thốn."
+   },
+   "benefit": {
+    "zh": "舒筋活絡、聰耳明目、緩解肩背部痠痛與頸部僵硬",
+    "vi": "Thư cân hoạt lạc, thính tai sáng mắt, giảm mỏi vai lưng và cứng cổ."
+   },
+   "technique": {
+    "zh": "以指腹點按揉動",
+    "vi": "Dùng đầu ngón tay day ấn."
+   },
+   "caution": {
+    "zh": "避免因局部脊椎炎症大力推按",
+    "vi": "Tránh day ấn mạnh khi cột sống có viêm cục bộ."
+   }
+  },
+  {
+   "id": "shoulder_15",
+   "bodyPart": "shoulder",
+   "name": {
+    "zh": "肩外俞穴",
+    "vi": "Huyệt Kiên Ngoại Du"
+   },
+   "meridian": {
+    "zh": "手太陽小腸經",
+    "vi": "Kinh Tiểu Trường (Thủ Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "舒筋活絡",
+     "利肩胛",
+     "緩解肩背痠痛與上肢活動障礙",
+     "肩外俞穴",
+     "肩外俞"
+    ],
+    "vi": [
+     "thư cân hoạt lạc",
+     "lợi bả vai"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第1胸椎棘突下旁開三寸",
+    "vi": "Ở lưng, cách gai đốt sống ngực 1 ra ngoài 3 thốn."
+   },
+   "benefit": {
+    "zh": "舒筋活絡、利肩胛、緩解肩背痠痛與上肢活動障礙",
+    "vi": "Thư cân hoạt lạc, lợi xương bả vai, giảm mỏi vai lưng và trở ngại vận động chi trên."
+   },
+   "technique": {
+    "zh": "以指腹點按揉動",
+    "vi": "Dùng đầu ngón tay day ấn."
+   },
+   "caution": {
+    "zh": "按摩時力道應和緩",
+    "vi": "Lực khi massage nên vừa phải, nhẹ nhàng."
+   }
+  },
+  {
+   "id": "shoulder_16",
+   "bodyPart": "shoulder",
+   "name": {
+    "zh": "天柱穴",
+    "vi": "Huyệt Thiên Trụ"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "清頭明目",
+     "舒緩頸部緊繃與頭痛",
+     "天柱穴",
+     "天柱"
+    ],
+    "vi": [
+     "sáng mắt",
+     "giảm căng cổ",
+     "đau đầu"
+    ]
+   },
+   "location": {
+    "zh": "位於後頸部，後髮際正中直上一寸，旁開一寸三分（斜方肌外緣凹陷處）",
+    "vi": "Ở gáy, thẳng lên trên chân tóc sau 1 thốn, cách đường giữa 1,3 thốn (chỗ lõm bờ ngoài cơ thang)."
+   },
+   "benefit": {
+    "zh": "清頭明目、舒緩頸部緊繃與頭痛",
+    "vi": "Thanh đầu sáng mắt, giảm căng cổ và đau đầu."
+   },
+   "technique": {
+    "zh": "以大拇指指腹向上托按",
+    "vi": "Dùng đầu ngón cái đẩy lên trên."
+   },
+   "caution": {
+    "zh": "此處連接腦部，按摩手法應柔和，避免直接重擊",
+    "vi": "Vùng này nối với não bộ, thao tác cần nhẹ nhàng, tránh đập mạnh trực tiếp."
+   }
+  },
+  {
+   "id": "shoulder_17",
+   "bodyPart": "shoulder",
+   "name": {
+    "zh": "風池穴",
+    "vi": "Huyệt Phong Trì"
+   },
+   "meridian": {
+    "zh": "足少陽膽經",
+    "vi": "Kinh Đởm (Túc Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "平肝熄風",
+     "清頭明目",
+     "緩解頸部痠痛與壓力性頭痛",
+     "風池穴",
+     "風池"
+    ],
+    "vi": [
+     "bình can tức phong",
+     "đau đầu do căng thẳng"
+    ]
+   },
+   "location": {
+    "zh": "位於後頸部，枕骨之下，胸鎖乳突肌與斜方肌上端之間的凹陷處",
+    "vi": "Ở sau gáy, dưới xương chẩm, chỗ lõm giữa cơ ức đòn chũm và cơ thang."
+   },
+   "benefit": {
+    "zh": "平肝熄風、清頭明目、緩解頸部痠痛與壓力性頭痛",
+    "vi": "Bình can tức phong, thanh đầu sáng mắt, giảm đau cổ và đau đầu do áp lực."
+   },
+   "technique": {
+    "zh": "以雙手大拇指向上托揉",
+    "vi": "Dùng hai ngón cái đẩy lên trên."
+   },
+   "caution": {
+    "zh": "避免力度過大，以免造成頭暈或不適",
+    "vi": "Tránh dùng lực quá mạnh để không gây chóng mặt khó chịu."
+   }
+  },
+  {
+   "id": "shoulder_18",
+   "bodyPart": "shoulder",
+   "name": {
+    "zh": "完骨穴",
+    "vi": "Huyệt Hoàn Cốt"
+   },
+   "meridian": {
+    "zh": "足少陽膽經",
+    "vi": "Kinh Đởm (Túc Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "疏風清熱",
+     "安神定驚",
+     "緩解頸部側方緊繃",
+     "完骨穴",
+     "完骨"
+    ],
+    "vi": [
+     "tán phong thanh nhiệt",
+     "an thần"
+    ]
+   },
+   "location": {
+    "zh": "位於頭部側後方，乳突後下方凹陷處",
+    "vi": "Ở phía sau đầu bên, chỗ lõm phía sau dưới mỏm chũm."
+   },
+   "benefit": {
+    "zh": "疏風清熱、安神定驚、緩解頸部側方緊繃",
+    "vi": "Tán phong thanh nhiệt, an thần định kinh, giảm căng bên cổ."
+   },
+   "technique": {
+    "zh": "以指腹輕柔揉按",
+    "vi": "Dùng đầu ngón tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "避免重力按壓引起頭部不適",
+    "vi": "Tránh ấn mạnh gây khó chịu vùng đầu."
+   }
+  },
+  {
+   "id": "shoulder_19",
+   "bodyPart": "shoulder",
+   "name": {
+    "zh": "天牖穴",
+    "vi": "Huyệt Thiên Dũ"
+   },
+   "meridian": {
+    "zh": "手少陽三焦經",
+    "vi": "Kinh Tam Tiêu (Thủ Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "清頭明目",
+     "通經活絡",
+     "舒緩頸部側面痠痛",
+     "天牖穴",
+     "天牖"
+    ],
+    "vi": [
+     "sáng mắt thông kinh",
+     "đau bên cổ"
+    ]
+   },
+   "location": {
+    "zh": "位於頸側，乳突後下方，胸鎖乳突肌後緣凹陷處",
+    "vi": "Ở bên cổ, phía sau dưới mỏm chũm, chỗ lõm bờ sau cơ ức đòn chũm."
+   },
+   "benefit": {
+    "zh": "清頭明目、通經活絡、舒緩頸部側面痠痛",
+    "vi": "Thanh đầu sáng mắt, thông kinh hoạt lạc, giảm đau bên cổ."
+   },
+   "technique": {
+    "zh": "以指腹輕按揉動",
+    "vi": "Dùng đầu ngón tay ấn nhẹ."
+   },
+   "caution": {
+    "zh": "手法需輕柔，避開血管神經豐富區域",
+    "vi": "Thao tác cần nhẹ nhàng, tránh vùng có nhiều mạch máu thần kinh."
+   }
+  },
+  {
+   "id": "shoulder_20",
+   "bodyPart": "shoulder",
+   "name": {
+    "zh": "頸百勞穴",
+    "vi": "Huyệt Cảnh Bách Lao"
+   },
+   "meridian": {
+    "zh": "經外奇穴",
+    "vi": "Huyệt ngoài kinh"
+   },
+   "keywords": {
+    "zh": [
+     "止咳平喘",
+     "舒緩頸項強痛",
+     "頸百勞穴",
+     "頸百勞"
+    ],
+    "vi": [
+     "chỉ khái bình suyễn",
+     "đau cứng cổ"
+    ]
+   },
+   "location": {
+    "zh": "位於項部，大椎穴直上一寸，旁開一寸",
+    "vi": "Ở gáy, thẳng lên trên huyệt Đại Chùy 1 thốn, cách ra ngoài 1 thốn."
+   },
+   "benefit": {
+    "zh": "止咳平喘、舒緩頸項強痛",
+    "vi": "Chỉ ho bình suyễn, giảm đau cứng vùng cổ gáy."
+   },
+   "technique": {
+    "zh": "以指腹點按或輕柔打圈揉按",
+    "vi": "Dùng đầu ngón tay điểm ấn hoặc xoay tròn nhẹ nhàng."
+   },
+   "caution": {
+    "zh": "力度需適中，避免引起頸椎不適",
+    "vi": "Lực cần vừa phải, tránh gây khó chịu đốt sống cổ."
+   }
+  },
+  {
+   "id": "upperback_1",
+   "bodyPart": "upperback",
+   "name": {
+    "zh": "大杼穴",
+    "vi": "Huyệt Đại Trữ"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "疏風解表",
+     "強筋健骨",
+     "緩解背部僵硬與痠痛",
+     "大杼穴",
+     "大杼"
+    ],
+    "vi": [
+     "mạnh gân cốt",
+     "cứng lưng"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第1胸椎棘突下，旁開一寸半",
+    "vi": "Ở lưng, dưới gai đốt sống ngực 1, cách ra ngoài 1,5 thốn."
+   },
+   "benefit": {
+    "zh": "疏風解表、強筋健骨、緩解背部僵硬與痠痛",
+    "vi": "Tán phong giải biểu, mạnh gân cốt, giảm cứng và mỏi lưng."
+   },
+   "technique": {
+    "zh": "以大拇指或掌根由內向外輕柔推按",
+    "vi": "Dùng đầu ngón cái hoặc gốc bàn tay đẩy nhẹ từ trong ra ngoài."
+   },
+   "caution": {
+    "zh": "局部有骨質疏鬆或脊椎損傷時應極度小心，力道宜輕",
+    "vi": "Người loãng xương hoặc tổn thương cột sống cần hết sức thận trọng, lực nên nhẹ."
+   }
+  },
+  {
+   "id": "upperback_2",
+   "bodyPart": "upperback",
+   "name": {
+    "zh": "風門穴",
+    "vi": "Huyệt Phong Môn"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "祛風散寒",
+     "宣肺解表",
+     "緩解感冒引起的背部緊繃",
+     "風門穴",
+     "風門"
+    ],
+    "vi": [
+     "khu phong tán hàn",
+     "cứng lưng do cảm lạnh"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第2胸椎棘突下，旁開一寸半",
+    "vi": "Ở lưng, dưới gai đốt sống ngực 2, cách ra ngoài 1,5 thốn."
+   },
+   "benefit": {
+    "zh": "祛風散寒、宣肺解表、緩解感冒引起的背部緊繃",
+    "vi": "Khu phong tán hàn, tuyên phế giải biểu, giảm căng lưng do cảm lạnh."
+   },
+   "technique": {
+    "zh": "以大拇指腹點按或輕柔打圈揉動",
+    "vi": "Dùng đầu ngón cái điểm ấn hoặc xoay tròn nhẹ nhàng."
+   },
+   "caution": {
+    "zh": "按摩後應注意保暖，避免吹風受涼",
+    "vi": "Sau khi massage cần chú ý giữ ấm, tránh gió lạnh."
+   }
+  },
+  {
+   "id": "upperback_3",
+   "bodyPart": "upperback",
+   "name": {
+    "zh": "肺俞穴",
+    "vi": "Huyệt Phế Du"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "理氣降逆",
+     "宣肺止咳",
+     "緩解胸悶與背部緊繃",
+     "肺俞穴",
+     "肺俞"
+    ],
+    "vi": [
+     "lý khí giáng nghịch",
+     "tức ngực"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第3胸椎棘突下，旁開一寸半",
+    "vi": "Ở lưng, dưới gai đốt sống ngực 3, cách ra ngoài 1,5 thốn."
+   },
+   "benefit": {
+    "zh": "理氣降逆、宣肺止咳、緩解胸悶與背部緊繃",
+    "vi": "Lý khí giáng nghịch, tuyên phế chỉ khái, giảm tức ngực và căng lưng."
+   },
+   "technique": {
+    "zh": "以掌根或大拇指輕柔揉按",
+    "vi": "Dùng gốc bàn tay hoặc đầu ngón cái xoa nhẹ."
+   },
+   "caution": {
+    "zh": "避免過度深層壓迫，按壓時配合緩慢呼吸",
+    "vi": "Tránh ấn quá sâu, kết hợp thở chậm khi thao tác."
+   }
+  },
+  {
+   "id": "upperback_4",
+   "bodyPart": "upperback",
+   "name": {
+    "zh": "厥陰俞穴",
+    "vi": "Huyệt Quyết Âm Du"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "寬胸理氣",
+     "寧心安神",
+     "緩解心悸與背部痠脹",
+     "厥陰俞穴",
+     "厥陰俞"
+    ],
+    "vi": [
+     "khoan hung lý khí",
+     "hồi hộp"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第4胸椎棘突下，旁開一寸半",
+    "vi": "Ở lưng, dưới gai đốt sống ngực 4, cách ra ngoài 1,5 thốn."
+   },
+   "benefit": {
+    "zh": "寬胸理氣、寧心安神、緩解心悸與背部痠脹",
+    "vi": "Khoan ngực lý khí, an thần định tâm, giảm hồi hộp và căng lưng."
+   },
+   "technique": {
+    "zh": "以指腹輕柔點按",
+    "vi": "Dùng đầu ngón tay điểm ấn nhẹ nhàng."
+   },
+   "caution": {
+    "zh": "此處靠近心臟對應區，按壓手法需極為細膩，不可重力衝擊",
+    "vi": "Vùng này gần vùng phản xạ tim, thao tác cần rất nhẹ nhàng tinh tế, không được tác động lực mạnh."
+   }
+  },
+  {
+   "id": "upperback_5",
+   "bodyPart": "upperback",
+   "name": {
+    "zh": "心俞穴",
+    "vi": "Huyệt Tâm Du"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "寧心安神",
+     "理氣止痛",
+     "緩解胸悶與背部壓力性緊繃",
+     "心俞穴",
+     "心俞"
+    ],
+    "vi": [
+     "an thần định tâm",
+     "tức ngực"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第5胸椎棘突下，旁開一寸半",
+    "vi": "Ở lưng, dưới gai đốt sống ngực 5, cách ra ngoài 1,5 thốn."
+   },
+   "benefit": {
+    "zh": "寧心安神、理氣止痛、緩解胸悶與背部壓力性緊繃",
+    "vi": "An thần định tâm, lý khí chỉ thống, giảm tức ngực và căng thẳng vùng lưng."
+   },
+   "technique": {
+    "zh": "以指腹輕緩按壓，配合舒緩呼吸",
+    "vi": "Dùng đầu ngón tay ấn nhẹ nhàng, kết hợp thở đều."
+   },
+   "caution": {
+    "zh": "心臟病患者按摩此區需特別謹慎，建議避開重壓",
+    "vi": "Người có bệnh tim cần đặc biệt thận trọng khi massage vùng này, nên tránh ấn mạnh."
+   }
+  },
+  {
+   "id": "upperback_6",
+   "bodyPart": "upperback",
+   "name": {
+    "zh": "督俞穴",
+    "vi": "Huyệt Đốc Du"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "理氣止痛",
+     "寧心安神",
+     "緩解胸脅區域痠痛",
+     "督俞穴",
+     "督俞"
+    ],
+    "vi": [
+     "lý khí chỉ thống",
+     "an thần"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第6胸椎棘突下，旁開一寸半",
+    "vi": "Ở lưng, dưới gai đốt sống ngực 6, cách ra ngoài 1,5 thốn."
+   },
+   "benefit": {
+    "zh": "理氣止痛、寧心安神、緩解胸脅區域痠痛",
+    "vi": "Lý khí chỉ thống, an thần định tâm, giảm đau vùng sườn ngực."
+   },
+   "technique": {
+    "zh": "以指腹輕柔按揉",
+    "vi": "Dùng đầu ngón tay day nhẹ."
+   },
+   "caution": {
+    "zh": "避免局部軟組織拉傷急性期用力",
+    "vi": "Tránh dùng lực mạnh khi mô mềm cục bộ vừa bị kéo căng."
+   }
+  },
+  {
+   "id": "upperback_7",
+   "bodyPart": "upperback",
+   "name": {
+    "zh": "膈俞穴",
+    "vi": "Huyệt Cách Du"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "寬胸順氣",
+     "活血化瘀",
+     "緩解橫膈區域僵硬與背痛",
+     "膈俞穴",
+     "膈俞"
+    ],
+    "vi": [
+     "hoạt huyết hóa ứ",
+     "cứng cơ hoành"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第7胸椎棘突下，旁開一寸半（為八會穴之血會）",
+    "vi": "Ở lưng, dưới gai đốt sống ngực 7, cách ra ngoài 1,5 thốn (huyệt hội của huyết - bát hội huyệt)."
+   },
+   "benefit": {
+    "zh": "寬胸順氣、活血化瘀、緩解橫膈區域僵硬與背痛",
+    "vi": "Khoan ngực thuận khí, hoạt huyết hóa ứ, giảm cứng vùng cơ hoành và đau lưng."
+   },
+   "technique": {
+    "zh": "以大拇指腹點按揉動",
+    "vi": "Dùng đầu ngón cái điểm ấn xoay tròn."
+   },
+   "caution": {
+    "zh": "力道應溫和，不宜過度粗暴揉捏",
+    "vi": "Lực cần ôn hòa, không nên day bóp quá mạnh bạo."
+   }
+  },
+  {
+   "id": "upperback_8",
+   "bodyPart": "upperback",
+   "name": {
+    "zh": "定喘穴",
+    "vi": "Huyệt Định Suyễn"
+   },
+   "meridian": {
+    "zh": "經外奇穴",
+    "vi": "Huyệt ngoài kinh"
+   },
+   "keywords": {
+    "zh": [
+     "止咳平喘",
+     "緩解背部肩胛間區僵硬",
+     "定喘穴",
+     "定喘"
+    ],
+    "vi": [
+     "chỉ khái bình suyễn",
+     "cứng giữa hai bả vai"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第7頸椎棘突下旁開0.5寸處",
+    "vi": "Ở lưng, cách gai đốt sống cổ 7 ra ngoài 0,5 thốn."
+   },
+   "benefit": {
+    "zh": "止咳平喘、緩解背部肩胛間區僵硬",
+    "vi": "Chỉ ho bình suyễn, giảm cứng vùng giữa hai bả vai."
+   },
+   "technique": {
+    "zh": "以指腹輕點或輕揉",
+    "vi": "Dùng đầu ngón tay điểm nhẹ hoặc xoa nhẹ."
+   },
+   "caution": {
+    "zh": "手法要輕巧，避免壓迫脊椎骨節",
+    "vi": "Thao tác cần nhẹ nhàng, tránh chèn ép đốt sống."
+   }
+  },
+  {
+   "id": "upperback_9",
+   "bodyPart": "upperback",
+   "name": {
+    "zh": "夾脊穴（胸部段）",
+    "vi": "Huyệt Giáp Tích (đoạn ngực)"
+   },
+   "meridian": {
+    "zh": "經外奇穴",
+    "vi": "Huyệt ngoài kinh"
+   },
+   "keywords": {
+    "zh": [
+     "調節臟腑",
+     "通經活絡",
+     "改善全背部肌肉痠痛",
+     "夾脊穴（胸部段）"
+    ],
+    "vi": [
+     "điều tiết tạng phủ",
+     "đau toàn lưng"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第1至第12胸椎棘突下旁開0.5寸（一串穴位）",
+    "vi": "Ở lưng, từ đốt sống ngực 1 đến ngực 12, cách gai sống mỗi bên 0,5 thốn (một chuỗi nhiều huyệt)."
+   },
+   "benefit": {
+    "zh": "調節臟腑、通經活絡、改善全背部肌肉痠痛",
+    "vi": "Điều tiết tạng phủ, thông kinh hoạt lạc, cải thiện đau mỏi toàn vùng lưng."
+   },
+   "technique": {
+    "zh": "以拇指沿脊椎旁開兩側緩慢滑推",
+    "vi": "Dùng ngón cái trượt nhẹ dọc hai bên cột sống."
+   },
+   "caution": {
+    "zh": "不可直接重力按壓脊椎骨，需在肌肉軟組織上施力",
+    "vi": "Không được ấn mạnh trực tiếp lên xương sống, cần tác động vào phần cơ mô mềm."
+   }
+  },
+  {
+   "id": "upperback_10",
+   "bodyPart": "upperback",
+   "name": {
+    "zh": "巨闕俞",
+    "vi": "Cự Khuyết Du"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經（相關區域）",
+    "vi": "Kinh Bàng Quang (vùng liên quan)"
+   },
+   "keywords": {
+    "zh": [
+     "理氣寬中",
+     "緩解背部深層痠痛",
+     "巨闕俞"
+    ],
+    "vi": [
+     "lý khí khoan trung",
+     "đau lưng sâu"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第6胸椎棘突下，旁開三寸",
+    "vi": "Ở lưng, dưới gai đốt sống ngực 6, cách ra ngoài 3 thốn."
+   },
+   "benefit": {
+    "zh": "理氣寬中、緩解背部深層痠痛",
+    "vi": "Lý khí khoan trung, giảm đau lưng sâu."
+   },
+   "technique": {
+    "zh": "以指腹點按",
+    "vi": "Dùng đầu ngón tay điểm ấn."
+   },
+   "caution": {
+    "zh": "避免局部肌肉急性挫傷處用力",
+    "vi": "Tránh dùng lực mạnh khi cơ vừa bị chấn thương cấp tính."
+   }
+  },
+  {
+   "id": "upperback_11",
+   "bodyPart": "upperback",
+   "name": {
+    "zh": "神堂穴",
+    "vi": "Huyệt Thần Đường"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "寬胸寧心",
+     "理氣止痛",
+     "舒緩背部兩側緊繃",
+     "神堂穴",
+     "神堂"
+    ],
+    "vi": [
+     "khoan hung an tâm",
+     "căng hai bên lưng"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第5胸椎棘突下，旁開三寸",
+    "vi": "Ở lưng, dưới gai đốt sống ngực 5, cách ra ngoài 3 thốn."
+   },
+   "benefit": {
+    "zh": "寬胸寧心、理氣止痛、舒緩背部兩側緊繃",
+    "vi": "Khoan ngực an tâm, lý khí chỉ thống, giảm căng hai bên lưng."
+   },
+   "technique": {
+    "zh": "以指腹輕揉或掌根按壓",
+    "vi": "Dùng đầu ngón tay xoa nhẹ hoặc gốc bàn tay ấn."
+   },
+   "caution": {
+    "zh": "手法需穩定和緩，避免造成肋骨不適",
+    "vi": "Thao tác cần ổn định nhẹ nhàng, tránh khó chịu vùng xương sườn."
+   }
+  },
+  {
+   "id": "upperback_12",
+   "bodyPart": "upperback",
+   "name": {
+    "zh": "譩譆穴",
+    "vi": "Huyệt Ý Hi"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "寬胸理氣",
+     "舒緩背部僵硬",
+     "譩譆穴",
+     "譩譆"
+    ],
+    "vi": [
+     "khoan hung lý khí",
+     "cứng lưng"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第6胸椎棘突下，旁開三寸",
+    "vi": "Ở lưng, dưới gai đốt sống ngực 6, cách ra ngoài 3 thốn."
+   },
+   "benefit": {
+    "zh": "寬胸理氣、舒緩背部僵硬",
+    "vi": "Khoan ngực lý khí, giảm cứng lưng."
+   },
+   "technique": {
+    "zh": "以指腹點按揉動",
+    "vi": "Dùng đầu ngón tay điểm day."
+   },
+   "caution": {
+    "zh": "按壓時需注意背部肌群耐受度",
+    "vi": "Chú ý mức chịu đựng của nhóm cơ lưng khi ấn."
+   }
+  },
+  {
+   "id": "upperback_13",
+   "bodyPart": "upperback",
+   "name": {
+    "zh": "膈關穴",
+    "vi": "Huyệt Cách Quan"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "寬胸降逆",
+     "健脾和胃",
+     "緩解背部不適",
+     "膈關穴",
+     "膈關"
+    ],
+    "vi": [
+     "khoan hung giáng nghịch",
+     "khó chịu lưng"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第7胸椎棘突下，旁開三寸",
+    "vi": "Ở lưng, dưới gai đốt sống ngực 7, cách ra ngoài 3 thốn."
+   },
+   "benefit": {
+    "zh": "寬胸降逆、健脾和胃、緩解背部不適",
+    "vi": "Khoan ngực giáng nghịch, kiện tỳ hòa vị, giảm khó chịu vùng lưng."
+   },
+   "technique": {
+    "zh": "以大拇指或掌根輕輕揉按",
+    "vi": "Dùng đầu ngón cái hoặc gốc bàn tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "避免粗暴動作，配合呼吸施力",
+    "vi": "Tránh động tác thô bạo, nên kết hợp nhịp thở."
+   }
+  },
+  {
+   "id": "upperback_14",
+   "bodyPart": "upperback",
+   "name": {
+    "zh": "魄戶穴",
+    "vi": "Huyệt Phách Hộ"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "潤肺平喘",
+     "疏通背部氣血",
+     "魄戶穴",
+     "魄戶"
+    ],
+    "vi": [
+     "nhuận phế bình suyễn",
+     "khí huyết lưng"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第3胸椎棘突下，旁開三寸",
+    "vi": "Ở lưng, dưới gai đốt sống ngực 3, cách ra ngoài 3 thốn."
+   },
+   "benefit": {
+    "zh": "潤肺平喘、疏通背部氣血",
+    "vi": "Nhuận phế bình suyễn, thông khí huyết vùng lưng."
+   },
+   "technique": {
+    "zh": "以指腹輕柔推按",
+    "vi": "Dùng đầu ngón tay đẩy nhẹ."
+   },
+   "caution": {
+    "zh": "此處肌層較薄，按壓力道應輕",
+    "vi": "Vùng này lớp cơ mỏng, lực ấn nên nhẹ."
+   }
+  },
+  {
+   "id": "upperback_15",
+   "bodyPart": "upperback",
+   "name": {
+    "zh": "膏肓穴",
+    "vi": "Huyệt Cao Hoang"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "補虛益損",
+     "調和氣血",
+     "緩解背部深層頑固僵硬",
+     "膏肓穴",
+     "膏肓"
+    ],
+    "vi": [
+     "bổ hư ích tổn",
+     "cứng lưng sâu mạn tính"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第4胸椎棘突下，旁開三寸",
+    "vi": "Ở lưng, dưới gai đốt sống ngực 4, cách ra ngoài 3 thốn."
+   },
+   "benefit": {
+    "zh": "補虛益損、調和氣血、緩解背部深層頑固僵硬",
+    "vi": "Bổ hư ích tổn, điều hòa khí huyết, giảm cứng lưng sâu mạn tính."
+   },
+   "technique": {
+    "zh": "以大拇指腹深層點按（常稱「病入膏肓」即指此處）",
+    "vi": "Dùng đầu ngón cái điểm ấn sâu (dân gian có câu \"bệnh nhập cao hoang\" chỉ vùng này)."
+   },
+   "caution": {
+    "zh": "此穴按壓感強烈，需適度溝通力道，避免造成皮下瘀血",
+    "vi": "Cảm giác khi ấn huyệt này khá mạnh, cần trao đổi lực phù hợp với khách, tránh gây bầm tím dưới da."
+   }
+  },
+  {
+   "id": "upperback_16",
+   "bodyPart": "upperback",
+   "name": {
+    "zh": "神堂穴（相關區）",
+    "vi": "Thần Đường (vùng liên quan)"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "寧心安神",
+     "緩解背肌緊繃",
+     "神堂穴（相關區）"
+    ],
+    "vi": [
+     "an thần định tâm",
+     "giảm căng cơ lưng"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第5胸椎棘突下，旁開三寸",
+    "vi": "Ở lưng, dưới gai đốt sống ngực 5, cách ra ngoài 3 thốn."
+   },
+   "benefit": {
+    "zh": "寧心安神、緩解背肌緊繃",
+    "vi": "An thần định tâm, giảm căng cơ lưng."
+   },
+   "technique": {
+    "zh": "以指腹輕柔揉按",
+    "vi": "Dùng đầu ngón tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "保持輕柔節奏",
+    "vi": "Giữ nhịp điệu nhẹ nhàng ổn định."
+   }
+  },
+  {
+   "id": "upperback_17",
+   "bodyPart": "upperback",
+   "name": {
+    "zh": "志室穴（上段延伸）",
+    "vi": "Chí Thất (đoạn mở rộng phía trên)"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "益腎強腰",
+     "舒緩背部痠痛",
+     "志室穴（上段延伸）"
+    ],
+    "vi": [
+     "ích thận mạnh lưng",
+     "đau mỏi lưng"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第14胸椎棘突下，旁開三寸（雖偏中背，但常做為背部放鬆點）",
+    "vi": "Ở lưng, dưới gai đốt sống ngực 14, cách ra ngoài 3 thốn (tuy hơi lệch về lưng dưới, nhưng thường dùng làm điểm thư giãn lưng)."
+   },
+   "benefit": {
+    "zh": "益腎強腰、舒緩背部痠痛",
+    "vi": "Ích thận mạnh lưng, giảm đau mỏi lưng."
+   },
+   "technique": {
+    "zh": "以掌根推揉",
+    "vi": "Dùng gốc bàn tay đẩy day."
+   },
+   "caution": {
+    "zh": "手法應連貫柔和",
+    "vi": "Thao tác cần liền mạch, nhẹ nhàng."
+   }
+  },
+  {
+   "id": "upperback_18",
+   "bodyPart": "upperback",
+   "name": {
+    "zh": "脊中穴",
+    "vi": "Huyệt Tích Trung"
+   },
+   "meridian": {
+    "zh": "督脈",
+    "vi": "Mạch Đốc"
+   },
+   "keywords": {
+    "zh": [
+     "健脾利濕",
+     "疏通督脈",
+     "緩解背部中心痠痛",
+     "脊中穴",
+     "脊中"
+    ],
+    "vi": [
+     "kiện tỳ lợi thấp",
+     "đau giữa lưng"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第11胸椎棘突下凹陷處",
+    "vi": "Ở lưng, chỗ lõm dưới gai đốt sống ngực 11."
+   },
+   "benefit": {
+    "zh": "健脾利濕、疏通督脈、緩解背部中心痠痛",
+    "vi": "Kiện tỳ lợi thấp, thông mạch Đốc, giảm đau giữa lưng."
+   },
+   "technique": {
+    "zh": "以指腹輕揉",
+    "vi": "Dùng đầu ngón tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "脊椎骨突處不可大力重壓",
+    "vi": "Chỗ lồi xương sống không được ấn mạnh."
+   }
+  },
+  {
+   "id": "upperback_19",
+   "bodyPart": "upperback",
+   "name": {
+    "zh": "中樞穴",
+    "vi": "Huyệt Trung Xu"
+   },
+   "meridian": {
+    "zh": "督脈",
+    "vi": "Mạch Đốc"
+   },
+   "keywords": {
+    "zh": [
+     "健脾和胃",
+     "寬胸理氣",
+     "緩解背部緊繃",
+     "中樞穴",
+     "中樞"
+    ],
+    "vi": [
+     "kiện tỳ hòa vị",
+     "căng lưng"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第10胸椎棘突下凹陷處",
+    "vi": "Ở lưng, chỗ lõm dưới gai đốt sống ngực 10."
+   },
+   "benefit": {
+    "zh": "健脾和胃、寬胸理氣、緩解背部緊繃",
+    "vi": "Kiện tỳ hòa vị, khoan ngực lý khí, giảm căng lưng."
+   },
+   "technique": {
+    "zh": "以指腹或掌根輕揉",
+    "vi": "Dùng đầu ngón tay hoặc gốc bàn tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "力道需輕緩，不可用力衝擊",
+    "vi": "Lực cần nhẹ nhàng, không được tác động lực mạnh."
+   }
+  },
+  {
+   "id": "upperback_20",
+   "bodyPart": "upperback",
+   "name": {
+    "zh": "懸樞穴",
+    "vi": "Huyệt Huyền Xu"
+   },
+   "meridian": {
+    "zh": "督脈",
+    "vi": "Mạch Đốc"
+   },
+   "keywords": {
+    "zh": [
+     "健脾益氣",
+     "緩解腰背痠痛",
+     "懸樞穴",
+     "懸樞"
+    ],
+    "vi": [
+     "kiện tỳ ích khí",
+     "đau mỏi lưng gần eo"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第13胸椎（即第1腰椎）棘突下凹陷處",
+    "vi": "Ở lưng, chỗ lõm dưới gai đốt sống ngực 13 (tức đốt sống thắt lưng 1)."
+   },
+   "benefit": {
+    "zh": "健脾益氣、緩解腰背痠痛",
+    "vi": "Kiện tỳ ích khí, giảm đau mỏi vùng lưng gần eo."
+   },
+   "technique": {
+    "zh": "以指腹輕揉",
+    "vi": "Dùng đầu ngón tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "避免過度壓迫椎間盤位置",
+    "vi": "Tránh chèn ép quá mức vào vị trí đĩa đệm."
+   }
+  },
+  {
+   "id": "lowerback_1",
+   "bodyPart": "lowerback",
+   "name": {
+    "zh": "腎俞穴",
+    "vi": "Huyệt Thận Du"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "補腎強腰",
+     "利水消腫",
+     "緩解腰部痠痛與疲勞",
+     "腎俞穴",
+     "腎俞"
+    ],
+    "vi": [
+     "bổ thận mạnh lưng",
+     "mỏi thắt lưng"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第2腰椎棘突下，旁開一寸半",
+    "vi": "Ở lưng, dưới gai đốt sống thắt lưng 2, cách ra ngoài 1,5 thốn."
+   },
+   "benefit": {
+    "zh": "補腎強腰、利水消腫、緩解腰部痠痛與疲勞",
+    "vi": "Bổ thận mạnh lưng, lợi thủy tiêu thũng, giảm mỏi và mệt vùng thắt lưng."
+   },
+   "technique": {
+    "zh": "以大拇指或掌根由內向外按揉，或以握拳輕叩",
+    "vi": "Dùng đầu ngón cái hoặc gốc bàn tay day theo hướng trong ra ngoài, hoặc nắm tay gõ nhẹ."
+   },
+   "caution": {
+    "zh": "局部若有急性腰扭傷應輕柔為主，不宜強烈敲擊",
+    "vi": "Nếu vừa bị bong gân lưng cấp tính thì nên nhẹ nhàng là chính, không nên gõ mạnh."
+   }
+  },
+  {
+   "id": "lowerback_2",
+   "bodyPart": "lowerback",
+   "name": {
+    "zh": "氣海俞穴",
+    "vi": "Huyệt Khí Hải Du"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "理氣益氣",
+     "調和下焦",
+     "緩解腰腹痠脹",
+     "氣海俞穴",
+     "氣海俞"
+    ],
+    "vi": [
+     "lý khí ích khí",
+     "căng bụng lưng"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第3腰椎棘突下，旁開一寸半",
+    "vi": "Ở lưng, dưới gai đốt sống thắt lưng 3, cách ra ngoài 1,5 thốn."
+   },
+   "benefit": {
+    "zh": "理氣益氣、調和下焦、緩解腰腹痠脹",
+    "vi": "Lý khí ích khí, điều hòa hạ tiêu, giảm căng đau vùng bụng lưng."
+   },
+   "technique": {
+    "zh": "以大拇指腹按揉",
+    "vi": "Dùng đầu ngón cái day ấn."
+   },
+   "caution": {
+    "zh": "力道宜和緩，避免造成椎體過度受壓",
+    "vi": "Lực nên ôn hòa, tránh gây áp lực quá mức lên đốt sống."
+   }
+  },
+  {
+   "id": "lowerback_3",
+   "bodyPart": "lowerback",
+   "name": {
+    "zh": "大腸俞穴",
+    "vi": "Huyệt Đại Trường Du"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "通調腸胃",
+     "理氣強腰",
+     "緩解腰骶部疼痛與脹氣",
+     "大腸俞穴",
+     "大腸俞"
+    ],
+    "vi": [
+     "thông điều tràng vị",
+     "đầy hơi lưng"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第4腰椎棘突下，旁開一寸半",
+    "vi": "Ở lưng, dưới gai đốt sống thắt lưng 4, cách ra ngoài 1,5 thốn."
+   },
+   "benefit": {
+    "zh": "通調腸胃、理氣強腰、緩解腰骶部疼痛與脹氣",
+    "vi": "Thông điều tràng vị, lý khí mạnh lưng, giảm đau thắt lưng và đầy hơi."
+   },
+   "technique": {
+    "zh": "以掌根或大拇指按揉，配合腰部輕微左右擺動",
+    "vi": "Dùng gốc bàn tay hoặc đầu ngón cái day, kết hợp lắc nhẹ hông sang hai bên."
+   },
+   "caution": {
+    "zh": "此處為腰部負荷區，按摩時應注意腰椎舒適度",
+    "vi": "Đây là vùng chịu tải của lưng, khi massage cần chú ý sự thoải mái của cột sống thắt lưng."
+   }
+  },
+  {
+   "id": "lowerback_4",
+   "bodyPart": "lowerback",
+   "name": {
+    "zh": "關元俞穴",
+    "vi": "Huyệt Quan Nguyên Du"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "補腎固精",
+     "強腰利濕",
+     "緩解腰骶痠痛",
+     "關元俞穴",
+     "關元俞"
+    ],
+    "vi": [
+     "bổ thận cố tinh",
+     "đau vùng cùng thắt lưng"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第5腰椎棘突下，旁開一寸半",
+    "vi": "Ở lưng, dưới gai đốt sống thắt lưng 5, cách ra ngoài 1,5 thốn."
+   },
+   "benefit": {
+    "zh": "補腎固精、強腰利濕、緩解腰骶痠痛",
+    "vi": "Bổ thận cố tinh, mạnh lưng lợi thấp, giảm đau vùng cùng thắt lưng."
+   },
+   "technique": {
+    "zh": "以指腹按揉",
+    "vi": "Dùng đầu ngón tay day ấn."
+   },
+   "caution": {
+    "zh": "力道需均勻，避免對骨性突起處造成不適",
+    "vi": "Lực cần đều, tránh gây khó chịu ở phần xương lồi."
+   }
+  },
+  {
+   "id": "lowerback_5",
+   "bodyPart": "lowerback",
+   "name": {
+    "zh": "小腸俞穴",
+    "vi": "Huyệt Tiểu Trường Du"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "疏通下焦",
+     "利濕熱",
+     "緩解骶部與下腹疼痛",
+     "小腸俞穴",
+     "小腸俞"
+    ],
+    "vi": [
+     "thông hạ tiêu",
+     "đau bụng dưới"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第1骶椎棘突下，旁開一寸半",
+    "vi": "Ở lưng, dưới gai đốt sống cùng 1, cách ra ngoài 1,5 thốn."
+   },
+   "benefit": {
+    "zh": "疏通下焦、利濕熱、緩解骶部與下腹疼痛",
+    "vi": "Thông lợi hạ tiêu, thanh nhiệt lợi thấp, giảm đau vùng cùng cụt và bụng dưới."
+   },
+   "technique": {
+    "zh": "以指腹輕揉或掌根按壓",
+    "vi": "Dùng đầu ngón tay xoa nhẹ hoặc gốc bàn tay ấn."
+   },
+   "caution": {
+    "zh": "手法宜輕巧，避開骶骨過硬區",
+    "vi": "Thao tác cần nhẹ nhàng, tránh vùng xương cùng quá cứng."
+   }
+  },
+  {
+   "id": "lowerback_6",
+   "bodyPart": "lowerback",
+   "name": {
+    "zh": "膀胱俞穴",
+    "vi": "Huyệt Bàng Quang Du"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "利尿通淋",
+     "強腰膝",
+     "緩解下腰部與骨盆區域痠痛",
+     "膀胱俞穴",
+     "膀胱俞"
+    ],
+    "vi": [
+     "lợi niệu thông lâm",
+     "đau khung chậu"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第2骶椎棘突下，旁開一寸半",
+    "vi": "Ở lưng, dưới gai đốt sống cùng 2, cách ra ngoài 1,5 thốn."
+   },
+   "benefit": {
+    "zh": "利尿通淋、強腰膝、緩解下腰部與骨盆區域痠痛",
+    "vi": "Lợi tiểu thông lâm, mạnh eo gối, giảm đau vùng thắt lưng dưới và khung chậu."
+   },
+   "technique": {
+    "zh": "以大拇指按壓，力道適中",
+    "vi": "Dùng đầu ngón cái ấn, lực vừa phải."
+   },
+   "caution": {
+    "zh": "應避免對骶骨孔進行深層重壓",
+    "vi": "Tránh ấn sâu vào lỗ xương cùng."
+   }
+  },
+  {
+   "id": "lowerback_7",
+   "bodyPart": "lowerback",
+   "name": {
+    "zh": "中膂俞穴",
+    "vi": "Huyệt Trung Lữ Du"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "通經活絡",
+     "強腰脊",
+     "改善下背部僵硬",
+     "中膂俞穴",
+     "中膂俞"
+    ],
+    "vi": [
+     "thông kinh hoạt lạc",
+     "cứng lưng dưới"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第3骶椎棘突下，旁開一寸半",
+    "vi": "Ở lưng, dưới gai đốt sống cùng 3, cách ra ngoài 1,5 thốn."
+   },
+   "benefit": {
+    "zh": "通經活絡、強腰脊、改善下背部僵硬",
+    "vi": "Thông kinh hoạt lạc, mạnh cột sống eo, giảm cứng lưng dưới."
+   },
+   "technique": {
+    "zh": "以指腹點按",
+    "vi": "Dùng đầu ngón tay điểm ấn."
+   },
+   "caution": {
+    "zh": "避免局部神經豐富區域施力過重",
+    "vi": "Tránh dùng lực mạnh ở vùng thần kinh phong phú."
+   }
+  },
+  {
+   "id": "lowerback_8",
+   "bodyPart": "lowerback",
+   "name": {
+    "zh": "白環俞穴",
+    "vi": "Huyệt Bạch Hoàn Du"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "調經固帶",
+     "強腰脊",
+     "緩解腰骶與髖部緊繃",
+     "白環俞穴",
+     "白環俞"
+    ],
+    "vi": [
+     "điều kinh cố đới",
+     "căng khớp háng"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第4骶椎棘突下，旁開一寸半",
+    "vi": "Ở lưng, dưới gai đốt sống cùng 4, cách ra ngoài 1,5 thốn."
+   },
+   "benefit": {
+    "zh": "調經固帶、強腰脊、緩解腰骶與髖部緊繃",
+    "vi": "Điều kinh cố đới, mạnh cột sống eo, giảm căng vùng thắt lưng cùng và khớp háng."
+   },
+   "technique": {
+    "zh": "以指腹輕按揉動",
+    "vi": "Dùng đầu ngón tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "手法需溫和，避開骨性突起邊緣",
+    "vi": "Thao tác cần ôn hòa, tránh bờ xương lồi."
+   }
+  },
+  {
+   "id": "lowerback_9",
+   "bodyPart": "lowerback",
+   "name": {
+    "zh": "八髎穴（上、次、中、下髎）",
+    "vi": "Nhóm huyệt Bát Liêu (Thượng, Thứ, Trung, Hạ Liêu)"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "調和氣血",
+     "強腰強身",
+     "改善下背部與生殖泌尿系統循環",
+     "八髎穴（上、次、中、下髎）"
+    ],
+    "vi": [
+     "điều hòa khí huyết",
+     "vùng chậu tiết niệu"
+    ]
+   },
+   "location": {
+    "zh": "位於骶骨孔處（共四對八穴）",
+    "vi": "Ở các lỗ xương cùng (tổng cộng 4 cặp 8 huyệt)."
+   },
+   "benefit": {
+    "zh": "調和氣血、強腰強身、改善下背部與生殖泌尿系統循環",
+    "vi": "Điều hòa khí huyết, mạnh lưng khỏe người, cải thiện tuần hoàn vùng lưng dưới và tiết niệu sinh dục."
+   },
+   "technique": {
+    "zh": "以掌根在骶骨區域由上向下揉推，或以拇指精準點按骶孔",
+    "vi": "Dùng gốc bàn tay đẩy day từ trên xuống dưới vùng xương cùng, hoặc dùng ngón cái điểm chính xác vào lỗ xương."
+   },
+   "caution": {
+    "zh": "此處骨骼淺，力道不可過猛，避免直接衝擊骨膜",
+    "vi": "Vùng xương này khá nông, lực không được quá mạnh, tránh tác động trực tiếp vào màng xương."
+   }
+  },
+  {
+   "id": "lowerback_10",
+   "bodyPart": "lowerback",
+   "name": {
+    "zh": "志室穴",
+    "vi": "Huyệt Chí Thất"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "益腎強腰",
+     "舒緩腰部兩側肌肉僵硬",
+     "志室穴",
+     "志室"
+    ],
+    "vi": [
+     "ích thận mạnh lưng",
+     "cứng cơ hai bên lưng"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第2腰椎棘突下，旁開三寸",
+    "vi": "Ở lưng, dưới gai đốt sống thắt lưng 2, cách ra ngoài 3 thốn."
+   },
+   "benefit": {
+    "zh": "益腎強腰、舒緩腰部兩側肌肉僵硬",
+    "vi": "Ích thận mạnh lưng, giảm cứng cơ hai bên thắt lưng."
+   },
+   "technique": {
+    "zh": "以大拇指按揉或掌根推摩",
+    "vi": "Dùng đầu ngón cái day hoặc gốc bàn tay xoa."
+   },
+   "caution": {
+    "zh": "若腰部有急性肌肉撕裂應避免強力動作",
+    "vi": "Nếu thắt lưng vừa bị rách cơ cấp tính thì tránh động tác mạnh."
+   }
+  },
+  {
+   "id": "lowerback_11",
+   "bodyPart": "lowerback",
+   "name": {
+    "zh": "秩邊穴",
+    "vi": "Huyệt Trật Biên"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "舒筋活絡",
+     "強腰膝",
+     "緩解腰骶部至臀部的放射狀痠痛",
+     "秩邊穴",
+     "秩邊"
+    ],
+    "vi": [
+     "thư cân hoạt lạc",
+     "lan tỏa đau xuống mông"
+    ]
+   },
+   "location": {
+    "zh": "位於臀部，第4骶椎棘突下，旁開三寸（近臀部梨狀肌處）",
+    "vi": "Ở mông, dưới gai đốt sống cùng 4, cách ra ngoài 3 thốn (gần cơ hình lê ở mông)."
+   },
+   "benefit": {
+    "zh": "舒筋活絡、強腰膝、緩解腰骶部至臀部的放射狀痠痛",
+    "vi": "Thư cân hoạt lạc, mạnh eo gối, giảm đau lan tỏa từ vùng cùng thắt lưng xuống mông."
+   },
+   "technique": {
+    "zh": "以大拇指或肘尖深層點按（若非專業人員建議用掌根）",
+    "vi": "Dùng đầu ngón cái hoặc khuỷu tay điểm ấn sâu (nếu không phải chuyên môn nên dùng gốc bàn tay)."
+   },
+   "caution": {
+    "zh": "若有坐骨神經急性發炎期應諮詢專業醫師，避免過度激惹神經",
+    "vi": "Nếu đang bị viêm dây thần kinh tọa cấp tính nên tham khảo bác sĩ chuyên môn, tránh kích thích thần kinh quá mức."
+   }
+  },
+  {
+   "id": "lowerback_12",
+   "bodyPart": "lowerback",
+   "name": {
+    "zh": "腰陽關穴",
+    "vi": "Huyệt Yêu Dương Quan"
+   },
+   "meridian": {
+    "zh": "督脈",
+    "vi": "Mạch Đốc"
+   },
+   "keywords": {
+    "zh": [
+     "強腰膝",
+     "祛寒濕",
+     "緩解腰骶部僵硬與寒冷感",
+     "腰陽關穴",
+     "腰陽關"
+    ],
+    "vi": [
+     "mạnh eo gối",
+     "trừ hàn thấp"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第4腰椎棘突下凹陷處",
+    "vi": "Ở lưng, chỗ lõm dưới gai đốt sống thắt lưng 4."
+   },
+   "benefit": {
+    "zh": "強腰膝、祛寒濕、緩解腰骶部僵硬與寒冷感",
+    "vi": "Mạnh eo gối, trừ hàn thấp, giảm cứng và cảm giác lạnh vùng thắt lưng cùng."
+   },
+   "technique": {
+    "zh": "以指腹或掌根輕揉",
+    "vi": "Dùng đầu ngón tay hoặc gốc bàn tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "切忌暴力重按脊椎，以溫熱推按為主",
+    "vi": "Tuyệt đối không ấn mạnh bạo lên cột sống, nên đẩy nhẹ theo hướng ấm áp."
+   }
+  },
+  {
+   "id": "lowerback_13",
+   "bodyPart": "lowerback",
+   "name": {
+    "zh": "命門穴",
+    "vi": "Huyệt Mệnh Môn"
+   },
+   "meridian": {
+    "zh": "督脈",
+    "vi": "Mạch Đốc"
+   },
+   "keywords": {
+    "zh": [
+     "補腎壯陽",
+     "強腰益氣",
+     "緩解腰部痠軟無力",
+     "命門穴",
+     "命門"
+    ],
+    "vi": [
+     "bổ thận tráng dương",
+     "yếu mỏi lưng"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第2腰椎棘突下凹陷處",
+    "vi": "Ở lưng, chỗ lõm dưới gai đốt sống thắt lưng 2."
+   },
+   "benefit": {
+    "zh": "補腎壯陽、強腰益氣、緩解腰部痠軟無力",
+    "vi": "Bổ thận tráng dương, mạnh lưng ích khí, giảm mỏi yếu vùng thắt lưng."
+   },
+   "technique": {
+    "zh": "以大拇指輕柔揉按或掌根推按",
+    "vi": "Dùng đầu ngón cái xoa nhẹ hoặc gốc bàn tay đẩy."
+   },
+   "caution": {
+    "zh": "不可重壓，按摩時應配合保暖",
+    "vi": "Không được ấn mạnh, khi massage nên giữ ấm cơ thể."
+   }
+  },
+  {
+   "id": "lowerback_14",
+   "bodyPart": "lowerback",
+   "name": {
+    "zh": "懸樞穴",
+    "vi": "Huyệt Huyền Xu (đoạn thắt lưng)"
+   },
+   "meridian": {
+    "zh": "督脈",
+    "vi": "Mạch Đốc"
+   },
+   "keywords": {
+    "zh": [
+     "健脾益氣",
+     "強腰強脊",
+     "緩解腰背痠痛",
+     "懸樞穴",
+     "懸樞"
+    ],
+    "vi": [
+     "kiện tỳ ích khí",
+     "đau lưng mỏi cột sống"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第1腰椎棘突下凹陷處",
+    "vi": "Ở lưng, chỗ lõm dưới gai đốt sống thắt lưng 1."
+   },
+   "benefit": {
+    "zh": "健脾益氣、強腰強脊、緩解腰背痠痛",
+    "vi": "Kiện tỳ ích khí, mạnh lưng khỏe cột sống, giảm đau mỏi thắt lưng."
+   },
+   "technique": {
+    "zh": "以指腹輕輕揉按",
+    "vi": "Dùng đầu ngón tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "避免造成椎間盤壓力",
+    "vi": "Tránh gây áp lực lên đĩa đệm."
+   }
+  },
+  {
+   "id": "lowerback_15",
+   "bodyPart": "lowerback",
+   "name": {
+    "zh": "腰眼穴",
+    "vi": "Huyệt Yêu Nhãn"
+   },
+   "meridian": {
+    "zh": "經外奇穴",
+    "vi": "Huyệt ngoài kinh"
+   },
+   "keywords": {
+    "zh": [
+     "強腰健腎",
+     "緩解腰部肌肉慢性痠痛",
+     "腰眼穴",
+     "腰眼"
+    ],
+    "vi": [
+     "mạnh lưng khỏe thận",
+     "đau mỏi mạn tính"
+    ]
+   },
+   "location": {
+    "zh": "位於腰部，第4腰椎棘突下旁開約3.5寸凹陷處（腰部「腰窩」位置）",
+    "vi": "Ở thắt lưng, chỗ lõm cách gai đốt sống thắt lưng 4 khoảng 3,5 thốn (vị trí \"hõm lưng\")."
+   },
+   "benefit": {
+    "zh": "強腰健腎、緩解腰部肌肉慢性痠痛",
+    "vi": "Mạnh lưng khỏe thận, giảm đau mỏi mạn tính vùng cơ thắt lưng."
+   },
+   "technique": {
+    "zh": "以大拇指點按或掌根大面積揉搓",
+    "vi": "Dùng đầu ngón cái điểm ấn hoặc gốc bàn tay xoa diện rộng."
+   },
+   "caution": {
+    "zh": "手法需穩定，不可強力撞擊骨骼",
+    "vi": "Thao tác cần ổn định, không được va đập mạnh vào xương."
+   }
+  },
+  {
+   "id": "lowerback_16",
+   "bodyPart": "lowerback",
+   "name": {
+    "zh": "痞根穴",
+    "vi": "Huyệt Bĩ Căn"
+   },
+   "meridian": {
+    "zh": "經外奇穴",
+    "vi": "Huyệt ngoài kinh"
+   },
+   "keywords": {
+    "zh": [
+     "消積化痞",
+     "緩解腰背部深層緊繃",
+     "痞根穴",
+     "痞根"
+    ],
+    "vi": [
+     "tiêu tích hóa bĩ",
+     "cứng sâu vùng lưng"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第1腰椎棘突下旁開3.5寸",
+    "vi": "Ở lưng, cách gai đốt sống thắt lưng 1 ra ngoài 3,5 thốn."
+   },
+   "benefit": {
+    "zh": "消積化痞、緩解腰背部深層緊繃",
+    "vi": "Tiêu tích hóa bĩ, giảm cứng sâu vùng lưng."
+   },
+   "technique": {
+    "zh": "以指腹輕按揉動",
+    "vi": "Dùng đầu ngón tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "按摩手法應輕柔，避免引起肋骨周邊不適",
+    "vi": "Thao tác cần nhẹ nhàng, tránh khó chịu quanh vùng xương sườn."
+   }
+  },
+  {
+   "id": "lowerback_17",
+   "bodyPart": "lowerback",
+   "name": {
+    "zh": "十七椎穴",
+    "vi": "Huyệt Thập Thất Chùy"
+   },
+   "meridian": {
+    "zh": "經外奇穴",
+    "vi": "Huyệt ngoài kinh"
+   },
+   "keywords": {
+    "zh": [
+     "強腰膝",
+     "舒緩腰骶痠痛與痛經（相關反射）",
+     "十七椎穴",
+     "十七椎"
+    ],
+    "vi": [
+     "mạnh eo gối",
+     "đau bụng kinh"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第5腰椎棘突下凹陷處",
+    "vi": "Ở lưng, chỗ lõm dưới gai đốt sống thắt lưng 5."
+   },
+   "benefit": {
+    "zh": "強腰膝、舒緩腰骶痠痛與痛經（相關反射）",
+    "vi": "Mạnh eo gối, giảm đau vùng cùng thắt lưng và đau bụng kinh (vùng phản xạ liên quan)."
+   },
+   "technique": {
+    "zh": "以大拇指或指腹輕揉",
+    "vi": "Dùng đầu ngón cái hoặc đầu ngón tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "力度要輕，避開骨骼突起處",
+    "vi": "Lực cần nhẹ, tránh vùng xương lồi."
+   }
+  },
+  {
+   "id": "lowerback_18",
+   "bodyPart": "lowerback",
+   "name": {
+    "zh": "下極俞穴",
+    "vi": "Huyệt Hạ Cực Du"
+   },
+   "meridian": {
+    "zh": "督脈（旁側延伸）",
+    "vi": "Mạch Đốc (vùng mở rộng bên cạnh)"
+   },
+   "keywords": {
+    "zh": [
+     "緩解腰部疲勞",
+     "下極俞穴",
+     "下極俞"
+    ],
+    "vi": [
+     "giảm mỏi thắt lưng"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第3腰椎棘突下旁開處",
+    "vi": "Ở lưng, cách gai đốt sống thắt lưng 3 sang một bên."
+   },
+   "benefit": {
+    "zh": "緩解腰部疲勞",
+    "vi": "Giảm mỏi vùng thắt lưng."
+   },
+   "technique": {
+    "zh": "以指腹輕柔按摩",
+    "vi": "Dùng đầu ngón tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "保持力道輕緩",
+    "vi": "Giữ lực nhẹ nhàng ổn định."
+   }
+  },
+  {
+   "id": "lowerback_19",
+   "bodyPart": "lowerback",
+   "name": {
+    "zh": "大腸俞穴（延伸點）",
+    "vi": "Huyệt Đại Trường Du (điểm mở rộng)"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "緩解腰部下段緊繃",
+     "大腸俞穴（延伸點）"
+    ],
+    "vi": [
+     "giảm căng đoạn dưới thắt lưng"
+    ]
+   },
+   "location": {
+    "zh": "位於背部，第4腰椎棘突下旁開處",
+    "vi": "Ở lưng, cách gai đốt sống thắt lưng 4 sang một bên."
+   },
+   "benefit": {
+    "zh": "緩解腰部下段緊繃",
+    "vi": "Giảm căng đoạn dưới thắt lưng."
+   },
+   "technique": {
+    "zh": "以掌根按壓",
+    "vi": "Dùng gốc bàn tay ấn."
+   },
+   "caution": {
+    "zh": "手法柔和，緩解長期久坐導致的腰椎張力",
+    "vi": "Thao tác nhẹ nhàng, giảm căng thẳng cột sống thắt lưng do ngồi lâu."
+   }
+  },
+  {
+   "id": "hip_1",
+   "bodyPart": "hip",
+   "name": {
+    "zh": "環跳穴",
+    "vi": "Huyệt Hoàn Khiêu"
+   },
+   "meridian": {
+    "zh": "足少陽膽經",
+    "vi": "Kinh Đởm (Túc Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "疏通經絡",
+     "利腰腿",
+     "緩解臀部及大腿後側痠痛",
+     "環跳穴",
+     "環跳"
+    ],
+    "vi": [
+     "thông kinh lợi eo",
+     "đau mông đùi sau"
+    ]
+   },
+   "location": {
+    "zh": "位於臀部，股骨大轉子高點與骶管裂孔連線的外三分之一與中三分之一交點處",
+    "vi": "Ở mông, điểm giao giữa 1/3 ngoài và 1/3 giữa đường nối mấu chuyển lớn xương đùi và khe xương cùng."
+   },
+   "benefit": {
+    "zh": "疏通經絡、利腰腿、緩解臀部及大腿後側痠痛",
+    "vi": "Thông kinh hoạt lạc, lợi eo chân, giảm đau mông và mặt sau đùi."
+   },
+   "technique": {
+    "zh": "以大拇指或肘尖深層按壓，或以掌根揉摩",
+    "vi": "Dùng đầu ngón cái hoặc khuỷu tay ấn sâu, hoặc dùng gốc bàn tay xoa."
+   },
+   "caution": {
+    "zh": "此穴較深，操作時應確認肌肉鬆弛，避免強力撞擊骨骼",
+    "vi": "Huyệt này khá sâu, cần đảm bảo cơ đã thả lỏng trước khi thao tác, tránh va đập mạnh vào xương."
+   }
+  },
+  {
+   "id": "hip_2",
+   "bodyPart": "hip",
+   "name": {
+    "zh": "居髎穴",
+    "vi": "Huyệt Cư Liêu"
+   },
+   "meridian": {
+    "zh": "足少陽膽經",
+    "vi": "Kinh Đởm (Túc Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "舒筋活絡",
+     "強腰膝",
+     "緩解臀部外側及大腿外側痠脹",
+     "居髎穴",
+     "居髎"
+    ],
+    "vi": [
+     "thư cân hoạt lạc",
+     "đau mặt ngoài mông đùi"
+    ]
+   },
+   "location": {
+    "zh": "位於臀部，髂前上棘與股骨大轉子連線的中點",
+    "vi": "Ở mông, điểm giữa đường nối gai chậu trước trên và mấu chuyển lớn xương đùi."
+   },
+   "benefit": {
+    "zh": "舒筋活絡、強腰膝、緩解臀部外側及大腿外側痠脹",
+    "vi": "Thư cân hoạt lạc, mạnh eo gối, giảm căng mặt ngoài mông và đùi."
+   },
+   "technique": {
+    "zh": "以大拇指或掌根按壓揉動",
+    "vi": "Dùng đầu ngón cái hoặc gốc bàn tay ấn day."
+   },
+   "caution": {
+    "zh": "手法應穩定，避開髂骨過硬區",
+    "vi": "Thao tác cần ổn định, tránh vùng xương chậu quá cứng."
+   }
+  },
+  {
+   "id": "hip_3",
+   "bodyPart": "hip",
+   "name": {
+    "zh": "秩邊穴（臀部延伸）",
+    "vi": "Trật Biên (đoạn mông)"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "舒筋活絡",
+     "緩解臀部及大腿後側放射痛",
+     "秩邊穴（臀部延伸）"
+    ],
+    "vi": [
+     "thư cân hoạt lạc",
+     "đau lan mông đùi sau"
+    ]
+   },
+   "location": {
+    "zh": "位於臀部，第4骶椎棘突下旁開三寸",
+    "vi": "Ở mông, dưới gai đốt sống cùng 4, cách ra ngoài 3 thốn."
+   },
+   "benefit": {
+    "zh": "舒筋活絡、緩解臀部及大腿後側放射痛",
+    "vi": "Thư cân hoạt lạc, giảm đau lan tỏa mông và mặt sau đùi."
+   },
+   "technique": {
+    "zh": "以大拇指深層按揉",
+    "vi": "Dùng đầu ngón cái ấn sâu."
+   },
+   "caution": {
+    "zh": "注意避開坐骨神經走行，力道由輕漸重",
+    "vi": "Chú ý tránh đường đi dây thần kinh tọa, lực từ nhẹ tăng dần."
+   }
+  },
+  {
+   "id": "hip_4",
+   "bodyPart": "hip",
+   "name": {
+    "zh": "承扶穴",
+    "vi": "Huyệt Thừa Phù"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "舒筋活絡",
+     "利腰腿",
+     "緩解臀下部與大腿後側緊繃",
+     "承扶穴",
+     "承扶"
+    ],
+    "vi": [
+     "thư cân hoạt lạc",
+     "căng mông đùi sau"
+    ]
+   },
+   "location": {
+    "zh": "位於臀部橫紋中央",
+    "vi": "Ở giữa nếp lằn mông."
+   },
+   "benefit": {
+    "zh": "舒筋活絡、利腰腿、緩解臀下部與大腿後側緊繃",
+    "vi": "Thư cân hoạt lạc, lợi eo chân, giảm căng dưới mông và mặt sau đùi."
+   },
+   "technique": {
+    "zh": "以大拇指或掌根深度按揉，配合下肢伸展",
+    "vi": "Dùng đầu ngón cái hoặc gốc bàn tay ấn sâu, kết hợp gập duỗi chi dưới."
+   },
+   "caution": {
+    "zh": "此處為大腿後側肌肉啟動點，按壓時應注意是否有神經壓迫感",
+    "vi": "Đây là điểm khởi đầu cơ mặt sau đùi, khi ấn cần chú ý cảm giác chèn ép thần kinh."
+   }
+  },
+  {
+   "id": "hip_5",
+   "bodyPart": "hip",
+   "name": {
+    "zh": "殷門穴",
+    "vi": "Huyệt Ân Môn"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "強筋健骨",
+     "通經活絡",
+     "緩解大腿後側肌肉痠痛",
+     "殷門穴",
+     "殷門"
+    ],
+    "vi": [
+     "mạnh gân cốt",
+     "đau cơ đùi sau"
+    ]
+   },
+   "location": {
+    "zh": "位於大腿後側，承扶穴與委中穴連線上，承扶下六寸",
+    "vi": "Ở mặt sau đùi, trên đường nối huyệt Thừa Phù và Ủy Trung, dưới Thừa Phù 6 thốn."
+   },
+   "benefit": {
+    "zh": "強筋健骨、通經活絡、緩解大腿後側肌肉痠痛",
+    "vi": "Mạnh gân cốt, thông kinh hoạt lạc, giảm đau mỏi cơ mặt sau đùi."
+   },
+   "technique": {
+    "zh": "以掌根或大拇指推按，可配合腿部彎曲動作",
+    "vi": "Dùng gốc bàn tay hoặc đầu ngón cái đẩy day, có thể kết hợp động tác gập chân."
+   },
+   "caution": {
+    "zh": "避免在大腿後側靜脈曲張明顯處用力",
+    "vi": "Tránh dùng lực mạnh nơi có giãn tĩnh mạch rõ ở mặt sau đùi."
+   }
+  },
+  {
+   "id": "hip_6",
+   "bodyPart": "hip",
+   "name": {
+    "zh": "浮郄穴",
+    "vi": "Huyệt Phù Khích"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "舒筋活絡",
+     "緩解大腿後側膝部上方緊繃",
+     "浮郄穴",
+     "浮郄"
+    ],
+    "vi": [
+     "thư cân hoạt lạc",
+     "căng trên gối sau"
+    ]
+   },
+   "location": {
+    "zh": "位於大腿後側，委中穴上1寸，股二頭肌腱內側",
+    "vi": "Ở mặt sau đùi, trên huyệt Ủy Trung 1 thốn, bờ trong gân cơ nhị đầu đùi."
+   },
+   "benefit": {
+    "zh": "舒筋活絡、緩解大腿後側膝部上方緊繃",
+    "vi": "Thư cân hoạt lạc, giảm căng phía trên mặt sau gối và đùi."
+   },
+   "technique": {
+    "zh": "以指腹點按",
+    "vi": "Dùng đầu ngón tay điểm ấn."
+   },
+   "caution": {
+    "zh": "力道適中，避開膕窩神經血管豐富區",
+    "vi": "Lực vừa phải, tránh vùng nhiều mạch máu thần kinh sau khoeo."
+   }
+  },
+  {
+   "id": "hip_7",
+   "bodyPart": "hip",
+   "name": {
+    "zh": "委陽穴",
+    "vi": "Huyệt Ủy Dương"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "舒筋通絡",
+     "利三焦",
+     "緩解膝後側及大腿外下側緊繃",
+     "委陽穴",
+     "委陽"
+    ],
+    "vi": [
+     "thư cân thông lạc",
+     "đau khoeo sau"
+    ]
+   },
+   "location": {
+    "zh": "位於膝後區，委中穴外側，股二頭肌腱內側",
+    "vi": "Ở vùng khoeo, phía ngoài huyệt Ủy Trung, bờ trong gân cơ nhị đầu đùi."
+   },
+   "benefit": {
+    "zh": "舒筋通絡、利三焦、緩解膝後側及大腿外下側緊繃",
+    "vi": "Thư cân thông lạc, lợi tam tiêu, giảm căng sau khoeo và mặt ngoài dưới đùi."
+   },
+   "technique": {
+    "zh": "以指腹輕揉",
+    "vi": "Dùng đầu ngón tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "避開膕窩中心，手法需柔和",
+    "vi": "Tránh trực tiếp vùng trung tâm khoeo, thao tác cần nhẹ nhàng."
+   }
+  },
+  {
+   "id": "hip_8",
+   "bodyPart": "hip",
+   "name": {
+    "zh": "風市穴",
+    "vi": "Huyệt Phong Thị"
+   },
+   "meridian": {
+    "zh": "足少陽膽經",
+    "vi": "Kinh Đởm (Túc Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "祛風散寒",
+     "通經活絡",
+     "緩解大腿外側痠痛與無力",
+     "風市穴",
+     "風市"
+    ],
+    "vi": [
+     "khu phong tán hàn",
+     "yếu mỏi mặt ngoài đùi"
+    ]
+   },
+   "location": {
+    "zh": "位於大腿外側，直立垂手時，中指尖所指處（外側正中線）",
+    "vi": "Ở mặt ngoài đùi, khi đứng thẳng buông tay, đầu ngón giữa chạm tới (đường giữa mặt ngoài đùi)."
+   },
+   "benefit": {
+    "zh": "祛風散寒、通經活絡、緩解大腿外側痠痛與無力",
+    "vi": "Khu phong tán hàn, thông kinh hoạt lạc, giảm mỏi và yếu mặt ngoài đùi."
+   },
+   "technique": {
+    "zh": "以大拇指或握拳輕敲，亦可深度點按",
+    "vi": "Dùng đầu ngón cái hoặc nắm tay gõ nhẹ, cũng có thể điểm ấn sâu."
+   },
+   "caution": {
+    "zh": "力道視個人耐受度，避免過度激惹骨膜",
+    "vi": "Lực tùy theo mức chịu đựng từng người, tránh kích thích mạnh vào màng xương."
+   }
+  },
+  {
+   "id": "hip_9",
+   "bodyPart": "hip",
+   "name": {
+    "zh": "中瀆穴",
+    "vi": "Huyệt Trung Độc"
+   },
+   "meridian": {
+    "zh": "足少陽膽經",
+    "vi": "Kinh Đởm (Túc Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "舒筋活絡",
+     "利關節",
+     "緩解大腿外側肌肉緊繃",
+     "中瀆穴",
+     "中瀆"
+    ],
+    "vi": [
+     "thư cân hoạt lạc",
+     "cứng cơ mặt ngoài đùi"
+    ]
+   },
+   "location": {
+    "zh": "位於大腿外側，風市穴下二寸",
+    "vi": "Ở mặt ngoài đùi, dưới huyệt Phong Thị 2 thốn."
+   },
+   "benefit": {
+    "zh": "舒筋活絡、利關節、緩解大腿外側肌肉緊繃",
+    "vi": "Thư cân hoạt lạc, lợi khớp, giảm căng cơ mặt ngoài đùi."
+   },
+   "technique": {
+    "zh": "以大拇指按揉",
+    "vi": "Dùng đầu ngón cái day ấn."
+   },
+   "caution": {
+    "zh": "手法要穩定，避免滑動傷及皮膚",
+    "vi": "Thao tác cần ổn định, tránh trượt tay làm tổn thương da."
+   }
+  },
+  {
+   "id": "hip_10",
+   "bodyPart": "hip",
+   "name": {
+    "zh": "伏兔穴",
+    "vi": "Huyệt Phục Thố"
+   },
+   "meridian": {
+    "zh": "足陽明胃經",
+    "vi": "Kinh Vị (Túc Dương Minh)"
+   },
+   "keywords": {
+    "zh": [
+     "舒筋活絡",
+     "通經活絡",
+     "緩解大腿前側肌肉僵硬",
+     "伏兔穴",
+     "伏兔"
+    ],
+    "vi": [
+     "thư cân hoạt lạc",
+     "cứng cơ mặt trước đùi"
+    ]
+   },
+   "location": {
+    "zh": "位於大腿前側，髂前上棘與髕底外側連線上，髕底上六寸",
+    "vi": "Ở mặt trước đùi, trên đường nối gai chậu trước trên và bờ ngoài xương bánh chè, trên bờ xương bánh chè 6 thốn."
+   },
+   "benefit": {
+    "zh": "舒筋活絡、通經活絡、緩解大腿前側肌肉僵硬",
+    "vi": "Thư cân hoạt lạc, thông kinh hoạt lạc, giảm cứng cơ mặt trước đùi."
+   },
+   "technique": {
+    "zh": "以掌根按壓推揉",
+    "vi": "Dùng gốc bàn tay ấn day."
+   },
+   "caution": {
+    "zh": "避免局部肌肉急性挫傷處用力",
+    "vi": "Tránh dùng lực khi cơ vừa bị chấn thương cấp tính."
+   }
+  },
+  {
+   "id": "hip_11",
+   "bodyPart": "hip",
+   "name": {
+    "zh": "陰市穴",
+    "vi": "Huyệt Âm Thị"
+   },
+   "meridian": {
+    "zh": "足陽明胃經",
+    "vi": "Kinh Vị (Túc Dương Minh)"
+   },
+   "keywords": {
+    "zh": [
+     "溫經散寒",
+     "強膝利關節",
+     "緩解大腿前側痠脹",
+     "陰市穴",
+     "陰市"
+    ],
+    "vi": [
+     "ôn kinh tán hàn",
+     "mỏi trước đùi"
+    ]
+   },
+   "location": {
+    "zh": "位於大腿前側，伏兔穴下三寸",
+    "vi": "Ở mặt trước đùi, dưới huyệt Phục Thố 3 thốn."
+   },
+   "benefit": {
+    "zh": "溫經散寒、強膝利關節、緩解大腿前側痠脹",
+    "vi": "Ôn kinh tán hàn, mạnh gối lợi khớp, giảm mỏi căng mặt trước đùi."
+   },
+   "technique": {
+    "zh": "以指腹點按揉動",
+    "vi": "Dùng đầu ngón tay điểm ấn."
+   },
+   "caution": {
+    "zh": "力道輕緩，保持均勻",
+    "vi": "Lực nhẹ nhàng, đều đặn."
+   }
+  },
+  {
+   "id": "hip_12",
+   "bodyPart": "hip",
+   "name": {
+    "zh": "梁丘穴",
+    "vi": "Huyệt Lương Khâu"
+   },
+   "meridian": {
+    "zh": "足陽明胃經",
+    "vi": "Kinh Vị (Túc Dương Minh)"
+   },
+   "keywords": {
+    "zh": [
+     "疏通胃氣",
+     "膝關節止痛",
+     "緩解大腿前側至膝蓋的緊繃",
+     "梁丘穴",
+     "梁丘"
+    ],
+    "vi": [
+     "thông vị khí",
+     "đau khớp gối"
+    ]
+   },
+   "location": {
+    "zh": "位於大腿前側，髕底上二寸，股外側肌與股直肌肌腱之間",
+    "vi": "Ở mặt trước đùi, trên bờ xương bánh chè 2 thốn, giữa cơ rộng ngoài và cơ thẳng đùi."
+   },
+   "benefit": {
+    "zh": "疏通胃氣、膝關節止痛、緩解大腿前側至膝蓋的緊繃",
+    "vi": "Thông vị khí, giảm đau khớp gối, thư giãn cơ mặt trước đùi tới gối."
+   },
+   "technique": {
+    "zh": "以大拇指點按",
+    "vi": "Dùng đầu ngón cái điểm ấn (huyệt quan trọng dưỡng khớp gối, khi massage có thể kết hợp cử động nhẹ khớp gối)."
+   },
+   "caution": {
+    "zh": "此穴為膝關節保健要穴，按摩時可配合膝部輕微活動",
+    "vi": "Vùng này là huyệt trọng yếu bảo vệ khớp gối, không nên bỏ qua khi thao tác."
+   }
+  },
+  {
+   "id": "hip_13",
+   "bodyPart": "hip",
+   "name": {
+    "zh": "髀關穴",
+    "vi": "Huyệt Bễ Quan"
+   },
+   "meridian": {
+    "zh": "足陽明胃經",
+    "vi": "Kinh Vị (Túc Dương Minh)"
+   },
+   "keywords": {
+    "zh": [
+     "通經活絡",
+     "強腰膝",
+     "緩解大腿前側肌肉緊繃",
+     "髀關穴",
+     "髀關"
+    ],
+    "vi": [
+     "thông kinh hoạt lạc",
+     "cứng cơ trước đùi"
+    ]
+   },
+   "location": {
+    "zh": "位於大腿前側，髂前上棘與髕底外側連線上，縫匠肌肌肉處",
+    "vi": "Ở mặt trước đùi, trên đường nối gai chậu trước trên và bờ ngoài xương bánh chè, vị trí cơ may."
+   },
+   "benefit": {
+    "zh": "通經活絡、強腰膝、緩解大腿前側肌肉緊繃",
+    "vi": "Thông kinh hoạt lạc, mạnh eo gối, giảm cứng cơ mặt trước đùi."
+   },
+   "technique": {
+    "zh": "以掌根按壓推揉",
+    "vi": "Dùng gốc bàn tay ấn day."
+   },
+   "caution": {
+    "zh": "手法需避開鼠蹊部敏感帶，力道由淺入深",
+    "vi": "Thao tác cần tránh vùng bẹn nhạy cảm, lực từ nông vào sâu."
+   }
+  },
+  {
+   "id": "hip_14",
+   "bodyPart": "hip",
+   "name": {
+    "zh": "足五里",
+    "vi": "Túc Ngũ Lý"
+   },
+   "meridian": {
+    "zh": "足厥陰肝經（延伸區）",
+    "vi": "Kinh Can (vùng mở rộng)"
+   },
+   "keywords": {
+    "zh": [
+     "活血化瘀",
+     "舒緩大腿內側肌群（非鼠蹊敏感區",
+     "僅按大腿內側）",
+     "足五里"
+    ],
+    "vi": [
+     "hoạt huyết hóa ứ",
+     "căng cơ trong đùi"
+    ]
+   },
+   "location": {
+    "zh": "位於大腿內側，氣沖穴直下三寸",
+    "vi": "Ở mặt trong đùi, thẳng xuống dưới huyệt Khí Xung 3 thốn."
+   },
+   "benefit": {
+    "zh": "活血化瘀、舒緩大腿內側肌群（非鼠蹊敏感區，僅按大腿內側）",
+    "vi": "Hoạt huyết hóa ứ, thư giãn nhóm cơ mặt trong đùi (không phải vùng bẹn nhạy cảm, chỉ tác động vào cơ mặt trong đùi)."
+   },
+   "technique": {
+    "zh": "以掌根輕柔推摩",
+    "vi": "Dùng gốc bàn tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "注意按摩範圍嚴格控制在內側肌肉，不可誤入鼠蹊皺褶深處",
+    "vi": "Chú ý phạm vi massage chỉ giới hạn ở cơ mặt trong đùi, tuyệt đối không đi sâu vào nếp gấp bẹn."
+   }
+  },
+  {
+   "id": "hip_15",
+   "bodyPart": "hip",
+   "name": {
+    "zh": "陰廉穴",
+    "vi": "Huyệt Âm Liêm"
+   },
+   "meridian": {
+    "zh": "足厥陰肝經",
+    "vi": "Kinh Can (Túc Quyết Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "調理肝腎",
+     "舒緩大腿內側緊繃",
+     "陰廉穴",
+     "陰廉"
+    ],
+    "vi": [
+     "điều lý can thận",
+     "căng trong đùi"
+    ]
+   },
+   "location": {
+    "zh": "位於大腿內側，氣沖穴直下二寸",
+    "vi": "Ở mặt trong đùi, thẳng xuống dưới huyệt Khí Xung 2 thốn."
+   },
+   "benefit": {
+    "zh": "調理肝腎、舒緩大腿內側緊繃",
+    "vi": "Điều lý can thận, giảm căng mặt trong đùi."
+   },
+   "technique": {
+    "zh": "以指腹輕柔按摩",
+    "vi": "Dùng đầu ngón tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "保持力道和緩",
+    "vi": "Giữ lực ôn hòa."
+   }
+  },
+  {
+   "id": "hip_16",
+   "bodyPart": "hip",
+   "name": {
+    "zh": "血海穴",
+    "vi": "Huyệt Huyết Hải"
+   },
+   "meridian": {
+    "zh": "足太陰脾經",
+    "vi": "Kinh Tỳ (Túc Thái Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "活血化瘀",
+     "調經止痛",
+     "緩解大腿內側深層肌肉痠脹",
+     "血海穴",
+     "血海"
+    ],
+    "vi": [
+     "hoạt huyết hóa ứ",
+     "điều kinh"
+    ]
+   },
+   "location": {
+    "zh": "位於大腿內側，髕底內側上二寸，股內側肌隆起處",
+    "vi": "Ở mặt trong đùi, trên bờ trong xương bánh chè 2 thốn, chỗ nổi cơ rộng trong."
+   },
+   "benefit": {
+    "zh": "活血化瘀、調經止痛、緩解大腿內側深層肌肉痠脹",
+    "vi": "Hoạt huyết hóa ứ, điều kinh chỉ thống, giảm mỏi sâu mặt trong đùi."
+   },
+   "technique": {
+    "zh": "以大拇指點按，力道可適度加強",
+    "vi": "Dùng đầu ngón cái điểm ấn, có thể tăng lực vừa phải."
+   },
+   "caution": {
+    "zh": "局部若有靜脈曲張應避開",
+    "vi": "Nếu có giãn tĩnh mạch cục bộ thì nên tránh."
+   }
+  },
+  {
+   "id": "hip_17",
+   "bodyPart": "hip",
+   "name": {
+    "zh": "箕門穴",
+    "vi": "Huyệt Cơ Môn"
+   },
+   "meridian": {
+    "zh": "足太陰脾經",
+    "vi": "Kinh Tỳ (Túc Thái Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "疏通經絡",
+     "緩解大腿內側肌肉緊張",
+     "箕門穴",
+     "箕門"
+    ],
+    "vi": [
+     "thông kinh hoạt lạc",
+     "căng cơ trong đùi"
+    ]
+   },
+   "location": {
+    "zh": "位於大腿內側，血海穴上六寸",
+    "vi": "Ở mặt trong đùi, trên huyệt Huyết Hải 6 thốn."
+   },
+   "benefit": {
+    "zh": "疏通經絡、緩解大腿內側肌肉緊張",
+    "vi": "Thông kinh hoạt lạc, giảm căng cơ mặt trong đùi."
+   },
+   "technique": {
+    "zh": "以掌根推揉",
+    "vi": "Dùng gốc bàn tay đẩy day."
+   },
+   "caution": {
+    "zh": "手法穩定，避開內側靜脈",
+    "vi": "Thao tác ổn định, tránh tĩnh mạch mặt trong."
+   }
+  },
+  {
+   "id": "hip_18",
+   "bodyPart": "hip",
+   "name": {
+    "zh": "足三里（上方延伸點）",
+    "vi": "Túc Tam Lý (điểm mở rộng phía trên)"
+   },
+   "meridian": {
+    "zh": "足陽明胃經",
+    "vi": "Kinh Vị (Túc Dương Minh)"
+   },
+   "keywords": {
+    "zh": [
+     "緩解腿部整體疲勞",
+     "足三里（上方延伸點）"
+    ],
+    "vi": [
+     "giảm mỏi toàn chân"
+    ]
+   },
+   "location": {
+    "zh": "位於大腿下段前側肌群",
+    "vi": "Ở phần dưới đùi, nhóm cơ mặt trước."
+   },
+   "benefit": {
+    "zh": "緩解腿部整體疲勞",
+    "vi": "Giảm mỏi toàn bộ chân."
+   },
+   "technique": {
+    "zh": "以掌根由上往下滑推",
+    "vi": "Dùng gốc bàn tay trượt đẩy từ trên xuống dưới."
+   },
+   "caution": {
+    "zh": "力度均勻即可",
+    "vi": "Lực đều là được."
+   }
+  },
+  {
+   "id": "hip_19",
+   "bodyPart": "hip",
+   "name": {
+    "zh": "秩邊穴（周邊肌肉點）",
+    "vi": "Trật Biên (điểm cơ xung quanh)"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "緩解臀部深層張力",
+     "秩邊穴（周邊肌肉點）"
+    ],
+    "vi": [
+     "giảm căng sâu vùng mông"
+    ]
+   },
+   "location": {
+    "zh": "位於臀部肌肉群中",
+    "vi": "Ở nhóm cơ vùng mông."
+   },
+   "benefit": {
+    "zh": "緩解臀部深層張力",
+    "vi": "Giảm căng sâu vùng mông."
+   },
+   "technique": {
+    "zh": "以肘尖或拳面輕柔打圈",
+    "vi": "Dùng khuỷu tay hoặc nắm tay xoay tròn nhẹ nhàng."
+   },
+   "caution": {
+    "zh": "需避開尾椎及坐骨神經直接按壓",
+    "vi": "Cần tránh ấn trực tiếp vào xương cụt và dây thần kinh tọa."
+   }
+  },
+  {
+   "id": "hip_20",
+   "bodyPart": "hip",
+   "name": {
+    "zh": "大腿後側肌群點（非特定經絡）",
+    "vi": "Điểm nhóm cơ mặt sau đùi (không thuộc kinh mạch cụ thể)"
+   },
+   "meridian": {
+    "zh": "特定區域",
+    "vi": "Vùng đặc định (không thuộc kinh mạch cụ thể)"
+   },
+   "keywords": {
+    "zh": [
+     "舒緩大腿後側整體緊繃",
+     "大腿後側肌群點（非特定經絡）"
+    ],
+    "vi": [
+     "giảm căng toàn bộ mặt sau đùi"
+    ]
+   },
+   "location": {
+    "zh": "位於大腿後側正中，殷門與承扶中間區域",
+    "vi": "Ở giữa mặt sau đùi, vùng giữa huyệt Ân Môn và Thừa Phù."
+   },
+   "benefit": {
+    "zh": "舒緩大腿後側整體緊繃",
+    "vi": "Giảm căng toàn bộ mặt sau đùi."
+   },
+   "technique": {
+    "zh": "以掌根大面積揉搓",
+    "vi": "Dùng gốc bàn tay xoa diện rộng."
+   },
+   "caution": {
+    "zh": "手法應順著肌肉纖維走向",
+    "vi": "Thao tác nên theo hướng sợi cơ."
+   }
+  },
+  {
+   "id": "arm_1",
+   "bodyPart": "arm",
+   "name": {
+    "zh": "極泉穴",
+    "vi": "Huyệt Cực Tuyền"
+   },
+   "meridian": {
+    "zh": "手少陰心經",
+    "vi": "Kinh Tâm (Thủ Thiếu Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "寬胸寧神",
+     "舒緩手臂內側麻木與胸悶",
+     "極泉穴",
+     "極泉"
+    ],
+    "vi": [
+     "khoan hung an thần",
+     "tê mặt trong tay"
+    ]
+   },
+   "location": {
+    "zh": "位於腋窩頂點，腋動脈搏動處",
+    "vi": "Ở đỉnh hố nách, nơi động mạch nách đập."
+   },
+   "benefit": {
+    "zh": "寬胸寧神、舒緩手臂內側麻木與胸悶",
+    "vi": "Khoan ngực an thần, giảm tê mặt trong cánh tay và tức ngực."
+   },
+   "technique": {
+    "zh": "以指腹輕輕按揉",
+    "vi": "Dùng đầu ngón tay xoa nhẹ nhàng."
+   },
+   "caution": {
+    "zh": "此處血管神經豐富，嚴禁重壓，僅能輕柔點按",
+    "vi": "Vùng này nhiều mạch máu thần kinh, tuyệt đối không ấn mạnh, chỉ được điểm nhẹ."
+   }
+  },
+  {
+   "id": "arm_2",
+   "bodyPart": "arm",
+   "name": {
+    "zh": "青靈穴",
+    "vi": "Huyệt Thanh Linh"
+   },
+   "meridian": {
+    "zh": "手少陰心經",
+    "vi": "Kinh Tâm (Thủ Thiếu Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "通經活絡",
+     "緩解肩臂疼痛",
+     "青靈穴",
+     "青靈"
+    ],
+    "vi": [
+     "thông kinh hoạt lạc",
+     "đau vai tay"
+    ]
+   },
+   "location": {
+    "zh": "位於臂內側，肘橫紋上三寸，肱二頭肌內側溝中",
+    "vi": "Ở mặt trong cánh tay, trên nếp gấp khuỷu 3 thốn, trong rãnh cơ nhị đầu."
+   },
+   "benefit": {
+    "zh": "通經活絡、緩解肩臂疼痛",
+    "vi": "Thông kinh hoạt lạc, giảm đau vai tay."
+   },
+   "technique": {
+    "zh": "以大拇指點按",
+    "vi": "Dùng đầu ngón cái điểm ấn."
+   },
+   "caution": {
+    "zh": "力道適中，避開靜脈",
+    "vi": "Lực vừa phải, tránh tĩnh mạch."
+   }
+  },
+  {
+   "id": "arm_3",
+   "bodyPart": "arm",
+   "name": {
+    "zh": "少海穴",
+    "vi": "Huyệt Thiếu Hải"
+   },
+   "meridian": {
+    "zh": "手少陰心經",
+    "vi": "Kinh Tâm (Thủ Thiếu Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "寧心安神",
+     "疏通經絡",
+     "緩解肘臂麻木",
+     "少海穴",
+     "少海"
+    ],
+    "vi": [
+     "an thần định tâm",
+     "tê khuỷu tay"
+    ]
+   },
+   "location": {
+    "zh": "位於肘橫紋內側端，肱骨內上髁與肱二頭肌腱之間凹陷處",
+    "vi": "Ở đầu trong nếp gấp khuỷu tay, chỗ lõm giữa lồi cầu trong xương cánh tay và gân cơ nhị đầu."
+   },
+   "benefit": {
+    "zh": "寧心安神、疏通經絡、緩解肘臂麻木",
+    "vi": "An thần định tâm, thông kinh hoạt lạc, giảm tê khuỷu tay."
+   },
+   "technique": {
+    "zh": "以大拇指點按",
+    "vi": "Dùng đầu ngón cái điểm ấn."
+   },
+   "caution": {
+    "zh": "力道輕緩，避開麻感太強的神經",
+    "vi": "Lực nhẹ nhàng, tránh vùng dây thần kinh quá nhạy cảm."
+   }
+  },
+  {
+   "id": "arm_4",
+   "bodyPart": "arm",
+   "name": {
+    "zh": "曲澤穴",
+    "vi": "Huyệt Khúc Trạch"
+   },
+   "meridian": {
+    "zh": "手厥陰心包經",
+    "vi": "Kinh Tâm Bào (Thủ Quyết Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "清熱除煩",
+     "寬胸止嘔",
+     "緩解前臂緊繃",
+     "曲澤穴",
+     "曲澤"
+    ],
+    "vi": [
+     "thanh nhiệt trừ phiền",
+     "căng cẳng tay"
+    ]
+   },
+   "location": {
+    "zh": "位於肘橫紋中，肱二頭肌腱尺側緣",
+    "vi": "Ở giữa nếp gấp khuỷu, bờ trụ gân cơ nhị đầu."
+   },
+   "benefit": {
+    "zh": "清熱除煩、寬胸止嘔、緩解前臂緊繃",
+    "vi": "Thanh nhiệt trừ phiền, khoan ngực chỉ nôn, giảm căng cẳng tay."
+   },
+   "technique": {
+    "zh": "以大拇指按壓",
+    "vi": "Dùng đầu ngón cái ấn."
+   },
+   "caution": {
+    "zh": "按壓時避免用力過猛引起放射感",
+    "vi": "Tránh dùng lực quá mạnh gây cảm giác lan tỏa."
+   }
+  },
+  {
+   "id": "arm_5",
+   "bodyPart": "arm",
+   "name": {
+    "zh": "尺澤穴",
+    "vi": "Huyệt Xích Trạch"
+   },
+   "meridian": {
+    "zh": "手太陰肺經",
+    "vi": "Kinh Phế (Thủ Thái Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "宣肺解表",
+     "清熱止咳",
+     "緩解手臂前側緊繃",
+     "尺澤穴",
+     "尺澤"
+    ],
+    "vi": [
+     "tuyên phế giải biểu",
+     "căng mặt trước tay"
+    ]
+   },
+   "location": {
+    "zh": "位於肘橫紋中，肱二頭肌腱橈側緣凹陷處",
+    "vi": "Ở giữa nếp gấp khuỷu, chỗ lõm bờ quay gân cơ nhị đầu."
+   },
+   "benefit": {
+    "zh": "宣肺解表、清熱止咳、緩解手臂前側緊繃",
+    "vi": "Tuyên phế giải biểu, thanh nhiệt chỉ khái, giảm căng mặt trước cánh tay."
+   },
+   "technique": {
+    "zh": "以大拇指按揉",
+    "vi": "Dùng đầu ngón cái day ấn."
+   },
+   "caution": {
+    "zh": "手法要輕柔",
+    "vi": "Thao tác cần nhẹ nhàng."
+   }
+  },
+  {
+   "id": "arm_6",
+   "bodyPart": "arm",
+   "name": {
+    "zh": "孔最穴",
+    "vi": "Huyệt Khổng Tối"
+   },
+   "meridian": {
+    "zh": "手太陰肺經",
+    "vi": "Kinh Phế (Thủ Thái Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "清熱止血",
+     "潤肺利咽",
+     "緩解前臂肌肉痠脹",
+     "孔最穴",
+     "孔最"
+    ],
+    "vi": [
+     "thanh nhiệt chỉ huyết",
+     "đau cẳng tay"
+    ]
+   },
+   "location": {
+    "zh": "位於前臂掌面，尺澤穴與太淵穴連線上，腕橫紋上七寸",
+    "vi": "Ở mặt lòng cẳng tay, trên đường nối huyệt Xích Trạch và Thái Uyên, trên nếp cổ tay 7 thốn."
+   },
+   "benefit": {
+    "zh": "清熱止血、潤肺利咽、緩解前臂肌肉痠脹",
+    "vi": "Thanh nhiệt chỉ huyết, nhuận phế lợi yết, giảm căng đau cơ cẳng tay."
+   },
+   "technique": {
+    "zh": "以大拇指點按",
+    "vi": "Dùng đầu ngón cái điểm ấn."
+   },
+   "caution": {
+    "zh": "手法穩定",
+    "vi": "Thao tác cần ổn định."
+   }
+  },
+  {
+   "id": "arm_7",
+   "bodyPart": "arm",
+   "name": {
+    "zh": "內關穴",
+    "vi": "Huyệt Nội Quan"
+   },
+   "meridian": {
+    "zh": "手厥陰心包經",
+    "vi": "Kinh Tâm Bào (Thủ Quyết Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "寧心安神",
+     "和胃止嘔",
+     "緩解前臂及胸部不適",
+     "內關穴",
+     "內關"
+    ],
+    "vi": [
+     "an thần định tâm",
+     "khó chịu ngực bụng"
+    ]
+   },
+   "location": {
+    "zh": "位於前臂掌側，腕橫紋上二寸，兩筋之間",
+    "vi": "Ở mặt lòng cẳng tay, trên nếp cổ tay 2 thốn, giữa hai gân."
+   },
+   "benefit": {
+    "zh": "寧心安神、和胃止嘔、緩解前臂及胸部不適",
+    "vi": "An thần định tâm, hòa vị chỉ nôn, giảm khó chịu cẳng tay và ngực bụng."
+   },
+   "technique": {
+    "zh": "以大拇指深層點按",
+    "vi": "Dùng đầu ngón cái điểm ấn sâu."
+   },
+   "caution": {
+    "zh": "此穴功效廣泛，為手臂按摩必按大穴",
+    "vi": "Huyệt này công dụng rất rộng, là huyệt trọng yếu bắt buộc phải bấm khi massage cánh tay."
+   }
+  },
+  {
+   "id": "arm_8",
+   "bodyPart": "arm",
+   "name": {
+    "zh": "外關穴",
+    "vi": "Huyệt Ngoại Quan"
+   },
+   "meridian": {
+    "zh": "手少陽三焦經",
+    "vi": "Kinh Tam Tiêu (Thủ Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "清熱解表",
+     "通經活絡",
+     "緩解手臂背側痠痛",
+     "外關穴",
+     "外關"
+    ],
+    "vi": [
+     "thanh nhiệt giải biểu",
+     "đau mặt sau cẳng tay"
+    ]
+   },
+   "location": {
+    "zh": "位於前臂背側，腕橫紋上二寸，尺骨與橈骨之間",
+    "vi": "Ở mặt lưng cẳng tay, trên nếp cổ tay 2 thốn, giữa xương trụ và xương quay."
+   },
+   "benefit": {
+    "zh": "清熱解表、通經活絡、緩解手臂背側痠痛",
+    "vi": "Thanh nhiệt giải biểu, thông kinh hoạt lạc, giảm đau mặt sau cẳng tay."
+   },
+   "technique": {
+    "zh": "以大拇指與食指對捏點按",
+    "vi": "Dùng ngón cái và ngón trỏ bóp điểm ấn."
+   },
+   "caution": {
+    "zh": "手法需均勻",
+    "vi": "Lực cần đều tay."
+   }
+  },
+  {
+   "id": "arm_9",
+   "bodyPart": "arm",
+   "name": {
+    "zh": "手三里",
+    "vi": "Thủ Tam Lý"
+   },
+   "meridian": {
+    "zh": "手陽明大腸經",
+    "vi": "Kinh Đại Trường (Thủ Dương Minh)"
+   },
+   "keywords": {
+    "zh": [
+     "調理腸胃",
+     "疏經通絡",
+     "緩解前臂外側疲勞",
+     "手三里"
+    ],
+    "vi": [
+     "điều lý tràng vị",
+     "mỏi mặt ngoài cẳng tay"
+    ]
+   },
+   "location": {
+    "zh": "位於前臂背面，陽溪與曲池連線上，肘橫紋下二寸",
+    "vi": "Ở mặt lưng cẳng tay, trên đường nối huyệt Dương Khê và Khúc Trì, dưới nếp gấp khuỷu 2 thốn."
+   },
+   "benefit": {
+    "zh": "調理腸胃、疏經通絡、緩解前臂外側疲勞",
+    "vi": "Điều lý tràng vị, thư kinh thông lạc, giảm mỏi mặt ngoài cẳng tay."
+   },
+   "technique": {
+    "zh": "以掌根推揉或指腹點按",
+    "vi": "Dùng gốc bàn tay đẩy day hoặc đầu ngón tay điểm ấn."
+   },
+   "caution": {
+    "zh": "力道適中，緩解痠脹感",
+    "vi": "Lực vừa phải, giảm cảm giác căng mỏi."
+   }
+  },
+  {
+   "id": "arm_10",
+   "bodyPart": "arm",
+   "name": {
+    "zh": "曲池穴",
+    "vi": "Huyệt Khúc Trì"
+   },
+   "meridian": {
+    "zh": "手陽明大腸經",
+    "vi": "Kinh Đại Trường (Thủ Dương Minh)"
+   },
+   "keywords": {
+    "zh": [
+     "清熱解表",
+     "疏通經絡",
+     "緩解手臂整體緊繃與過敏症狀",
+     "曲池穴",
+     "曲池"
+    ],
+    "vi": [
+     "thanh nhiệt giải biểu",
+     "căng toàn cánh tay"
+    ]
+   },
+   "location": {
+    "zh": "位於肘橫紋外側端，屈肘時凹陷處",
+    "vi": "Ở đầu ngoài nếp gấp khuỷu, chỗ lõm khi gập khuỷu tay."
+   },
+   "benefit": {
+    "zh": "清熱解表、疏通經絡、緩解手臂整體緊繃與過敏症狀",
+    "vi": "Thanh nhiệt giải biểu, thông kinh hoạt lạc, giảm căng toàn cánh tay và dị ứng."
+   },
+   "technique": {
+    "zh": "以大拇指或掌根按壓",
+    "vi": "Dùng đầu ngón cái hoặc gốc bàn tay ấn."
+   },
+   "caution": {
+    "zh": "此處肌層較厚，力道可適度加強",
+    "vi": "Vùng này lớp cơ dày, có thể tăng lực vừa phải."
+   }
+  },
+  {
+   "id": "arm_11",
+   "bodyPart": "arm",
+   "name": {
+    "zh": "臂臑穴",
+    "vi": "Huyệt Tý Nhu"
+   },
+   "meridian": {
+    "zh": "手陽明大腸經",
+    "vi": "Kinh Đại Trường (Thủ Dương Minh)"
+   },
+   "keywords": {
+    "zh": [
+     "舒筋活絡",
+     "利肩胛",
+     "緩解上臂部痠痛",
+     "臂臑穴",
+     "臂臑"
+    ],
+    "vi": [
+     "thư cân hoạt lạc",
+     "mỏi cánh tay trên"
+    ]
+   },
+   "location": {
+    "zh": "位於上臂外側，三角肌下端，曲池穴上七寸",
+    "vi": "Ở mặt ngoài cánh tay trên, đầu dưới cơ delta, trên huyệt Khúc Trì 7 thốn."
+   },
+   "benefit": {
+    "zh": "舒筋活絡、利肩胛、緩解上臂部痠痛",
+    "vi": "Thư cân hoạt lạc, lợi xương bả vai, giảm mỏi vùng cánh tay trên."
+   },
+   "technique": {
+    "zh": "以指腹點按揉動",
+    "vi": "Dùng đầu ngón tay điểm ấn."
+   },
+   "caution": {
+    "zh": "避開局部骨骼硬點",
+    "vi": "Tránh vùng xương lồi cứng."
+   }
+  },
+  {
+   "id": "arm_12",
+   "bodyPart": "arm",
+   "name": {
+    "zh": "手五里",
+    "vi": "Thủ Ngũ Lý"
+   },
+   "meridian": {
+    "zh": "手陽明大腸經",
+    "vi": "Kinh Đại Trường (Thủ Dương Minh)"
+   },
+   "keywords": {
+    "zh": [
+     "通經活絡",
+     "理氣散結",
+     "緩解上臂痠脹",
+     "手五里"
+    ],
+    "vi": [
+     "thông kinh hoạt lạc",
+     "căng cánh tay trên"
+    ]
+   },
+   "location": {
+    "zh": "位於上臂外側，曲池穴上三寸",
+    "vi": "Ở mặt ngoài cánh tay trên, trên huyệt Khúc Trì 3 thốn."
+   },
+   "benefit": {
+    "zh": "通經活絡、理氣散結、緩解上臂痠脹",
+    "vi": "Thông kinh hoạt lạc, lý khí tán kết, giảm căng cánh tay trên."
+   },
+   "technique": {
+    "zh": "以大拇指點按",
+    "vi": "Dùng đầu ngón cái điểm ấn."
+   },
+   "caution": {
+    "zh": "避開靜脈",
+    "vi": "Tránh vùng tĩnh mạch."
+   }
+  },
+  {
+   "id": "arm_13",
+   "bodyPart": "arm",
+   "name": {
+    "zh": "消濼穴",
+    "vi": "Huyệt Tiêu Lạc"
+   },
+   "meridian": {
+    "zh": "手少陽三焦經",
+    "vi": "Kinh Tam Tiêu (Thủ Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "通經活絡",
+     "緩解上臂疼痛",
+     "消濼穴",
+     "消濼"
+    ],
+    "vi": [
+     "thông kinh hoạt lạc",
+     "đau cánh tay trên"
+    ]
+   },
+   "location": {
+    "zh": "位於上臂外側，清冷淵與臑會之間",
+    "vi": "Ở mặt ngoài cánh tay trên, giữa Thanh Lãnh Uyên và Nhu Hội."
+   },
+   "benefit": {
+    "zh": "通經活絡、緩解上臂疼痛",
+    "vi": "Thông kinh hoạt lạc, giảm đau cánh tay trên."
+   },
+   "technique": {
+    "zh": "以指腹按揉",
+    "vi": "Dùng đầu ngón tay day ấn."
+   },
+   "caution": {
+    "zh": "力道輕緩",
+    "vi": "Lực nhẹ nhàng."
+   }
+  },
+  {
+   "id": "arm_14",
+   "bodyPart": "arm",
+   "name": {
+    "zh": "天井穴",
+    "vi": "Huyệt Thiên Tỉnh"
+   },
+   "meridian": {
+    "zh": "手少陽三焦經",
+    "vi": "Kinh Tam Tiêu (Thủ Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "清熱散結",
+     "舒緩肘部及手臂緊繃",
+     "天井穴",
+     "天井"
+    ],
+    "vi": [
+     "thanh nhiệt tán kết",
+     "căng khuỷu tay"
+    ]
+   },
+   "location": {
+    "zh": "位於肘尖上一寸凹陷處",
+    "vi": "Ở chỗ lõm trên mỏm khuỷu 1 thốn."
+   },
+   "benefit": {
+    "zh": "清熱散結、舒緩肘部及手臂緊繃",
+    "vi": "Thanh nhiệt tán kết, giảm căng khuỷu tay và cánh tay."
+   },
+   "technique": {
+    "zh": "以指腹點按",
+    "vi": "Dùng đầu ngón tay điểm ấn."
+   },
+   "caution": {
+    "zh": "避開骨骼直接按壓",
+    "vi": "Tránh ấn trực tiếp vào xương."
+   }
+  },
+  {
+   "id": "arm_15",
+   "bodyPart": "arm",
+   "name": {
+    "zh": "支溝穴",
+    "vi": "Huyệt Chi Câu"
+   },
+   "meridian": {
+    "zh": "手少陽三焦經",
+    "vi": "Kinh Tam Tiêu (Thủ Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "通腑理氣",
+     "舒緩前臂背側肌肉疲勞",
+     "支溝穴",
+     "支溝"
+    ],
+    "vi": [
+     "thông phủ lý khí",
+     "mỏi mặt sau cẳng tay"
+    ]
+   },
+   "location": {
+    "zh": "位於前臂背側，腕橫紋上三寸，兩骨之間",
+    "vi": "Ở mặt lưng cẳng tay, trên nếp cổ tay 3 thốn, giữa hai xương."
+   },
+   "benefit": {
+    "zh": "通腑理氣、舒緩前臂背側肌肉疲勞",
+    "vi": "Thông phủ lý khí, giảm mỏi cơ mặt sau cẳng tay."
+   },
+   "technique": {
+    "zh": "以大拇指點按",
+    "vi": "Dùng đầu ngón cái điểm ấn."
+   },
+   "caution": {
+    "zh": "配合腕部輕微轉動",
+    "vi": "Kết hợp xoay nhẹ cổ tay khi thao tác."
+   }
+  },
+  {
+   "id": "arm_16",
+   "bodyPart": "arm",
+   "name": {
+    "zh": "陽池穴",
+    "vi": "Huyệt Dương Trì"
+   },
+   "meridian": {
+    "zh": "手少陽三焦經",
+    "vi": "Kinh Tam Tiêu (Thủ Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "舒筋活絡",
+     "緩解腕部及手臂背側痠痛",
+     "陽池穴",
+     "陽池"
+    ],
+    "vi": [
+     "thư cân hoạt lạc",
+     "đau cổ tay"
+    ]
+   },
+   "location": {
+    "zh": "位於腕背橫紋中，指總伸肌腱尺側緣凹陷處",
+    "vi": "Ở nếp gấp mặt lưng cổ tay, chỗ lõm bờ trụ gân duỗi chung ngón tay."
+   },
+   "benefit": {
+    "zh": "舒筋活絡、緩解腕部及手臂背側痠痛",
+    "vi": "Thư cân hoạt lạc, giảm đau cổ tay và mặt lưng cánh tay."
+   },
+   "technique": {
+    "zh": "以指腹輕揉",
+    "vi": "Dùng đầu ngón tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "避開腕骨處過硬區域",
+    "vi": "Tránh vùng xương cổ tay quá cứng."
+   }
+  },
+  {
+   "id": "arm_17",
+   "bodyPart": "arm",
+   "name": {
+    "zh": "大陵穴",
+    "vi": "Huyệt Đại Lăng"
+   },
+   "meridian": {
+    "zh": "手厥陰心包經",
+    "vi": "Kinh Tâm Bào (Thủ Quyết Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "清心安神",
+     "緩解腕部及前臂掌面壓力",
+     "大陵穴",
+     "大陵"
+    ],
+    "vi": [
+     "thanh tâm an thần",
+     "áp lực cổ tay"
+    ]
+   },
+   "location": {
+    "zh": "位於腕橫紋中央，兩筋之間",
+    "vi": "Ở giữa nếp cổ tay mặt lòng, giữa hai gân."
+   },
+   "benefit": {
+    "zh": "清心安神、緩解腕部及前臂掌面壓力",
+    "vi": "Thanh tâm an thần, giảm áp lực cổ tay và mặt lòng cẳng tay."
+   },
+   "technique": {
+    "zh": "以大拇指點按",
+    "vi": "Dùng đầu ngón cái điểm ấn."
+   },
+   "caution": {
+    "zh": "力度需適中，避開掌側正中神經",
+    "vi": "Lực cần vừa phải, tránh dây thần kinh giữa mặt lòng."
+   }
+  },
+  {
+   "id": "arm_18",
+   "bodyPart": "arm",
+   "name": {
+    "zh": "太淵穴",
+    "vi": "Huyệt Thái Uyên"
+   },
+   "meridian": {
+    "zh": "手太陰肺經",
+    "vi": "Kinh Phế (Thủ Thái Âm)"
+   },
+   "keywords": {
+    "zh": [
+     "止咳平喘",
+     "補益肺氣",
+     "緩解腕部及前臂緊繃",
+     "太淵穴",
+     "太淵"
+    ],
+    "vi": [
+     "chỉ khái bình suyễn",
+     "căng cổ tay"
+    ]
+   },
+   "location": {
+    "zh": "位於腕掌側橫紋橈側，橈動脈搏動處",
+    "vi": "Ở nếp cổ tay mặt lòng phía quay, nơi động mạch quay đập."
+   },
+   "benefit": {
+    "zh": "止咳平喘、補益肺氣、緩解腕部及前臂緊繃",
+    "vi": "Chỉ ho bình suyễn, bổ ích phế khí, giảm căng cổ tay và cẳng tay."
+   },
+   "technique": {
+    "zh": "以指腹輕揉",
+    "vi": "Dùng đầu ngón tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "此處靠近動脈，嚴禁粗暴重壓，僅適度輕觸",
+    "vi": "Vùng này gần động mạch, tuyệt đối không được ấn mạnh, chỉ được chạm nhẹ."
+   }
+  },
+  {
+   "id": "arm_19",
+   "bodyPart": "arm",
+   "name": {
+    "zh": "合谷穴",
+    "vi": "Huyệt Hợp Cốc"
+   },
+   "meridian": {
+    "zh": "手陽明大腸經",
+    "vi": "Kinh Đại Trường (Thủ Dương Minh)"
+   },
+   "keywords": {
+    "zh": [
+     "清熱解表",
+     "鎮痛",
+     "緩解整體手臂與頭部壓力",
+     "合谷穴",
+     "合谷"
+    ],
+    "vi": [
+     "thanh nhiệt giải biểu",
+     "đau đầu vai tay"
+    ]
+   },
+   "location": {
+    "zh": "位於手背，第一、二掌骨之間，約第二掌骨中點橈側緣",
+    "vi": "Ở mu bàn tay, giữa xương bàn tay 1 và 2, khoảng giữa xương bàn tay thứ 2 sát bờ quay."
+   },
+   "benefit": {
+    "zh": "清熱解表、鎮痛、緩解整體手臂與頭部壓力",
+    "vi": "Thanh nhiệt giải biểu, giảm đau, giảm áp lực toàn cánh tay và vùng đầu."
+   },
+   "technique": {
+    "zh": "以拇指與食指對捏點按",
+    "vi": "Dùng ngón cái và ngón trỏ bóp điểm ấn."
+   },
+   "caution": {
+    "zh": "孕婦禁按（此穴位強刺激可誘發宮縮）",
+    "vi": "**Phụ nữ mang thai tuyệt đối không ấn** (huyệt này kích thích mạnh có thể gây co bóp tử cung)."
+   }
+  },
+  {
+   "id": "arm_20",
+   "bodyPart": "arm",
+   "name": {
+    "zh": "偏歷穴",
+    "vi": "Huyệt Thiên Lịch"
+   },
+   "meridian": {
+    "zh": "手陽明大腸經",
+    "vi": "Kinh Đại Trường (Thủ Dương Minh)"
+   },
+   "keywords": {
+    "zh": [
+     "通經活絡",
+     "緩解前臂肌肉緊繃",
+     "偏歷穴",
+     "偏歷"
+    ],
+    "vi": [
+     "thông kinh hoạt lạc",
+     "căng cơ cẳng tay"
+    ]
+   },
+   "location": {
+    "zh": "位於前臂背面，陽溪與曲池連線上，腕橫紋上三寸",
+    "vi": "Ở mặt lưng cẳng tay, trên đường nối Dương Khê và Khúc Trì, trên nếp cổ tay 3 thốn."
+   },
+   "benefit": {
+    "zh": "通經活絡、緩解前臂肌肉緊繃",
+    "vi": "Thông kinh hoạt lạc, giảm căng cơ cẳng tay."
+   },
+   "technique": {
+    "zh": "以指腹點按揉動",
+    "vi": "Dùng đầu ngón tay điểm ấn."
+   },
+   "caution": {
+    "zh": "力道均勻",
+    "vi": "Lực cần đều tay."
+   }
+  },
+  {
+   "id": "head_1",
+   "bodyPart": "head",
+   "name": {
+    "zh": "百會穴",
+    "vi": "Huyệt Bách Hội"
+   },
+   "meridian": {
+    "zh": "督脈",
+    "vi": "Mạch Đốc"
+   },
+   "keywords": {
+    "zh": [
+     "提神醒腦",
+     "升陽舉陷",
+     "緩解頭暈與壓力性頭痛",
+     "百會穴",
+     "百會"
+    ],
+    "vi": [
+     "tỉnh não an thần",
+     "đau đầu do áp lực"
+    ]
+   },
+   "location": {
+    "zh": "位於頭頂正中線，前後髮際連線的中點（兩耳尖連線與正中線交叉處）",
+    "vi": "Ở đỉnh đầu, trên đường giữa, điểm giữa đường nối chân tóc trước và sau (giao điểm đường nối hai đỉnh tai và đường giữa)."
+   },
+   "benefit": {
+    "zh": "提神醒腦、升陽舉陷、緩解頭暈與壓力性頭痛",
+    "vi": "Tỉnh não khai khiếu, thăng dương cử hãm, giảm chóng mặt và đau đầu do áp lực."
+   },
+   "technique": {
+    "zh": "以手指指腹輕柔按壓或輕扣",
+    "vi": "Dùng đầu ngón tay ấn nhẹ hoặc gõ nhẹ."
+   },
+   "caution": {
+    "zh": "此處骨骼較薄，力道宜輕，避免過度重壓",
+    "vi": "Vùng này xương khá mỏng, lực nên nhẹ, tránh ấn mạnh quá mức."
+   }
+  },
+  {
+   "id": "head_2",
+   "bodyPart": "head",
+   "name": {
+    "zh": "印堂穴",
+    "vi": "Huyệt Ấn Đường"
+   },
+   "meridian": {
+    "zh": "經外奇穴",
+    "vi": "Huyệt ngoài kinh"
+   },
+   "keywords": {
+    "zh": [
+     "鎮靜安神",
+     "清頭明目",
+     "緩解眉頭緊繃與緊張性頭痛",
+     "印堂穴",
+     "印堂"
+    ],
+    "vi": [
+     "an thần định kinh",
+     "đau đầu căng thẳng"
+    ]
+   },
+   "location": {
+    "zh": "位於面部，兩眉頭連線中點",
+    "vi": "Ở mặt, điểm giữa đường nối hai đầu lông mày."
+   },
+   "benefit": {
+    "zh": "鎮靜安神、清頭明目、緩解眉頭緊繃與緊張性頭痛",
+    "vi": "An thần định kinh, thanh đầu sáng mắt, giảm căng giữa hai lông mày và đau đầu căng thẳng."
+   },
+   "technique": {
+    "zh": "以大拇指腹輕推或點按",
+    "vi": "Dùng đầu ngón cái đẩy nhẹ hoặc điểm ấn."
+   },
+   "caution": {
+    "zh": "按摩時應閉眼放鬆，力道輕柔",
+    "vi": "Nên nhắm mắt thư giãn khi massage, lực cần nhẹ nhàng."
+   }
+  },
+  {
+   "id": "head_3",
+   "bodyPart": "head",
+   "name": {
+    "zh": "太陽穴",
+    "vi": "Huyệt Thái Dương"
+   },
+   "meridian": {
+    "zh": "經外奇穴",
+    "vi": "Huyệt ngoài kinh"
+   },
+   "keywords": {
+    "zh": [
+     "清頭明目",
+     "止痛醒腦",
+     "緩解側頭部緊張",
+     "太陽穴",
+     "太陽"
+    ],
+    "vi": [
+     "thanh đầu sáng mắt",
+     "căng đầu bên"
+    ]
+   },
+   "location": {
+    "zh": "位於頭部側面，眉梢與目外眥之間，向後約一寸凹陷處",
+    "vi": "Ở mặt bên đầu, giữa đuôi lông mày và đuôi mắt ngoài, chỗ lõm cách khoảng 1 thốn về phía sau."
+   },
+   "benefit": {
+    "zh": "清頭明目、止痛醒腦、緩解側頭部緊張",
+    "vi": "Thanh đầu sáng mắt, chỉ thống tỉnh não, giảm căng vùng đầu bên."
+   },
+   "technique": {
+    "zh": "以大拇指或食指指腹輕輕揉按",
+    "vi": "Dùng đầu ngón cái hoặc ngón trỏ xoa nhẹ."
+   },
+   "caution": {
+    "zh": "此處骨骼薄，力度適中，避免造成眼部不適",
+    "vi": "Vùng này xương mỏng, lực vừa phải, tránh gây khó chịu vùng mắt."
+   }
+  },
+  {
+   "id": "head_4",
+   "bodyPart": "head",
+   "name": {
+    "zh": "風池穴（頭部延伸）",
+    "vi": "Huyệt Phong Trì (đoạn đầu)"
+   },
+   "meridian": {
+    "zh": "足少陽膽經",
+    "vi": "Kinh Đởm (Túc Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "平肝熄風",
+     "清頭明目",
+     "緩解頭痛與頸部痠痛",
+     "風池穴（頭部延伸）"
+    ],
+    "vi": [
+     "bình can tức phong",
+     "đau đầu cổ"
+    ]
+   },
+   "location": {
+    "zh": "位於後頸部，枕骨之下，胸鎖乳突肌與斜方肌上端之間的凹陷處",
+    "vi": "Ở sau gáy, dưới xương chẩm, chỗ lõm giữa cơ ức đòn chũm và cơ thang."
+   },
+   "benefit": {
+    "zh": "平肝熄風、清頭明目、緩解頭痛與頸部痠痛",
+    "vi": "Bình can tức phong, thanh đầu sáng mắt, giảm đau đầu và mỏi cổ."
+   },
+   "technique": {
+    "zh": "以雙手大拇指向上托揉",
+    "vi": "Dùng hai ngón cái đẩy lên trên."
+   },
+   "caution": {
+    "zh": "避免力度過大，以免造成頭暈",
+    "vi": "Tránh lực quá mạnh gây chóng mặt."
+   }
+  },
+  {
+   "id": "head_5",
+   "bodyPart": "head",
+   "name": {
+    "zh": "翳風穴",
+    "vi": "Huyệt Ế Phong"
+   },
+   "meridian": {
+    "zh": "手少陽三焦經",
+    "vi": "Kinh Tam Tiêu (Thủ Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "聰耳開竅",
+     "疏通經絡",
+     "緩解耳鳴與頭面部緊張",
+     "翳風穴",
+     "翳風"
+    ],
+    "vi": [
+     "thông nhĩ khai khiếu",
+     "ù tai"
+    ]
+   },
+   "location": {
+    "zh": "位於頭部，耳垂後方，乳突與下頜角之間的凹陷處",
+    "vi": "Ở đầu, sau dái tai, chỗ lõm giữa mỏm chũm và góc hàm dưới."
+   },
+   "benefit": {
+    "zh": "聰耳開竅、疏通經絡、緩解耳鳴與頭面部緊張",
+    "vi": "Thông nhĩ khai khiếu, thông kinh hoạt lạc, giảm ù tai và căng vùng mặt đầu."
+   },
+   "technique": {
+    "zh": "以食指指腹點按",
+    "vi": "Dùng đầu ngón trỏ điểm ấn."
+   },
+   "caution": {
+    "zh": "此處有神經分布，力道要輕柔，不可用力衝擊",
+    "vi": "Vùng này có nhiều dây thần kinh, lực cần rất nhẹ nhàng, không được tác động mạnh."
+   }
+  },
+  {
+   "id": "head_6",
+   "bodyPart": "head",
+   "name": {
+    "zh": "率谷穴",
+    "vi": "Huyệt Suất Cốc"
+   },
+   "meridian": {
+    "zh": "足少陽膽經",
+    "vi": "Kinh Đởm (Túc Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "清熱止痛",
+     "平肝熄風",
+     "緩解偏頭痛與頭部壓力",
+     "率谷穴",
+     "率谷"
+    ],
+    "vi": [
+     "thanh nhiệt chỉ thống",
+     "đau nửa đầu"
+    ]
+   },
+   "location": {
+    "zh": "位於頭部側面，耳尖直上入髮際一寸五分處",
+    "vi": "Ở mặt bên đầu, thẳng lên trên đỉnh tai vào chân tóc 1,5 thốn."
+   },
+   "benefit": {
+    "zh": "清熱止痛、平肝熄風、緩解偏頭痛與頭部壓力",
+    "vi": "Thanh nhiệt chỉ thống, bình can tức phong, giảm đau nửa đầu và áp lực vùng đầu."
+   },
+   "technique": {
+    "zh": "以手指指腹揉按",
+    "vi": "Dùng đầu ngón tay xoa ấn."
+   },
+   "caution": {
+    "zh": "力度均勻，緩慢繞圈",
+    "vi": "Lực đều, xoay tròn chậm rãi."
+   }
+  },
+  {
+   "id": "head_7",
+   "bodyPart": "head",
+   "name": {
+    "zh": "神庭穴",
+    "vi": "Huyệt Thần Đình"
+   },
+   "meridian": {
+    "zh": "督脈",
+    "vi": "Mạch Đốc"
+   },
+   "keywords": {
+    "zh": [
+     "安神定志",
+     "清頭明目",
+     "緩解頭暈與焦慮",
+     "神庭穴",
+     "神庭"
+    ],
+    "vi": [
+     "an thần định chí",
+     "chóng mặt lo âu"
+    ]
+   },
+   "location": {
+    "zh": "位於頭部正中線，入前髮際五分處",
+    "vi": "Ở đầu, trên đường giữa, vào chân tóc trước 0,5 thốn."
+   },
+   "benefit": {
+    "zh": "安神定志、清頭明目、緩解頭暈與焦慮",
+    "vi": "An thần định chí, thanh đầu sáng mắt, giảm chóng mặt và lo âu."
+   },
+   "technique": {
+    "zh": "以指腹輕輕揉按",
+    "vi": "Dùng đầu ngón tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "手法柔和，避開頭皮損傷處",
+    "vi": "Thao tác nhẹ nhàng, tránh vùng da đầu bị tổn thương."
+   }
+  },
+  {
+   "id": "head_8",
+   "bodyPart": "head",
+   "name": {
+    "zh": "頭臨泣",
+    "vi": "Huyệt Đầu Lâm Khấp"
+   },
+   "meridian": {
+    "zh": "足少陽膽經",
+    "vi": "Kinh Đởm (Túc Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "清頭明目",
+     "緩解頭部沉重感",
+     "頭臨泣"
+    ],
+    "vi": [
+     "thanh đầu sáng mắt",
+     "nặng đầu"
+    ]
+   },
+   "location": {
+    "zh": "位於頭部，前髮際直上五分，神庭旁開三寸（在瞳孔直上）",
+    "vi": "Ở đầu, thẳng lên trên chân tóc trước 0,5 thốn, cách huyệt Thần Đình ra ngoài 3 thốn (thẳng trên đồng tử)."
+   },
+   "benefit": {
+    "zh": "清頭明目、緩解頭部沉重感",
+    "vi": "Thanh đầu sáng mắt, giảm cảm giác nặng đầu."
+   },
+   "technique": {
+    "zh": "以指腹輕壓揉動",
+    "vi": "Dùng đầu ngón tay ấn nhẹ xoay tròn."
+   },
+   "caution": {
+    "zh": "力度適中",
+    "vi": "Lực vừa phải."
+   }
+  },
+  {
+   "id": "head_9",
+   "bodyPart": "head",
+   "name": {
+    "zh": "頭維穴",
+    "vi": "Huyệt Đầu Duy"
+   },
+   "meridian": {
+    "zh": "足陽明胃經",
+    "vi": "Kinh Vị (Túc Dương Minh)"
+   },
+   "keywords": {
+    "zh": [
+     "清熱散風",
+     "緩解額顳部頭痛與眼睛疲勞",
+     "頭維穴",
+     "頭維"
+    ],
+    "vi": [
+     "thanh nhiệt tán phong",
+     "đau vùng trán thái dương"
+    ]
+   },
+   "location": {
+    "zh": "位於頭部側面，額角髮際直上一寸",
+    "vi": "Ở mặt bên đầu, thẳng lên vào chân tóc góc trán 1 thốn."
+   },
+   "benefit": {
+    "zh": "清熱散風、緩解額顳部頭痛與眼睛疲勞",
+    "vi": "Thanh nhiệt tán phong, giảm đau vùng trán thái dương và mỏi mắt."
+   },
+   "technique": {
+    "zh": "以指腹輕揉按壓",
+    "vi": "Dùng đầu ngón tay xoa nhẹ ấn."
+   },
+   "caution": {
+    "zh": "此處結構敏感，力道要溫和",
+    "vi": "Vùng này cấu trúc nhạy cảm, lực cần ôn hòa."
+   }
+  },
+  {
+   "id": "head_10",
+   "bodyPart": "head",
+   "name": {
+    "zh": "曲差穴",
+    "vi": "Huyệt Khúc Sai"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "清頭明目",
+     "理氣消腫",
+     "曲差穴",
+     "曲差"
+    ],
+    "vi": [
+     "thanh đầu sáng mắt",
+     "tiêu sưng lý khí"
+    ]
+   },
+   "location": {
+    "zh": "位於頭部，前髮際直上五分，旁開一寸半",
+    "vi": "Ở đầu, vào chân tóc trước 0,5 thốn, cách ra ngoài 1,5 thốn."
+   },
+   "benefit": {
+    "zh": "清頭明目、理氣消腫",
+    "vi": "Thanh đầu sáng mắt, lý khí tiêu thũng."
+   },
+   "technique": {
+    "zh": "以指腹輕柔按摩",
+    "vi": "Dùng đầu ngón tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "力度適中，平緩進行",
+    "vi": "Lực vừa phải, tiến hành đều đặn."
+   }
+  },
+  {
+   "id": "head_11",
+   "bodyPart": "head",
+   "name": {
+    "zh": "通天穴",
+    "vi": "Huyệt Thông Thiên"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "清頭明目",
+     "宣通鼻竅",
+     "通天穴",
+     "通天"
+    ],
+    "vi": [
+     "thanh đầu sáng mắt",
+     "thông mũi"
+    ]
+   },
+   "location": {
+    "zh": "位於頭頂部，前髮際直上四寸，旁開一寸半",
+    "vi": "Ở đỉnh đầu, vào chân tóc trước 4 thốn, cách ra ngoài 1,5 thốn."
+   },
+   "benefit": {
+    "zh": "清頭明目、宣通鼻竅",
+    "vi": "Thanh đầu sáng mắt, thông lợi khiếu mũi."
+   },
+   "technique": {
+    "zh": "以指腹輕柔點按",
+    "vi": "Dùng đầu ngón tay điểm ấn nhẹ."
+   },
+   "caution": {
+    "zh": "力道要輕，避免不適感",
+    "vi": "Lực cần nhẹ, tránh gây khó chịu."
+   }
+  },
+  {
+   "id": "head_12",
+   "bodyPart": "head",
+   "name": {
+    "zh": "懸顱穴",
+    "vi": "Huyệt Huyền Lô"
+   },
+   "meridian": {
+    "zh": "足少陽膽經",
+    "vi": "Kinh Đởm (Túc Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "清熱止痛",
+     "緩解偏頭痛",
+     "懸顱穴",
+     "懸顱"
+    ],
+    "vi": [
+     "thanh nhiệt chỉ thống",
+     "đau nửa đầu"
+    ]
+   },
+   "location": {
+    "zh": "位於頭部側面，曲鬢與頭維連線的中點",
+    "vi": "Ở mặt bên đầu, điểm giữa đường nối Khúc Mấn và Đầu Duy."
+   },
+   "benefit": {
+    "zh": "清熱止痛、緩解偏頭痛",
+    "vi": "Thanh nhiệt chỉ thống, giảm đau nửa đầu."
+   },
+   "technique": {
+    "zh": "以指腹輕揉",
+    "vi": "Dùng đầu ngón tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "力度均勻",
+    "vi": "Lực đều."
+   }
+  },
+  {
+   "id": "head_13",
+   "bodyPart": "head",
+   "name": {
+    "zh": "角孫穴",
+    "vi": "Huyệt Giác Tôn"
+   },
+   "meridian": {
+    "zh": "手少陽三焦經",
+    "vi": "Kinh Tam Tiêu (Thủ Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "清熱散風",
+     "明目消腫",
+     "角孫穴",
+     "角孫"
+    ],
+    "vi": [
+     "thanh nhiệt tán phong",
+     "sáng mắt tiêu sưng"
+    ]
+   },
+   "location": {
+    "zh": "位於頭部側面，摺耳取穴，耳尖正對入髮際處",
+    "vi": "Ở mặt bên đầu, gập tai lấy huyệt, ngay trên đỉnh tai vào chân tóc."
+   },
+   "benefit": {
+    "zh": "清熱散風、明目消腫",
+    "vi": "Thanh nhiệt tán phong, sáng mắt tiêu sưng."
+   },
+   "technique": {
+    "zh": "以指腹輕按揉動",
+    "vi": "Dùng đầu ngón tay ấn nhẹ."
+   },
+   "caution": {
+    "zh": "力度輕柔",
+    "vi": "Lực nhẹ nhàng."
+   }
+  },
+  {
+   "id": "head_14",
+   "bodyPart": "head",
+   "name": {
+    "zh": "天衝穴",
+    "vi": "Huyệt Thiên Xung"
+   },
+   "meridian": {
+    "zh": "足少陽膽經",
+    "vi": "Kinh Đởm (Túc Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "鎮驚安神",
+     "緩解頭部緊繃",
+     "天衝穴",
+     "天衝"
+    ],
+    "vi": [
+     "an thần định kinh",
+     "giảm căng đầu"
+    ]
+   },
+   "location": {
+    "zh": "位於頭部側面，耳根後上方入髮際二寸",
+    "vi": "Ở mặt bên đầu, sau gốc tai vào chân tóc 2 thốn."
+   },
+   "benefit": {
+    "zh": "鎮驚安神、緩解頭部緊繃",
+    "vi": "An thần định kinh, giảm căng vùng đầu."
+   },
+   "technique": {
+    "zh": "以指腹揉按",
+    "vi": "Dùng đầu ngón tay xoa ấn."
+   },
+   "caution": {
+    "zh": "避開過硬骨骼直接壓迫",
+    "vi": "Tránh chèn ép trực tiếp xương quá cứng."
+   }
+  },
+  {
+   "id": "head_15",
+   "bodyPart": "head",
+   "name": {
+    "zh": "目窗穴",
+    "vi": "Huyệt Mục Song"
+   },
+   "meridian": {
+    "zh": "足少陽膽經",
+    "vi": "Kinh Đởm (Túc Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "清頭明目",
+     "疏散風熱",
+     "目窗穴",
+     "目窗"
+    ],
+    "vi": [
+     "thanh đầu sáng mắt",
+     "tán phong nhiệt"
+    ]
+   },
+   "location": {
+    "zh": "位於頭部，前髮際直上一寸五分，旁開二寸三分（瞳孔直上）",
+    "vi": "Ở đầu, vào chân tóc trước 1,5 thốn, cách ra ngoài 2,3 thốn (thẳng trên đồng tử)."
+   },
+   "benefit": {
+    "zh": "清頭明目、疏散風熱",
+    "vi": "Thanh đầu sáng mắt, tán phong nhiệt."
+   },
+   "technique": {
+    "zh": "以指腹輕揉",
+    "vi": "Dùng đầu ngón tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "力度溫和，緩解眼部疲勞",
+    "vi": "Lực ôn hòa, giảm mỏi mắt."
+   }
+  },
+  {
+   "id": "head_16",
+   "bodyPart": "head",
+   "name": {
+    "zh": "正營穴",
+    "vi": "Huyệt Chính Doanh"
+   },
+   "meridian": {
+    "zh": "足少陽膽經",
+    "vi": "Kinh Đởm (Túc Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "清熱散風",
+     "止痛",
+     "正營穴",
+     "正營"
+    ],
+    "vi": [
+     "thanh nhiệt tán phong",
+     "giảm đau"
+    ]
+   },
+   "location": {
+    "zh": "位於頭部，目窗穴後一寸五分",
+    "vi": "Ở đầu, sau huyệt Mục Song 1,5 thốn."
+   },
+   "benefit": {
+    "zh": "清熱散風、止痛",
+    "vi": "Thanh nhiệt tán phong, giảm đau."
+   },
+   "technique": {
+    "zh": "以指腹輕揉",
+    "vi": "Dùng đầu ngón tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "手法要輕巧",
+    "vi": "Thao tác cần nhẹ nhàng."
+   }
+  },
+  {
+   "id": "head_17",
+   "bodyPart": "head",
+   "name": {
+    "zh": "腦戶穴",
+    "vi": "Huyệt Não Hộ"
+   },
+   "meridian": {
+    "zh": "督脈",
+    "vi": "Mạch Đốc"
+   },
+   "keywords": {
+    "zh": [
+     "安神定驚",
+     "清頭明目",
+     "腦戶穴",
+     "腦戶"
+    ],
+    "vi": [
+     "an thần định kinh",
+     "thanh đầu sáng mắt"
+    ]
+   },
+   "location": {
+    "zh": "位於後頭部，枕外隆突上緣凹陷處",
+    "vi": "Ở sau đầu, chỗ lõm bờ trên ụ chẩm ngoài."
+   },
+   "benefit": {
+    "zh": "安神定驚、清頭明目",
+    "vi": "An thần định kinh, thanh đầu sáng mắt."
+   },
+   "technique": {
+    "zh": "以指腹輕柔揉按",
+    "vi": "Dùng đầu ngón tay xoa nhẹ ấn."
+   },
+   "caution": {
+    "zh": "力度適中，避免衝擊枕骨",
+    "vi": "Lực vừa phải, tránh va chạm mạnh vào xương chẩm."
+   }
+  },
+  {
+   "id": "head_18",
+   "bodyPart": "head",
+   "name": {
+    "zh": "玉枕穴",
+    "vi": "Huyệt Ngọc Chẩm"
+   },
+   "meridian": {
+    "zh": "足太陽膀胱經",
+    "vi": "Kinh Bàng Quang (Túc Thái Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "清頭明目",
+     "緩解頭部與後頸痠痛",
+     "玉枕穴",
+     "玉枕"
+    ],
+    "vi": [
+     "thanh đầu sáng mắt",
+     "đau sau đầu cổ"
+    ]
+   },
+   "location": {
+    "zh": "位於後頭部，枕外隆突上緣旁開一寸三分",
+    "vi": "Ở sau đầu, bờ trên ụ chẩm ngoài, cách ra ngoài 1,3 thốn."
+   },
+   "benefit": {
+    "zh": "清頭明目、緩解頭部與後頸痠痛",
+    "vi": "Thanh đầu sáng mắt, giảm đau vùng đầu và sau gáy."
+   },
+   "technique": {
+    "zh": "以指腹輕托按摩",
+    "vi": "Dùng đầu ngón tay đỡ nhẹ ấn."
+   },
+   "caution": {
+    "zh": "力度輕柔，順著枕骨邊緣",
+    "vi": "Lực nhẹ nhàng, dọc theo bờ xương chẩm."
+   }
+  },
+  {
+   "id": "head_19",
+   "bodyPart": "head",
+   "name": {
+    "zh": "本神穴",
+    "vi": "Huyệt Bản Thần"
+   },
+   "meridian": {
+    "zh": "足少陽膽經",
+    "vi": "Kinh Đởm (Túc Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "安神定驚",
+     "舒緩頭腦緊繃",
+     "本神穴",
+     "本神"
+    ],
+    "vi": [
+     "an thần định kinh",
+     "giảm căng não"
+    ]
+   },
+   "location": {
+    "zh": "位於頭部，前髮際直上五分，神庭旁開三寸（瞳孔直上）",
+    "vi": "Ở đầu, vào chân tóc trước 0,5 thốn, cách huyệt Thần Đình ra ngoài 3 thốn (thẳng trên đồng tử)."
+   },
+   "benefit": {
+    "zh": "安神定驚、舒緩頭腦緊繃",
+    "vi": "An thần định kinh, giảm căng vùng đầu não."
+   },
+   "technique": {
+    "zh": "以指腹輕揉",
+    "vi": "Dùng đầu ngón tay xoa nhẹ."
+   },
+   "caution": {
+    "zh": "力度適中",
+    "vi": "Lực vừa phải."
+   }
+  },
+  {
+   "id": "head_20",
+   "bodyPart": "head",
+   "name": {
+    "zh": "絲竹空",
+    "vi": "Huyệt Ty Trúc Không"
+   },
+   "meridian": {
+    "zh": "手少陽三焦經",
+    "vi": "Kinh Tam Tiêu (Thủ Thiếu Dương)"
+   },
+   "keywords": {
+    "zh": [
+     "疏風清熱",
+     "明目止痛",
+     "緩解眉頭眼周壓力",
+     "絲竹空"
+    ],
+    "vi": [
+     "sơ phong thanh nhiệt",
+     "áp lực quanh mắt"
+    ]
+   },
+   "location": {
+    "zh": "位於面部，眉梢凹陷處",
+    "vi": "Ở mặt, chỗ lõm đuôi lông mày."
+   },
+   "benefit": {
+    "zh": "疏風清熱、明目止痛、緩解眉頭眼周壓力",
+    "vi": "Sơ phong thanh nhiệt, sáng mắt chỉ thống, giảm áp lực đầu lông mày và quanh mắt."
+   },
+   "technique": {
+    "zh": "以指腹輕輕點按或由內向外推按",
+    "vi": "Dùng đầu ngón tay điểm ấn nhẹ hoặc đẩy từ trong ra ngoài."
+   },
+   "caution": {
+    "zh": "此處為眼周敏感區，嚴禁重壓或粗暴摩擦",
+    "vi": "Đây là vùng nhạy cảm quanh mắt, tuyệt đối không ấn mạnh hoặc chà xát thô bạo."
+   }
+  }
+ ]
+}
