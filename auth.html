@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.12-050</title>
+<title>薪資追蹤 · 管理 v1.12-051</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -154,6 +154,78 @@ input[type=number]{-moz-appearance:textfield}
 /* Nav */
 [data-light] nav { border-top-color: rgba(80,30,100,0.15) !important; }
 [data-light] .animate-pulse { opacity: 0.85; }
+/* ══════ 質感玻璃主題(smooth,SmoothUI風格):深色底+玻璃模糊卡片+大圓角+紫色強調色 ══════ */
+html[data-theme="smooth"],html[data-theme="smooth"] body{background:#0d0d18 !important}
+[data-theme="smooth"] [class*="bg-white/[0.02"]{background-color:rgba(255,255,255,0.03) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
+[data-theme="smooth"] [class*="bg-white/[0.03"]{background-color:rgba(255,255,255,0.04) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
+[data-theme="smooth"] [class*="bg-white/[0.04"]{background-color:rgba(255,255,255,0.05) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
+[data-theme="smooth"] [class*="bg-white/[0.05"]{background-color:rgba(255,255,255,0.06) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
+[data-theme="smooth"] [class*="bg-white/[0.06"]{background-color:rgba(255,255,255,0.07) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
+[data-theme="smooth"] [class*="bg-white/[0.08"]{background-color:rgba(255,255,255,0.08) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
+[data-theme="smooth"] [class*="bg-white/[0.1"]{background-color:rgba(255,255,255,0.09) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
+[data-theme="smooth"] [class*="bg-white/10"]{background-color:rgba(255,255,255,0.1) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
+[data-theme="smooth"] [class*="bg-gray-900"]{background-color:rgba(22,22,36,0.85) !important;backdrop-filter:blur(20px) !important;-webkit-backdrop-filter:blur(20px) !important}
+[data-theme="smooth"] [class*="bg-gray-950"]{background-color:rgba(13,13,24,0.92) !important;backdrop-filter:blur(20px) !important;-webkit-backdrop-filter:blur(20px) !important}
+[data-theme="smooth"] [class*="bg-gray-800"]{background-color:rgba(30,30,48,0.7) !important}
+[data-theme="smooth"] [class*="bg-black/80"]{background-color:rgba(6,6,14,0.75) !important;backdrop-filter:blur(8px) !important;-webkit-backdrop-filter:blur(8px) !important}
+[data-theme="smooth"] [class*="border-white"]{border-color:rgba(255,255,255,0.1) !important}
+/* 圓角加大,呼應SmoothUI大量使用的rounded-2xl以上圓角風格 */
+[data-theme="smooth"] [class*="rounded-lg"]{border-radius:0.875rem !important}
+[data-theme="smooth"] [class*="rounded-xl"]{border-radius:1.25rem !important}
+[data-theme="smooth"] [class*="rounded-2xl"]{border-radius:1.5rem !important}
+/* 強調色從amber換成鮮豔紫色,更貼近SmoothUI的現代感配色 */
+[data-theme="smooth"] [class*="text-amber"]{color:#c4b5fd !important}
+[data-theme="smooth"] [class*="bg-amber-6"]{background-color:#7c3aed !important}
+[data-theme="smooth"] [class*="bg-amber-5"]{background-color:#8b5cf6 !important}
+[data-theme="smooth"] [class*="bg-amber-4"]{background-color:#a78bfa !important}
+[data-theme="smooth"] [class*="border-amber"]{border-color:#8b5cf6 !important}
+[data-theme="smooth"] [class*="accent-amber"]{accent-color:#8b5cf6 !important}
+[data-theme="smooth"] [class*="ring-amber"]{--tw-ring-color:#8b5cf6 !important}
+
+/* ══════ 極簡白主題(apple):依Apple官方網站設計語言分析 —— 中性灰階(不帶紫色調)+單一藍色強調色(#0066cc)+膠囊按鈕 ══════ */
+html[data-theme="apple"],html[data-theme="apple"] body{background:#f5f5f7 !important}
+/* 這個主題也是淺色系,沿用[data-light]的基礎邏輯,但用更高specificity的組合選擇器覆蓋掉預設的紫色調,改成中性灰階 */
+html[data-theme="apple"] [data-light] [class*="bg-white/[0.0"]{background-color:rgba(0,0,0,0.03) !important}
+html[data-theme="apple"] [data-light] [class*="bg-white/[0.02"]{background-color:rgba(0,0,0,0.025) !important}
+html[data-theme="apple"] [data-light] [class*="bg-white/[0.03"]{background-color:rgba(0,0,0,0.03) !important}
+html[data-theme="apple"] [data-light] [class*="bg-white/[0.04"]{background-color:rgba(0,0,0,0.035) !important}
+html[data-theme="apple"] [data-light] [class*="bg-white/[0.05"]{background-color:rgba(0,0,0,0.04) !important}
+html[data-theme="apple"] [data-light] [class*="bg-white/[0.06"]{background-color:rgba(0,0,0,0.045) !important}
+html[data-theme="apple"] [data-light] [class*="bg-white/[0.08"]{background-color:rgba(0,0,0,0.05) !important}
+html[data-theme="apple"] [data-light] [class*="bg-white/[0.1"]{background-color:rgba(0,0,0,0.055) !important}
+html[data-theme="apple"] [data-light] [class*="bg-white/10"]{background-color:rgba(0,0,0,0.06) !important}
+html[data-theme="apple"] [data-light] [class*="bg-gray-900"]{background-color:#ffffff !important}
+html[data-theme="apple"] [data-light] [class*="bg-gray-950"]{background-color:#f5f5f7 !important}
+html[data-theme="apple"] [data-light] [class*="bg-black/80"]{background-color:rgba(0,0,0,0.75) !important}
+html[data-theme="apple"] [data-light] [class*="bg-gray-800"]{background-color:rgba(0,0,0,0.08) !important}
+html[data-theme="apple"] [data-light] [class*="border-white"]{border-color:rgba(0,0,0,0.08) !important}
+/* 文字改成Apple的近黑ink色,不帶紫色調 */
+html[data-theme="apple"] [data-light] .text-gray-100{color:#1d1d1f !important}
+html[data-theme="apple"] [data-light] .text-gray-200{color:#2c2c2e !important}
+html[data-theme="apple"] [data-light] .text-gray-300{color:#3a3a3c !important}
+html[data-theme="apple"] [data-light] .text-gray-400{color:#636366 !important}
+html[data-theme="apple"] [data-light] .text-gray-500{color:#8e8e93 !important}
+html[data-theme="apple"] [data-light] .text-gray-600{color:#aeaeb2 !important}
+html[data-theme="apple"] [data-light] .text-gray-700{color:#c7c7cc !important}
+html[data-theme="apple"] [data-light] input,html[data-theme="apple"] [data-light] textarea,html[data-theme="apple"] [data-light] select{color:#1d1d1f !important;background-color:rgba(0,0,0,0.04) !important}
+html[data-theme="apple"] [data-light] input::placeholder,html[data-theme="apple"] [data-light] textarea::placeholder{color:#8e8e93 !important}
+/* 強調色統一改成Apple招牌藍,取代amber——DESIGN.md強調全站只用單一互動色 */
+html[data-theme="apple"] [data-light] [class*="text-amber"]{color:#0066cc !important}
+html[data-theme="apple"] [data-light] [class*="bg-amber-600"]{background-color:#0066cc !important}
+html[data-theme="apple"] [data-light] [class*="bg-amber-500"]{background-color:#0071e3 !important}
+html[data-theme="apple"] [data-light] [class*="bg-amber-500/10"]{background-color:rgba(0,102,204,0.08) !important}
+html[data-theme="apple"] [data-light] [class*="bg-amber-500/20"]{background-color:rgba(0,102,204,0.12) !important}
+html[data-theme="apple"] [data-light] [class*="bg-amber-500/25"]{background-color:rgba(0,102,204,0.16) !important}
+html[data-theme="apple"] [data-light] [class*="bg-amber-600/10"]{background-color:rgba(0,102,204,0.08) !important}
+html[data-theme="apple"] [data-light] [class*="bg-amber-600/15"]{background-color:rgba(0,102,204,0.10) !important}
+html[data-theme="apple"] [data-light] [class*="bg-amber-600/20"]{background-color:rgba(0,102,204,0.12) !important}
+html[data-theme="apple"] [data-light] [class*="border-amber-500"]{border-color:rgba(0,102,204,0.4) !important}
+html[data-theme="apple"] [data-light] [class*="border-amber-600"]{border-color:rgba(0,102,204,0.35) !important}
+html[data-theme="apple"] [data-light] [class*="accent-amber"]{accent-color:#0066cc !important}
+/* 按鈕改成膠囊型圓角,呼應DESIGN.md裡rounded.pill是「唯一動作訊號」的招牌形狀;卡片類容器只是稍微加大圓角,不做成膠囊 */
+[data-theme="apple"] button[class*="rounded-xl"],[data-theme="apple"] button[class*="rounded-lg"]{border-radius:9999px !important}
+[data-theme="apple"] [class*="rounded-2xl"]{border-radius:1.125rem !important}
+
 </style>
 </head>
 <body>
@@ -906,7 +978,7 @@ function AuthGate({t}){
 function AuthApp(){
   const[theme]=useState(()=>localStorage.getItem('app-theme')||'black');
   useEffect(()=>{const onScroll=(e)=>{const st=(e.target&&e.target.scrollTop)||window.scrollY||0;const hdrs=document.querySelectorAll('.sticky-hdr');hdrs.forEach(h=>{if(st>20)h.classList.add('shrink');else h.classList.remove('shrink')})};document.addEventListener('scroll',onScroll,true);window.addEventListener('scroll',onScroll);return()=>{document.removeEventListener('scroll',onScroll,true);window.removeEventListener('scroll',onScroll)}},[]);
-  const bgColor=THEMES[theme]||THEMES.black;const isLight=theme==='white'||theme==='pink';
+  const bgColor=THEMES[theme]||THEMES.black;const isLight=theme==='white'||theme==='pink'||theme==='apple';
   useEffect(()=>{try{document.documentElement.style.setProperty('--bg',bgColor)}catch(_e){}},[bgColor]);
   const settings=LS.get('app-settings')||{};const lang=settings.lang||'zh';const t=T[lang];
   useEffect(()=>{document.body.style.backgroundColor=bgColor;buildDynamicKey();try{if((window.location.hash||'').indexOf('auto=1')===-1){if(window.__hideBootScreen)window.__hideBootScreen()}}catch(e){}},[]);
