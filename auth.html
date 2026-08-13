@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.12-057</title>
+<title>薪資追蹤 · 管理 v1.12-059</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -891,7 +891,7 @@ function AuthGate({t}){
 
   // ══ LINE登入身分檢查:取得LINE userId後,同時比對admin.cfg跟supervisors.cfg(新格式:LineUserId:編號),比對到就直接開權限 ══
   // 這個檢查不依賴settings.code(本機app-settings),換裝置/換瀏覽器都不受影響,因為身分是LINE登入給的,不是本機存的
-  const[liffState,setLiffState]=useState('idle'); // idle/checking/nomatch/error
+  const[liffState,setLiffState]=useState('idle'); // idle/checking/needLogin/needReauth/nomatch/error/ok
   const[liffDiag,setLiffDiag]=useState(null); // 診斷資料:LIFF每個步驟的結果,供比對哪裡卡住用
   const applyMatchedCode=(code)=>{
     // 比對到LINE身分對應的編號後,順便寫進本機app-settings,讓AdminPage/SupervisorPage內部讀LS.get('app-settings')時能正確拿到編號
@@ -900,48 +900,55 @@ function AuthGate({t}){
       if(cur.code!==code)LS.set('app-settings',{...cur,code});
     }catch(_e){}
   };
-  useEffect(()=>{
-    (async()=>{
-      const diag={liffSdk:false,liffInit:false,loggedIn:false,userId:'',adminFetch:false,adminLines:0,adminMatch:false,supFetch:false,supLines:0,supMatch:false,err:''};
-      if(typeof liff==='undefined'){diag.err='LIFF SDK未載入';setLiffDiag(diag);setLiffState('error');return}
-      diag.liffSdk=true;
-      setLiffState('checking');
+  const runLiffCheck=async()=>{
+    const diag={liffSdk:false,liffInit:false,loggedIn:false,userId:'',adminFetch:false,adminLines:0,adminMatch:false,supFetch:false,supLines:0,supMatch:false,err:''};
+    if(typeof liff==='undefined'){diag.err='LIFF SDK未載入';setLiffDiag(diag);setLiffState('error');return}
+    diag.liffSdk=true;
+    setLiffState('checking');
+    try{
+      await liff.init({liffId:AUTH_LIFF_ID});
+      diag.liffInit=true;
+      if(!liff.isLoggedIn()){
+        if(liff.isInClient()){diag.err='尚未登入,即將導轉LINE登入頁(LINE App內,自動跳轉)';setLiffDiag(diag);liff.login();return} // 在LINE App內開啟,自動導轉體驗好且穩定,不需要按鈕
+        diag.err='尚未登入';setLiffDiag(diag);setLiffState('needLogin');return // 一般瀏覽器開啟,改成畫面顯示按鈕讓使用者主動點擊觸發liff.login(),比較不會被瀏覽器的自動導轉防護擋下來
+      }
+      diag.loggedIn=true;
+      let profile;
       try{
-        await liff.init({liffId:AUTH_LIFF_ID});
-        diag.liffInit=true;
-        if(!liff.isLoggedIn()){diag.err='尚未登入,即將導轉LINE登入頁';setLiffDiag(diag);liff.login();return} // login會導轉頁面,之後這段程式不會繼續跑,重新整理回來後liff.isLoggedIn()才會是true
-        diag.loggedIn=true;
-        let profile;
-        try{
-          profile=await liff.getProfile();
-        }catch(profileErr){
-          // isLoggedIn()判斷是true,但實際拿不到profile權限——通常是繞過liff.line.me直接開網址造成的快取假象,強制重新走一次正式授權流程
-          const msg=String(profileErr&&profileErr.message||profileErr);
-          if(msg.indexOf('scope')>=0){diag.err='已登入但缺profile權限,重新導轉授權中...';setLiffDiag(diag);liff.login({redirectUri:window.location.href});return}
-          throw profileErr;
+        profile=await liff.getProfile();
+      }catch(profileErr){
+        // isLoggedIn()判斷是true,但實際拿不到profile權限——通常是繞過liff.line.me直接開網址造成的快取假象,一樣改成顯示按鈕讓使用者主動點擊重新授權
+        const msg=String(profileErr&&profileErr.message||profileErr);
+        if(msg.indexOf('scope')>=0){
+          if(liff.isInClient()){diag.err='已登入但缺profile權限,自動重新授權中(LINE App內)';setLiffDiag(diag);liff.login({redirectUri:window.location.href});return}
+          diag.err='已登入但缺profile權限,需要重新授權';setLiffDiag(diag);setLiffState('needReauth');return
         }
-        const uid=profile.userId;
-        diag.userId=uid;
-        const[adminText,supText]=await Promise.all([
-          fetch('./admin.cfg',{cache:'no-store'}).then(r=>{diag.adminFetch=r.ok;return r.ok?r.text():''}).catch(()=>''),
-          fetch('./supervisors.cfg',{cache:'no-store'}).then(r=>{diag.supFetch=r.ok;return r.ok?r.text():''}).catch(()=>'')
-        ]);
-        const findCode=(text)=>{
-          const lines=(text||'').trim().split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
-          for(const line of lines){const parts=line.split(':');if(parts.length>=2&&parts[0]===uid)return{code:parts[1],count:lines.length}}
-          return{code:null,count:lines.length};
-        };
-        const adminR=findCode(adminText);
-        diag.adminLines=adminR.count;diag.adminMatch=!!adminR.code;
+        throw profileErr;
+      }
+      const uid=profile.userId;
+      diag.userId=uid;
+      const[adminText,supText]=await Promise.all([
+        fetch('./admin.cfg',{cache:'no-store'}).then(r=>{diag.adminFetch=r.ok;return r.ok?r.text():''}).catch(()=>''),
+        fetch('./supervisors.cfg',{cache:'no-store'}).then(r=>{diag.supFetch=r.ok;return r.ok?r.text():''}).catch(()=>'')
+      ]);
+      const findCode=(text)=>{
+        const lines=(text||'').trim().split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
+        for(const line of lines){const parts=line.split(':');if(parts.length>=2&&parts[0]===uid)return{code:parts[1],count:lines.length}}
+        return{code:null,count:lines.length};
+      };
+      const adminR=findCode(adminText);
+      diag.adminLines=adminR.count;diag.adminMatch=!!adminR.code;
         if(adminR.code){setLiffDiag(diag);applyMatchedCode(adminR.code);setShowAdmin(true);setLiffState('ok');return}
         const supR=findCode(supText);
         diag.supLines=supR.count;diag.supMatch=!!supR.code;
         if(supR.code){setLiffDiag(diag);applyMatchedCode(supR.code);setShowSupervisor(true);setLiffState('ok');return}
         setLiffDiag(diag);
         setLiffState('nomatch');
-      }catch(_e){diag.err=String(_e);setLiffDiag(diag);setLiffState('error')}
-    })();
-  },[]);
+    }catch(_e){diag.err=String(_e);setLiffDiag(diag);setLiffState('error')}
+  };
+  useEffect(()=>{runLiffCheck()},[]);
+  // 按鈕點擊觸發登入/重新授權,不是頁面一載入就自動導轉——瀏覽器對「使用者主動點擊觸發」的導轉容忍度比較高,也讓使用者清楚知道接下來會發生什麼事
+  const handleLiffLogin=()=>{try{liff.login({redirectUri:window.location.href})}catch(_e){}};
 
   const[applyBusy,setApplyBusy]=useState(false);
   const[reqLinkInfo,setReqLinkInfo]=useState(false);
@@ -971,6 +978,8 @@ function AuthGate({t}){
 
   // LINE身分檢查還在進行中,或已經比對到直接開權限了,顯示等待畫面(避免畫面閃一下舊的檢查介面)
   if(liffState==='checking')return(<div className="min-h-screen flex items-center justify-center p-8"><div className="text-center"><span className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin inline-block mb-3"/><p className="text-gray-500 text-sm">{t.liffChecking||'LINE身分驗證中...'}</p></div></div>);
+  if(liffState==='needLogin')return(<div className="min-h-screen flex items-center justify-center p-8"><div className="text-center max-w-xs"><p className="text-gray-400 text-sm mb-5">{t.liffNeedLogin||'需要先用LINE登入才能繼續'}</p><button onClick={handleLiffLogin} className="w-full px-6 py-3.5 bg-[#06C755] text-white rounded-xl font-bold active:bg-[#05b34c]">{t.liffLoginBtn||'使用LINE登入'}</button></div></div>);
+  if(liffState==='needReauth')return(<div className="min-h-screen flex items-center justify-center p-8"><div className="text-center max-w-xs"><p className="text-gray-400 text-sm mb-5">{t.liffNeedReauth||'登入狀態需要重新授權才能取得身分資訊'}</p><button onClick={handleLiffLogin} className="w-full px-6 py-3.5 bg-[#06C755] text-white rounded-xl font-bold active:bg-[#05b34c]">{t.liffReauthBtn||'重新授權'}</button></div></div>);
   if(showAdmin)return<AdminPage t={t} onBack={goHome}/>;
   if(showSupervisor)return<SupervisorPage t={t} onBack={goHome}/>;
 
