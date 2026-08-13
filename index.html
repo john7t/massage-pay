@@ -40,7 +40,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-144</title>
+<title>薪資追蹤 v1.12-141</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -281,10 +281,10 @@ html[data-theme="apple"] [data-light] [class*="accent-amber"]{accent-color:#0066
   </div>
 </div>
 <style>@keyframes fbspin{to{transform:rotate(360deg)}}@keyframes fbpulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
-<script src="./common.js?v=1.12-060"></script>
+<script src="./common.js?v=1.12-058"></script>
 <script type="text/babel" src="./notice-modal.js?v=1.12-047"></script>
 <script type="text/babel" src="./settings.js?v=1.12-074"></script>
-<script type="text/babel" src="./app-core.js?v=1.0-043"></script>
+<script type="text/babel" src="./app-core.js?v=1.0-041"></script>
 <script type="text/babel">
 const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
@@ -327,21 +327,7 @@ function App(){
       }
     }catch(_e){}
   })()},[settings&&settings.code]);
-  useEffect(()=>{
-    // #setkey=編號:金鑰 → 救援用,直接覆蓋本機存的金鑰(裝置端金鑰跟GAS的Keys表對不上時用),不影響其他登入狀態
-    const hashNow=window.location.hash;
-    if(hashNow&&hashNow.indexOf('setkey=')>=0){
-      try{
-        const raw=decodeURIComponent(hashNow.replace(/^#/,'').split('setkey=')[1]||'');
-        const ci=raw.indexOf(':');
-        if(ci>0){
-          const kc=raw.slice(0,ci).trim();
-          const kk=raw.slice(ci+1).trim();
-          if(kc&&kk&&setMyKey){setMyKey(kc,kk);history.replaceState(null,'',location.pathname);alert('已更新編號 '+kc+' 的本機金鑰，請重新整理頁面');}
-        }
-      }catch(_e){}
-    }
-    const s=LS.get('app-settings');if(s&&s.code&&s.code.length<=12){const act=LS.get(`activated-${s.code}`);if(act){setSettings(s);setReady(true);return}}
+  useEffect(()=>{const s=LS.get('app-settings');if(s&&s.code&&s.code.length<=12){const act=LS.get(`activated-${s.code}`);if(act){setSettings(s);setReady(true);return}}
     const hash=window.location.hash;
     // #conn=編號:連線碼(或分段 &conn2= ...) → 自動連線啟用(含token)
     if(hash&&hash.indexOf('conn=')>=0){try{const reassembled=parseReqHash(hash,'conn');const raw=reassembled||decodeURIComponent(hash.replace(/^#/,'').split('conn=')[1]||'');const ci=raw.indexOf(':');if(ci>0){const c=raw.slice(0,ci);const actCode=raw.slice(ci+1);const did=getDeviceId();const tk=verifyActToken(actCode,c,did);if(tk){saveGHConfigLocal({owner:tk.owner,repo:tk.repo,token:tk.token});const ns={code:c,unitPrice:250,lang:'zh',store:'龍山寺店',year:bizParts().y,deviceId:did};LS.set('app-settings',ns);LS.set(`activated-${c}`,{deviceId:did,ts:Date.now()});setSettings(ns);setReady(true);history.replaceState(null,'',location.pathname);return}}}catch(_e){}}
