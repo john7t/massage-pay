@@ -30,13 +30,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.12-051</title>
+<title>薪資追蹤 · 管理 v1.12-052</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script>if(typeof jsQR==='undefined'){var s=document.createElement('script');s.src='https://unpkg.com/jsqr@1.4.0/dist/jsQR.js';document.head.appendChild(s)}</script>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
 *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
 body{margin:0;background:#030712;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none}
@@ -872,6 +873,7 @@ function AdminPage({t,onBack}){
 
 
 /* ══════════ Auth Gate (原 SettingsPage 後台入口邏輯) ══════════ */
+const AUTH_LIFF_ID='2010673151-QNFLrsH0';
 function AuthGate({t}){
   const settings=LS.get('app-settings')||{};
   const devId=getDeviceId();
@@ -887,7 +889,49 @@ function AuthGate({t}){
   const[cooldown,setCooldown]=useState(0);
   useEffect(()=>{if(cooldown<=0)return;const tm=setTimeout(()=>setCooldown(c=>c>0?c-1:0),1000);return()=>clearTimeout(tm)},[cooldown]);
 
-  // 沒有有效身份時導回首頁
+  // ══ LINE登入身分檢查:取得LINE userId後,同時比對admin.cfg跟supervisors.cfg(新格式:LineUserId:編號),比對到就直接開權限 ══
+  // 這個檢查不依賴settings.code(本機app-settings),換裝置/換瀏覽器都不受影響,因為身分是LINE登入給的,不是本機存的
+  const[liffState,setLiffState]=useState('idle'); // idle/checking/nomatch/error
+  const applyMatchedCode=(code)=>{
+    // 比對到LINE身分對應的編號後,順便寫進本機app-settings,讓AdminPage/SupervisorPage內部讀LS.get('app-settings')時能正確拿到編號
+    try{
+      const cur=LS.get('app-settings')||{};
+      if(cur.code!==code)LS.set('app-settings',{...cur,code});
+    }catch(_e){}
+  };
+  useEffect(()=>{
+    (async()=>{
+      if(typeof liff==='undefined'){setLiffState('error');return}
+      setLiffState('checking');
+      try{
+        await liff.init({liffId:AUTH_LIFF_ID});
+        if(!liff.isLoggedIn()){liff.login();return} // login會導轉頁面,之後這段程式不會繼續跑,重新整理回來後liff.isLoggedIn()才會是true
+        const profile=await liff.getProfile();
+        const uid=profile.userId;
+        const[adminText,supText]=await Promise.all([
+          fetch('./admin.cfg',{cache:'no-store'}).then(r=>r.ok?r.text():'').catch(()=>''),
+          fetch('./supervisors.cfg',{cache:'no-store'}).then(r=>r.ok?r.text():'').catch(()=>'')
+        ]);
+        const findCode=(text)=>{
+          const lines=(text||'').trim().split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
+          for(const line of lines){const parts=line.split(':');if(parts.length>=2&&parts[0]===uid)return parts[1]}
+          return null;
+        };
+        const adminCode=findCode(adminText);
+        if(adminCode){applyMatchedCode(adminCode);setShowAdmin(true);setLiffState('ok');return}
+        const supCode=findCode(supText);
+        if(supCode){applyMatchedCode(supCode);setShowSupervisor(true);setLiffState('ok');return}
+        setLiffState('nomatch');
+      }catch(_e){setLiffState('error')}
+    })();
+  },[]);
+
+  // LINE身分檢查還在進行中,或已經比對到直接開權限了,顯示等待畫面(避免畫面閃一下舊的檢查介面)
+  if(liffState==='checking')return(<div className="min-h-screen flex items-center justify-center p-8"><div className="text-center"><span className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin inline-block mb-3"/><p className="text-gray-500 text-sm">{t.liffChecking||'LINE身分驗證中...'}</p></div></div>);
+  if(showAdmin)return<AdminPage t={t} onBack={goHome}/>;
+  if(showSupervisor)return<SupervisorPage t={t} onBack={goHome}/>;
+
+  // 沒有有效身份時導回首頁(LINE身分沒比對到、又沒有本機app-settings.code,才會走到這裡)
   if(!settings.code)return(<div className="min-h-screen flex items-center justify-center p-8"><div className="text-center"><p className="text-gray-400 mb-4">無使用者資料</p><button onClick={goHome} className="px-6 py-3 bg-white/[0.06] rounded-xl text-gray-300">{t.home}</button></div></div>);
 
   const tryCheck=async()=>{if(checkState==='ok'){setShowAdmin(true);return}if(checkState==='denied')return;setCheckState('checking');try{const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),5000);const res=await fetch('./admin.cfg',{cache:'no-store',signal:ctrl.signal});clearTimeout(timer);if(!res.ok)throw new Error('http');const text=(await res.text()).trim();const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));const myHash=adminHash(settings.code);const match=lines.some(l=>{const parts=l.split(':');const h=parts.length>=2?parts[parts.length-1]:parts[0];return h===myHash});setCheckState(match?'ok':'denied')}catch(e){setCheckState('idle')}};
@@ -950,9 +994,6 @@ function AuthGate({t}){
       hideBoot();
     })();
   },[]);
-
-  if(showAdmin)return<AdminPage t={t} onBack={goHome}/>;
-  if(showSupervisor)return<SupervisorPage t={t} onBack={goHome}/>;
 
   const checkBtnClass={idle:'bg-white/[0.03] border border-white/[0.06] text-gray-400 active:bg-white/[0.06]',checking:'bg-white/[0.03] border border-white/[0.06] text-gray-600',ok:'bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 active:bg-emerald-600/30',denied:'bg-gray-800/50 border border-gray-700/30 text-gray-600 cursor-not-allowed'}[checkState];
   const checkLabel={idle:t.adminCheck,checking:'...',ok:t.adminEnter,denied:t.adminFail}[checkState];
