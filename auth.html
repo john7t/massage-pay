@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.12-055</title>
+<title>薪資追蹤 · 管理 v1.12-057</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -279,7 +279,7 @@ html[data-theme="apple"] [data-light] [class*="accent-amber"]{accent-color:#0066
 <style>@keyframes fbspin{to{transform:rotate(360deg)}}@keyframes fbpulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
 <script src="./common.js"></script>
 <script type="text/babel">
-const{gasUsage,gasTranslate,gasAnalyze,gasCallPost,gasCheckAction,gasApproveAction,gasSfGetPendingDetail,gasBlacklistCheck,gasBlacklistApprove,gasSfApprovePendingRegistration,gasSubmitAction,gasRevokeSup,gasRejectAction,gasAuthStaffList,gasGetGHConfigForSupervisor,gasCreateDisasterSurvey,gasEndDisasterSurvey,gasDeleteDisasterSurvey,gasListDisasterSurveys,gasDisasterDayStatus,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,getGasUrl,issueKey,publishNotices,diagClaimKey,getMyKey,setMyKey,hasMyKey,getAdminSecret,setAdminSecret,hasAdminSecret,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,sendTicketFlex,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,genUUID,getDeviceId,SUP_LEVELS,supLevelName,effSupLevel,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,computeStats,publishStats,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,bookTitleName,SERVICES,T}=window.MP;
+const{gasUsage,gasTranslate,gasAnalyze,gasCallPost,gasCheckAction,gasApproveAction,gasSfGetPendingDetail,gasBlacklistCheck,gasBlacklistApprove,gasSfApprovePendingRegistration,gasSubmitAction,gasRevokeSup,gasRejectAction,gasAuthStaffList,gasGetGHConfigForSupervisor,gasCreateDisasterSurvey,gasEndDisasterSurvey,gasDeleteDisasterSurvey,gasListDisasterSurveys,gasDisasterDayStatus,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,getGasUrl,issueKey,publishNotices,diagClaimKey,getMyKey,setMyKey,hasMyKey,getAdminSecret,setAdminSecret,hasAdminSecret,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,genUUID,getDeviceId,SUP_LEVELS,supLevelName,effSupLevel,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,computeStats,publishStats,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,bookTitleName,SERVICES,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo,useRef}=React;
 
 const goHome=()=>{location.href='./index.html'};
@@ -911,7 +911,15 @@ function AuthGate({t}){
         diag.liffInit=true;
         if(!liff.isLoggedIn()){diag.err='尚未登入,即將導轉LINE登入頁';setLiffDiag(diag);liff.login();return} // login會導轉頁面,之後這段程式不會繼續跑,重新整理回來後liff.isLoggedIn()才會是true
         diag.loggedIn=true;
-        const profile=await liff.getProfile();
+        let profile;
+        try{
+          profile=await liff.getProfile();
+        }catch(profileErr){
+          // isLoggedIn()判斷是true,但實際拿不到profile權限——通常是繞過liff.line.me直接開網址造成的快取假象,強制重新走一次正式授權流程
+          const msg=String(profileErr&&profileErr.message||profileErr);
+          if(msg.indexOf('scope')>=0){diag.err='已登入但缺profile權限,重新導轉授權中...';setLiffDiag(diag);liff.login({redirectUri:window.location.href});return}
+          throw profileErr;
+        }
         const uid=profile.userId;
         diag.userId=uid;
         const[adminText,supText]=await Promise.all([
@@ -1041,7 +1049,7 @@ function AuthGate({t}){
     {applyStep&&!isPending&&!isApproved&&(<div className="fi space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-xl p-4"><p className="text-sm text-gray-400">{t.adminApplyDesc}</p><input value={devNameInput} onChange={e=>setDevNameInput(e.target.value)} placeholder={t.deviceName} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/><button onClick={doApply} disabled={applyBusy} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold disabled:opacity-60 flex items-center justify-center gap-2">{applyBusy&&<svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>}{applyBusy?(t.applying||'送出中…'):t.confirm}</button></div>)}
     {isPending&&(<div className="fi space-y-3">
       <div className="bg-white/[0.03] rounded-xl p-4 text-center"><p className="text-xs text-amber-400 font-semibold mb-3">{t.ticketTypeA}</p><p className="text-[11px] text-gray-500 mb-1">{t.ticketInfoTeacher}</p><p className="text-2xl font-bold text-gray-100 mb-3">{settings.code}</p><p className="text-[11px] text-gray-500 mb-1">{t.ticketCode}</p><p className="text-base font-semibold text-amber-400 font-mono tracking-widest select-all">{supStatus.ticketSeq}</p></div>
-      <button onClick={()=>{const seq=supStatus.ticketSeq||'';const base=location.origin+location.pathname;const link=buildReqLink(base,seq);const zhMsg=(T.zh.lineTicketSupPrefix||'').replace('{code}',settings.code);const isVi=seq&&seq[1]==='2';const viMsg=isVi?(T.vi.lineTicketSupPrefix||'').replace('{code}',settings.code):'';sendTicketFlex('👤 審核通知',zhMsg,link,viMsg)}} className="w-full px-3 py-4 rounded-xl text-base font-bold bg-[#06C755] text-white active:bg-[#05b34c]">{t.sendLineToSup}</button>
+      <button onClick={()=>{const seq=supStatus.ticketSeq||'';const link=buildReqLink(AUTH_LIFF_BASE,seq);const zhMsg=(T.zh.lineTicketSupPrefix||'').replace('{code}',settings.code);const isVi=seq&&seq[1]==='2';const viMsg=isVi?(T.vi.lineTicketSupPrefix||'').replace('{code}',settings.code):'';sendTicketFlex('👤 審核通知',zhMsg,link,viMsg)}} className="w-full px-3 py-4 rounded-xl text-base font-bold bg-[#06C755] text-white active:bg-[#05b34c]">{t.sendLineToSup}</button>
       <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 text-center space-y-2"><div className="flex items-center justify-center gap-2"><div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div><p className="text-xs text-amber-400 font-semibold">{t.waitApproval}</p></div><button onClick={checkSupOnline} disabled={cooldown>0||supCheckStatus==='...'} className={`w-full py-3 rounded-xl font-medium text-sm ${cooldown>0||supCheckStatus==='...'?'bg-white/[0.06] text-gray-600 cursor-not-allowed':'bg-amber-600/20 text-amber-400 active:bg-amber-600/30'}`}>{supCheckStatus==='...'?t.ticketChecking:cooldown>0?fmtLog(t.ticketWaitCountdown,[String(cooldown)]):t.checkApproval}</button><button onClick={()=>{LS.set(supKey,null);setSupStatus(null);setSupErr('');setSupCheckStatus('')}} className="w-full py-2 text-[11px] text-gray-600 active:text-gray-400">{t.resetApp}</button>{supErr&&<p className="text-amber-400/60 text-xs mt-1">{supErr}</p>}</div>
     </div>)}
     </div>
