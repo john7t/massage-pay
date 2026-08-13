@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.12-054</title>
+<title>薪資追蹤 · 管理 v1.12-055</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -892,6 +892,7 @@ function AuthGate({t}){
   // ══ LINE登入身分檢查:取得LINE userId後,同時比對admin.cfg跟supervisors.cfg(新格式:LineUserId:編號),比對到就直接開權限 ══
   // 這個檢查不依賴settings.code(本機app-settings),換裝置/換瀏覽器都不受影響,因為身分是LINE登入給的,不是本機存的
   const[liffState,setLiffState]=useState('idle'); // idle/checking/nomatch/error
+  const[liffDiag,setLiffDiag]=useState(null); // 診斷資料:LIFF每個步驟的結果,供比對哪裡卡住用
   const applyMatchedCode=(code)=>{
     // 比對到LINE身分對應的編號後,順便寫進本機app-settings,讓AdminPage/SupervisorPage內部讀LS.get('app-settings')時能正確拿到編號
     try{
@@ -901,28 +902,36 @@ function AuthGate({t}){
   };
   useEffect(()=>{
     (async()=>{
-      if(typeof liff==='undefined'){setLiffState('error');return}
+      const diag={liffSdk:false,liffInit:false,loggedIn:false,userId:'',adminFetch:false,adminLines:0,adminMatch:false,supFetch:false,supLines:0,supMatch:false,err:''};
+      if(typeof liff==='undefined'){diag.err='LIFF SDK未載入';setLiffDiag(diag);setLiffState('error');return}
+      diag.liffSdk=true;
       setLiffState('checking');
       try{
         await liff.init({liffId:AUTH_LIFF_ID});
-        if(!liff.isLoggedIn()){liff.login();return} // login會導轉頁面,之後這段程式不會繼續跑,重新整理回來後liff.isLoggedIn()才會是true
+        diag.liffInit=true;
+        if(!liff.isLoggedIn()){diag.err='尚未登入,即將導轉LINE登入頁';setLiffDiag(diag);liff.login();return} // login會導轉頁面,之後這段程式不會繼續跑,重新整理回來後liff.isLoggedIn()才會是true
+        diag.loggedIn=true;
         const profile=await liff.getProfile();
         const uid=profile.userId;
+        diag.userId=uid;
         const[adminText,supText]=await Promise.all([
-          fetch('./admin.cfg',{cache:'no-store'}).then(r=>r.ok?r.text():'').catch(()=>''),
-          fetch('./supervisors.cfg',{cache:'no-store'}).then(r=>r.ok?r.text():'').catch(()=>'')
+          fetch('./admin.cfg',{cache:'no-store'}).then(r=>{diag.adminFetch=r.ok;return r.ok?r.text():''}).catch(()=>''),
+          fetch('./supervisors.cfg',{cache:'no-store'}).then(r=>{diag.supFetch=r.ok;return r.ok?r.text():''}).catch(()=>'')
         ]);
         const findCode=(text)=>{
           const lines=(text||'').trim().split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
-          for(const line of lines){const parts=line.split(':');if(parts.length>=2&&parts[0]===uid)return parts[1]}
-          return null;
+          for(const line of lines){const parts=line.split(':');if(parts.length>=2&&parts[0]===uid)return{code:parts[1],count:lines.length}}
+          return{code:null,count:lines.length};
         };
-        const adminCode=findCode(adminText);
-        if(adminCode){applyMatchedCode(adminCode);setShowAdmin(true);setLiffState('ok');return}
-        const supCode=findCode(supText);
-        if(supCode){applyMatchedCode(supCode);setShowSupervisor(true);setLiffState('ok');return}
+        const adminR=findCode(adminText);
+        diag.adminLines=adminR.count;diag.adminMatch=!!adminR.code;
+        if(adminR.code){setLiffDiag(diag);applyMatchedCode(adminR.code);setShowAdmin(true);setLiffState('ok');return}
+        const supR=findCode(supText);
+        diag.supLines=supR.count;diag.supMatch=!!supR.code;
+        if(supR.code){setLiffDiag(diag);applyMatchedCode(supR.code);setShowSupervisor(true);setLiffState('ok');return}
+        setLiffDiag(diag);
         setLiffState('nomatch');
-      }catch(_e){setLiffState('error')}
+      }catch(_e){diag.err=String(_e);setLiffDiag(diag);setLiffState('error')}
     })();
   },[]);
 
@@ -956,6 +965,30 @@ function AuthGate({t}){
   if(liffState==='checking')return(<div className="min-h-screen flex items-center justify-center p-8"><div className="text-center"><span className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin inline-block mb-3"/><p className="text-gray-500 text-sm">{t.liffChecking||'LINE身分驗證中...'}</p></div></div>);
   if(showAdmin)return<AdminPage t={t} onBack={goHome}/>;
   if(showSupervisor)return<SupervisorPage t={t} onBack={goHome}/>;
+
+  // LINE身分沒比對到admin.cfg/supervisors.cfg任何一筆,顯示診斷資料,方便截圖回報是哪個環節卡住
+  if((liffState==='nomatch'||liffState==='error')&&liffDiag){
+    const Row=({label,ok,val})=>(<div className="flex items-center justify-between py-1.5 border-b border-white/[0.04]"><span className="text-xs text-gray-500">{label}</span><span className={`text-xs font-mono ${ok===true?'text-emerald-400':ok===false?'text-red-400':'text-gray-300'}`}>{val}</span></div>);
+    return(<div className="min-h-screen p-5"><div className="max-w-md mx-auto space-y-4">
+      <h2 className="text-base font-bold text-gray-100">LINE身分診斷資料</h2>
+      <p className="text-xs text-gray-500">這組LINE身分沒有在 admin.cfg 或 supervisors.cfg 裡比對到，以下是每個步驟的結果，可截圖回報：</p>
+      <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4">
+        <Row label="LIFF SDK載入" ok={liffDiag.liffSdk} val={liffDiag.liffSdk?'✓':'✗'}/>
+        <Row label="liff.init()" ok={liffDiag.liffInit} val={liffDiag.liffInit?'✓':'✗'}/>
+        <Row label="已登入LINE" ok={liffDiag.loggedIn} val={liffDiag.loggedIn?'✓':'✗'}/>
+        <Row label="LINE userId" val={liffDiag.userId||'(尚未取得)'}/>
+        <Row label="admin.cfg讀取" ok={liffDiag.adminFetch} val={liffDiag.adminFetch?'成功':'失敗'}/>
+        <Row label="admin.cfg行數" val={String(liffDiag.adminLines)}/>
+        <Row label="admin.cfg比對到" ok={liffDiag.adminMatch} val={liffDiag.adminMatch?'✓':'✗ 沒比對到'}/>
+        <Row label="supervisors.cfg讀取" ok={liffDiag.supFetch} val={liffDiag.supFetch?'成功':'失敗'}/>
+        <Row label="supervisors.cfg行數" val={String(liffDiag.supLines)}/>
+        <Row label="supervisors.cfg比對到" ok={liffDiag.supMatch} val={liffDiag.supMatch?'✓':'✗ 沒比對到'}/>
+        {liffDiag.err&&<Row label="錯誤訊息" ok={false} val={liffDiag.err}/>}
+      </div>
+      <button onClick={()=>{navigator.clipboard.writeText(JSON.stringify(liffDiag,null,2)).catch(()=>{})}} className="w-full py-2.5 bg-white/[0.06] rounded-xl text-gray-300 text-sm">複製診斷資料(JSON)</button>
+      <p className="text-[11px] text-gray-600">往下捲動可以看到原本的手動檢查／申請主管流程，這組LINE身分沒比對到不代表沒有其他登入管道。</p>
+    </div></div>);
+  }
 
   // 沒有有效身份時導回首頁(LINE身分沒比對到、又沒有本機app-settings.code,才會走到這裡)
   if(!settings.code)return(<div className="min-h-screen flex items-center justify-center p-8"><div className="text-center"><p className="text-gray-400 mb-4">無使用者資料</p><button onClick={goHome} className="px-6 py-3 bg-white/[0.06] rounded-xl text-gray-300">{t.home}</button></div></div>);
