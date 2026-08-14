@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.12-060</title>
+<title>薪資追蹤 · 管理 v1.12-061</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -948,7 +948,7 @@ function AuthGate({t}){
   };
   useEffect(()=>{runLiffCheck()},[]);
   // 按鈕點擊觸發登入/重新授權,不是頁面一載入就自動導轉——瀏覽器對「使用者主動點擊觸發」的導轉容忍度比較高,也讓使用者清楚知道接下來會發生什麼事
-  const handleLiffLogin=()=>{try{const cleanUrl=location.origin+location.pathname+location.hash;liff.login({redirectUri:cleanUrl})}catch(_e){}};
+  const handleLiffLogin=()=>{try{if(liff.isLoggedIn())liff.logout();const cleanUrl=location.origin+location.pathname+location.hash;liff.login({redirectUri:cleanUrl})}catch(_e){}};
 
   const[applyBusy,setApplyBusy]=useState(false);
   const[reqLinkInfo,setReqLinkInfo]=useState(false);
