@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.12-059</title>
+<title>薪資追蹤 · 管理 v1.12-060</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -948,7 +948,7 @@ function AuthGate({t}){
   };
   useEffect(()=>{runLiffCheck()},[]);
   // 按鈕點擊觸發登入/重新授權,不是頁面一載入就自動導轉——瀏覽器對「使用者主動點擊觸發」的導轉容忍度比較高,也讓使用者清楚知道接下來會發生什麼事
-  const handleLiffLogin=()=>{try{liff.login({redirectUri:window.location.href})}catch(_e){}};
+  const handleLiffLogin=()=>{try{const cleanUrl=location.origin+location.pathname+location.hash;liff.login({redirectUri:cleanUrl})}catch(_e){}};
 
   const[applyBusy,setApplyBusy]=useState(false);
   const[reqLinkInfo,setReqLinkInfo]=useState(false);
@@ -978,7 +978,13 @@ function AuthGate({t}){
 
   // LINE身分檢查還在進行中,或已經比對到直接開權限了,顯示等待畫面(避免畫面閃一下舊的檢查介面)
   if(liffState==='checking')return(<div className="min-h-screen flex items-center justify-center p-8"><div className="text-center"><span className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin inline-block mb-3"/><p className="text-gray-500 text-sm">{t.liffChecking||'LINE身分驗證中...'}</p></div></div>);
-  if(liffState==='needLogin')return(<div className="min-h-screen flex items-center justify-center p-8"><div className="text-center max-w-xs"><p className="text-gray-400 text-sm mb-5">{t.liffNeedLogin||'需要先用LINE登入才能繼續'}</p><button onClick={handleLiffLogin} className="w-full px-6 py-3.5 bg-[#06C755] text-white rounded-xl font-bold active:bg-[#05b34c]">{t.liffLoginBtn||'使用LINE登入'}</button></div></div>);
+  if(liffState==='needLogin')return(<div className="min-h-screen flex items-center justify-center p-8"><div className="text-center max-w-xs w-full"><p className="text-gray-400 text-sm mb-5">{t.liffNeedLogin||'需要先用LINE登入才能繼續'}</p><button onClick={handleLiffLogin} className="w-full px-6 py-3.5 bg-[#06C755] text-white rounded-xl font-bold active:bg-[#05b34c]">{t.liffLoginBtn||'使用LINE登入'}</button>
+    <div className="mt-6 text-left bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 space-y-1">
+      <p className="text-[10px] text-gray-600 font-mono break-all">query: {location.search||'(空)'}</p>
+      <p className="text-[10px] text-gray-600 font-mono break-all">isInClient: {typeof liff!=='undefined'&&liff.isInClient?String(liff.isInClient()):'?'}</p>
+      <p className="text-[10px] text-gray-600 font-mono break-all">UA: {navigator.userAgent.slice(0,80)}</p>
+    </div>
+  </div></div>);
   if(liffState==='needReauth')return(<div className="min-h-screen flex items-center justify-center p-8"><div className="text-center max-w-xs"><p className="text-gray-400 text-sm mb-5">{t.liffNeedReauth||'登入狀態需要重新授權才能取得身分資訊'}</p><button onClick={handleLiffLogin} className="w-full px-6 py-3.5 bg-[#06C755] text-white rounded-xl font-bold active:bg-[#05b34c]">{t.liffReauthBtn||'重新授權'}</button></div></div>);
   if(showAdmin)return<AdminPage t={t} onBack={goHome}/>;
   if(showSupervisor)return<SupervisorPage t={t} onBack={goHome}/>;
