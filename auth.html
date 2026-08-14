@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.12-061</title>
+<title>薪資追蹤 · 管理 v1.12-062</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -730,7 +730,7 @@ function ActionTicketBlock({t,myCode}){
   };
   return(<div ref={blockRef} className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4"><h3 className="text-sm font-semibold text-amber-400">{t.ticketLookup}</h3>
     <div className="flex gap-2"><input value={seqInput} onChange={e=>setSeqInput(e.target.value)} placeholder={t.ticketLookupPh} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/><button onClick={info?clearAll:()=>lookup()} className={`px-5 py-3 rounded-xl text-white text-sm font-bold min-w-[72px] ${info?'bg-white/[0.1] text-gray-300':'bg-amber-600'}`}>{info?t.ticketClearBtn:t.ticketLookupBtn}</button></div>
-    {status&&<p className="text-xs text-center text-red-400">{status}</p>}
+    {status==='...'?(<div className="flex justify-center py-1"><span className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin inline-block"/></div>):status&&<p className="text-xs text-center text-red-400">{status}</p>}
     {info&&(<div className="bg-white/[0.03] rounded-xl p-3 space-y-1.5 fi">
       <p className="text-sm text-amber-400 font-bold text-center">{info.actionCode==='N'?t.ticketTypeN:info.actionCode==='F'?t.ticketTypeF:info.actionCode==='A'?t.ticketTypeA:info.actionCode==='B'?t.ticketTypeB:info.actionCode==='S'?t.ticketTypeS:info.actionCode==='E'?t.ticketTypeE:info.actionCode==='R'?t.ticketTypeR:info.actionCode==='G'?'人員登記審核':info.actionCode==='K'?(t.ticketTypeK||'拒接申請'):info.actionCode}</p>
       {info.actionCode==='K'&&(<div className="bg-white/[0.03] rounded-lg p-2 space-y-1 text-[11px]">
