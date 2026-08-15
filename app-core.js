@@ -1,4 +1,4 @@
-// app-core.js v1.0-048 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.0-050 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
@@ -1324,27 +1324,28 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
       <span>{t.moreFuncBtn||'更多功能'}</span>
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${showMoreFunc?'rotate-180':''}`}><path d="M6 9l6 6 6-6"/></svg>
     </button>
-    {moreFuncGate==='setup'&&(<div className="fixed inset-0 z-[75] bg-black/80 flex flex-col items-center justify-center gap-5 p-6" onClick={()=>setMoreFuncGate('')}>
+    {moreFuncGate==='setup'&&(<div className="pinGateBackdrop fixed inset-0 z-[75] flex flex-col items-center justify-center gap-5 p-6" onClick={()=>setMoreFuncGate('')}>
       <div onClick={e=>e.stopPropagation()} className="flex flex-col items-center gap-5">
-        <p className="text-base font-bold text-gray-100 text-center">{mfPinStep===1?t.lockPwdTitle:t.lockPwdConfirm}</p>
-        {mfPinStep===1&&<p className="text-xs text-gray-500 text-center max-w-xs -mt-3">{t.lockPwdHint}</p>}
+        <p className="pinGateTitle text-base font-bold text-center">{mfPinStep===1?t.lockPwdTitle:t.lockPwdConfirm}</p>
+        {mfPinStep===1&&<p className="pinGateBody text-xs text-center max-w-xs -mt-3">{t.lockPwdHint}</p>}
         <div className={mfPinShake?'text-red-500':''}><PinDots length={mfPinStep===1?mfPin1.length:mfPin2.length}/></div>
         {mfPinErr&&<p className="text-xs text-red-400 text-center">{mfPinErr}</p>}
         <PinKeypad onDigit={pressMfSetupDigit} onBackspace={()=>{if(mfPinStep===1)setMfPin1(v=>v.slice(0,-1));else setMfPin2(v=>v.slice(0,-1))}}/>
-        <button onClick={()=>setMoreFuncGate('')} className="text-xs text-gray-500 underline">{t.infoCancelBtn}</button>
+        <button onClick={()=>setMoreFuncGate('')} className="pinGateBody text-xs underline">{t.infoCancelBtn}</button>
       </div>
     </div>)}
-    {moreFuncGate==='verify'&&(<div className="fixed inset-0 z-[75] bg-black/80 flex flex-col items-center justify-center gap-5 p-6" onClick={()=>setMoreFuncGate('')}>
+    {moreFuncGate==='verify'&&(<div className="pinGateBackdrop fixed inset-0 z-[75] flex flex-col items-center justify-center gap-5 p-6" onClick={()=>setMoreFuncGate('')}>
       <div onClick={e=>e.stopPropagation()} className="flex flex-col items-center gap-5">
-        <p className="text-base font-bold text-gray-100 text-center">{t.homePwdPopupTitle}</p>
+        <p className="pinGateTitle text-base font-bold text-center">{t.homePwdPopupTitle}</p>
         <div className={mfPinShake?'text-red-500':''}><PinDots length={mfPin1.length}/></div>
         {mfPinErr&&<p className="text-xs text-red-400 text-center">{mfPinErr}</p>}
         <PinKeypad onDigit={pressMfVerifyDigit} onBackspace={()=>setMfPin1(v=>v.slice(0,-1))}/>
-        <button onClick={()=>setMoreFuncGate('')} className="text-xs text-gray-500 underline">{t.infoCancelBtn}</button>
+        <button onClick={()=>setMoreFuncGate('')} className="pinGateBody text-xs underline">{t.infoCancelBtn}</button>
       </div>
     </div>)}
     {moreFuncBlocked&&!showMoreFunc&&<p className="text-xs text-red-400 text-center mt-2">{t.moreFuncLeftMsg||'此區功能僅開放在職員工使用'}</p>}
-    {showMoreFunc&&(<div className="grid grid-cols-4 gap-y-3 mt-3">
+    {showMoreFunc&&(<>
+      <div className="grid grid-cols-4 gap-y-3 mt-3">
       <button onClick={()=>onGotoNotices&&onGotoNotices()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M3 11l18-6v14l-18-6v-2z"/><path d="M8 15v4a2 2 0 002 2h1"/></svg></span><span className="text-[10px] text-gray-500">{t.tabNotice}</span></button>
       <button onClick={()=>onGotoBook&&onGotoBook()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span><span className="text-[10px] text-gray-500">{t.tabBook2}</span></button>
       <button onClick={()=>onGotoChart&&onGotoChart()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg></span><span className="text-[10px] text-gray-500">{t.tabChart}</span></button>
@@ -1354,8 +1355,9 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
       <button onClick={()=>onGotoBackup&&onGotoBackup()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg></span><span className="text-[10px] text-gray-500">{t.tabBackup||'備份'}</span></button>
       <button onClick={()=>setShowGroupBuy(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></span><span className="text-[10px] text-gray-500">{t.groupBuyBtn}</span></button>
       <button onClick={()=>setShowDisasterReport(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg></span><span className="text-[10px] text-gray-500">{t.drBtn}</span></button>
-    </div>)}
-    <BreakTimerSection settings={settings}/>
+      </div>
+      <BreakTimerSection settings={settings}/>
+    </>)}
     <SupervisorSection t={t} settings={settings}/>
     {showGroupBuy&&<GroupBuyModal t={t} settings={settings} onClose={()=>setShowGroupBuy(false)}/>}
     {showLineQr&&(()=>{
