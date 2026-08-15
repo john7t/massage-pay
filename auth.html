@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.12-062</title>
+<title>薪資追蹤 · 管理 v1.12-064</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -227,6 +227,9 @@ html[data-theme="apple"] [data-light] [class*="accent-amber"]{accent-color:#0066
 [data-theme="apple"] button[class*="rounded-xl"],[data-theme="apple"] button[class*="rounded-lg"]{border-radius:9999px !important}
 [data-theme="apple"] [class*="rounded-2xl"]{border-radius:1.125rem !important}
 
+/* 自訂旋轉動畫,不依賴Tailwind CDN的animate-spin(某些條件渲染的元素上,CDN動態產生CSS的時機可能跟不上),寫死keyframe確保一定會轉 */
+@keyframes mp-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.mp-spin{animation:mp-spin 0.7s linear infinite}
 </style>
 </head>
 <body>
@@ -685,6 +688,24 @@ function ActionTicketBlock({t,myCode}){
       return;
     }
     try{
+      // 先查GitHub快取(快,不用等GAS的轉址延遲),查不到或讀取失敗才退回GAS查詢(慢但一定有最新資料)
+      let found=null;
+      try{
+        const gh=getGHConfig();
+        if(gh&&gh.token){
+          const f=await ghReadFile(gh,'actions.json');
+          if(f&&f.content){
+            const arr=JSON.parse(f.content);
+            found=arr.find(a=>a.seq===seq)||null;
+          }
+        }
+      }catch(_e){}
+      if(found){
+        let payload={};try{payload=JSON.parse(found.payload||'{}')}catch(_e){}
+        setInfo({seq:found.seq,actionCode:found.actionCode,code:found.code,payload,status:found.status,createdAt:found.createdAt,approvedAt:found.approvedAt,approvedBy:found.approvedBy});
+        setStatus('');
+        return;
+      }
       const r=await gasCheckAction(seq);
       if(r&&r.ok){let payload={};try{payload=JSON.parse(r.payload||'{}')}catch(_e){}setInfo({seq:r.seq,actionCode:r.actionCode,code:r.code,payload,status:r.status,createdAt:r.createdAt,approvedAt:r.approvedAt,approvedBy:r.approvedBy});setStatus('')}
       else{setStatus((r&&r.error)||t.ticketNotFound)}
@@ -703,9 +724,27 @@ function ActionTicketBlock({t,myCode}){
       }
     }catch(_e){}
   },[]);
+  // 樂觀更新GitHub上的actions.json快取:讀取現有內容+找到對應seq+更新狀態+寫回去。
+  // 失敗(例如sha版本衝突、還沒快取token)完全不擋接下來要做的GAS異動,只是快取這次沒即時更新,GAS那邊approveAction/rejectAction結束時還會自己同步一次補正
+  const optimisticGhUpdate=async(seq,patch)=>{
+    try{
+      const gh=getGHConfig();
+      if(!gh||!gh.token)return;
+      const f=await ghReadFile(gh,'actions.json');
+      if(!f||!f.content)return;
+      const arr=JSON.parse(f.content);
+      const idx=arr.findIndex(a=>a.seq===seq);
+      if(idx<0)return;
+      arr[idx]={...arr[idx],...patch};
+      await ghWriteFile(gh,'actions.json',JSON.stringify(arr),f.sha,'optimistic update '+seq);
+    }catch(_e){}
+  };
   const approve=async()=>{
     if(!info)return;setApproveStatus('...');
     try{
+      if(info.actionCode!=='G'&&info.actionCode!=='K'){
+        await optimisticGhUpdate(info.seq,{status:'approved',approvedAt:new Date().toISOString(),approvedBy:myCode});
+      }
       const r=info.actionCode==='G'?await gasSfApprovePendingRegistration(myCode,info.seq,true):info.actionCode==='K'?await gasBlacklistApprove(info.seq,myCode,true):await gasApproveAction(info.seq,myCode,info.actionCode==='A'?supLevel:undefined);
       if(r&&r.ok){await lookup(info.seq);setApproveStatus(t.ticketApproveOk)}
       else{setApproveStatus(t.ticketApproveFail+(r&&r.error?'：'+r.error:''))}
@@ -714,6 +753,9 @@ function ActionTicketBlock({t,myCode}){
   const reject=async()=>{
     if(!info)return;setApproveStatus('...');
     try{
+      if(info.actionCode!=='G'&&info.actionCode!=='K'){
+        await optimisticGhUpdate(info.seq,{status:'rejected',approvedAt:new Date().toISOString(),approvedBy:myCode});
+      }
       const r=info.actionCode==='G'?await gasSfApprovePendingRegistration(myCode,info.seq,false):info.actionCode==='K'?await gasBlacklistApprove(info.seq,myCode,false):await gasRejectAction(info.seq,myCode,rejectReason);
       if(r&&r.ok){await lookup(info.seq);setApproveStatus('');setShowReject(false);setRejectReason('')}
       else{setApproveStatus(t.ticketApproveFail+(r&&r.error?'：'+r.error:''))}
@@ -730,7 +772,7 @@ function ActionTicketBlock({t,myCode}){
   };
   return(<div ref={blockRef} className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4"><h3 className="text-sm font-semibold text-amber-400">{t.ticketLookup}</h3>
     <div className="flex gap-2"><input value={seqInput} onChange={e=>setSeqInput(e.target.value)} placeholder={t.ticketLookupPh} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-3 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/><button onClick={info?clearAll:()=>lookup()} className={`px-5 py-3 rounded-xl text-white text-sm font-bold min-w-[72px] ${info?'bg-white/[0.1] text-gray-300':'bg-amber-600'}`}>{info?t.ticketClearBtn:t.ticketLookupBtn}</button></div>
-    {status==='...'?(<div className="flex justify-center py-1"><span className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin inline-block"/></div>):status&&<p className="text-xs text-center text-red-400">{status}</p>}
+    {status==='...'?(<div className="flex justify-center py-1"><span className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full mp-spin inline-block"/></div>):status&&<p className="text-xs text-center text-red-400">{status}</p>}
     {info&&(<div className="bg-white/[0.03] rounded-xl p-3 space-y-1.5 fi">
       <p className="text-sm text-amber-400 font-bold text-center">{info.actionCode==='N'?t.ticketTypeN:info.actionCode==='F'?t.ticketTypeF:info.actionCode==='A'?t.ticketTypeA:info.actionCode==='B'?t.ticketTypeB:info.actionCode==='S'?t.ticketTypeS:info.actionCode==='E'?t.ticketTypeE:info.actionCode==='R'?t.ticketTypeR:info.actionCode==='G'?'人員登記審核':info.actionCode==='K'?(t.ticketTypeK||'拒接申請'):info.actionCode}</p>
       {info.actionCode==='K'&&(<div className="bg-white/[0.03] rounded-lg p-2 space-y-1 text-[11px]">
@@ -943,6 +985,8 @@ function AuthGate({t}){
         diag.supLines=supR.count;diag.supMatch=!!supR.code;
         if(supR.code){setLiffDiag(diag);applyMatchedCode(supR.code);setShowSupervisor(true);setLiffState('ok');return}
         setLiffDiag(diag);
+        // 這台裝置這次驗證結果不是admin/supervisor身分,如果本機還殘留GitHub token(例如之前身分被移除、或裝置借用過),直接清空,避免非主管裝置留著有寫入權限的token
+        try{const gh=getGHConfig();if(gh&&gh.token)saveGHConfigLocal({})}catch(_e){}
         setLiffState('nomatch');
     }catch(_e){diag.err=String(_e);setLiffDiag(diag);setLiffState('error')}
   };
@@ -1046,9 +1090,9 @@ function AuthGate({t}){
           const data={...supStatus,status:'approved',approvedAt:Date.now(),level};
           LS.set(supKey,data);setSupStatus(data);setSupCheckStatus(t.approved);
           addLog(fmtLog(t.logTeacherActivate,[settings.code,supStatus?.deviceName||'']),'teacher');
-        }else{setSupCheckStatus('');setSupErr(t.waitHint);setCooldown(60)}
-      }else{setSupCheckStatus('');setSupErr((r&&r.error)||t.waitHint);setCooldown(60)}
-    }catch(e){setSupCheckStatus('');setSupErr(t.waitHint);setCooldown(60)}
+        }else{setSupCheckStatus('');setSupErr(t.waitHint);setCooldown(30)}
+      }else{setSupCheckStatus('');setSupErr((r&&r.error)||t.waitHint);setCooldown(30)}
+    }catch(e){setSupCheckStatus('');setSupErr(t.waitHint);setCooldown(30)}
   };
 
   const checkBtnClass={idle:'bg-white/[0.03] border border-white/[0.06] text-gray-400 active:bg-white/[0.06]',checking:'bg-white/[0.03] border border-white/[0.06] text-gray-600',ok:'bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 active:bg-emerald-600/30',denied:'bg-gray-800/50 border border-gray-700/30 text-gray-600 cursor-not-allowed'}[checkState];
