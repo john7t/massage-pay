@@ -1,6 +1,6 @@
-// app-core.js v1.0-044 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.0-048 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 
@@ -101,6 +101,20 @@ function Onboarding({onComplete}){
     if(cooldown>0||ticketStatus==='checking')return;
     setTicketStatus('checking');
     try{
+      // 先查GitHub快取(公開靜態檔案,不用token也能讀):如果快取顯示還沒核准,直接顯示pending,省去等GAS轉址延遲,
+      // 已核准或查無資料(快取可能還沒同步到)才走GAS拿完整資料——N/A票證核准後要順便領金鑰,這個只有GAS才有
+      try{
+        const res=await fetch('./actions.json',{cache:'no-store'});
+        if(res.ok){
+          const arr=await res.json();
+          const found=arr.find(a=>a.seq===ticketSeq);
+          if(found&&found.status!=='approved'){
+            setTicketStatus('pending');
+            setCooldown(30);
+            return;
+          }
+        }
+      }catch(_e){}
       const r=await gasCheckAction(ticketSeq);
       if(r&&r.ok){
         if(r.status==='approved'){
@@ -108,9 +122,9 @@ function Onboarding({onComplete}){
           if(r.key){try{setMyKey(code,r.key)}catch(_e){}} // 主管核准時順便產的金鑰,這裡一起領走存本機
           onApproved&&onApproved();
         }
-        else{setTicketStatus('pending');setCooldown(60)}
-      }else{setTicketStatus('error');setCooldown(60)}
-    }catch(_e){setTicketStatus('error');setCooldown(60)}
+        else{setTicketStatus('pending');setCooldown(30)}
+      }else{setTicketStatus('error');setCooldown(30)}
+    }catch(_e){setTicketStatus('error');setCooldown(30)}
   };
 
   const doLogin=async()=>{
@@ -178,7 +192,7 @@ function Onboarding({onComplete}){
         <p className="text-[11px] text-gray-500 mb-1">{t.ticketCode}</p>
         <p className="text-base font-semibold text-amber-400 font-mono tracking-widest select-all">{ticketSeq}</p>
       </div>
-      <button onClick={()=>{const base=location.origin+location.pathname.replace(/index\.html$/,'')+'auth.html';const link=buildReqLink(base,ticketSeq);const zhMsg=(T.zh[prefixKey]||'').replace('{code}',code);const isVi=ticketSeq&&ticketSeq[1]==='2';const viMsg=isVi?(T.vi[prefixKey]||'').replace('{code}',code):'';sendTicketFlex('🔑 審核通知',zhMsg,link,viMsg)}} className="w-full px-3 py-4 rounded-xl text-base font-bold bg-[#06C755] text-white active:bg-[#05b34c]">{t.ticketSend}</button>
+      <button onClick={()=>{const link=buildReqLink(AUTH_LIFF_BASE,ticketSeq);const zhMsg=(T.zh[prefixKey]||'').replace('{code}',code);const isVi=ticketSeq&&ticketSeq[1]==='2';const viMsg=isVi?(T.vi[prefixKey]||'').replace('{code}',code):'';sendTicketFlex('🔑 審核通知',zhMsg,link,viMsg)}} className="w-full px-3 py-4 rounded-xl text-base font-bold bg-[#06C755] text-white active:bg-[#05b34c]">{t.ticketSend}</button>
       <div className="space-y-2">
         <button onClick={()=>checkTicket(onApproved)} disabled={cooldown>0||ticketStatus==='checking'} className={`w-full py-3.5 rounded-xl font-bold transition-all ${cooldown>0||ticketStatus==='checking'?'bg-white/[0.06] text-gray-600 cursor-not-allowed':'bg-amber-600 text-white'}`}>{ticketStatus==='checking'?t.ticketChecking:cooldown>0?fmtLog(t.ticketWaitCountdown,[String(cooldown)]):t.ticketCheckBtn}</button>
         {ticketStatus==='pending'&&<p className="text-xs text-gray-500 text-center">{t.ticketPending}</p>}
@@ -529,26 +543,42 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings,onLogout}){
   const checkTicket=async()=>{
     if(cooldown>0||ticketStatus==='checking')return;
     setTicketStatus('checking');
+    const applyResult=(st,payload)=>{
+      if(st==='approved'){
+        setTicketStatus('approved');
+        const updated=Object.assign({},settings,payload);
+        // 同步更新confirmedProfile/confirmedStore快照,不然底部設定頁的❗提醒邏輯(比對這兩個欄位)會抓不到"已確認",永遠亮著關不掉
+        const snap={};(type==='basic'?PF_ALERT_FIELDS:SF_ALERT_FIELDS).forEach(fk=>{snap[fk]=updated[fk]!==undefined?updated[fk]:''});
+        if(type==='basic')updated.confirmedProfile=snap;else updated.confirmedStore=snap;
+        try{LS.set('app-settings',updated)}catch(_e){}
+        if(onUpdateSettings)onUpdateSettings(updated);
+        clearPendingT();
+        setTimeout(()=>{if(onClose)onClose()},1200);
+      }else if(st==='rejected'){
+        setTicketStatus('rejected');setRejectReason((payload&&payload.rejectReason)||'');
+      }else{setTicketStatus('pending');setCooldown(30)}
+    };
     try{
+      // 先查GitHub快取(公開靜態檔案,不用token也能讀)。B/S票證沒有像N/A那樣核准時要另外領金鑰的動態資料,
+      // 快取裡的payload就是完整資料,查得到就直接用,不用等GAS,查無資料(可能還沒同步到)才退回GAS
+      try{
+        const res=await fetch('./actions.json',{cache:'no-store'});
+        if(res.ok){
+          const arr=await res.json();
+          const found=arr.find(a=>a.seq===ticketSeq);
+          if(found){
+            let payload={};try{payload=JSON.parse(found.payload||'{}')}catch(_e){}
+            applyResult(found.status,payload);
+            return;
+          }
+        }
+      }catch(_e){}
       const r=await gasCheckAction(ticketSeq);
       if(r&&r.ok){
-        if(r.status==='approved'){
-          setTicketStatus('approved');
-          let payload={};try{payload=JSON.parse(r.payload||'{}')}catch(_e){}
-          const updated=Object.assign({},settings,payload);
-          // 同步更新confirmedProfile/confirmedStore快照,不然底部設定頁的❗提醒邏輯(比對這兩個欄位)會抓不到"已確認",永遠亮著關不掉
-          const snap={};(type==='basic'?PF_ALERT_FIELDS:SF_ALERT_FIELDS).forEach(fk=>{snap[fk]=updated[fk]!==undefined?updated[fk]:''});
-          if(type==='basic')updated.confirmedProfile=snap;else updated.confirmedStore=snap;
-          try{LS.set('app-settings',updated)}catch(_e){}
-          if(onUpdateSettings)onUpdateSettings(updated);
-          clearPendingT();
-          setTimeout(()=>{if(onClose)onClose()},1200);
-        }else if(r.status==='rejected'){
-          let rp={};try{rp=JSON.parse(r.payload||'{}')}catch(_e){}
-          setTicketStatus('rejected');setRejectReason(rp.rejectReason||'');
-        }else{setTicketStatus('pending');setCooldown(60)}
-      }else{setTicketStatus('error');setCooldown(60)}
-    }catch(_e){setTicketStatus('error');setCooldown(60)}
+        let payload={};try{payload=JSON.parse(r.payload||'{}')}catch(_e){}
+        applyResult(r.status,payload);
+      }else{setTicketStatus('error');setCooldown(30)}
+    }catch(_e){setTicketStatus('error');setCooldown(30)}
   };
 
   if(gate==='checking'){
@@ -611,7 +641,7 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings,onLogout}){
       <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{type==='basic'?t.ticketTypeB:t.ticketTypeS}</h3><button onClick={onClose} className="text-gray-500 text-sm">✕</button></div>
       <div className="p-4 space-y-4">
         <div className="bg-white/[0.03] rounded-xl p-4 text-center"><p className="text-[11px] text-gray-500 mb-1">{t.ticketInfoTeacher}</p><p className="text-2xl font-bold text-gray-100 mb-3">{code}</p><p className="text-[11px] text-gray-500 mb-1">{t.ticketCode}</p><p className="text-base font-semibold text-amber-400 font-mono tracking-widest select-all">{ticketSeq}</p></div>
-        <button onClick={()=>{const base=location.origin+location.pathname.replace(/index\.html$/,'')+'auth.html';const link=buildReqLink(base,ticketSeq);const prefixKey=type==='basic'?'lineTicketBasicPrefix':'lineTicketStorePrefix';const zhMsg=(T.zh[prefixKey]||'').replace('{code}',code);const isVi=ticketSeq&&ticketSeq[1]==='2';const viMsg=isVi?(T.vi[prefixKey]||'').replace('{code}',code):'';sendTicketFlex('📝 審核通知',zhMsg,link,viMsg)}} className="w-full px-3 py-4 rounded-xl text-base font-bold bg-[#06C755] text-white active:bg-[#05b34c]">{t.ticketSend}</button>
+        <button onClick={()=>{const link=buildReqLink(AUTH_LIFF_BASE,ticketSeq);const prefixKey=type==='basic'?'lineTicketBasicPrefix':'lineTicketStorePrefix';const zhMsg=(T.zh[prefixKey]||'').replace('{code}',code);const isVi=ticketSeq&&ticketSeq[1]==='2';const viMsg=isVi?(T.vi[prefixKey]||'').replace('{code}',code):'';sendTicketFlex('📝 審核通知',zhMsg,link,viMsg)}} className="w-full px-3 py-4 rounded-xl text-base font-bold bg-[#06C755] text-white active:bg-[#05b34c]">{t.ticketSend}</button>
         <button onClick={checkTicket} disabled={cooldown>0||ticketStatus==='checking'} className={`w-full py-3.5 rounded-xl font-bold transition-all ${cooldown>0||ticketStatus==='checking'?'bg-white/[0.06] text-gray-600 cursor-not-allowed':'bg-amber-600 text-white'}`}>{ticketStatus==='checking'?t.ticketChecking:cooldown>0?fmtLog(t.ticketWaitCountdown,[String(cooldown)]):t.ticketCheckBtn}</button>
         {ticketStatus==='pending'&&<p className="text-xs text-gray-500 text-center">{t.ticketPending}</p>}
         {ticketStatus==='approved'&&<p className="text-xs text-emerald-400 text-center font-semibold">{t.ticketApproved}</p>}
@@ -1107,6 +1137,9 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
   const[showStoreInfo,setShowStoreInfo]=useState(false);const[showBasicInfo,setShowBasicInfo]=useState(false);
   const[showGroupBuy,setShowGroupBuy]=useState(false);const[showDisasterReport,setShowDisasterReport]=useState(false);const[showLineQr,setShowLineQr]=useState(false);const[lineQrIdx,setLineQrIdx]=useState(0);
   const[dailyQueue,setDailyQueue]=useState([]);const[gbPromptData,setGbPromptData]=useState(null);
+  const[showMoreFunc,setShowMoreFunc]=useState(false);const[moreFuncBlocked,setMoreFuncBlocked]=useState(false);
+  const[moreFuncGate,setMoreFuncGate]=useState(''); // ''=無/setup=要求設新密碼/verify=要求重新輸入密碼
+  const[mfPinStep,setMfPinStep]=useState(1);const[mfPin1,setMfPin1]=useState('');const[mfPin2,setMfPin2]=useState('');const[mfPinErr,setMfPinErr]=useState('');const[mfPinShake,setMfPinShake]=useState(false);
   const[pwdInput,setPwdInput]=useState('');const[pwdErr,setPwdErr]=useState('');
   const[showDailyForgotPwd,setShowDailyForgotPwd]=useState(false);
   const advanceQueue=()=>setDailyQueue(q=>q.slice(1));
@@ -1121,6 +1154,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
         try{
           if(hasMyKey(settings.code)){const key=getMyKey(settings.code);await gasVerifyKey(settings.code,key)}
           await gasLogDailyCheck(settings.code);
+          await syncMyStaffStatus(settings.code); // 同步staff.json裡自己這筆的狀態存本機,供「更多功能」區塊判斷離職與否用
         }catch(_e){}
         try{localStorage.setItem(homeKey,today)}catch(_e){}
       })();
@@ -1148,8 +1182,44 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
     const next=(pwdInput+d).slice(0,4);
     setPwdInput(next);
     if(next.length===4){
-      if(next===settings.lockPwd){setPwdInput('');setPwdErr('');advanceQueue();if(settings.autoCloudBackup){try{const obj=makePersonalBackup(settings.code,settings.year||bizParts().y);gasBackupSubmit(settings.code,settings.year||bizParts().y,JSON.stringify(obj)).catch(()=>{})}catch(_e){}}}
+      if(next===settings.lockPwd){setPwdInput('');setPwdErr('');setInfoUnlockTs(settings.code);advanceQueue();if(settings.autoCloudBackup){try{const obj=makePersonalBackup(settings.code,settings.year||bizParts().y);gasBackupSubmit(settings.code,settings.year||bizParts().y,JSON.stringify(obj)).catch(()=>{})}catch(_e){}}}
       else{setPwdErr(t.noticePwdWrong||'密碼錯誤');setPwdShake(true);setTimeout(()=>{setPwdShake(false);setPwdInput('')},500)}
+    }
+  };
+  // 「更多功能」設定新密碼(本機從沒設過密碼時強制走這裡),兩步驟:輸入→再輸入一次確認
+  const pressMfSetupDigit=(d)=>{
+    if(mfPinStep===1){
+      const next=(mfPin1+d).slice(0,4);
+      setMfPin1(next);
+      if(next.length===4){
+        if(!isValidPin(next)){setMfPinErr(t.lockPwdInvalid);setMfPinShake(true);setTimeout(()=>{setMfPinShake(false);setMfPin1('')},500);return}
+        setMfPinStep(2);setMfPinErr('');
+      }
+    }else{
+      const next=(mfPin2+d).slice(0,4);
+      setMfPin2(next);
+      if(next.length===4){
+        if(next!==mfPin1){setMfPinErr(t.lockPwdMismatch);setMfPinShake(true);setTimeout(()=>{setMfPinShake(false);setMfPin2('');setMfPinStep(1);setMfPin1('')},500);return}
+        const updated=Object.assign({},settings,{lockPwd:mfPin1});
+        try{LS.set('app-settings',updated)}catch(_e){}
+        if(onUpdateSettings)onUpdateSettings(updated);
+        setInfoUnlockTs(settings.code);
+        try{if(lockPwdCred)gasSetInitialPwd(settings.code,lockPwdCred(settings.code,mfPin1))}catch(_e){} // 背景同步GAS供換機密碼登入用,失敗不擋本機已設定成功
+        setMoreFuncGate('');
+        if(isStaffLeft(settings.code)){setMoreFuncBlocked(true)}else{setMoreFuncBlocked(false);setShowMoreFunc(true)}
+      }
+    }
+  };
+  // 「更多功能」重新驗證密碼(已設過密碼但距離上次解鎖時間過久)
+  const pressMfVerifyDigit=(d)=>{
+    const next=(mfPin1+d).slice(0,4);
+    setMfPin1(next);
+    if(next.length===4){
+      if(next===settings.lockPwd){
+        setInfoUnlockTs(settings.code);
+        setMoreFuncGate('');setMfPin1('');
+        if(isStaffLeft(settings.code)){setMoreFuncBlocked(true)}else{setMoreFuncBlocked(false);setShowMoreFunc(true)}
+      }else{setMfPinErr(t.noticePwdWrong||'密碼錯誤');setMfPinShake(true);setTimeout(()=>{setMfPinShake(false);setMfPin1('')},500)}
     }
   };
   const[gbBusy,setGbBusy]=useState(false);
@@ -1240,19 +1310,51 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
     <div className="grid grid-cols-4 gap-y-3 mt-3">
       <button onClick={()=>onGotoMonthly&&onGotoMonthly()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="4" width="18" height="17" rx="2"/><path strokeWidth={1.8} d="M3 9h18M8 2v4M16 2v4"/></svg></span><span className="text-[10px] text-gray-500">{t.monthly}</span></button>
       <button onClick={()=>onGotoCustomers&&onGotoCustomers()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM3 21v-1a6 6 0 0112 0v1"/><path d="M17 11a3 3 0 003-3M19 21v-1a5 5 0 00-3-4.6"/></svg></span><span className="text-[10px] text-gray-500">{t.custManage}</span></button>
-      <button onClick={()=>onGotoNotices&&onGotoNotices()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M3 11l18-6v14l-18-6v-2z"/><path d="M8 15v4a2 2 0 002 2h1"/></svg></span><span className="text-[10px] text-gray-500">{t.tabNotice}</span></button>
       <button onClick={()=>onGotoSettings&&onGotoSettings()} className="flex flex-col items-center gap-1 relative"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1] relative">{settingsAlert&&<span className="absolute -top-0.5 -right-0.5 text-red-500 text-[11px]">❗</span>}<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-2.82 1.17V21a2 2 0 01-4 0v-.09A1.65 1.65 0 006.6 19.4l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 8.6l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 6.6a1.65 1.65 0 001-1.51V5a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span><span className="text-[10px] text-gray-500">{t.settings}</span></button>
+      <button onClick={()=>setShowLineQr(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z"/></svg></span><span className="text-[10px] text-gray-500">LINE Bot</span></button>
+    </div>
+    <button onClick={()=>{
+      if(showMoreFunc){setShowMoreFunc(false);return}
+      if(!settings.lockPwd){setMoreFuncGate('setup');setMfPinStep(1);setMfPin1('');setMfPin2('');setMfPinErr('');return}
+      const lockAutoTime=settings.lockAutoTime||60;
+      if(Date.now()-getInfoUnlockTs(settings.code)>lockAutoTime*60*1000){setMoreFuncGate('verify');setMfPin1('');setMfPinErr('');return}
+      if(isStaffLeft(settings.code)){setMoreFuncBlocked(true);return}
+      setMoreFuncBlocked(false);setShowMoreFunc(true);
+    }} className="w-full mt-3 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06] text-xs text-gray-400 font-semibold flex items-center justify-center gap-1.5">
+      <span>{t.moreFuncBtn||'更多功能'}</span>
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${showMoreFunc?'rotate-180':''}`}><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    {moreFuncGate==='setup'&&(<div className="fixed inset-0 z-[75] bg-black/80 flex flex-col items-center justify-center gap-5 p-6" onClick={()=>setMoreFuncGate('')}>
+      <div onClick={e=>e.stopPropagation()} className="flex flex-col items-center gap-5">
+        <p className="text-base font-bold text-gray-100 text-center">{mfPinStep===1?t.lockPwdTitle:t.lockPwdConfirm}</p>
+        {mfPinStep===1&&<p className="text-xs text-gray-500 text-center max-w-xs -mt-3">{t.lockPwdHint}</p>}
+        <div className={mfPinShake?'text-red-500':''}><PinDots length={mfPinStep===1?mfPin1.length:mfPin2.length}/></div>
+        {mfPinErr&&<p className="text-xs text-red-400 text-center">{mfPinErr}</p>}
+        <PinKeypad onDigit={pressMfSetupDigit} onBackspace={()=>{if(mfPinStep===1)setMfPin1(v=>v.slice(0,-1));else setMfPin2(v=>v.slice(0,-1))}}/>
+        <button onClick={()=>setMoreFuncGate('')} className="text-xs text-gray-500 underline">{t.infoCancelBtn}</button>
+      </div>
+    </div>)}
+    {moreFuncGate==='verify'&&(<div className="fixed inset-0 z-[75] bg-black/80 flex flex-col items-center justify-center gap-5 p-6" onClick={()=>setMoreFuncGate('')}>
+      <div onClick={e=>e.stopPropagation()} className="flex flex-col items-center gap-5">
+        <p className="text-base font-bold text-gray-100 text-center">{t.homePwdPopupTitle}</p>
+        <div className={mfPinShake?'text-red-500':''}><PinDots length={mfPin1.length}/></div>
+        {mfPinErr&&<p className="text-xs text-red-400 text-center">{mfPinErr}</p>}
+        <PinKeypad onDigit={pressMfVerifyDigit} onBackspace={()=>setMfPin1(v=>v.slice(0,-1))}/>
+        <button onClick={()=>setMoreFuncGate('')} className="text-xs text-gray-500 underline">{t.infoCancelBtn}</button>
+      </div>
+    </div>)}
+    {moreFuncBlocked&&!showMoreFunc&&<p className="text-xs text-red-400 text-center mt-2">{t.moreFuncLeftMsg||'此區功能僅開放在職員工使用'}</p>}
+    {showMoreFunc&&(<div className="grid grid-cols-4 gap-y-3 mt-3">
+      <button onClick={()=>onGotoNotices&&onGotoNotices()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M3 11l18-6v14l-18-6v-2z"/><path d="M8 15v4a2 2 0 002 2h1"/></svg></span><span className="text-[10px] text-gray-500">{t.tabNotice}</span></button>
       <button onClick={()=>onGotoBook&&onGotoBook()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span><span className="text-[10px] text-gray-500">{t.tabBook2}</span></button>
       <button onClick={()=>onGotoChart&&onGotoChart()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg></span><span className="text-[10px] text-gray-500">{t.tabChart}</span></button>
       <button onClick={()=>onGotoSuggest&&onGotoSuggest()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7V17h8v-2.3A7 7 0 0012 2z"/></svg></span><span className="text-[10px] text-gray-500">{t.tabSuggest}</span></button>
       <button onClick={()=>onGotoAcupoint&&onGotoAcupoint()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><path d="M12 3a9 9 0 100 18 9 9 0 000-18z"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg></span><span className="text-[10px] text-gray-500">{t.acupointBtn}</span></button>
       <button onClick={()=>onGotoViolation&&onGotoViolation()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M4 22V4a1 1 0 011-1h13.5a.5.5 0 01.4.8l-2.9 3.7 2.9 3.7a.5.5 0 01-.4.8H5"/></svg></span><span className="text-[10px] text-gray-500">{t.tabViolation}</span></button>
       <button onClick={()=>onGotoBackup&&onGotoBackup()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg></span><span className="text-[10px] text-gray-500">{t.tabBackup||'備份'}</span></button>
-
       <button onClick={()=>setShowGroupBuy(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></span><span className="text-[10px] text-gray-500">{t.groupBuyBtn}</span></button>
-      <button onClick={()=>setShowLineQr(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z"/></svg></span><span className="text-[10px] text-gray-500">LINE Bot</span></button>
       <button onClick={()=>setShowDisasterReport(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg></span><span className="text-[10px] text-gray-500">{t.drBtn}</span></button>
-    </div>
+    </div>)}
     <BreakTimerSection settings={settings}/>
     <SupervisorSection t={t} settings={settings}/>
     {showGroupBuy&&<GroupBuyModal t={t} settings={settings} onClose={()=>setShowGroupBuy(false)}/>}
