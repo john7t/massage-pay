@@ -49,7 +49,7 @@
 <style>
 *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
 html{background:var(--bg,#030712)}body{margin:0;background:var(--bg,#030712);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none;min-height:100vh}
-/* v1.9-012 #11 S22U修正:各主題背景改純CSS靜態定義(不靠JS動態改色,Samsung Internet才會確實重繪) */
+/* ── 各主題背景純CSS靜態定義 ──[span_3](start_span)[span_3](end_span) */
 html[data-theme="black"],html[data-theme="black"] body{background:#030712 !important}
 html[data-theme="pink"],html[data-theme="pink"] body{background:#fce4f6 !important}
 html[data-theme="white"],html[data-theme="white"] body{background:#f9fafb !important}
@@ -73,13 +73,9 @@ input[type=number]{-moz-appearance:textfield}
 .pinGateBody{color:#9ca3af!important}
 </style>
 <style>
-/* ── v1.8-006: Light theme (pink/white) — 文字改深色，降低對比刺眼感 ── */
+/* ── Light theme (pink/white) ──[span_4](start_span)[span_4](end_span) */
 [data-light] select option { background:#f3e8f5;color:#2d1a35; }
-
-/* Borders */
 [data-light] [class*="border-white"] { border-color: rgba(80,40,100,0.15) !important; }
-
-/* Card/surface backgrounds */
 [data-light] [class*="bg-white/[0.0"]  { background-color: rgba(80,30,100,0.04) !important; }
 [data-light] [class*="bg-white/[0.02"] { background-color: rgba(80,30,100,0.03) !important; }
 [data-light] [class*="bg-white/[0.03"] { background-color: rgba(80,30,100,0.04) !important; }
@@ -94,7 +90,6 @@ input[type=number]{-moz-appearance:textfield}
 [data-light] [class*="bg-black/80"]    { background-color: rgba(20,10,25,0.85) !important; }
 [data-light] [class*="bg-gray-800"]    { background-color: rgba(80,30,100,0.12) !important; }
 
-/* ── Text ── 比原本深很多，在粉紅底上清晰易讀 */
 [data-light] .text-gray-100 { color: #1a0d22 !important; }
 [data-light] .text-gray-200 { color: #2d1a38 !important; }
 [data-light] .text-gray-300 { color: #3d2450 !important; }
@@ -103,7 +98,6 @@ input[type=number]{-moz-appearance:textfield}
 [data-light] .text-gray-600 { color: #9a74aa !important; }
 [data-light] .text-gray-700 { color: #b896c8 !important; }
 
-/* Inputs */
 [data-light] input, [data-light] textarea, [data-light] select {
   color: #1a0d22 !important;
   background-color: rgba(80,30,100,0.06) !important;
@@ -114,7 +108,6 @@ input[type=number]{-moz-appearance:textfield}
   background-color: rgba(80,30,100,0.03) !important;
 }
 
-/* ── Amber ── */
 [data-light] .text-amber-400  { color: #92400e !important; }
 [data-light] .text-amber-300  { color: #78350f !important; }
 [data-light] .text-amber-500  { color: #b45309 !important; }
@@ -125,132 +118,62 @@ input[type=number]{-moz-appearance:textfield}
 [data-light] [class*="bg-amber-600/10"] { background-color: rgba(180,83,9,0.10) !important; }
 [data-light] [class*="bg-amber-600/15"] { background-color: rgba(180,83,9,0.12) !important; }
 [data-light] [class*="bg-amber-600/20"] { background-color: rgba(180,83,9,0.14) !important; }
-[data-light] [class*="bg-amber-600/\[0"] { background-color: rgba(180,83,9,0.06) !important; }
 [data-light] [class*="border-amber-500"]  { border-color: rgba(180,83,9,0.35) !important; }
 [data-light] [class*="border-amber-600"]  { border-color: rgba(180,83,9,0.30) !important; }
 
-/* ── Emerald ── */
 [data-light] .text-emerald-400  { color: #065f46 !important; }
 [data-light] .text-emerald-300  { color: #047857 !important; }
-[data-light] [class*="text-emerald-400"] { color: #065f46 !important; }
-[data-light] [class*="text-emerald-300"] { color: #047857 !important; }
 [data-light] [class*="bg-emerald-500/10"] { background-color: rgba(6,95,70,0.08) !important; }
-[data-light] [class*="bg-emerald-500/15"] { background-color: rgba(6,95,70,0.10) !important; }
-[data-light] [class*="bg-emerald-600/20"] { background-color: rgba(6,95,70,0.10) !important; }
 [data-light] [class*="bg-emerald-600"]    { background-color: #047857 !important; }
-[data-light] [class*="border-emerald-500"] { border-color: rgba(6,95,70,0.30) !important; }
 
-/* ── Orange ── */
-[data-light] .text-orange-400  { color: #9a3412 !important; }
-[data-light] [class*="text-orange-400"]  { color: #9a3412 !important; }
-[data-light] [class*="text-orange-400/80"] { color: rgba(154,52,18,0.80) !important; }
-[data-light] [class*="bg-orange-500/10"] { background-color: rgba(154,52,18,0.08) !important; }
-[data-light] [class*="bg-orange-500/15"] { background-color: rgba(154,52,18,0.10) !important; }
-[data-light] [class*="border-orange-500"] { border-color: rgba(154,52,18,0.25) !important; }
+nav { border-top-color: rgba(80,30,100,0.15) !important; }
 
-/* ── Red ── */
-[data-light] [class*="text-red-400"]    { color: #991b1b !important; }
-[data-light] [class*="text-red-300"]    { color: #7f1d1d !important; }
-[data-light] [class*="bg-red-500/10"]   { background-color: rgba(153,27,27,0.08) !important; }
-[data-light] [class*="bg-red-500/15"]   { background-color: rgba(153,27,27,0.10) !important; }
-[data-light] [class*="bg-red-500/20"]   { background-color: rgba(153,27,27,0.12) !important; }
-[data-light] [class*="bg-red-500/30"]   { background-color: rgba(153,27,27,0.16) !important; }
-[data-light] [class*="border-red-500"]  { border-color: rgba(153,27,27,0.25) !important; }
-
-/* ── Status badge text ── */
-[data-light] .text-yellow-300 { color: #78350f !important; }
-[data-light] .text-blue-300   { color: #1e40af !important; }
-[data-light] [class*="text-blue-3"] { color: #1e40af !important; }
-[data-light] [class*="text-blue-4"] { color: #1e40af !important; }
-[data-light] .text-purple-300 { color: #5b21b6 !important; }
-[data-light] .text-orange-300 { color: #9a3412 !important; }
-[data-light] .bg-yellow-500\/20 { background-color: rgba(161,98,7,0.12) !important; }
-[data-light] .bg-blue-500\/20   { background-color: rgba(29,78,216,0.10) !important; }
-[data-light] [class*="bg-blue-500"] { background-color: rgba(29,78,216,0.10) !important; }
-[data-light] [class*="bg-blue-600"] { background-color: rgba(29,78,216,0.12) !important; }
-[data-light] .bg-purple-500\/20 { background-color: rgba(109,40,217,0.10) !important; }
-
-/* ── Skill colours ── */
-[data-light] .text-cyan-400   { color: #0e7490 !important; }
-[data-light] .text-violet-400 { color: #6d28d9 !important; }
-[data-light] .text-pink-400   { color: #be185d !important; }
-[data-light] .text-sky-400    { color: #0369a1 !important; }
-
-/* Nav */
-[data-light] nav { border-top-color: rgba(80,30,100,0.15) !important; }
-[data-light] .animate-pulse { opacity: 0.85; }
-
-/* ══════ 質感玻璃主題(smooth,SmoothUI風格):深色底+玻璃模糊卡片+大圓角+紫色強調色 ══════ */
+/* ══════ 質感玻璃主題 (smooth) ══════[span_5](start_span)[span_5](end_span) */
 html[data-theme="smooth"],html[data-theme="smooth"] body{background:#0d0d18 !important}
-[data-theme="smooth"] [class*="bg-white/[0.02"]{background-color:rgba(255,255,255,0.03) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
-[data-theme="smooth"] [class*="bg-white/[0.03"]{background-color:rgba(255,255,255,0.04) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
-[data-theme="smooth"] [class*="bg-white/[0.04"]{background-color:rgba(255,255,255,0.05) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
-[data-theme="smooth"] [class*="bg-white/[0.05"]{background-color:rgba(255,255,255,0.06) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
-[data-theme="smooth"] [class*="bg-white/[0.06"]{background-color:rgba(255,255,255,0.07) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
-[data-theme="smooth"] [class*="bg-white/[0.08"]{background-color:rgba(255,255,255,0.08) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
-[data-theme="smooth"] [class*="bg-white/[0.1"]{background-color:rgba(255,255,255,0.09) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
-[data-theme="smooth"] [class*="bg-white/10"]{background-color:rgba(255,255,255,0.1) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
+[data-theme="smooth"] [class*="bg-white/[0.0"]{background-color:rgba(255,255,255,0.03) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
 [data-theme="smooth"] [class*="bg-gray-900"]{background-color:rgba(22,22,36,0.85) !important;backdrop-filter:blur(20px) !important;-webkit-backdrop-filter:blur(20px) !important}
 [data-theme="smooth"] [class*="bg-gray-950"]{background-color:rgba(13,13,24,0.92) !important;backdrop-filter:blur(20px) !important;-webkit-backdrop-filter:blur(20px) !important}
-[data-theme="smooth"] [class*="bg-gray-800"]{background-color:rgba(30,30,48,0.7) !important}
-[data-theme="smooth"] [class*="bg-black/80"]{background-color:rgba(6,6,14,0.75) !important;backdrop-filter:blur(8px) !important;-webkit-backdrop-filter:blur(8px) !important}
 [data-theme="smooth"] [class*="border-white"]{border-color:rgba(255,255,255,0.1) !important}
-/* 圓角加大,呼應SmoothUI大量使用的rounded-2xl以上圓角風格 */
 [data-theme="smooth"] [class*="rounded-lg"]{border-radius:0.875rem !important}
 [data-theme="smooth"] [class*="rounded-xl"]{border-radius:1.25rem !important}
 [data-theme="smooth"] [class*="rounded-2xl"]{border-radius:1.5rem !important}
-/* 強調色從amber換成鮮豔紫色,更貼近SmoothUI的現代感配色 */
 [data-theme="smooth"] [class*="text-amber"]{color:#c4b5fd !important}
 [data-theme="smooth"] [class*="bg-amber-6"]{background-color:#7c3aed !important}
 [data-theme="smooth"] [class*="bg-amber-5"]{background-color:#8b5cf6 !important}
-[data-theme="smooth"] [class*="bg-amber-4"]{background-color:#a78bfa !important}
 [data-theme="smooth"] [class*="border-amber"]{border-color:#8b5cf6 !important}
-[data-theme="smooth"] [class*="accent-amber"]{accent-color:#8b5cf6 !important}
-[data-theme="smooth"] [class*="ring-amber"]{--tw-ring-color:#8b5cf6 !important}
 
-/* ══════ 極簡白主題(apple):依Apple官方網站設計語言分析 —— 中性灰階(不帶紫色調)+單一藍色強調色(#0066cc)+膠囊按鈕 ══════ */
+/* ══════ 極簡白主題 (apple) ══════[span_6](start_span)[span_6](end_span) */
 html[data-theme="apple"],html[data-theme="apple"] body{background:#f5f5f7 !important}
-/* 這個主題也是淺色系,沿用[data-light]的基礎邏輯,但用更高specificity的組合選擇器覆蓋掉預設的紫色調,改成中性灰階 */
-html[data-theme="apple"] [data-light] [class*="bg-white/[0.0"]{background-color:rgba(0,0,0,0.03) !important}
-html[data-theme="apple"] [data-light] [class*="bg-white/[0.02"]{background-color:rgba(0,0,0,0.025) !important}
-html[data-theme="apple"] [data-light] [class*="bg-white/[0.03"]{background-color:rgba(0,0,0,0.03) !important}
-html[data-theme="apple"] [data-light] [class*="bg-white/[0.04"]{background-color:rgba(0,0,0,0.035) !important}
-html[data-theme="apple"] [data-light] [class*="bg-white/[0.05"]{background-color:rgba(0,0,0,0.04) !important}
-html[data-theme="apple"] [data-light] [class*="bg-white/[0.06"]{background-color:rgba(0,0,0,0.045) !important}
-html[data-theme="apple"] [data-light] [class*="bg-white/[0.08"]{background-color:rgba(0,0,0,0.05) !important}
-html[data-theme="apple"] [data-light] [class*="bg-white/[0.1"]{background-color:rgba(0,0,0,0.055) !important}
-html[data-theme="apple"] [data-light] [class*="bg-white/10"]{background-color:rgba(0,0,0,0.06) !important}
 html[data-theme="apple"] [data-light] [class*="bg-gray-900"]{background-color:#ffffff !important}
 html[data-theme="apple"] [data-light] [class*="bg-gray-950"]{background-color:#f5f5f7 !important}
-html[data-theme="apple"] [data-light] [class*="bg-black/80"]{background-color:rgba(0,0,0,0.75) !important}
-html[data-theme="apple"] [data-light] [class*="bg-gray-800"]{background-color:rgba(0,0,0,0.08) !important}
-html[data-theme="apple"] [data-light] [class*="border-white"]{border-color:rgba(0,0,0,0.08) !important}
-/* 文字改成Apple的近黑ink色,不帶紫色調 */
 html[data-theme="apple"] [data-light] .text-gray-100{color:#1d1d1f !important}
 html[data-theme="apple"] [data-light] .text-gray-200{color:#2c2c2e !important}
-html[data-theme="apple"] [data-light] .text-gray-300{color:#3a3a3c !important}
-html[data-theme="apple"] [data-light] .text-gray-400{color:#636366 !important}
-html[data-theme="apple"] [data-light] .text-gray-500{color:#8e8e93 !important}
-html[data-theme="apple"] [data-light] .text-gray-600{color:#aeaeb2 !important}
-html[data-theme="apple"] [data-light] .text-gray-700{color:#c7c7cc !important}
-html[data-theme="apple"] [data-light] input,html[data-theme="apple"] [data-light] textarea,html[data-theme="apple"] [data-light] select{color:#1d1d1f !important;background-color:rgba(0,0,0,0.04) !important}
-html[data-theme="apple"] [data-light] input::placeholder,html[data-theme="apple"] [data-light] textarea::placeholder{color:#8e8e93 !important}
-/* 強調色統一改成Apple招牌藍,取代amber——DESIGN.md強調全站只用單一互動色 */
 html[data-theme="apple"] [data-light] [class*="text-amber"]{color:#0066cc !important}
 html[data-theme="apple"] [data-light] [class*="bg-amber-600"]{background-color:#0066cc !important}
 html[data-theme="apple"] [data-light] [class*="bg-amber-500"]{background-color:#0071e3 !important}
-html[data-theme="apple"] [data-light] [class*="bg-amber-500/10"]{background-color:rgba(0,102,204,0.08) !important}
-html[data-theme="apple"] [data-light] [class*="bg-amber-500/20"]{background-color:rgba(0,102,204,0.12) !important}
-html[data-theme="apple"] [data-light] [class*="bg-amber-500/25"]{background-color:rgba(0,102,204,0.16) !important}
-html[data-theme="apple"] [data-light] [class*="bg-amber-600/10"]{background-color:rgba(0,102,204,0.08) !important}
-html[data-theme="apple"] [data-light] [class*="bg-amber-600/15"]{background-color:rgba(0,102,204,0.10) !important}
-html[data-theme="apple"] [data-light] [class*="bg-amber-600/20"]{background-color:rgba(0,102,204,0.12) !important}
-html[data-theme="apple"] [data-light] [class*="border-amber-500"]{border-color:rgba(0,102,204,0.4) !important}
-html[data-theme="apple"] [data-light] [class*="border-amber-600"]{border-color:rgba(0,102,204,0.35) !important}
-html[data-theme="apple"] [data-light] [class*="accent-amber"]{accent-color:#0066cc !important}
-/* 按鈕改成膠囊型圓角,呼應DESIGN.md裡rounded.pill是「唯一動作訊號」的招牌形狀;卡片類容器只是稍微加大圓角,不做成膠囊 */
-[data-theme="apple"] button[class*="rounded-xl"],[data-theme="apple"] button[class*="rounded-lg"]{border-radius:9999px !important}
-[data-theme="apple"] [class*="rounded-2xl"]{border-radius:1.125rem !important}
+
+/* ══════ 新增：極致專業版 / 優化 UI 主題 (pro) ══════ */
+html[data-theme="pro"], html[data-theme="pro"] body { background: #0b0f19 !important; }
+[data-theme="pro"] [class*="bg-white/[0.0"] { background-color: rgba(255,255,255,0.035) !important; backdrop-filter: blur(20px) !important; -webkit-backdrop-filter: blur(20px) !important; border: 1px solid rgba(56, 189, 248, 0.12) !important; }
+[data-theme="pro"] [class*="bg-white/[0.02"] { background-color: rgba(255,255,255,0.045) !important; backdrop-filter: blur(20px) !important; }
+[data-theme="pro"] [class*="bg-white/[0.03"] { background-color: rgba(255,255,255,0.055) !important; backdrop-filter: blur(20px) !important; }
+[data-theme="pro"] [class*="bg-white/[0.04"] { background-color: rgba(255,255,255,0.065) !important; backdrop-filter: blur(20px) !important; }
+[data-theme="pro"] [class*="bg-white/[0.05"] { background-color: rgba(255,255,255,0.075) !important; backdrop-filter: blur(20px) !important; }
+[data-theme="pro"] [class*="bg-gray-900"] { background-color: rgba(15, 23, 42, 0.88) !important; backdrop-filter: blur(24px) !important; border: 1px solid rgba(56, 189, 248, 0.15) !important; box-shadow: 0 10px 30px -10px rgba(2, 132, 199, 0.15); }
+[data-theme="pro"] [class*="bg-gray-950"] { background-color: rgba(11, 15, 25, 0.95) !important; }
+[data-theme="pro"] [class*="bg-gray-800"] { background-color: rgba(30, 41, 59, 0.75) !important; }
+[data-theme="pro"] [class*="border-white"] { border-color: rgba(56, 189, 248, 0.15) !important; }
+[data-theme="pro"] [class*="rounded-lg"] { border-radius: 1rem !important; }
+[data-theme="pro"] [class*="rounded-xl"] { border-radius: 1.35rem !important; }
+[data-theme="pro"] [class*="rounded-2xl"] { border-radius: 1.75rem !important; }
+/* 專業版強調色：高質感青藍色系 (Cyan & Sky Blue) */
+[data-theme="pro"] [class*="text-amber"] { color: #38bdf8 !important; }
+[data-theme="pro"] [class*="bg-amber-6"] { background-color: #0284c7 !important; }
+[data-theme="pro"] [class*="bg-amber-5"] { background-color: #0ea5e9 !important; }
+[data-theme="pro"] [class*="bg-amber-4"] { background-color: #38bdf8 !important; }
+[data-theme="pro"] [class*="border-amber"] { border-color: #0ea5e9 !important; }
+[data-theme="pro"] [class*="accent-amber"] { accent-color: #0ea5e9 !important; }
+[data-theme="pro"] [class*="ring-amber"] { --tw-ring-color: #0ea5e9 !important; }
 </style>
 </head>
 <body>
@@ -291,7 +214,7 @@ const{useState,useEffect,useCallback,useMemo}=React;
 
 function App(){
   const[settings,setSettings]=useState(null);const[tab,setTab]=useState('home');const[curM,setCurM]=useState(bizParts().m);const[ready,setReady]=useState(false);const[needOnboard,setNeedOnboard]=useState(false);const[refreshKey,setRefreshKey]=useState(0);const[theme,setTheme]=useState(()=>localStorage.getItem('app-theme')||'pink');
-  const bgColor=THEMES[theme]||THEMES.black;const isLight=theme==='white'||theme==='pink'||theme==='apple';
+  const bgColor=THEMES[theme]||(theme==='pro'?'#0b0f19':THEMES.black);const isLight=theme==='white'||theme==='pink'||theme==='apple';
   useEffect(()=>{try{gasWarmup()}catch(_e){}},[]);
   useEffect(()=>{document.documentElement.setAttribute('data-theme',theme);document.documentElement.style.setProperty('--bg',bgColor)},[bgColor,theme]);
   useEffect(()=>{localStorage.setItem('app-theme',theme)},[theme]);
@@ -300,9 +223,7 @@ function App(){
   useEffect(()=>{if(!settings||!settings.code)return;const _bd=bizDate();const today=_bd.getFullYear()+'-'+String(_bd.getMonth()+1).padStart(2,'0')+'-'+String(_bd.getDate()).padStart(2,'0');const lastCheck=localStorage.getItem('staff-sync-date');(async()=>{
     try{const staff=await readStaff({});const me=Array.isArray(staff)?staff.find(s=>String(s.code)===String(settings.code)):null;
       if(me){
-        // token綁定檢查(原邏輯)
         const gh=getGHConfig();if(gh.token&&me.hasToken===false){saveGHConfigLocal({})}
-        // 每日同步基資/店資:老師沒改過的欄位跟staff一致;改過且不一致的保留本機值(UI下方紅字顯示staff值)
         const SYNC_FIELDS=['nameZh','nameVi','phone','email','store','storeSel','shift','permitNo','permitExpiry','permitDate','permitOrg','gender','school','major','schoolType','workStart','workEnd','unitPrice','skills','preg','oil','techMentor','lockerNo'];
         const confP=settings.confirmedProfile||{};const confS=settings.confirmedStore||{};
         const ns={...settings};const staffVals={};let changed=false;
@@ -314,12 +235,10 @@ function App(){
           const isObj=k==='skills';
           const localEmpty=isObj?(!localVal||Object.keys(localVal).length===0):(localVal===undefined||localVal==='');
           const matchesConfirmed=isObj?(JSON.stringify(localVal||{})===JSON.stringify(confVal||{})):(localVal===confVal);
-          // 老師沒改過(本機值=上次確認值,或本機根本沒值),用staff覆蓋
           if(localEmpty||matchesConfirmed){
             const differs=isObj?(JSON.stringify(ns[k]||{})!==JSON.stringify(me[k]||{})):(ns[k]!==me[k]);
             if(differs){ns[k]=me[k];changed=true}
           }
-          // 否則保留本機(老師改過未送出)→ 紅字由staffVals提供
         });
         ns.staffValues=staffVals;
         localStorage.setItem('staff-sync-date',today);
@@ -328,7 +247,6 @@ function App(){
     }catch(_e){}
   })()},[settings&&settings.code]);
   useEffect(()=>{
-    // #setkey=編號:金鑰 → 救援用,直接覆蓋本機存的金鑰(裝置端金鑰跟GAS的Keys表對不上時用),不影響其他登入狀態
     const hashNow=window.location.hash;
     if(hashNow&&hashNow.indexOf('setkey=')>=0){
       try{
@@ -343,19 +261,16 @@ function App(){
     }
     const s=LS.get('app-settings');if(s&&s.code&&s.code.length<=12){const act=LS.get(`activated-${s.code}`);if(act){setSettings(s);setReady(true);return}}
     const hash=window.location.hash;
-    // #conn=編號:連線碼(或分段 &conn2= ...) → 自動連線啟用(含token)
     if(hash&&hash.indexOf('conn=')>=0){try{const reassembled=parseReqHash(hash,'conn');const raw=reassembled||decodeURIComponent(hash.replace(/^#/,'').split('conn=')[1]||'');const ci=raw.indexOf(':');if(ci>0){const c=raw.slice(0,ci);const actCode=raw.slice(ci+1);const did=getDeviceId();const tk=verifyActToken(actCode,c,did);if(tk){saveGHConfigLocal({owner:tk.owner,repo:tk.repo,token:tk.token});const ns={code:c,unitPrice:250,lang:'zh',store:'龍山寺店',year:bizParts().y,deviceId:did};LS.set('app-settings',ns);LS.set(`activated-${c}`,{deviceId:did,ts:Date.now()});setSettings(ns);setReady(true);history.replaceState(null,'',location.pathname);return}}}catch(_e){}}
     if(hash&&hash.length>5&&hash.indexOf('conn=')<0&&hash.indexOf('access_token=')<0&&hash.indexOf('context_token=')<0&&hash.indexOf('id_token=')<0){const p=decBackup(hash.slice(1));if(p&&p.code&&p.code.length<=12){LS.set(dk(p.code,p.year,p.month),p.data);const ns={code:p.code,unitPrice:250,lang:'zh',year:p.year,deviceId:getDeviceId()};LS.set('app-settings',ns);LS.set(`activated-${p.code}`,{deviceId:getDeviceId(),ts:Date.now()});setSettings(ns);setCurM(p.month);setTab('monthly');setReady(true);history.replaceState(null,'',location.pathname);return}}setNeedOnboard(true);setReady(true)},[]);
   const onOnboardComplete=(s)=>{setSettings(s);setNeedOnboard(false)};
-  const doLogout=()=>{LS.set('app-settings',null);setSettings(null);setNeedOnboard(true)}; // 只清app-settings(目前登入者標記),不動任何個人資料(月報表/客戶資料庫都是依編號存的,不會被清掉)
+  const doLogout=()=>{LS.set('app-settings',null);setSettings(null);setNeedOnboard(true)};
   const updateSettings=(s)=>{setSettings(s);LS.set('app-settings',s)};
-  // ===== 引導學習點A 已移除(7/1後):不再自動填工作證到期日,尊重使用者留空 =====
   const handleTab=(id)=>{setTab(id);if(id==='home')setRefreshKey(k=>k+1)};
   if(!ready)return<div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',backgroundColor:bgColor}}><div style={{width:32,height:32,border:'3px solid rgba(245,158,11,0.9)',borderTopColor:'transparent',borderRadius:'50%',animation:'fbspin 0.8s linear infinite'}}/></div>;
   if(needOnboard)return<Onboarding onComplete={onOnboardComplete}/>;
   if(!settings)return null;
   const lang=settings.lang||'zh';const t=T[lang];
-  // 設定圖示❗:基資或店資有未確認變動(主管除外)
   const settingsAlert=(()=>{const permExp=(()=>{if(!settings.permitExpiry)return false;const days=(new Date(settings.permitExpiry)-new Date())/86400000;return days<=30})();const gh=getGHConfig();if(gh&&gh.token)return permExp;const cp=settings.confirmedProfile,cs=settings.confirmedStore;const pf=['gender','nameZh','nameVi','phone','email','addrCity','addrDist','addrDetail','school','major','schoolType','permitNo','permitDate','permitExpiry','permitOrg'];const sf=['storeSel','shift','workStart','workEnd','workNote','unitPrice','preg','oil','techMentor','lockerNo'];const chg=(snap,fs)=>{if(!snap)return false;return fs.some(k=>(snap[k]||'')!==((settings[k]!==undefined?settings[k]:'')||''))};return chg(cp,pf)||chg(cs,sf)||permExp})();
   return(<div className={`${isLight?'text-gray-900':'text-gray-100'} flex flex-col`} style={{backgroundColor:bgColor,height:'100vh',maxHeight:'100dvh'}} data-light={isLight||undefined}>
     <div className="flex-1 overflow-y-auto">
