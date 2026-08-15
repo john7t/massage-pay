@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.12-064</title>
+<title>薪資追蹤 · 管理 v1.12-066</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -282,7 +282,7 @@ html[data-theme="apple"] [data-light] [class*="accent-amber"]{accent-color:#0066
 <style>@keyframes fbspin{to{transform:rotate(360deg)}}@keyframes fbpulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
 <script src="./common.js"></script>
 <script type="text/babel">
-const{gasUsage,gasTranslate,gasAnalyze,gasCallPost,gasCheckAction,gasApproveAction,gasSfGetPendingDetail,gasBlacklistCheck,gasBlacklistApprove,gasSfApprovePendingRegistration,gasSubmitAction,gasRevokeSup,gasRejectAction,gasAuthStaffList,gasGetGHConfigForSupervisor,gasCreateDisasterSurvey,gasEndDisasterSurvey,gasDeleteDisasterSurvey,gasListDisasterSurveys,gasDisasterDayStatus,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,getGasUrl,issueKey,publishNotices,diagClaimKey,getMyKey,setMyKey,hasMyKey,getAdminSecret,setAdminSecret,hasAdminSecret,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,genUUID,getDeviceId,SUP_LEVELS,supLevelName,effSupLevel,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,computeStats,publishStats,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,bookTitleName,SERVICES,T}=window.MP;
+const{gasUsage,gasTranslate,gasAnalyze,gasCallPost,gasCheckAction,gasApproveAction,gasSfGetPendingDetail,gasBlacklistCheck,gasBlacklistApprove,gasSfApprovePendingRegistration,gasSubmitAction,gasRevokeSup,gasRejectAction,gasAuthStaffList,gasGetGHConfigForSupervisor,gasCreateDisasterSurvey,gasEndDisasterSurvey,gasDeleteDisasterSurvey,gasListDisasterSurveys,gasDisasterDayStatus,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,getGasUrl,issueKey,publishNotices,diagClaimKey,getMyKey,setMyKey,hasMyKey,getAdminSecret,setAdminSecret,hasAdminSecret,revokeHash,approveHash,supApproveHash,genSimpleAct,encWithKey,decWithKey,actKey,normCode,gasLeaveTeacher,gasPreApprove,gasGetPreApprove,gasCancelPreApprove,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,genUUID,getDeviceId,SUP_LEVELS,supLevelName,effSupLevel,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,computeStats,publishStats,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,encMonth,decBackup,bookTitleName,SERVICES,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo,useRef}=React;
 
 const goHome=()=>{location.href='./index.html'};
@@ -825,6 +825,82 @@ function ActionTicketBlock({t,myCode}){
   </div>);
 }
 
+function PreApproveBlock({t,myCode}){
+  const[targetInput,setTargetInput]=useState('');
+  const[wantN,setWantN]=useState(true);const[wantF,setWantF]=useState(true);
+  const[busy,setBusy]=useState(false);
+  const[result,setResult]=useState('');
+  const[activeInfo,setActiveInfo]=useState(null); // 目前查到的生效中預先核准
+  const[checking,setChecking]=useState(false);
+  const targetCode=targetInput.trim()?normCode(targetInput.trim()):'';
+  const checkActive=async(c)=>{
+    if(!c)return;
+    setChecking(true);
+    try{const r=await gasGetPreApprove(c);setActiveInfo(r&&r.ok&&r.active?r:null)}catch(_e){setActiveInfo(null)}
+    setChecking(false);
+  };
+  useEffect(()=>{if(targetCode)checkActive(targetCode);else setActiveInfo(null)},[targetCode]);
+  const doApprove=async()=>{
+    if(!targetCode||(!wantN&&!wantF))return;
+    setBusy(true);setResult('');
+    const codes=[];if(wantN)codes.push('N');if(wantF)codes.push('F');
+    try{
+      const r=await gasPreApprove(targetCode,myCode,codes);
+      if(r&&r.ok){setResult(t.preApproveOk||'已設定，1小時內有效');checkActive(targetCode)}
+      else{setResult((r&&r.error)||(t.preApproveFail||'設定失敗'))}
+    }catch(e){setResult(t.preApproveFail||'設定失敗')}
+    setBusy(false);
+  };
+  const doCancel=async()=>{
+    if(!targetCode)return;
+    setBusy(true);
+    try{await gasCancelPreApprove(targetCode,myCode);setActiveInfo(null);setResult('')}catch(_e){}
+    setBusy(false);
+  };
+  return(<div className="space-y-3 bg-emerald-500/[0.04] border border-emerald-500/15 rounded-2xl p-4">
+    <h3 className="text-sm font-semibold text-emerald-400">{t.preApproveTitle||'預先核准'}</h3>
+    <p className="text-xs text-gray-500">{t.preApproveHint||'已事先確認過的老師，1小時內送出的申請會直接自動核准，不用再手動審核一次。'}</p>
+    <input value={targetInput} onChange={e=>{setTargetInput(e.target.value);setResult('')}} placeholder={t.dismissTargetPh2||'輸入老師編號'} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-emerald-500"/>
+    {checking&&<p className="text-xs text-gray-600">...</p>}
+    {activeInfo&&(<div className="bg-emerald-500/10 rounded-xl px-3 py-2.5 text-xs text-emerald-300 space-y-1">
+      <p>{t.preApproveActive||'目前生效中'}：{activeInfo.actionCodes.map(c=>c==='N'?t.ticketTypeN:c==='F'?t.ticketTypeF:c).join('、')}</p>
+      <p>{t.preApproveExpiresAt||'到期時間'}：{new Date(activeInfo.expiresAt).toLocaleTimeString()}</p>
+      <button onClick={doCancel} disabled={busy} className="text-red-400 underline">{t.preApproveCancelBtn||'取消'}</button>
+    </div>)}
+    {!activeInfo&&targetCode&&(<>
+      <div className="flex gap-4"><label className="flex items-center gap-1.5 text-sm text-gray-300"><input type="checkbox" checked={wantN} onChange={e=>setWantN(e.target.checked)} className="accent-emerald-500"/>{t.ticketTypeN}</label><label className="flex items-center gap-1.5 text-sm text-gray-300"><input type="checkbox" checked={wantF} onChange={e=>setWantF(e.target.checked)} className="accent-emerald-500"/>{t.ticketTypeF}</label></div>
+      <button onClick={doApprove} disabled={busy||(!wantN&&!wantF)} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold disabled:opacity-50">{busy?'...':(t.preApproveBtn||'預先核准（1小時內有效）')}</button>
+    </>)}
+    {result&&<p className={`text-xs text-center ${result.indexOf('已設定')>=0?'text-emerald-400':'text-red-400'}`}>{result}</p>}
+  </div>);
+}
+function DismissBlock({t,myCode,staffList}){
+  const[targetInput,setTargetInput]=useState('');
+  const[confirming,setConfirming]=useState(false);
+  const[busy,setBusy]=useState(false);
+  const[result,setResult]=useState('');
+  const target=staffList.find(s=>s.code===normCode(targetInput.trim()));
+  const doDismiss=async()=>{
+    if(!target)return;
+    setBusy(true);setResult('');
+    try{
+      const r=await gasLeaveTeacher(target.code,myCode);
+      if(r&&r.ok){setResult(t.dismissOk||'已完成辭退處理');setConfirming(false);setTargetInput('')}
+      else{setResult((r&&r.error)||(t.dismissFail||'處理失敗'))}
+    }catch(e){setResult(t.dismissFail||'處理失敗')}
+    setBusy(false);
+  };
+  return(<div className="space-y-3 bg-red-500/[0.04] border border-red-500/15 rounded-2xl p-4">
+    <h3 className="text-sm font-semibold text-red-400">{t.dismissTitle||'辭退員工'}</h3>
+    <p className="text-xs text-gray-500">{t.dismissHint||'主管代為處理，非本人自願申請。辭退後該員工仍可自行送出復職申請。'}</p>
+    <input value={targetInput} onChange={e=>{setTargetInput(e.target.value);setConfirming(false);setResult('')}} placeholder={t.dismissTargetPh||'輸入要辭退的老師編號'} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-red-500"/>
+    {targetInput.trim()&&!target&&<p className="text-xs text-gray-600">{t.dismissNotFound||'查無此編號'}</p>}
+    {target&&(<div className="bg-white/[0.03] rounded-xl px-3 py-2.5 text-sm text-gray-300">{target.code}{target.nameZh?' '+target.nameZh:''}{target.store?' · '+target.store:''}{target.status==='left'&&<span className="text-red-400 ml-2">({t.leftDateLabel||'離職日'}: {target.leftAt?new Date(target.leftAt).toLocaleDateString():''})</span>}</div>)}
+    {target&&target.status!=='left'&&!confirming&&<button onClick={()=>setConfirming(true)} className="w-full py-2.5 rounded-xl bg-red-600/80 text-white text-sm font-bold active:bg-red-600">{t.dismissBtn||'辭退'}</button>}
+    {confirming&&(<div className="space-y-2 bg-red-500/10 rounded-xl p-3"><p className="text-xs text-red-300">{t.dismissConfirmMsg||'確定要辭退這位員工嗎？此動作會立即停用其憑證，公司相關資料將無法再查看。'}</p><div className="flex gap-2"><button onClick={()=>setConfirming(false)} className="flex-1 py-2 rounded-xl bg-white/[0.06] text-gray-400 text-sm">{t.infoCancelBtn}</button><button onClick={doDismiss} disabled={busy} className="flex-1 py-2 rounded-xl bg-red-600 text-white text-sm font-bold disabled:opacity-50">{busy?'...':(t.dismissConfirmBtn||'確定辭退')}</button></div></div>)}
+    {result&&<p className={`text-xs text-center ${result.indexOf('已完成')>=0||result.indexOf('done')>=0?'text-emerald-400':'text-red-400'}`}>{result}</p>}
+  </div>);
+}
 function SupervisorPage({t,onBack}){
   const gh=getGHConfig();
   const _ms=LS.get('app-settings')||{};
@@ -842,6 +918,8 @@ function SupervisorPage({t,onBack}){
     {(()=>{const now=new Date();const expiring=staffList.filter(s=>{if(!s.permitExpiry)return false;const d=(new Date(s.permitExpiry)-now)/86400000;return d<=30}).sort((a,b)=>new Date(a.permitExpiry)-new Date(b.permitExpiry));if(!expiring.length)return null;return(<div className="space-y-2 bg-red-500/[0.06] border border-red-500/20 rounded-2xl p-4"><h3 className="text-sm font-semibold text-red-400">❗ {t.permitExpiringSoon}</h3><div className="space-y-1.5">{expiring.map(s=>{const d=Math.ceil((new Date(s.permitExpiry)-now)/86400000);return(<div key={s.code} className="flex items-center justify-between py-1.5 px-3 bg-white/[0.02] rounded-lg"><span className="text-sm text-gray-300">{s.code}{s.nameZh?' '+s.nameZh:''}{s.store?' · '+s.store:''}</span><span className={`text-xs ${d<0?'text-red-500 font-bold':'text-amber-400'}`}>{s.permitExpiry}{d<0?'（已過期）':`（${d}天）`}</span></div>)})}</div></div>)})()}
     {(()=>{const ml=staffList.find(s=>s.code===_ms.code);return(ml?.level||0)>=3})()&&<div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4"><h3 className="text-sm font-semibold text-amber-400">{t.storeManage}</h3><div className="space-y-1.5">{storeList.map((s,i)=>(<div key={i} className="flex items-center justify-between py-1.5 px-3 bg-white/[0.02] rounded-lg"><span className="text-sm text-gray-300">{s}</span>{storeList.length>1&&<button onClick={async()=>{const gh=getGHConfig();const ns=storeList.filter((_,j)=>j!==i);setStoreList(ns);await saveStores(gh,ns)}} className="text-red-400/50 text-xs px-1">✕</button>}</div>))}</div><div className="flex gap-2"><input value={newStore} onChange={e=>setNewStore(e.target.value)} placeholder={t.storeAdd} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/><button onClick={async()=>{if(!newStore.trim())return;const gh=getGHConfig();const ns=[...storeList,newStore.trim()];setStoreList(ns);setNewStore('');const ok=await saveStores(gh,ns);setStoreStatus(ok?t.storeSaved:'');setTimeout(()=>setStoreStatus(''),2000)}} className="px-4 py-2 bg-amber-600 rounded-xl text-white text-sm font-bold">+</button></div>{storeStatus&&<p className="text-xs text-center text-emerald-400">{storeStatus}</p>}</div>}
 
+    <PreApproveBlock t={t} myCode={_ms.code}/>
+    <DismissBlock t={t} myCode={_ms.code} staffList={staffList}/>
     <AdminToolsBlock t={t} gh={gh} myCode={_ms.code}/>
     <ApprovedList t={t} isAdmin={false}/>
     <LogSection t={t} filterLevel="supervisor"/>
@@ -905,6 +983,8 @@ function AdminPage({t,onBack}){
     <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4"><h3 className="text-sm font-semibold text-amber-400">{t.adminAdd}</h3><div className="flex gap-2"><input value={newCode} onChange={e=>setNewCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={t.teacherCode+" (ex: 205)"} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-lg text-center text-gray-100 font-mono focus:outline-none focus:border-amber-500"/><button onClick={genAdminHashAndWrite} className="px-5 py-2.5 bg-amber-600 rounded-xl text-white font-bold">{t.genActivation.substring(0,2)}</button></div>{newHash&&(<div className="fi space-y-2"><p className="text-xs text-gray-500">{gh.token?t.ghAuto:t.adminAddHint}</p><div className="relative"><div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-center"><p className="text-lg font-bold text-emerald-400 font-mono select-all">{newHash}</p></div><button onClick={async()=>{try{await navigator.clipboard.writeText(newHash).catch(()=>{})}catch(_e){}}} className="absolute top-2 right-2 px-2 py-1 bg-white/10 rounded text-xs text-gray-300">📋</button></div>{newHashStatus&&<p className={`text-xs text-center ${newHashStatus.includes('✓')?'text-emerald-400':'text-red-400'}`}>{newHashStatus}</p>}</div>)}{cfgEntries.length>0&&(<div className="pt-2 border-t border-white/[0.04]"><p className="text-[10px] text-gray-600 mb-1">{t.adminCfg}</p>{cfgEntries.map((entry,i)=>(<div key={i} className="flex items-center justify-between py-1.5"><div className="flex items-center gap-2"><span className="text-sm text-amber-400 font-bold font-mono">{entry.code!=='?'?entry.code:'—'}</span><span className="text-[10px] text-gray-600 font-mono">({entry.hash})</span></div>{gh.token&&gh.owner&&gh.repo?(cfgEntries.length>1?(delAdminIdx===i?(<button onClick={()=>doDeleteAdmin(entry,i)} className="px-2 py-1 rounded-lg bg-red-500 text-white text-[10px] font-bold">{t.confirm}</button>):(<button onClick={()=>{setDelAdminIdx(i);setTimeout(()=>setDelAdminIdx(null),3000)}} className="px-2 py-1 rounded-lg bg-red-500/10 text-red-400 text-[10px] font-medium active:bg-red-500/20">{t.adminDel}</button>)):<span className="text-[10px] text-gray-700">🔒</span>):<span className="text-[10px] text-gray-700">🔒</span>}</div>))}{delStatus&&<p className={`text-xs text-center mt-1 ${delStatus.includes('✓')?'text-emerald-400':delStatus.includes('失敗')||delStatus.includes('thất')?'text-red-400':'text-amber-400'}`}>{delStatus}</p>}</div>)}</div>
 
 
+    <PreApproveBlock t={t} myCode={myCode}/>
+    <DismissBlock t={t} myCode={myCode} staffList={staffList}/>
     <AdminToolsBlock t={t} gh={gh} myCode={myCode}/>
     <ApprovedList t={t} isAdmin={true}/>
     <div className="space-y-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4"><div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-amber-400">{t.ghConfig}</h3>{!ghEditing&&gh.token&&<button onClick={()=>setGhEditing(true)} className="px-3 py-1 rounded-lg bg-white/[0.06] text-amber-400 text-xs font-medium active:bg-white/[0.1]">{t.ghEdit}</button>}</div>{ghEditing?(<><input value={gh.owner||''} onChange={e=>setGh({...gh,owner:e.target.value.trim()})} placeholder={t.ghOwner+" (ex: john7t)"} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/><input value={gh.repo||''} onChange={e=>setGh({...gh,repo:e.target.value.trim()})} placeholder={t.ghRepo+" (ex: massage-pay)"} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/><input value={gh.token||''} onChange={e=>setGh({...gh,token:e.target.value.trim()})} placeholder={t.ghToken} type="password" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/><div className="flex gap-2"><button onClick={saveGH} className="flex-1 py-2.5 bg-amber-600 rounded-xl text-white text-sm font-bold">{t.ghSave}</button><button onClick={testGH} className="flex-1 py-2.5 bg-white/[0.06] rounded-xl text-gray-300 text-sm font-medium">{t.ghTest}</button></div></>):(<><input value={gh.owner||''} disabled className="w-full bg-white/[0.03] border border-white/[0.04] rounded-xl px-3 py-2.5 text-sm text-gray-500 font-mono cursor-not-allowed"/><input value={gh.repo||''} disabled className="w-full bg-white/[0.03] border border-white/[0.04] rounded-xl px-3 py-2.5 text-sm text-gray-500 font-mono cursor-not-allowed"/><input value={'●'.repeat(12)} disabled type="text" className="w-full bg-white/[0.03] border border-white/[0.04] rounded-xl px-3 py-2.5 text-sm text-gray-500 font-mono cursor-not-allowed"/><div className="flex gap-2"><button onClick={testGH} className="flex-1 py-2.5 bg-white/[0.06] rounded-xl text-gray-300 text-sm font-medium">{t.ghTest}</button></div></>)}{ghStatus&&<p className={`text-xs text-center ${ghStatus.includes('✓')?'text-emerald-400':'text-amber-400'}`}>{ghStatus}</p>}
