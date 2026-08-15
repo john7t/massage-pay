@@ -1,4 +1,4 @@
-// app-core.js v1.0-050 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.0-051 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
@@ -101,20 +101,33 @@ function Onboarding({onComplete}){
     if(cooldown>0||ticketStatus==='checking')return;
     setTicketStatus('checking');
     try{
-      // 先查GitHub快取(公開靜態檔案,不用token也能讀):如果快取顯示還沒核准,直接顯示pending,省去等GAS轉址延遲,
-      // 已核准或查無資料(快取可能還沒同步到)才走GAS拿完整資料——N/A票證核准後要順便領金鑰,這個只有GAS才有
+      const myActionCode=mode==='newTicket'?'N':mode==='forgotTicket'?'F':'';
+      // 查有沒有生效中的預先核准(公開靜態檔案,不用token也能讀)。有的話代表這筆等下查到actions.json顯示pending,
+      // 很可能只是GitHub CDN還沒跟上寫入(GAS那邊其實已經自動核准了),不能輕信那份pending,要直接往下查GAS拿最新資料
+      let hasPreApprove=false;
       try{
-        const res=await fetch('./actions.json',{cache:'no-store'});
-        if(res.ok){
-          const arr=await res.json();
-          const found=arr.find(a=>a.seq===ticketSeq);
-          if(found&&found.status!=='approved'){
-            setTicketStatus('pending');
-            setCooldown(30);
-            return;
-          }
+        const pr=await fetch('./preapprove.json',{cache:'no-store'});
+        if(pr.ok){
+          const parr=await pr.json();
+          hasPreApprove=parr.some(p=>p.code===code&&p.expiresAt>Date.now()&&Array.isArray(p.actionCodes)&&p.actionCodes.indexOf(myActionCode)>=0);
         }
       }catch(_e){}
+      // 先查GitHub快取(公開靜態檔案,不用token也能讀):如果快取顯示還沒核准,直接顯示pending,省去等GAS轉址延遲,
+      // 已核准或查無資料(快取可能還沒同步到)才走GAS拿完整資料——N/A票證核准後要順便領金鑰,這個只有GAS才有
+      if(!hasPreApprove){
+        try{
+          const res=await fetch('./actions.json',{cache:'no-store'});
+          if(res.ok){
+            const arr=await res.json();
+            const found=arr.find(a=>a.seq===ticketSeq);
+            if(found&&found.status!=='approved'){
+              setTicketStatus('pending');
+              setCooldown(30);
+              return;
+            }
+          }
+        }catch(_e){}
+      }
       const r=await gasCheckAction(ticketSeq);
       if(r&&r.ok){
         if(r.status==='approved'){
