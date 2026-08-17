@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.12-066</title>
+<title>薪資追蹤 · 管理 v1.12-069</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -802,6 +802,7 @@ function ActionTicketBlock({t,myCode}){
         {info.payload.workStart&&<p className="text-xs text-gray-500 text-center">{t.ticketInfoWork}：{info.payload.workStart}-{info.payload.workEnd}</p>}
       </>)}
       {(info.actionCode==='B'||info.actionCode==='S')&&(<div className="bg-white/[0.03] rounded-lg p-2 space-y-1">{Object.keys(info.payload||{}).length===0?<p className="text-[11px] text-gray-600 text-center">{t.infoNoChange}</p>:Object.entries(info.payload).map(([k,v])=>(<div key={k} className="flex justify-between gap-2 text-[11px]"><span className="text-gray-500">{k}</span><span className="text-gray-300">{String(v)}</span></div>))}</div>)}
+      {info.actionCode==='A'&&info.payload.lineUserId&&<div className="bg-white/[0.03] rounded-lg p-2 text-[11px] space-y-0.5"><div className="flex justify-between gap-2"><span className="text-gray-500">LINE身分</span><span className="text-gray-300 font-mono break-all text-right">{info.payload.lineUserId}</span></div>{info.status==='pending'&&<p className="text-[10px] text-emerald-500/80 text-center pt-1">核准後會自動綁定到supervisors.cfg，之後LINE登入可直接免申請</p>}</div>}
       {info.actionCode==='A'&&info.status==='pending'&&(<div className="pt-1"><label className="text-[11px] text-gray-500 block mb-1">{t.approveLevel}</label><select value={supLevel} onChange={e=>setSupLevel(parseInt(e.target.value)||1)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-200 focus:outline-none">{SUP_LEVELS.map(lv=><option key={lv.id} value={lv.id}>{lv[t===T.zh?'zh':'vi']}</option>)}</select></div>)}
       {info.actionCode==='A'&&info.status==='approved'&&info.payload.level&&<p className="text-xs text-gray-500 text-center">{t.approveLevel}：{supLevelName(info.payload.level,t===T.zh?'zh':'vi')}</p>}
       {info.status==='pending'?(
@@ -827,7 +828,7 @@ function ActionTicketBlock({t,myCode}){
 
 function PreApproveBlock({t,myCode}){
   const[targetInput,setTargetInput]=useState('');
-  const[wantN,setWantN]=useState(true);const[wantF,setWantF]=useState(true);
+  const[wantN,setWantN]=useState(true);const[wantF,setWantF]=useState(true);const[wantA,setWantA]=useState(false);
   const[busy,setBusy]=useState(false);
   const[result,setResult]=useState('');
   const[activeInfo,setActiveInfo]=useState(null); // 目前查到的生效中預先核准
@@ -841,9 +842,9 @@ function PreApproveBlock({t,myCode}){
   };
   useEffect(()=>{if(targetCode)checkActive(targetCode);else setActiveInfo(null)},[targetCode]);
   const doApprove=async()=>{
-    if(!targetCode||(!wantN&&!wantF))return;
+    if(!targetCode||(!wantN&&!wantF&&!wantA))return;
     setBusy(true);setResult('');
-    const codes=[];if(wantN)codes.push('N');if(wantF)codes.push('F');
+    const codes=[];if(wantN)codes.push('N');if(wantF)codes.push('F');if(wantA)codes.push('A');
     try{
       const r=await gasPreApprove(targetCode,myCode,codes);
       if(r&&r.ok){setResult(t.preApproveOk||'已設定，1小時內有效');checkActive(targetCode)}
@@ -863,13 +864,13 @@ function PreApproveBlock({t,myCode}){
     <input value={targetInput} onChange={e=>{setTargetInput(e.target.value);setResult('')}} placeholder={t.dismissTargetPh2||'輸入老師編號'} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-emerald-500"/>
     {checking&&<p className="text-xs text-gray-600">...</p>}
     {activeInfo&&(<div className="bg-emerald-500/10 rounded-xl px-3 py-2.5 text-xs text-emerald-300 space-y-1">
-      <p>{t.preApproveActive||'目前生效中'}：{activeInfo.actionCodes.map(c=>c==='N'?t.ticketTypeN:c==='F'?t.ticketTypeF:c).join('、')}</p>
+      <p>{t.preApproveActive||'目前生效中'}：{activeInfo.actionCodes.map(c=>c==='N'?t.ticketTypeN:c==='F'?t.ticketTypeF:c==='A'?(t.ticketTypeA||'主管申請'):c).join('、')}</p>
       <p>{t.preApproveExpiresAt||'到期時間'}：{new Date(activeInfo.expiresAt).toLocaleTimeString()}</p>
       <button onClick={doCancel} disabled={busy} className="text-red-400 underline">{t.preApproveCancelBtn||'取消'}</button>
     </div>)}
     {!activeInfo&&targetCode&&(<>
-      <div className="flex gap-4"><label className="flex items-center gap-1.5 text-sm text-gray-300"><input type="checkbox" checked={wantN} onChange={e=>setWantN(e.target.checked)} className="accent-emerald-500"/>{t.ticketTypeN}</label><label className="flex items-center gap-1.5 text-sm text-gray-300"><input type="checkbox" checked={wantF} onChange={e=>setWantF(e.target.checked)} className="accent-emerald-500"/>{t.ticketTypeF}</label></div>
-      <button onClick={doApprove} disabled={busy||(!wantN&&!wantF)} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold disabled:opacity-50">{busy?'...':(t.preApproveBtn||'預先核准（1小時內有效）')}</button>
+      <div className="flex gap-4 flex-wrap"><label className="flex items-center gap-1.5 text-sm text-gray-300"><input type="checkbox" checked={wantN} onChange={e=>setWantN(e.target.checked)} className="accent-emerald-500"/>{t.ticketTypeN}</label><label className="flex items-center gap-1.5 text-sm text-gray-300"><input type="checkbox" checked={wantF} onChange={e=>setWantF(e.target.checked)} className="accent-emerald-500"/>{t.ticketTypeF}</label><label className="flex items-center gap-1.5 text-sm text-gray-300"><input type="checkbox" checked={wantA} onChange={e=>setWantA(e.target.checked)} className="accent-emerald-500"/>{t.ticketTypeA||'主管申請'}</label></div>
+      <button onClick={doApprove} disabled={busy||(!wantN&&!wantF&&!wantA)} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold disabled:opacity-50">{busy?'...':(t.preApproveBtn||'預先核准（1小時內有效）')}</button>
     </>)}
     {result&&<p className={`text-xs text-center ${result.indexOf('已設定')>=0?'text-emerald-400':'text-red-400'}`}>{result}</p>}
   </div>);
@@ -1100,26 +1101,49 @@ function AuthGate({t}){
     })();
   },[]);
 
+  const[showDiag,setShowDiag]=useState(false); // 診斷資訊收合狀態,預設收合
+  const[applySupBusy,setApplySupBusy]=useState(false);
+  const[applySupResult,setApplySupResult]=useState('');
+  // LINE已登入取得userId、但不是主管身分時,用這個送出A票證(主管申請)。
+  // 一定要settings.code已存在(代表這個裝置已經用index.html的老師編號登入過),不接受另外手動輸入編號——
+  // 避免有人隨便打一個不是自己的編號去申請,讓「已經登入哪個老師編號」跟「這個LINE身分是誰」兩者連動起來,比較安全
+  const doApplySupFromLiff=async()=>{
+    if(!settings.code||applySupBusy)return;
+    setApplySupBusy(true);setApplySupResult('');
+    try{
+      const payload={devId:getDeviceId(),deviceName:'',lang:'zh',lineUserId:(liffDiag&&liffDiag.userId)||'',level:1}; // 預設職級1=實習副理,主管核准時可再調整
+      const r=await gasSubmitAction('A',settings.code,payload);
+      if(r&&r.ok){setApplySupResult(t.liffApplySupOk||'已送出申請，請等待主管核准')}
+      else{setApplySupResult((r&&r.error)||(t.liffApplySupFail||'送出失敗'))}
+    }catch(e){setApplySupResult(t.liffApplySupFail||'送出失敗')}
+    setApplySupBusy(false);
+  };
+
   // LINE身分檢查還在進行中,或已經比對到直接開權限了,顯示等待畫面(避免畫面閃一下舊的檢查介面)
   if(liffState==='checking')return(<div className="min-h-screen flex items-center justify-center p-8"><div className="text-center"><span className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin inline-block mb-3"/><p className="text-gray-500 text-sm">{t.liffChecking||'LINE身分驗證中...'}</p></div></div>);
   if(liffState==='needLogin')return(<div className="min-h-screen flex items-center justify-center p-8"><div className="text-center max-w-xs w-full"><p className="text-gray-400 text-sm mb-5">{t.liffNeedLogin||'需要先用LINE登入才能繼續'}</p><button onClick={handleLiffLogin} className="w-full px-6 py-3.5 bg-[#06C755] text-white rounded-xl font-bold active:bg-[#05b34c]">{t.liffLoginBtn||'使用LINE登入'}</button>
+    <button onClick={goHome} className="w-full mt-3 px-6 py-3 bg-white/[0.06] rounded-xl text-gray-400 text-sm font-semibold">{t.backHomeBtn||'返回首頁'}</button>
     <div className="mt-6 text-left bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 space-y-1">
       <p className="text-[10px] text-gray-600 font-mono break-all">query: {location.search||'(空)'}</p>
       <p className="text-[10px] text-gray-600 font-mono break-all">isInClient: {typeof liff!=='undefined'&&liff.isInClient?String(liff.isInClient()):'?'}</p>
       <p className="text-[10px] text-gray-600 font-mono break-all">UA: {navigator.userAgent.slice(0,80)}</p>
     </div>
   </div></div>);
-  if(liffState==='needReauth')return(<div className="min-h-screen flex items-center justify-center p-8"><div className="text-center max-w-xs"><p className="text-gray-400 text-sm mb-5">{t.liffNeedReauth||'登入狀態需要重新授權才能取得身分資訊'}</p><button onClick={handleLiffLogin} className="w-full px-6 py-3.5 bg-[#06C755] text-white rounded-xl font-bold active:bg-[#05b34c]">{t.liffReauthBtn||'重新授權'}</button></div></div>);
+  if(liffState==='needReauth')return(<div className="min-h-screen flex items-center justify-center p-8"><div className="text-center max-w-xs"><p className="text-gray-400 text-sm mb-5">{t.liffNeedReauth||'登入狀態需要重新授權才能取得身分資訊'}</p><button onClick={handleLiffLogin} className="w-full px-6 py-3.5 bg-[#06C755] text-white rounded-xl font-bold active:bg-[#05b34c]">{t.liffReauthBtn||'重新授權'}</button>
+    <button onClick={goHome} className="w-full mt-3 px-6 py-3 bg-white/[0.06] rounded-xl text-gray-400 text-sm font-semibold">{t.backHomeBtn||'返回首頁'}</button>
+  </div></div>);
   if(showAdmin)return<AdminPage t={t} onBack={goHome}/>;
   if(showSupervisor)return<SupervisorPage t={t} onBack={goHome}/>;
 
-  // LINE身分沒比對到admin.cfg/supervisors.cfg任何一筆,顯示診斷資料,方便截圖回報是哪個環節卡住
+  // LINE身分沒比對到admin.cfg/supervisors.cfg任何一筆,顯示「無主管權限」+申請入口。診斷資訊收合起來,預設不展開
   if((liffState==='nomatch'||liffState==='error')&&liffDiag){
     const Row=({label,ok,val})=>(<div className="flex items-center justify-between py-1.5 border-b border-white/[0.04]"><span className="text-xs text-gray-500">{label}</span><span className={`text-xs font-mono ${ok===true?'text-emerald-400':ok===false?'text-red-400':'text-gray-300'}`}>{val}</span></div>);
-    return(<div className="min-h-screen p-5"><div className="max-w-md mx-auto space-y-4">
-      <h2 className="text-base font-bold text-gray-100">LINE身分診斷資料</h2>
-      <p className="text-xs text-gray-500">這組LINE身分沒有在 admin.cfg 或 supervisors.cfg 裡比對到，以下是每個步驟的結果，可截圖回報：</p>
-      <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4">
+    const diagBlock=(<div className="space-y-2">
+      <button onClick={()=>setShowDiag(v=>!v)} className="w-full py-2 flex items-center justify-center gap-1.5 text-xs text-gray-500">
+        <span>{t.liffDiagToggle||'偵錯資訊'}</span>
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${showDiag?'rotate-180':''}`}><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      {showDiag&&(<div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4">
         <Row label="LIFF SDK載入" ok={liffDiag.liffSdk} val={liffDiag.liffSdk?'✓':'✗'}/>
         <Row label="liff.init()" ok={liffDiag.liffInit} val={liffDiag.liffInit?'✓':'✗'}/>
         <Row label="已登入LINE" ok={liffDiag.loggedIn} val={liffDiag.loggedIn?'✓':'✗'}/>
@@ -1131,9 +1155,36 @@ function AuthGate({t}){
         <Row label="supervisors.cfg行數" val={String(liffDiag.supLines)}/>
         <Row label="supervisors.cfg比對到" ok={liffDiag.supMatch} val={liffDiag.supMatch?'✓':'✗ 沒比對到'}/>
         {liffDiag.err&&<Row label="錯誤訊息" ok={false} val={liffDiag.err}/>}
-      </div>
-      <button onClick={()=>{navigator.clipboard.writeText(JSON.stringify(liffDiag,null,2)).catch(()=>{})}} className="w-full py-2.5 bg-white/[0.06] rounded-xl text-gray-300 text-sm">複製診斷資料(JSON)</button>
-      <p className="text-[11px] text-gray-600">往下捲動可以看到原本的手動檢查／申請主管流程，這組LINE身分沒比對到不代表沒有其他登入管道。</p>
+        <button onClick={()=>{navigator.clipboard.writeText(JSON.stringify(liffDiag,null,2)).catch(()=>{})}} className="w-full mt-3 py-2 bg-white/[0.06] rounded-xl text-gray-300 text-xs">複製診斷資料(JSON)</button>
+      </div>)}
+    </div>);
+    // nomatch且已經拿到userId:代表LINE登入成功,只是不是主管身分,提供申請入口。
+    // error或還沒拿到userId(理論上不會發生,但防呆):只顯示診斷資訊,不給申請功能
+    if(liffState==='nomatch'&&liffDiag.userId){
+      // settings.code不存在:代表這台裝置從沒用index.html登入過老師編號,這裡不接受另外手動輸入,
+      // 先請他去主程式完成老師編號登入,回來才能把「這個LINE身分」跟「這個老師編號」正確連在一起申請
+      if(!settings.code){
+        return(<div className="min-h-screen p-5 flex items-center justify-center"><div className="max-w-xs w-full space-y-4">
+          <p className="text-center text-base font-bold text-gray-100">{t.liffNoSupPerm||'目前登入的LINE帳號並未綁定主管權限'}</p>
+          <p className="text-center text-xs text-gray-500">{t.liffNeedCodeFirst||'請先到主程式用你的老師編號登入，再回來申請主管權限綁定。'}</p>
+          <button onClick={goHome} className="w-full py-3 rounded-xl bg-emerald-600 text-white text-sm font-bold">{t.liffGoLoginBtn||'前往登入老師編號'}</button>
+          {diagBlock}
+        </div></div>);
+      }
+      return(<div className="min-h-screen p-5 flex items-center justify-center"><div className="max-w-xs w-full space-y-4">
+        <p className="text-center text-base font-bold text-gray-100">{t.liffNoSupPerm||'目前登入的LINE帳號並未綁定主管權限'}</p>
+        <p className="text-center text-xs text-gray-500">{t.teacherCode}：{settings.code}</p>
+        {applySupResult?(<p className={`text-xs text-center ${applySupResult.indexOf('已送出')>=0?'text-emerald-400':'text-red-400'}`}>{applySupResult}</p>):(
+          <button onClick={doApplySupFromLiff} disabled={applySupBusy} className="w-full py-3 rounded-xl bg-emerald-600 text-white text-sm font-bold disabled:opacity-50">{applySupBusy?'...':(t.liffApplySupBtn||'申請此LINE帳號綁定主管權限')}</button>
+        )}
+        <button onClick={goHome} className="w-full py-3 bg-white/[0.06] rounded-xl text-gray-400 text-sm font-semibold">{t.backHomeBtn||'返回首頁'}</button>
+        {diagBlock}
+      </div></div>);
+    }
+    return(<div className="min-h-screen p-5 flex items-center justify-center"><div className="max-w-xs w-full space-y-4">
+      <p className="text-center text-sm text-gray-400">{t.liffCheckFail||'身分驗證發生問題'}</p>
+      <button onClick={goHome} className="w-full py-3 bg-white/[0.06] rounded-xl text-gray-400 text-sm font-semibold">{t.backHomeBtn||'返回首頁'}</button>
+      {diagBlock}
     </div></div>);
   }
 
