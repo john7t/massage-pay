@@ -30,7 +30,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 · 管理 v1.12-069</title>
+<title>薪資追蹤 · 管理 v1.12-070</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -828,7 +828,7 @@ function ActionTicketBlock({t,myCode}){
 
 function PreApproveBlock({t,myCode}){
   const[targetInput,setTargetInput]=useState('');
-  const[wantN,setWantN]=useState(true);const[wantF,setWantF]=useState(true);const[wantA,setWantA]=useState(false);
+  const[wantN,setWantN]=useState(true);const[wantF,setWantF]=useState(true);const[wantA,setWantA]=useState(false);const[wantB,setWantB]=useState(false);const[wantS,setWantS]=useState(false);
   const[busy,setBusy]=useState(false);
   const[result,setResult]=useState('');
   const[activeInfo,setActiveInfo]=useState(null); // 目前查到的生效中預先核准
@@ -842,9 +842,9 @@ function PreApproveBlock({t,myCode}){
   };
   useEffect(()=>{if(targetCode)checkActive(targetCode);else setActiveInfo(null)},[targetCode]);
   const doApprove=async()=>{
-    if(!targetCode||(!wantN&&!wantF&&!wantA))return;
+    if(!targetCode||(!wantN&&!wantF&&!wantA&&!wantB&&!wantS))return;
     setBusy(true);setResult('');
-    const codes=[];if(wantN)codes.push('N');if(wantF)codes.push('F');if(wantA)codes.push('A');
+    const codes=[];if(wantN)codes.push('N');if(wantF)codes.push('F');if(wantA)codes.push('A');if(wantB)codes.push('B');if(wantS)codes.push('S');
     try{
       const r=await gasPreApprove(targetCode,myCode,codes);
       if(r&&r.ok){setResult(t.preApproveOk||'已設定，1小時內有效');checkActive(targetCode)}
@@ -864,13 +864,14 @@ function PreApproveBlock({t,myCode}){
     <input value={targetInput} onChange={e=>{setTargetInput(e.target.value);setResult('')}} placeholder={t.dismissTargetPh2||'輸入老師編號'} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-emerald-500"/>
     {checking&&<p className="text-xs text-gray-600">...</p>}
     {activeInfo&&(<div className="bg-emerald-500/10 rounded-xl px-3 py-2.5 text-xs text-emerald-300 space-y-1">
-      <p>{t.preApproveActive||'目前生效中'}：{activeInfo.actionCodes.map(c=>c==='N'?t.ticketTypeN:c==='F'?t.ticketTypeF:c==='A'?(t.ticketTypeA||'主管申請'):c).join('、')}</p>
+      <p>{t.preApproveActive||'目前生效中'}：{activeInfo.actionCodes.map(c=>c==='N'?t.ticketTypeN:c==='F'?t.ticketTypeF:c==='A'?(t.ticketTypeA||'主管申請'):c==='B'?t.ticketTypeB:c==='S'?t.ticketTypeS:c).join('、')}</p>
       <p>{t.preApproveExpiresAt||'到期時間'}：{new Date(activeInfo.expiresAt).toLocaleTimeString()}</p>
       <button onClick={doCancel} disabled={busy} className="text-red-400 underline">{t.preApproveCancelBtn||'取消'}</button>
     </div>)}
     {!activeInfo&&targetCode&&(<>
-      <div className="flex gap-4 flex-wrap"><label className="flex items-center gap-1.5 text-sm text-gray-300"><input type="checkbox" checked={wantN} onChange={e=>setWantN(e.target.checked)} className="accent-emerald-500"/>{t.ticketTypeN}</label><label className="flex items-center gap-1.5 text-sm text-gray-300"><input type="checkbox" checked={wantF} onChange={e=>setWantF(e.target.checked)} className="accent-emerald-500"/>{t.ticketTypeF}</label><label className="flex items-center gap-1.5 text-sm text-gray-300"><input type="checkbox" checked={wantA} onChange={e=>setWantA(e.target.checked)} className="accent-emerald-500"/>{t.ticketTypeA||'主管申請'}</label></div>
-      <button onClick={doApprove} disabled={busy||(!wantN&&!wantF&&!wantA)} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold disabled:opacity-50">{busy?'...':(t.preApproveBtn||'預先核准（1小時內有效）')}</button>
+      <div className="flex gap-4 flex-wrap"><label className="flex items-center gap-1.5 text-sm text-gray-300"><input type="checkbox" checked={wantN} onChange={e=>setWantN(e.target.checked)} className="accent-emerald-500"/>{t.ticketTypeN}</label><label className="flex items-center gap-1.5 text-sm text-gray-300"><input type="checkbox" checked={wantF} onChange={e=>setWantF(e.target.checked)} className="accent-emerald-500"/>{t.ticketTypeF}</label><label className="flex items-center gap-1.5 text-sm text-gray-300"><input type="checkbox" checked={wantA} onChange={e=>setWantA(e.target.checked)} className="accent-emerald-500"/>{t.ticketTypeA||'主管申請'}</label><label className="flex items-center gap-1.5 text-sm text-gray-300"><input type="checkbox" checked={wantB} onChange={e=>setWantB(e.target.checked)} className="accent-emerald-500"/>{t.ticketTypeB}</label><label className="flex items-center gap-1.5 text-sm text-gray-300"><input type="checkbox" checked={wantS} onChange={e=>setWantS(e.target.checked)} className="accent-emerald-500"/>{t.ticketTypeS}</label></div>
+      {(wantB||wantS)&&<p className="text-[11px] text-amber-500/80">{t.preApproveBsWarn||'注意：勾選後，這類申請送出的內容不會經過審核就直接生效，請確認你信任申請人會填寫正確資料。'}</p>}
+      <button onClick={doApprove} disabled={busy||(!wantN&&!wantF&&!wantA&&!wantB&&!wantS)} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold disabled:opacity-50">{busy?'...':(t.preApproveBtn||'預先核准（1小時內有效）')}</button>
     </>)}
     {result&&<p className={`text-xs text-center ${result.indexOf('已設定')>=0?'text-emerald-400':'text-red-400'}`}>{result}</p>}
   </div>);
