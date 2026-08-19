@@ -1,4 +1,4 @@
-// app-core.js v1.0-051 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.0-053 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
@@ -522,14 +522,14 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings,onLogout}){
     }
     await doSubmitTicket(changed,changedDisp);
   };
-  const doSubmitTicket=async(changed,changedDisp)=>{
+  const doSubmitTicket=async(changed,changedDisp,pendingPrice)=>{
     setBusy(true);setErr('');
     try{
       const r=await gasSubmitAction(actionCode,code,changed);
       setBusy(false);
       if(r&&r.ok){
         setTicketSeq(r.seq);setChangedList(changedDisp);setMode('ticket');setTicketStatus('');setCooldown(0);
-        savePendingT({seq:r.seq,changed:changedDisp});
+        savePendingT({seq:r.seq,changed:changedDisp,pendingPrice});
       }else{setErr((r&&r.error)||'送出失敗')}
     }catch(e){setBusy(false);setErr(String(e))}
   };
@@ -545,13 +545,14 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings,onLogout}){
     if(!priceAskModal||!priceFromDate)return;
     const {changed,changedDisp}=priceAskModal;
     const newPrice=Number(changed.unitPrice);
-    const history=[...(settings.unitPriceHistory||[]),{from:priceFromDate,price:newPrice}].sort((a,b)=>a.from<b.from?-1:1);
+    // 同一天如果之前已經有申請過(不管核准與否,只要還在settings.unitPriceHistory裡),這次視為調整取代掉舊的那筆,不會同一天出現兩筆紀錄互相打架
+    const history=[...(settings.unitPriceHistory||[]).filter(h=>h.from!==priceFromDate),{from:priceFromDate,price:newPrice}].sort((a,b)=>a.from<b.from?-1:1);
     const finalChanged={...changed,unitPriceHistory:history};
     delete finalChanged.unitPrice; // 舊單價維持不變,只是新加一段從某天開始生效的價格
     const finalDisp=changedDisp.filter(c=>c.key!=='unitPrice');
     finalDisp.push({key:'unitPriceHistory',label:t.unitPrice,val:priceFromDate+' 起 '+newPrice});
     setPriceAskModal(null);
-    doSubmitTicket(finalChanged,finalDisp);
+    doSubmitTicket(finalChanged,finalDisp,{from:priceFromDate,price:newPrice});
   };
   const checkTicket=async()=>{
     if(cooldown>0||ticketStatus==='checking')return;
@@ -676,6 +677,16 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings,onLogout}){
         }
         const label=infoFieldLabel(k,t);
         if(!isEdit){
+          if(k==='unitPrice'){
+            const today=bizParts().y+'-'+String(bizParts().m).padStart(2,'0')+'-'+String(bizParts().d).padStart(2,'0');
+            const future=(settings.unitPriceHistory||[]).filter(h=>h&&h.from&&h.from>today).sort((a,b)=>a.from<b.from?-1:1);
+            let pendingP=null;
+            try{const pt=LS.get(pendingKey);if(pt&&pt.pendingPrice)pendingP=pt.pendingPrice}catch(_e){}
+            return(<div key={k}><div className="flex justify-between items-start gap-3"><span className="text-xs text-gray-500 flex-shrink-0">{label}</span><span className="text-sm text-gray-200 text-right">{settings.unitPrice||'—'}</span></div>
+              {future.map((h,i)=>(<p key={i} className="text-[11px] text-amber-500/80 text-right mt-1">{(t.priceFutureApproved||'自 {0} 起調整為 ${1}（已核准）').replace('{0}',h.from).replace('{1}',h.price)}</p>))}
+              {pendingP&&<p className="text-[11px] text-gray-500 text-right mt-1">{(t.priceFuturePending||'自 {0} 起調整為 ${1}（申請中）').replace('{0}',pendingP.from).replace('{1}',pendingP.price)}</p>}
+            </div>);
+          }
           let v=settings[k]||'';
           if(k==='skills'){const sk=settings.skills||{};v=SKILL_KEYS.filter(s=>sk[s]).map(s=>t[s]||s).join('、')}
           else if(k==='preg'||k==='oil'){v=settings[k]==='yes'?(t.accept||'接'):settings[k]==='no'?(t.reject||'不接'):''}
