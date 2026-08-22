@@ -40,7 +40,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.12-160</title>
+<title>薪資追蹤 v1.12-161</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -404,6 +404,54 @@ html[data-theme="ocean"],html[data-theme="ocean"] body{background:#0b1329 !impor
 [data-theme="ocean"] [class*="text-amber-500/80"]{color:rgba(14,165,233,0.8) !important}
 [data-theme="ocean"] [class*="bg-amber-600/[0.06"]{background-color:rgba(14,165,233,0.08) !important}
 
+/* ══════ 靜謐灰調(Quiet)主題(quiet):參考 Hallmark 設計技能裡「Quiet」目錄主題的精神——低彩度/近中性色調,
+   靠明暗與粗細建立層次,不靠鮮豔色相搶眼。跟這個專案其他深色主題(neon青/forest綠/sunset琥珀/ocean藍,
+   清一色高飽和度)在強調色的色相軸上明顯不同,是唯一走低彩度中性路線的深色主題 ══════ */
+html[data-theme="quiet"],html[data-theme="quiet"] body{background:#17161a !important}
+[data-theme="quiet"] [class*="bg-white/[0.02"]{background-color:rgba(32,31,36,0.55) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(138,131,119,0.12) !important}
+[data-theme="quiet"] [class*="bg-white/[0.03"]{background-color:rgba(32,31,36,0.6) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(138,131,119,0.12) !important}
+[data-theme="quiet"] [class*="bg-white/[0.04"]{background-color:rgba(32,31,36,0.65) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(138,131,119,0.12) !important}
+[data-theme="quiet"] [class*="bg-white/[0.05"]{background-color:rgba(32,31,36,0.7) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(138,131,119,0.12) !important}
+[data-theme="quiet"] [class*="bg-white/[0.06"]{background-color:rgba(32,31,36,0.75) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(138,131,119,0.15) !important}
+[data-theme="quiet"] [class*="bg-white/[0.08"]{background-color:rgba(32,31,36,0.8) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(138,131,119,0.15) !important}
+[data-theme="quiet"] [class*="bg-white/[0.1"]{background-color:rgba(32,31,36,0.85) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(138,131,119,0.18) !important}
+[data-theme="quiet"] [class*="bg-white/10"]{background-color:rgba(32,31,36,0.85) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(138,131,119,0.18) !important}
+[data-theme="quiet"] [class*="bg-gray-900"]{background-color:rgba(32,31,36,0.9) !important;backdrop-filter:blur(20px) !important;-webkit-backdrop-filter:blur(20px) !important;border-color:rgba(138,131,119,0.18) !important}
+[data-theme="quiet"] [class*="bg-gray-950"]{background-color:rgba(23,22,26,0.94) !important;backdrop-filter:blur(20px) !important;-webkit-backdrop-filter:blur(20px) !important}
+[data-theme="quiet"] [class*="bg-gray-800"]{background-color:rgba(32,31,36,0.7) !important}
+[data-theme="quiet"] [class*="bg-black/80"]{background-color:rgba(9,8,10,0.82) !important;backdrop-filter:blur(8px) !important;-webkit-backdrop-filter:blur(8px) !important}
+[data-theme="quiet"] [class*="border-white"]{border-color:rgba(138,131,119,0.2) !important}
+[data-theme="quiet"] .text-gray-100{color:#ece8de !important}
+/* 強調色統一改成低彩度暖灰褐色(靜謐,不搶眼),取代amber */
+[data-theme="quiet"] [class*="text-amber"]{color:#c9c1af !important}
+[data-theme="quiet"] [class*="bg-amber-6"]{background-color:#6b6459 !important}
+[data-theme="quiet"] [class*="bg-amber-5"]{background-color:#8a8377 !important}
+[data-theme="quiet"] [class*="bg-amber-4"]{background-color:rgba(138,131,119,0.75) !important}
+[data-theme="quiet"] [class*="border-amber"]{border-color:#8a8377 !important}
+[data-theme="quiet"] [class*="accent-amber"]{accent-color:#6b6459 !important}
+[data-theme="quiet"] [class*="ring-amber"]{--tw-ring-color:#8a8377 !important}
+[data-theme="quiet"] input:focus,[data-theme="quiet"] select:focus,[data-theme="quiet"] textarea:focus{border-color:#8a8377 !important;box-shadow:0 0 0 1px rgba(138,131,119,0.5) !important}
+/* 精確比對透明度組合的amber class,避免被上面的萬用選擇器誤判成不透明色套用(這個問題在之前的主題上修過,這裡新主題一開始就照正確方式寫) */
+[data-theme="quiet"] [class*="bg-amber-500/10"]{background-color:rgba(138,131,119,0.1) !important}
+[data-theme="quiet"] [class*="bg-amber-500/15"]{background-color:rgba(138,131,119,0.15) !important}
+[data-theme="quiet"] [class*="bg-amber-500/20"]{background-color:rgba(138,131,119,0.2) !important}
+[data-theme="quiet"] [class*="bg-amber-500/25"]{background-color:rgba(138,131,119,0.25) !important}
+[data-theme="quiet"] [class*="bg-amber-600/10"]{background-color:rgba(138,131,119,0.1) !important}
+[data-theme="quiet"] [class*="bg-amber-600/15"]{background-color:rgba(138,131,119,0.15) !important}
+[data-theme="quiet"] [class*="bg-amber-600/20"]{background-color:rgba(138,131,119,0.2) !important}
+[data-theme="quiet"] [class*="bg-amber-600/25"]{background-color:rgba(138,131,119,0.25) !important}
+[data-theme="quiet"] [class*="bg-amber-600/30"]{background-color:rgba(138,131,119,0.3) !important}
+[data-theme="quiet"] [class*="border-amber-500/10"]{border-color:rgba(138,131,119,0.1) !important}
+[data-theme="quiet"] [class*="border-amber-500/20"]{border-color:rgba(138,131,119,0.2) !important}
+[data-theme="quiet"] [class*="border-amber-500/25"]{border-color:rgba(138,131,119,0.25) !important}
+[data-theme="quiet"] [class*="border-amber-500/30"]{border-color:rgba(138,131,119,0.3) !important}
+[data-theme="quiet"] [class*="border-amber-500/40"]{border-color:rgba(138,131,119,0.4) !important}
+[data-theme="quiet"] [class*="border-amber-500/50"]{border-color:rgba(138,131,119,0.5) !important}
+[data-theme="quiet"] [class*="border-amber-600/20"]{border-color:rgba(138,131,119,0.2) !important}
+[data-theme="quiet"] [class*="text-amber-500/70"]{color:rgba(138,131,119,0.7) !important}
+[data-theme="quiet"] [class*="text-amber-500/80"]{color:rgba(138,131,119,0.8) !important}
+[data-theme="quiet"] [class*="bg-amber-600/[0.06"]{background-color:rgba(138,131,119,0.08) !important}
+
 
 
 /* ══════ 極簡白主題(apple):依Apple官方網站設計語言分析 —— 中性灰階(不帶紫色調)+單一藍色強調色(#0066cc)+膠囊按鈕 ══════ */
@@ -479,9 +527,9 @@ html[data-theme="apple"] [data-light] [class*="accent-amber"]{accent-color:#0066
   </div>
 </div>
 <style>@keyframes fbspin{to{transform:rotate(360deg)}}@keyframes fbpulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
-<script src="./common.js?v=1.12-076"></script>
+<script src="./common.js?v=1.12-077"></script>
 <script type="text/babel" src="./notice-modal.js?v=1.12-047"></script>
-<script type="text/babel" src="./settings.js?v=1.12-078"></script>
+<script type="text/babel" src="./settings.js?v=1.12-079"></script>
 <script type="text/babel" src="./app-core.js?v=1.0-053"></script>
 <script type="text/babel">
 const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
