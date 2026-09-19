@@ -1,8 +1,18 @@
-// app-core.js v1.13-003 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-009 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
-// v1.13-003 / 基資/店資改成不需送審核就能存檔:doSubmitTicket加HIDE_COMPANY_FEATURES分支,開啟時直接把異動內容合併進settings本機存檔立即生效,不呼叫gasSubmitAction、不用等主管核准。新增mode==='savedDirect'畫面,顯示簡單的「已儲存」確認訊息+異動欄位清單。舊的票證審核流程完整保留在else分支未刪除,開關關掉即可恢復原本行為。單價分段生效(applyPriceAll/applyPriceFrom)因為都是呼叫doSubmitTicket,自動套用同樣邏輯,送出即生效不再有「申請中」狀態 | 前: v1.13-002
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+// v1.13-009 / 套用最終版開場畫面流程圖:
+// (1)密碼登入完成不再直接進cloudCheckFlow,改成統一的restoreAsk(要不要還原備份?是/否)畫面;
+// (2)新增restoreSource(本地/雲端)選擇畫面,取代原本合併在一起的restoreChoice;
+// (3)cloudCheckFlow改造成先fetch './backup-index.json'查詢(GAS端gas-backup.gs.txt的backupSubmit已經會同步這份輕量索引),
+//    查不到才fallback呼叫較慢的gasBackupCheck,加速查詢有沒有雲端備份這一步;
+// (4)查無雲端備份時,選項改成「回上一步(restoreSource)」或「直接往下填寫資料」,不再提供「用密碼登入資料繼續」這個直接啟動的捷徑——
+//    改成一律導向填寫表單(enterNewWithPrefill共用函式),密碼登入路線會自動預填店家/性別/班別/上下班時間;
+// (5)doCheckCode編號檢查通過後,順便呼叫新增的gasCheckStaffCode查舊Staff表資料,查到就預填(不需密碼,任何人都能查,跟checkCode本身開放程度一致);
+// (6)抽出autoBackupIfLineBound共用函式:只要有LINE身份,doActivate完成啟動、或匯入本地備份檔成功,都會fire-and-forget自動打一次雲端備份
+//    (保底動作,完全不管使用者有沒有勾選「自動雲端備份」那個習慣性設定)。
+// 加匯入gasCheckStaffCode | 前: v1.13-008
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,gasBackupSubmit,gasBackupCheck,gasBackupFetch,getMyLineUserId,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 
@@ -32,13 +42,49 @@ function Onboarding({onComplete}){
   const[forgotPwd,setForgotPwd]=useState(()=>(pending&&pending.forgotPwd)||'');const[forgotPwd2,setForgotPwd2]=useState('');
   const[activeField,setActiveField]=useState(''); // 目前哪個PIN欄位被點開(鍵盤要顯示在哪個欄位下方),空字串=都沒開
   const[ticketSeq,setTicketSeq]=useState(()=>(pending&&pending.ticketSeq)||'');const[ticketStatus,setTicketStatus]=useState('');const[cooldown,setCooldown]=useState(0);
+  // 1.13版:已經使用過的4種救援路徑用的state
+  const[importErr,setImportErr]=useState('');const[importBusy,setImportBusy]=useState(false);
+  const[lineRestoreBusy,setLineRestoreBusy]=useState(false);const[lineRestoreErr,setLineRestoreErr]=useState('');
+  const[lineRestoreFound,setLineRestoreFound]=useState(null); // null=還沒查/{found:false}/{found:true,code,year,updatedAt}
+  const[pendingActivateSettings,setPendingActivateSettings]=useState(()=>{try{const s=localStorage.getItem('onboard-pwd-settings');return s?JSON.parse(s):null}catch(_e){return null}}); // 密碼登入成功後暫存的settings,存localStorage是因為LINE登入會整頁重導轉,單純的React state會遺失
   const t=T[lang];
   useEffect(()=>{loadStores().then(s=>{setStores(s);if(!pending)setStore(s[0]||'龍山寺店')})},[]);
+  // 1.13版:LINE登入會整頁重導轉離開再回來,用localStorage的flowMarker記住使用者是從哪條路徑觸發登入的,
+  // 掛載時檢查有沒有殘留標記+已經拿到userId,決定回來後要接續顯示哪個畫面
+  useEffect(()=>{
+    if(!HIDE_COMPANY_FEATURES)return;
+    const marker=(()=>{try{return localStorage.getItem('onboard-flow-marker')}catch(_e){return null}})();
+    if(!marker)return;
+    const uid=getMyLineUserId();
+    if(!uid)return; // 還沒登入成功(可能SDK還沒初始化完),先不處理,交給BackupSection那套邏輯之後會補上
+    try{localStorage.removeItem('onboard-flow-marker')}catch(_e){}
+    if(marker==='initial'){setMode('afterLineLogin')}
+    else if(marker==='afterPwdLogin'){
+      if(pendingActivateSettings&&pendingActivateSettings.code)gasLogFlowEnter(pendingActivateSettings.code,'lineLoginBind').catch(()=>{}); // 事件2:密碼登入後補綁LINE
+      setMode('restoreAsk');
+    }
+  },[]);
   useEffect(()=>{if(cooldown<=0)return;const tm=setTimeout(()=>setCooldown(c=>c>0?c-1:0),1000);return()=>clearTimeout(tm)},[cooldown]);
   const onWorkStartChange=(v)=>{setWorkStart(v);if(!workEndTouched)setWorkEnd(addHalfHourTime(v,12))};
   const onWorkEndChange=(v)=>{setWorkEnd(v);setWorkEndTouched(true)};
   const baseSettings=(extra)=>Object.assign({code,unitPrice:250,lang,store,year:bizParts().y,deviceId:devId,gender,workStart,workEnd,shift,lockPwd:pwd},extra||{});
-  const doActivate=(settings)=>{clearPending();LS.set('app-settings',settings);LS.set(`activated-${code}`,{deviceId:devId,ts:Date.now()});try{if(shouldClaimKey(code)){autoClaimKey(code)}}catch(_e){}onComplete(settings)};
+  // 1.13版:如果這台裝置有綁定LINE,fire-and-forget自動打一次雲端備份(保底動作,跟自動備份勾選框完全無關)。
+  // 抽成共用函式,啟動完成(doActivate)、匯入本地備份檔完成 這兩個「雲端可能還沒有這份最新資料」的情境都會呼叫
+  const autoBackupIfLineBound=(settings)=>{
+    try{
+      const lineUid=getMyLineUserId();
+      if(lineUid){
+        const obj=makePersonalBackup(settings.code,settings.year||bizParts().y);
+        gasBackupSubmit(lineUid,settings.code,settings.year||bizParts().y,JSON.stringify(obj)).catch(()=>{});
+      }
+    }catch(_e){}
+  };
+  const doActivate=(settings)=>{
+    clearPending();LS.set('app-settings',settings);LS.set(`activated-${code}`,{deviceId:devId,ts:Date.now()});
+    try{if(shouldClaimKey(code)){autoClaimKey(code)}}catch(_e){}
+    autoBackupIfLineBound(settings);
+    onComplete(settings);
+  };
   const pinOk=isValidPin(pwd);
   const canSubmitNew=codeCheck==='new'&&code.trim()&&gender&&shift&&workStart&&workEnd&&pinOk&&pwd===pwd2&&agreed;
 
@@ -72,14 +118,48 @@ function Onboarding({onComplete}){
       const r=await gasCheckCode(code.trim());
       if(r&&r.ok){
         if(r.exists){setCodeCheck('exists');setMode('login');setLoginPwdInput('')}
-        else{setCodeCheck('new')}
+        else{
+          setCodeCheck('new');
+          // 1.13版:編號可以使用,順便查一次舊Staff表資料,有查到就預填店家/性別/班別,不用重新輸入一次
+          try{
+            const sr=await gasCheckStaffCode(code.trim());
+            if(sr&&sr.ok&&sr.found){
+              if(sr.store)setStore(sr.store);
+              if(sr.gender)setGender(sr.gender);
+              if(sr.shift)setShift(sr.shift);
+            }
+          }catch(_e){}
+        }
       }else{setCodeCheck('error');setErr((r&&r.error)||t.codeCheckFail)}
     }catch(e){setCodeCheck('error');setErr(t.codeCheckFail)}
+  };
+  // 1.13版:密碼登入路線(pendingActivateSettings存在)進填寫表單時,直接用密碼登入拿到的資料預填,不用重新輸入
+  const enterNewWithPrefill=()=>{
+    if(pendingActivateSettings){
+      if(pendingActivateSettings.store)setStore(pendingActivateSettings.store);
+      if(pendingActivateSettings.gender)setGender(pendingActivateSettings.gender);
+      if(pendingActivateSettings.shift)setShift(pendingActivateSettings.shift);
+      if(pendingActivateSettings.workStart)setWorkStart(pendingActivateSettings.workStart);
+      if(pendingActivateSettings.workEnd)setWorkEnd(pendingActivateSettings.workEnd);
+      setCodeCheck('new');
+    }else{
+      setCodeCheck(null);
+    }
+    setMode('new');
   };
 
   const submitNew=async()=>{
     if(!canSubmitNew){if(!agreed)setAgreeErr(true);return}
     setAgreeErr(false);setFieldErr('');setChecking(true);
+    // 1.13版:拿掉公司審核制度後,第一次使用直接本機啟動,完全不呼叫GAS、不送票證、不查admin.cfg/approved名單
+    if(HIDE_COMPANY_FEATURES){
+      setChecking(false);
+      const lineUid=getMyLineUserId();
+      if(lineUid&&!pendingActivateSettings)gasLogFlowEnter(code,'lineUidObtained').catch(()=>{}); // 事件3:純LINE路線,填表單那一刻才第一次確立userId對應的編號
+      gasLogFlowEnter(code,'newDeviceSetup').catch(()=>{}); // 事件4:完成新裝置資料填寫
+      doActivate(baseSettings());
+      return;
+    }
     // 快速通道:本來就是管理者/已核准過的編號,免走票證審核,但要記得把資料同步進Staff(不然性別/班別/上下班/語系不會進staff)
     const syncAndActivate=async()=>{
       try{await gasSyncProfile(code,{store,lang,gender,workStart,workEnd,shift,lockPwdEnc:lockPwdCred(code,pwd)})}catch(_e){}
@@ -149,7 +229,19 @@ function Onboarding({onComplete}){
       const cred=lockPwdCred(code,loginPwdInput);
       const r=await gasLoginPwd(code,cred);
       setChecking(false);
-      if(r&&r.ok){doActivate({code:r.code||code,unitPrice:r.unitPrice||250,unitPriceHistory:r.unitPriceHistory||[],lang:r.lang||lang,store:r.store||store,year:bizParts().y,deviceId:devId,gender:r.gender||'',workStart:r.workStart||'',workEnd:r.workEnd||'',shift:r.shift||'',lockPwd:loginPwdInput})}
+      if(r&&r.ok){
+        const activated={code:r.code||code,unitPrice:r.unitPrice||250,unitPriceHistory:r.unitPriceHistory||[],lang:r.lang||lang,store:r.store||store,year:bizParts().y,deviceId:devId,gender:r.gender||'',workStart:r.workStart||'',workEnd:r.workEnd||'',shift:r.shift||'',lockPwd:loginPwdInput};
+        // 1.13版:密碼登入是暫時性的過渡選項,只拿得回基本資料,沒有每日記帳歷史(那些從來不存在Staff表)。
+        if(HIDE_COMPANY_FEATURES)gasLogFlowEnter(r.code||code,'pwdLogin').catch(()=>{}); // 事件1:編號用密碼登入
+        // 存localStorage(不是單純React state)是因為接下來要引導去LINE登入,會整頁重導轉離開再回來,一般state撐不過這個過程
+        if(HIDE_COMPANY_FEATURES){
+          try{localStorage.setItem('onboard-pwd-settings',JSON.stringify(activated))}catch(_e){}
+          setPendingActivateSettings(activated);
+          setMode('pwdLoginWarn');
+          return;
+        }
+        doActivate(activated);
+      }
       else if(r&&r.reason==='left'){setMode('reinstateAsk')}
       else{setErr((r&&r.error)?(t.pwdLoginFail+'（'+r.error+'）'):t.pwdLoginFail)}
     }catch(e){setChecking(false);setErr(t.pwdLoginFail+'（'+e+'）')}
@@ -221,11 +313,145 @@ function Onboarding({onComplete}){
   return(<div className="min-h-screen flex items-center justify-center p-6 bg-gray-950"><div className="w-full max-w-sm fi">
     <div className="text-center mb-6"><div className="w-16 h-16 bg-amber-600/20 rounded-2xl flex items-center justify-center mx-auto mb-4"><svg className="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg></div><h1 className="text-xl font-bold text-gray-100 mb-1">{t.welcome}</h1></div>
 
-    {mode==='choice'&&(<div className="space-y-3">
-      <div><label className="text-sm text-gray-400 mb-1.5 block">{t.language}</label><div className="grid grid-cols-2 gap-2">{[['zh','中文'],['vi','Tiếng Việt']].map(([c,l])=>(<button key={c} onClick={()=>setLang(c)} className={`py-3 rounded-xl text-sm font-semibold transition-all ${lang===c?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div></div>
-      <button onClick={()=>{setMode('new');setCodeCheck(null)}} className="w-full py-4 rounded-xl font-bold text-lg bg-amber-600 text-white mt-2">{t.flowNew}</button>
-      <button onClick={()=>{setMode('login');setErr('');setCodeCheck(null)}} className="w-full py-4 rounded-xl font-bold text-lg bg-white/[0.06] text-gray-200">{t.flowLogin}</button>
+    {mode==='choice'&&(()=>{
+      const doTriggerLineLogin=async()=>{
+        if(typeof liff==='undefined'){setLineRestoreErr(t.liffSdkFail||'LINE SDK載入失敗，請檢查網路');return}
+        setLineRestoreBusy(true);setLineRestoreErr('');
+        try{
+          try{localStorage.setItem('onboard-flow-marker','initial')}catch(_e){}
+          await liff.init({liffId:INDEX_LIFF_ID});
+          if(liff.isLoggedIn())liff.logout();
+          const cleanUrl=location.origin+location.pathname+location.hash;
+          liff.login({redirectUri:cleanUrl});
+        }catch(e){setLineRestoreBusy(false);setLineRestoreErr(String(e))}
+      };
+      return(<div className="space-y-3">
+        <div><label className="text-sm text-gray-400 mb-1.5 block">{t.language}</label><div className="grid grid-cols-2 gap-2">{[['zh','中文'],['vi','Tiếng Việt']].map(([c,l])=>(<button key={c} onClick={()=>setLang(c)} className={`py-3 rounded-xl text-sm font-semibold transition-all ${lang===c?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div></div>
+        {HIDE_COMPANY_FEATURES?(<>
+          <button onClick={doTriggerLineLogin} disabled={lineRestoreBusy} className="w-full py-4 rounded-xl font-bold text-lg text-white mt-2 disabled:opacity-50" style={{background:'#06C755'}}>{lineRestoreBusy?(t.liffLoggingIn||'登入中…'):(t.lineLoginBtn||'使用LINE登入')}</button>
+          {lineRestoreErr&&<p className="text-red-400 text-sm text-center">{lineRestoreErr}</p>}
+          <button onClick={()=>{setMode('login');setErr('');setCodeCheck(null)}} className="w-full py-3 rounded-xl bg-white/[0.04] text-gray-500 text-sm font-semibold">{t.restorePwdBtn||'用密碼登入'}</button>
+          <p className="text-[11px] text-gray-600 text-center">{t.pwdLoginTempNote||'（此登入方式為暫時選項，未來將移除）'}</p>
+        </>):(<>
+          <button onClick={()=>{setMode('new');setCodeCheck(null)}} className="w-full py-4 rounded-xl font-bold text-lg bg-amber-600 text-white mt-2">{t.flowNew}</button>
+          <button onClick={()=>{setMode('login');setErr('');setCodeCheck(null)}} className="w-full py-4 rounded-xl font-bold text-lg bg-white/[0.06] text-gray-200">{t.flowLogin}</button>
+        </>)}
+      </div>);
+    })()}
+
+    {mode==='afterLineLogin'&&(<div className="space-y-3">
+      <p className="text-sm text-emerald-400 text-center">✓ {t.lineLoginBoundLabel||'已綁定'} LINE</p>
+      <button onClick={()=>{setMode('new');setCodeCheck('new')}} className="w-full py-4 rounded-xl font-bold text-lg bg-amber-600 text-white">{t.flowFirstUse||'第一次使用'}</button>
+      <button onClick={()=>setMode('restoreAsk')} className="w-full py-4 rounded-xl font-bold text-lg bg-white/[0.06] text-gray-200">{t.flowAlreadyUsed||'已經使用過'}</button>
     </div>)}
+
+    {mode==='restoreAsk'&&(<div className="space-y-3">
+      <p className="text-sm text-gray-400 text-center">{t.restoreAskHint||'要不要還原之前的備份？'}</p>
+      <button onClick={()=>setMode('restoreSource')} className="w-full py-4 rounded-xl font-bold text-lg bg-amber-600 text-white">{t.restoreAskYes||'是，我要還原'}</button>
+      <button onClick={enterNewWithPrefill} className="w-full py-4 rounded-xl font-bold text-lg bg-white/[0.06] text-gray-200">{t.restoreAskNo||'不用，建立新資料'}</button>
+    </div>)}
+
+    {mode==='restoreSource'&&(<div className="space-y-3">
+      <p className="text-sm text-gray-400 text-center">{t.restoreSourceHint||'從哪裡還原？'}</p>
+      <button onClick={()=>{setMode('importFile');setImportErr('')}} className="w-full py-4 rounded-xl font-bold text-base bg-white/[0.06] text-gray-200">{t.restoreImportBtn||'匯入備份檔'}</button>
+      <button onClick={()=>{setMode('cloudCheckFlow');setLineRestoreFound(null);setLineRestoreErr('')}} className="w-full py-4 rounded-xl font-bold text-base text-white" style={{background:'#06C755'}}>{t.restoreSourceCloudBtn||'雲端備份'}</button>
+      <button onClick={()=>setMode('restoreAsk')} className="w-full py-2.5 rounded-xl bg-white/[0.03] text-gray-500 text-sm font-semibold">{t.backToChoice}</button>
+    </div>)}
+
+    {mode==='pwdLoginWarn'&&(()=>{
+      const doBindLine=async()=>{
+        if(typeof liff==='undefined'){setLineRestoreErr(t.liffSdkFail||'LINE SDK載入失敗，請檢查網路');return}
+        try{
+          try{localStorage.setItem('onboard-flow-marker','afterPwdLogin')}catch(_e){}
+          await liff.init({liffId:INDEX_LIFF_ID});
+          if(liff.isLoggedIn())liff.logout();
+          const cleanUrl=location.origin+location.pathname+location.hash;
+          liff.login({redirectUri:cleanUrl});
+        }catch(e){setLineRestoreErr(String(e))}
+      };
+      return(<div className="space-y-4">
+        <p className="text-base text-amber-400 text-center font-semibold">{t.pwdLoginOkTitle||'密碼登入成功'}</p>
+        <p className="text-sm text-gray-400 text-center leading-relaxed">{t.pwdLoginBindWarn||'未來將取消此方式登入，請點擊LINE登入以進行綁定'}</p>
+        <button onClick={doBindLine} className="w-full py-4 rounded-xl font-bold text-lg text-white" style={{background:'#06C755'}}>{t.lineLoginBtn||'使用LINE登入'}</button>
+        {lineRestoreErr&&<p className="text-red-400 text-sm text-center">{lineRestoreErr}</p>}
+      </div>);
+    })()}
+
+    {mode==='importFile'&&(<div className="space-y-4">
+      <p className="text-sm text-gray-400 text-center">{t.restoreImportHint||'選擇你之前匯出的備份JSON檔案'}</p>
+      <label className="block w-full py-8 rounded-xl border-2 border-dashed border-white/[0.15] text-center cursor-pointer active:bg-white/[0.03]">
+        <span className="text-sm text-gray-400">{importBusy?(t.restoreImporting||'處理中…'):(t.restoreImportPick||'點此選擇檔案')}</span>
+        <input type="file" accept=".json,application/json" className="hidden" disabled={importBusy} onChange={async(e)=>{
+          const file=e.target.files&&e.target.files[0];
+          if(!file)return;
+          setImportBusy(true);setImportErr('');
+          try{
+            const text=await file.text();
+            const obj=JSON.parse(text);
+            const parsed=parsePersonalBackup(obj);
+            if(!parsed.ok){const map={notBackup:t.jsonNotBackup,broken:t.jsonBroken,modified:t.jsonModified};setImportErr(map[parsed.reason]||t.jsonBroken);setImportBusy(false);return}
+            restorePersonalBackup(parsed);
+            const restored=LS.get('app-settings');
+            setImportBusy(false);
+            if(restored){if(!pendingActivateSettings&&restored.code)gasLogFlowEnter(restored.code,'lineUidObtained').catch(()=>{});autoBackupIfLineBound(restored);onComplete(restored)}else setImportErr(t.jsonBroken)
+          }catch(_e){setImportErr(t.jsonBroken);setImportBusy(false)}
+        }}/>
+      </label>
+      {importErr&&<p className="text-red-400 text-sm text-center">{importErr}</p>}
+      <button onClick={()=>setMode('restoreSource')} className="w-full py-2.5 rounded-xl bg-white/[0.03] text-gray-500 text-sm font-semibold">{t.backToChoice}</button>
+    </div>)}
+
+    {mode==='cloudCheckFlow'&&(()=>{
+      const lineUid=getMyLineUserId();
+      const doCheckBackup=async()=>{
+        setLineRestoreBusy(true);setLineRestoreErr('');
+        // 先查GitHub的輕量索引(backup-index.json,公開靜態檔案不用token),不用等GAS冷啟動;查不到才退回較慢但保底的GAS查詢
+        try{
+          const res=await fetch('./backup-index.json',{cache:'no-store'});
+          if(res.ok){
+            const arr=await res.json();
+            const found=arr.find(a=>a.lineUserId===lineUid);
+            if(found){setLineRestoreFound({ok:true,found:true,code:found.code,year:found.year,updatedAt:found.updatedAt});setLineRestoreBusy(false);return}
+          }
+        }catch(_e){}
+        try{
+          const r=await gasBackupCheck(lineUid);
+          if(r&&r.ok)setLineRestoreFound(r);
+          else setLineRestoreErr((r&&r.error)||'查詢失敗');
+        }catch(e){setLineRestoreErr(String(e))}
+        setLineRestoreBusy(false);
+      };
+      const doRestoreFromCloud=async()=>{
+        setLineRestoreBusy(true);setLineRestoreErr('');
+        try{
+          const r=await gasBackupFetch(lineUid);
+          if(r&&r.ok){
+            let obj;try{obj=JSON.parse(r.jsonData)}catch(_e){setLineRestoreErr(t.jsonBroken);setLineRestoreBusy(false);return}
+            const parsed=parsePersonalBackup(obj);
+            if(!parsed.ok){const map={notBackup:t.jsonNotBackup,broken:t.jsonBroken,modified:t.jsonModified};setLineRestoreErr(map[parsed.reason]||t.jsonBroken);setLineRestoreBusy(false);return}
+            restorePersonalBackup(parsed);
+            try{localStorage.removeItem('onboard-pwd-settings')}catch(_e){}
+            const restored=LS.get('app-settings');
+            setLineRestoreBusy(false);
+            if(restored){if(!pendingActivateSettings&&restored.code)gasLogFlowEnter(restored.code,'lineUidObtained').catch(()=>{});onComplete(restored)}else setLineRestoreErr(t.jsonBroken)
+          }else{setLineRestoreErr((r&&r.error)||'還原失敗');setLineRestoreBusy(false)}
+        }catch(e){setLineRestoreErr(String(e));setLineRestoreBusy(false)}
+      };
+      return(<div className="space-y-4">
+        {lineRestoreFound===null?(<>
+          <p className="text-sm text-gray-400 text-center">{t.restoreLineCheckHint||'已登入LINE，查詢雲端備份中'}</p>
+          <button onClick={doCheckBackup} disabled={lineRestoreBusy} className="w-full py-4 rounded-xl font-bold text-lg bg-amber-600 text-white disabled:opacity-50">{lineRestoreBusy?(t.checkingCode||'查詢中…'):(t.restoreLineCheckBtn||'查詢雲端備份')}</button>
+        </>):lineRestoreFound.found?(<>
+          <p className="text-sm text-emerald-400 text-center">{t.cloudFoundLabel.replace('{0}',lineRestoreFound.year).replace('{1}',lineRestoreFound.updatedAt)}</p>
+          <button onClick={doRestoreFromCloud} disabled={lineRestoreBusy} className="w-full py-4 rounded-xl font-bold text-lg bg-amber-600 text-white disabled:opacity-50">{lineRestoreBusy?(t.cloudRestoreDoing||'還原中…'):(t.cloudRestoreBtn||'還原這份備份')}</button>
+        </>):(<>
+          <p className="text-sm text-gray-400 text-center">{t.restoreLineNotFoundHint||'這個LINE帳號沒有查到雲端備份'}</p>
+          <button onClick={()=>setMode('restoreSource')} className="w-full py-3 rounded-xl bg-white/[0.06] text-gray-300 text-sm font-semibold">{t.backToChoice}</button>
+          <button onClick={enterNewWithPrefill} className="w-full py-3 rounded-xl bg-amber-600 text-white text-sm font-bold">{t.restoreLineFreshBtn||'直接往下填寫資料'}</button>
+        </>)}
+        {lineRestoreErr&&<p className="text-red-400 text-sm text-center">{lineRestoreErr}</p>}
+      </div>);
+    })()}
 
     {mode==='new'&&(()=>{const locked=codeCheck!=='new';return(<div className="space-y-5">
     <div className="space-y-2"><label className="text-sm text-gray-400 block text-center">{t.teacherCode}</label>
@@ -394,6 +620,7 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings,onLogout}){
   useEffect(()=>{if(type==='store')loadStores().then(s=>setStores(s))},[]);
 
   const initGate=()=>{
+    if(HIDE_COMPANY_FEATURES)return 'none'; // 1.13版:基資/店資取消打自訂密碼的限制,直接進編輯畫面,不用先過每日密碼這關
     if(!code)return 'none';
     if(!settings.lockPwd)return 'checking'; // 本機沒有,要先問GAS這個編號是不是已經在別的裝置設過密碼
     if(Date.now()-getInfoUnlockTs(code)>(settings.lockAutoTime||60)*60*1000)return 'locked';
@@ -1239,7 +1466,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
     const next=(pwdInput+d).slice(0,4);
     setPwdInput(next);
     if(next.length===4){
-      if(next===settings.lockPwd){setPwdInput('');setPwdErr('');setInfoUnlockTs(settings.code);advanceQueue();if(settings.autoCloudBackup){try{const obj=makePersonalBackup(settings.code,settings.year||bizParts().y);gasBackupSubmit(settings.code,settings.year||bizParts().y,JSON.stringify(obj)).catch(()=>{})}catch(_e){}}}
+      if(next===settings.lockPwd){setPwdInput('');setPwdErr('');setInfoUnlockTs(settings.code);advanceQueue();if(settings.autoCloudBackup){const lineUid=getMyLineUserId();if(lineUid){try{const obj=makePersonalBackup(settings.code,settings.year||bizParts().y);gasBackupSubmit(lineUid,settings.code,settings.year||bizParts().y,JSON.stringify(obj)).catch(()=>{})}catch(_e){}}}}
       else{setPwdErr(t.noticePwdWrong||'密碼錯誤');setPwdShake(true);setTimeout(()=>{setPwdShake(false);setPwdInput('')},500)}
     }
   };
