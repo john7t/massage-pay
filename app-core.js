@@ -1,12 +1,10 @@
-// app-core.js v1.13-015 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-016 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
-// v1.13-015 / 大幅簡化填表單畫面:去公司化後性別/班別/上下班時間都不重要,只保留編號+店面+閱讀說明:
-// (1)canSubmitNew拿掉這三項的必填檢查;(2)UI拿掉這三個欄位(HIDE_COMPANY_FEATURES開關);
-// (3)編號欄位拿掉「檢查」按鈕跟「編號可用，請繼續填寫」提示,直接輸入就好,不用按按鈕;
-// (4)NoticeBox閱讀說明拿掉「我的自約」那一段(myBookingNote翻譯key保留在common.js未刪除,只是不再引用)。
-// gender/shift/workStart/workEnd這些state本身跟baseSettings都沒有動,初始值本來就是空字串或合理預設時間,
-// 不會影響其他依賴這些欄位的既有功能 | 前: v1.13-014
+// v1.13-016 / 修正上一版遺留的bug:onCodeChange原本每次編號變動就重置codeCheck=null,這是舊架構「改編號要
+// 重新按檢查」的邏輯。1.13版拿掉檢查按鈕後,codeCheck一開始就固定是'new',但只要使用者一碰編號欄位,
+// onCodeChange還是會把它重置成null,連帶讓下面的fieldset(locked=codeCheck!=='new')整個變灰禁用——
+// 這就是「焦點在編號時下方欄位變灰」的成因。改成1.13版下編號變動不再重置codeCheck | 前: v1.13-015
 const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,getMyLineUserId,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
@@ -108,7 +106,7 @@ function Onboarding({onComplete}){
   const toggleField=(f)=>setActiveField(a=>a===f?'':f);
   const goChoice=()=>{clearPending();setMode('choice');setErr('');setFieldErr('');setChecking(false);setTicketStatus('');setCooldown(0);setPwd('');setPwd2('');setForgotPwd('');setForgotPwd2('');setLoginPwdInput('');setActiveField('')};
 
-  const onCodeChange=(v)=>{setCode(v.replace(/[^a-zA-Z0-9]/g,''));setCodeCheck(null)};
+  const onCodeChange=(v)=>{setCode(v.replace(/[^a-zA-Z0-9]/g,''));if(!HIDE_COMPANY_FEATURES)setCodeCheck(null)};
   const codeDigit=(d)=>{if(code.length>=3)return;const next=code+d;onCodeChange(next);if(next.length>=3)setActiveField('')};
   const codeBackspace=()=>{onCodeChange(code.slice(0,-1))};
   const codeClear=()=>onCodeChange('');
