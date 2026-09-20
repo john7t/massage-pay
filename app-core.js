@@ -1,11 +1,9 @@
-// app-core.js v1.13-013 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-014 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
-// v1.13-013 / 【實測回饋】LINE登入在公司真實環境測試中大量失敗,拿掉開場畫面強制LINE登入這個環節:
-// choice畫面改成「第一次使用」直接進填表單(不用先過LINE),「用密碼登入」維持保留給老帳號用。
-// doLogin密碼登入成功後改成直接doActivate,不再導向pwdLoginWarn強制要求綁定LINE(整段畫面移除)。
-// LINE登入相關的基礎設施(INDEX_LIFF_ID/getMyLineUserId/checkLightDataAndEnterForm等)都完整保留未刪除,
-// 只是開場流程不再觸發,設定頁的LINE登入按鈕依然可以正常使用,方便之後排查各裝置登入失敗的實際原因 | 前: v1.13-012
+// v1.13-014 / 拿掉票證系統後,忘記密碼也無法重置,密碼登入這條路留著反而是陷阱——choice畫面拿掉「用密碼登入」選項,
+// 只剩「開始使用」一個按鈕,不再區分第一次使用或有密碼登入,一律直接進填表單。doLogin/mode==='login'畫面本身
+// 完整保留未刪除,只是1.13版下完全沒有任何UI入口能觸發進入,程式碼保留但無法觸及 | 前: v1.13-013
 const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,getMyLineUserId,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
@@ -300,10 +298,9 @@ function Onboarding({onComplete}){
 
     {mode==='choice'&&(<div className="space-y-3">
       <div><label className="text-sm text-gray-400 mb-1.5 block">{t.language}</label><div className="grid grid-cols-2 gap-2">{[['zh','中文'],['vi','Tiếng Việt']].map(([c,l])=>(<button key={c} onClick={()=>setLang(c)} className={`py-3 rounded-xl text-sm font-semibold transition-all ${lang===c?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div></div>
-      {HIDE_COMPANY_FEATURES?(<>
-        <button onClick={()=>{setMode('new');setCodeCheck('new')}} className="w-full py-4 rounded-xl font-bold text-lg bg-amber-600 text-white mt-2">{t.flowFirstUse||'第一次使用'}</button>
-        <button onClick={()=>{setMode('login');setErr('');setCodeCheck(null)}} className="w-full py-3 rounded-xl bg-white/[0.04] text-gray-500 text-sm font-semibold">{t.restorePwdBtn||'用密碼登入'}</button>
-      </>):(<>
+      {HIDE_COMPANY_FEATURES?(
+        <button onClick={()=>{setMode('new');setCodeCheck('new')}} className="w-full py-4 rounded-xl font-bold text-lg bg-amber-600 text-white mt-2">{t.startUseBtn||'開始使用'}</button>
+      ):(<>
         <button onClick={()=>{setMode('new');setCodeCheck(null)}} className="w-full py-4 rounded-xl font-bold text-lg bg-amber-600 text-white mt-2">{t.flowNew}</button>
         <button onClick={()=>{setMode('login');setErr('');setCodeCheck(null)}} className="w-full py-4 rounded-xl font-bold text-lg bg-white/[0.06] text-gray-200">{t.flowLogin}</button>
       </>)}
