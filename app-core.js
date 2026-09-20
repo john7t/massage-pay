@@ -1,13 +1,11 @@
-// app-core.js v1.13-011 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-013 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
-// v1.13-011 / 拿掉整套PIN密碼鎖屏機制,改用LINE登入當唯一身分驗證:
-// (1)開場畫面填表單拿掉自訂密碼區塊,canSubmitNew判斷式同步拿掉PIN合法性/兩次輸入一致性檢查,不然表單永遠無法送出;
-// (2)首頁拿掉「每日第一次登入要密碼」的觸發(dailyQueue不再加入'pwd');
-// (3)「更多功能」按鈕拿掉setup/verify密碼閘門(這裡同時也是「每N分鐘回頁面要密碼」的實際觸發點),只保留跟密碼無關的離職限制檢查。
-// 【重要架構修正】HIDE_COMPANY_FEATURES常數搬到common.js:原本定義在這個檔案裡,但index.html載入順序是
-// settings.js先於app-core.js,這次要讓settings.js也能安全引用這個開關,搬到最先載入的common.js當單一事實來源,
-// 這裡改成從匯入清單取得,不再自己宣告 | 前: v1.13-010
+// v1.13-013 / 【實測回饋】LINE登入在公司真實環境測試中大量失敗,拿掉開場畫面強制LINE登入這個環節:
+// choice畫面改成「第一次使用」直接進填表單(不用先過LINE),「用密碼登入」維持保留給老帳號用。
+// doLogin密碼登入成功後改成直接doActivate,不再導向pwdLoginWarn強制要求綁定LINE(整段畫面移除)。
+// LINE登入相關的基礎設施(INDEX_LIFF_ID/getMyLineUserId/checkLightDataAndEnterForm等)都完整保留未刪除,
+// 只是開場流程不再觸發,設定頁的LINE登入按鈕依然可以正常使用,方便之後排查各裝置登入失敗的實際原因 | 前: v1.13-012
 const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,getMyLineUserId,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
@@ -226,15 +224,7 @@ function Onboarding({onComplete}){
       setChecking(false);
       if(r&&r.ok){
         const activated={code:r.code||code,unitPrice:r.unitPrice||250,unitPriceHistory:r.unitPriceHistory||[],lang:r.lang||lang,store:r.store||store,year:bizParts().y,deviceId:devId,gender:r.gender||'',workStart:r.workStart||'',workEnd:r.workEnd||'',shift:r.shift||'',lockPwd:loginPwdInput};
-        // 1.13版:密碼登入是暫時性的過渡選項,只拿得回基本資料,沒有每日記帳歷史(那些從來不存在Staff表)。
         if(HIDE_COMPANY_FEATURES)gasLogFlowEnter(r.code||code,'pwdLogin').catch(()=>{}); // 事件1:編號用密碼登入
-        // 存localStorage(不是單純React state)是因為接下來要引導去LINE登入,會整頁重導轉離開再回來,一般state撐不過這個過程
-        if(HIDE_COMPANY_FEATURES){
-          try{localStorage.setItem('onboard-pwd-settings',JSON.stringify(activated))}catch(_e){}
-          setPendingActivateSettings(activated);
-          setMode('pwdLoginWarn');
-          return;
-        }
         doActivate(activated);
       }
       else if(r&&r.reason==='left'){setMode('reinstateAsk')}
@@ -308,50 +298,16 @@ function Onboarding({onComplete}){
   return(<div className="min-h-screen flex items-center justify-center p-6 bg-gray-950"><div className="w-full max-w-sm fi">
     <div className="text-center mb-6"><div className="w-16 h-16 bg-amber-600/20 rounded-2xl flex items-center justify-center mx-auto mb-4"><svg className="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg></div><h1 className="text-xl font-bold text-gray-100 mb-1">{t.welcome}</h1></div>
 
-    {mode==='choice'&&(()=>{
-      const doTriggerLineLogin=async()=>{
-        if(typeof liff==='undefined'){setLineRestoreErr(t.liffSdkFail||'LINE SDK載入失敗，請檢查網路');return}
-        setLineRestoreBusy(true);setLineRestoreErr('');
-        try{
-          try{localStorage.setItem('onboard-flow-marker','initial')}catch(_e){}
-          await liff.init({liffId:INDEX_LIFF_ID});
-          if(liff.isLoggedIn())liff.logout();
-          const cleanUrl=location.origin+location.pathname+location.hash;
-          liff.login({redirectUri:cleanUrl});
-        }catch(e){setLineRestoreBusy(false);setLineRestoreErr(String(e))}
-      };
-      return(<div className="space-y-3">
-        <div><label className="text-sm text-gray-400 mb-1.5 block">{t.language}</label><div className="grid grid-cols-2 gap-2">{[['zh','中文'],['vi','Tiếng Việt']].map(([c,l])=>(<button key={c} onClick={()=>setLang(c)} className={`py-3 rounded-xl text-sm font-semibold transition-all ${lang===c?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div></div>
-        {HIDE_COMPANY_FEATURES?(<>
-          <button onClick={doTriggerLineLogin} disabled={lineRestoreBusy} className="w-full py-4 rounded-xl font-bold text-lg text-white mt-2 disabled:opacity-50" style={{background:'#06C755'}}>{lineRestoreBusy?(t.liffLoggingIn||'登入中…'):(t.lineLoginBtn||'使用LINE登入')}</button>
-          {lineRestoreErr&&<p className="text-red-400 text-sm text-center">{lineRestoreErr}</p>}
-          <button onClick={()=>{setMode('login');setErr('');setCodeCheck(null)}} className="w-full py-3 rounded-xl bg-white/[0.04] text-gray-500 text-sm font-semibold">{t.restorePwdBtn||'用密碼登入'}</button>
-          <p className="text-[11px] text-gray-600 text-center">{t.pwdLoginTempNote||'（此登入方式為暫時選項，未來將移除）'}</p>
-        </>):(<>
-          <button onClick={()=>{setMode('new');setCodeCheck(null)}} className="w-full py-4 rounded-xl font-bold text-lg bg-amber-600 text-white mt-2">{t.flowNew}</button>
-          <button onClick={()=>{setMode('login');setErr('');setCodeCheck(null)}} className="w-full py-4 rounded-xl font-bold text-lg bg-white/[0.06] text-gray-200">{t.flowLogin}</button>
-        </>)}
-      </div>);
-    })()}
-
-    {mode==='pwdLoginWarn'&&(()=>{
-      const doBindLine=async()=>{
-        if(typeof liff==='undefined'){setLineRestoreErr(t.liffSdkFail||'LINE SDK載入失敗，請檢查網路');return}
-        try{
-          try{localStorage.setItem('onboard-flow-marker','afterPwdLogin')}catch(_e){}
-          await liff.init({liffId:INDEX_LIFF_ID});
-          if(liff.isLoggedIn())liff.logout();
-          const cleanUrl=location.origin+location.pathname+location.hash;
-          liff.login({redirectUri:cleanUrl});
-        }catch(e){setLineRestoreErr(String(e))}
-      };
-      return(<div className="space-y-4">
-        <p className="text-base text-amber-400 text-center font-semibold">{t.pwdLoginOkTitle||'密碼登入成功'}</p>
-        <p className="text-sm text-gray-400 text-center leading-relaxed">{t.pwdLoginBindWarn||'未來將取消密碼登入，請點擊LINE登入以進行綁定'}</p>
-        <button onClick={doBindLine} className="w-full py-4 rounded-xl font-bold text-lg text-white" style={{background:'#06C755'}}>{t.lineLoginBtn||'使用LINE登入'}</button>
-        {lineRestoreErr&&<p className="text-red-400 text-sm text-center">{lineRestoreErr}</p>}
-      </div>);
-    })()}
+    {mode==='choice'&&(<div className="space-y-3">
+      <div><label className="text-sm text-gray-400 mb-1.5 block">{t.language}</label><div className="grid grid-cols-2 gap-2">{[['zh','中文'],['vi','Tiếng Việt']].map(([c,l])=>(<button key={c} onClick={()=>setLang(c)} className={`py-3 rounded-xl text-sm font-semibold transition-all ${lang===c?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div></div>
+      {HIDE_COMPANY_FEATURES?(<>
+        <button onClick={()=>{setMode('new');setCodeCheck('new')}} className="w-full py-4 rounded-xl font-bold text-lg bg-amber-600 text-white mt-2">{t.flowFirstUse||'第一次使用'}</button>
+        <button onClick={()=>{setMode('login');setErr('');setCodeCheck(null)}} className="w-full py-3 rounded-xl bg-white/[0.04] text-gray-500 text-sm font-semibold">{t.restorePwdBtn||'用密碼登入'}</button>
+      </>):(<>
+        <button onClick={()=>{setMode('new');setCodeCheck(null)}} className="w-full py-4 rounded-xl font-bold text-lg bg-amber-600 text-white mt-2">{t.flowNew}</button>
+        <button onClick={()=>{setMode('login');setErr('');setCodeCheck(null)}} className="w-full py-4 rounded-xl font-bold text-lg bg-white/[0.06] text-gray-200">{t.flowLogin}</button>
+      </>)}
+    </div>)}
 
     {mode==='new'&&(()=>{const locked=codeCheck!=='new';return(<div className="space-y-5">
     <div className="space-y-2"><label className="text-sm text-gray-400 block text-center">{t.teacherCode}</label>
@@ -887,14 +843,14 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings,onLogout}){
       {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
       <div className="pt-2 flex gap-2">
         {!isEdit?(<>
-          {type==='store'&&<button onClick={()=>{setShowLeave(true);setLeaveDone(false);setLeaveErr('')}} className="px-4 py-3 rounded-xl bg-white/[0.06] text-gray-400 text-sm font-semibold">{t.leaveBtn}</button>}
+          {!HIDE_COMPANY_FEATURES&&type==='store'&&<button onClick={()=>{setShowLeave(true);setLeaveDone(false);setLeaveErr('')}} className="px-4 py-3 rounded-xl bg-white/[0.06] text-gray-400 text-sm font-semibold">{t.leaveBtn}</button>}
           <button onClick={startEdit} className="flex-1 py-3 rounded-xl bg-amber-600 text-white font-bold">{t.infoEditBtn}</button>
         </>):(<>
           <button onClick={cancelEdit} className="flex-1 py-3 rounded-xl bg-white/[0.06] text-gray-400 font-semibold">{t.infoCancelBtn}</button>
           <button onClick={submitEdit} disabled={busy} className="flex-1 py-3 rounded-xl bg-amber-600 text-white font-bold disabled:opacity-50 flex items-center justify-center gap-2">{busy&&<span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>}{busy?'':t.infoSubmitBtn}</button>
         </>)}
       </div>
-      {showLeave&&(<div className="fixed inset-0 z-[60] bg-black/80 flex items-end sm:items-center justify-center" onClick={()=>!leaveBusy&&setShowLeave(false)}><div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl" onClick={e=>e.stopPropagation()}>
+      {!HIDE_COMPANY_FEATURES&&showLeave&&(<div className="fixed inset-0 z-[60] bg-black/80 flex items-end sm:items-center justify-center" onClick={()=>!leaveBusy&&setShowLeave(false)}><div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl" onClick={e=>e.stopPropagation()}>
         <div className="p-4 border-b border-white/[0.06]"><h3 className="text-base font-bold text-gray-100">{t.leaveConfirmTitle}</h3></div>
         <div className="p-4 space-y-3">
           {!leaveDone?(<>
@@ -1490,7 +1446,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
       <div className="p-4 border-b border-white/[0.06] flex items-center justify-between"><h3 className="text-base font-bold text-gray-100">{t.slipList}</h3><button onClick={closeHomeSlipModal} className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-gray-400 active:bg-white/[0.12]">✕</button></div>
       <div className="p-1"><SlipEditFields s={s} t={t} editorCode={settings.code} custQuery={homeCustQuery} setCustQuery={setHomeCustQuery} onUpdate={patch=>updSlipHome(s.id,patch)} onDelete={()=>{delSlipHome(s.id);setHomeEditSlipId(null)}}/></div>
     </div></div>)})()}
-    {settings.homeShowC!==false&&(<div><p className="text-sm text-gray-400 mb-3">{t.status}</p><div className="grid grid-cols-3 gap-2">{[0,3,4,1,2,5].map(s=>(<button key={s} onClick={()=>setTodayStatus(s)} className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${todayData.status===s?(s===0?'bg-gray-600 text-white ring-2 ring-gray-500':`${SBG[s].replace('/20','/30')} ${STC[s]} ring-2 ring-current`):'bg-white/[0.04] text-gray-600'}`}>{t[SK[s]]}</button>))}</div></div>)}
+    {settings.homeShowC===true&&(<div><p className="text-sm text-gray-400 mb-3">{t.status}</p><div className="grid grid-cols-3 gap-2">{[0,3,4,1,2,5].map(s=>(<button key={s} onClick={()=>setTodayStatus(s)} className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${todayData.status===s?(s===0?'bg-gray-600 text-white ring-2 ring-gray-500':`${SBG[s].replace('/20','/30')} ${STC[s]} ring-2 ring-current`):'bg-white/[0.04] text-gray-600'}`}>{t[SK[s]]}</button>))}</div></div>)}
     <div className="grid grid-cols-4 gap-y-3 mt-3">
       <button onClick={()=>onGotoMonthly&&onGotoMonthly()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="4" width="18" height="17" rx="2"/><path strokeWidth={1.8} d="M3 9h18M8 2v4M16 2v4"/></svg></span><span className="text-[10px] text-gray-500">{t.monthly}</span></button>
       <button onClick={()=>onGotoCustomers&&onGotoCustomers()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM3 21v-1a6 6 0 0112 0v1"/><path d="M17 11a3 3 0 003-3M19 21v-1a5 5 0 00-3-4.6"/></svg></span><span className="text-[10px] text-gray-500">{t.custManage}</span></button>
