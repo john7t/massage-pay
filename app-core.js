@@ -1,14 +1,17 @@
-// app-core.js v1.13-014 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-015 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
-// v1.13-014 / 拿掉票證系統後,忘記密碼也無法重置,密碼登入這條路留著反而是陷阱——choice畫面拿掉「用密碼登入」選項,
-// 只剩「開始使用」一個按鈕,不再區分第一次使用或有密碼登入,一律直接進填表單。doLogin/mode==='login'畫面本身
-// 完整保留未刪除,只是1.13版下完全沒有任何UI入口能觸發進入,程式碼保留但無法觸及 | 前: v1.13-013
+// v1.13-015 / 大幅簡化填表單畫面:去公司化後性別/班別/上下班時間都不重要,只保留編號+店面+閱讀說明:
+// (1)canSubmitNew拿掉這三項的必填檢查;(2)UI拿掉這三個欄位(HIDE_COMPANY_FEATURES開關);
+// (3)編號欄位拿掉「檢查」按鈕跟「編號可用，請繼續填寫」提示,直接輸入就好,不用按按鈕;
+// (4)NoticeBox閱讀說明拿掉「我的自約」那一段(myBookingNote翻譯key保留在common.js未刪除,只是不再引用)。
+// gender/shift/workStart/workEnd這些state本身跟baseSettings都沒有動,初始值本來就是空字串或合理預設時間,
+// 不會影響其他依賴這些欄位的既有功能 | 前: v1.13-014
 const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,getMyLineUserId,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 
-function NoticeBox({t,agreed,setAgreed}){return(<div className="mt-6 space-y-2"><button onClick={()=>setAgreed(!agreed)} className="flex items-center gap-2 w-full text-left"><span className={`w-5 h-5 rounded flex items-center justify-center text-xs flex-shrink-0 ${agreed?'bg-amber-600 text-white':'bg-white/[0.06] border border-white/[0.12] text-transparent'}`}>✓</span><span className="text-[13px] text-gray-300 font-semibold">{t.readConfirm}</span></button><div className="space-y-1.5 text-[11px] text-gray-500 leading-relaxed pl-7"><p>{t.privacyBody}</p><p>{t.browserNote}</p><p>{t.myBookingNote}</p><p className="text-red-400/80">{t.backupReminder}</p></div></div>)}
+function NoticeBox({t,agreed,setAgreed}){return(<div className="mt-6 space-y-2"><button onClick={()=>setAgreed(!agreed)} className="flex items-center gap-2 w-full text-left"><span className={`w-5 h-5 rounded flex items-center justify-center text-xs flex-shrink-0 ${agreed?'bg-amber-600 text-white':'bg-white/[0.06] border border-white/[0.12] text-transparent'}`}>✓</span><span className="text-[13px] text-gray-300 font-semibold">{t.readConfirm}</span></button><div className="space-y-1.5 text-[11px] text-gray-500 leading-relaxed pl-7"><p>{t.privacyBody}</p><p>{t.browserNote}</p><p className="text-red-400/80">{t.backupReminder}</p></div></div>)}
 
 /* ══════════ StaffListSection ══════════ */
 function _pad2(n){return String(n).padStart(2,'0')}
@@ -99,7 +102,7 @@ function Onboarding({onComplete}){
   };
   const pinOk=isValidPin(pwd);
   const canSubmitNew=HIDE_COMPANY_FEATURES
-    ?(codeCheck==='new'&&code.trim()&&gender&&shift&&workStart&&workEnd&&agreed)
+    ?(codeCheck==='new'&&code.trim()&&agreed)
     :(codeCheck==='new'&&code.trim()&&gender&&shift&&workStart&&workEnd&&pinOk&&pwd===pwd2&&agreed);
 
   const toggleField=(f)=>setActiveField(a=>a===f?'':f);
@@ -312,15 +315,15 @@ function Onboarding({onComplete}){
         <PinDotsClickable length={code.length} total={3} digits={code} active={activeField==='code'} onClick={()=>toggleField('code')} onClear={codeClear}/>
         {activeField==='code'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-900 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><PinKeypadCompact onDigit={codeDigit} onBackspace={codeBackspace}/></div>}
       </div>
-      <button onClick={doCheckCode} disabled={!code.trim()||codeCheck==='checking'||codeCheck==='new'} className={`w-full py-3 rounded-xl text-sm font-bold ${codeCheck==='new'?'bg-emerald-600 text-white':code.trim()?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600'}`}>{codeCheck==='checking'?t.checkingCode:codeCheck==='new'?'✓':t.checkCodeBtn}</button>
-      {codeCheck==='new'&&<p className="text-xs text-emerald-500 mt-1.5 text-center">{t.codeAvailHint}</p>}
+      {!HIDE_COMPANY_FEATURES&&<button onClick={doCheckCode} disabled={!code.trim()||codeCheck==='checking'||codeCheck==='new'} className={`w-full py-3 rounded-xl text-sm font-bold ${codeCheck==='new'?'bg-emerald-600 text-white':code.trim()?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600'}`}>{codeCheck==='checking'?t.checkingCode:codeCheck==='new'?'✓':t.checkCodeBtn}</button>}
+      {!HIDE_COMPANY_FEATURES&&codeCheck==='new'&&<p className="text-xs text-emerald-500 mt-1.5 text-center">{t.codeAvailHint}</p>}
       {codeCheck==='error'&&<p className="text-xs text-red-400 mt-1.5 text-center">{err}</p>}
     </div>
     <fieldset disabled={locked} className={locked?'opacity-40 space-y-5 pointer-events-none':'space-y-5'}>
     <div><label className="text-sm text-gray-400 mb-1.5 block">{t.store}</label><select value={store} onChange={e=>setStore(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3.5 text-lg text-gray-100 focus:outline-none focus:border-amber-500 appearance-none">{stores.map(s=><option key={s} value={s}>{s}</option>)}</select></div>
-    <div><label className="text-sm text-gray-400 mb-1.5 block">{t.gender}</label><div className="grid grid-cols-2 gap-2">{[['M',t.genderM],['F',t.genderF]].map(([g,l])=>(<button key={g} onClick={()=>setGender(g)} className={`py-3 rounded-xl text-sm font-semibold transition-all ${gender===g?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div></div>
-    <div><label className="text-sm text-gray-400 mb-1.5 block">{t.shiftLabel}</label><div className="grid grid-cols-2 gap-2">{[['day',t.shiftDay],['night',t.shiftNight]].map(([sv,l])=>(<button key={sv} onClick={()=>setShift(sv)} className={`py-3 rounded-xl text-sm font-semibold transition-all ${shift===sv?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div></div>
-    <div className="grid grid-cols-2 gap-2"><div><label className="text-sm text-gray-400 mb-1.5 block">{t.workStart}</label><select value={workStart} onChange={e=>onWorkStartChange(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3.5 text-base text-center text-gray-100 focus:outline-none focus:border-amber-500 appearance-none">{TIME_OPTS.map(o=><option key={o} value={o}>{o}</option>)}</select></div><div><label className="text-sm text-gray-400 mb-1.5 block">{t.workEnd}</label><select value={workEnd} onChange={e=>onWorkEndChange(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3.5 text-base text-center text-gray-100 focus:outline-none focus:border-amber-500 appearance-none">{TIME_OPTS.map(o=><option key={o} value={o}>{o}</option>)}</select></div></div>
+    {!HIDE_COMPANY_FEATURES&&<div><label className="text-sm text-gray-400 mb-1.5 block">{t.gender}</label><div className="grid grid-cols-2 gap-2">{[['M',t.genderM],['F',t.genderF]].map(([g,l])=>(<button key={g} onClick={()=>setGender(g)} className={`py-3 rounded-xl text-sm font-semibold transition-all ${gender===g?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div></div>}
+    {!HIDE_COMPANY_FEATURES&&<div><label className="text-sm text-gray-400 mb-1.5 block">{t.shiftLabel}</label><div className="grid grid-cols-2 gap-2">{[['day',t.shiftDay],['night',t.shiftNight]].map(([sv,l])=>(<button key={sv} onClick={()=>setShift(sv)} className={`py-3 rounded-xl text-sm font-semibold transition-all ${shift===sv?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div></div>}
+    {!HIDE_COMPANY_FEATURES&&<div className="grid grid-cols-2 gap-2"><div><label className="text-sm text-gray-400 mb-1.5 block">{t.workStart}</label><select value={workStart} onChange={e=>onWorkStartChange(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3.5 text-base text-center text-gray-100 focus:outline-none focus:border-amber-500 appearance-none">{TIME_OPTS.map(o=><option key={o} value={o}>{o}</option>)}</select></div><div><label className="text-sm text-gray-400 mb-1.5 block">{t.workEnd}</label><select value={workEnd} onChange={e=>onWorkEndChange(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3.5 text-base text-center text-gray-100 focus:outline-none focus:border-amber-500 appearance-none">{TIME_OPTS.map(o=><option key={o} value={o}>{o}</option>)}</select></div></div>}
     {!HIDE_COMPANY_FEATURES&&<div className="space-y-3"><label className="text-sm text-gray-400 mb-1.5 block text-center">{t.lockPwdTitle}</label>
       <div className="space-y-1.5"><p className="text-[11px] text-gray-600 text-center">{t.lockPwdHint}</p>
         <div className="relative flex justify-center">
