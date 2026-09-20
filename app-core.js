@@ -1,19 +1,14 @@
-// app-core.js v1.13-010 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-011 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
-// v1.13-010 / 開場畫面大幅簡化,拿掉「編號存在性檢查」造成的死循環,也堵住一個隱私漏洞:
-// (1)doCheckCode拿掉問GAS「編號是否已存在」這件事(HIDE_COMPANY_FEATURES下),編號純粹是使用者自己方便記的標籤,
-//    不再檢查唯一性,填完直接往下走,不會被「已啟動過,請改用密碼登入」攔截造成循環;
-// (2)同時拿掉「查Staff表預填店家/性別」這個不需密碼、任何人都能用真實編號查到別人資料的隱私漏洞;
-// (3)整個拿掉afterLineLogin(第一次使用/已經使用過選擇)、restoreAsk(要不要還原)、restoreSource(本地/雲端選擇)、
-//    importFile(匯入本地備份檔,已搬到settings.js的備份區塊)、cloudCheckFlow(雲端完整還原查詢)這幾個畫面狀態;
-// (4)新增共用函式checkLightDataAndEnterForm:LINE登入(或密碼登入補綁)完成後,直接查backup-index.json的輕資料
-//    (店家/性別/班別/上下班時間,GAS端gas-backup.gs.txt已經會同步),有就預填、沒有就空白,一律直接進填表單畫面,
-//    不再讓使用者選擇要不要還原——完整記帳歷史的還原改成啟動完成後自己去設定頁的備份區塊處理;
-// (5)密碼登入拿到的資料(pendingActivateSettings)優先權高於輕資料索引,沒有的欄位才用輕資料補。
-// 清理不再使用的state(importErr/importBusy/lineRestoreFound)、函式(enterNewWithPrefill)、匯入
-// (parsePersonalBackup/restorePersonalBackup/gasBackupCheck/gasBackupFetch/gasCheckStaffCode) | 前: v1.13-009
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,getMyLineUserId,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+// v1.13-011 / 拿掉整套PIN密碼鎖屏機制,改用LINE登入當唯一身分驗證:
+// (1)開場畫面填表單拿掉自訂密碼區塊,canSubmitNew判斷式同步拿掉PIN合法性/兩次輸入一致性檢查,不然表單永遠無法送出;
+// (2)首頁拿掉「每日第一次登入要密碼」的觸發(dailyQueue不再加入'pwd');
+// (3)「更多功能」按鈕拿掉setup/verify密碼閘門(這裡同時也是「每N分鐘回頁面要密碼」的實際觸發點),只保留跟密碼無關的離職限制檢查。
+// 【重要架構修正】HIDE_COMPANY_FEATURES常數搬到common.js:原本定義在這個檔案裡,但index.html載入順序是
+// settings.js先於app-core.js,這次要讓settings.js也能安全引用這個開關,搬到最先載入的common.js當單一事實來源,
+// 這裡改成從匯入清單取得,不再自己宣告 | 前: v1.13-010
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,getMyLineUserId,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 
@@ -107,7 +102,9 @@ function Onboarding({onComplete}){
     onComplete(settings);
   };
   const pinOk=isValidPin(pwd);
-  const canSubmitNew=codeCheck==='new'&&code.trim()&&gender&&shift&&workStart&&workEnd&&pinOk&&pwd===pwd2&&agreed;
+  const canSubmitNew=HIDE_COMPANY_FEATURES
+    ?(codeCheck==='new'&&code.trim()&&gender&&shift&&workStart&&workEnd&&agreed)
+    :(codeCheck==='new'&&code.trim()&&gender&&shift&&workStart&&workEnd&&pinOk&&pwd===pwd2&&agreed);
 
   const toggleField=(f)=>setActiveField(a=>a===f?'':f);
   const goChoice=()=>{clearPending();setMode('choice');setErr('');setFieldErr('');setChecking(false);setTicketStatus('');setCooldown(0);setPwd('');setPwd2('');setForgotPwd('');setForgotPwd2('');setLoginPwdInput('');setActiveField('')};
@@ -371,7 +368,7 @@ function Onboarding({onComplete}){
     <div><label className="text-sm text-gray-400 mb-1.5 block">{t.gender}</label><div className="grid grid-cols-2 gap-2">{[['M',t.genderM],['F',t.genderF]].map(([g,l])=>(<button key={g} onClick={()=>setGender(g)} className={`py-3 rounded-xl text-sm font-semibold transition-all ${gender===g?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div></div>
     <div><label className="text-sm text-gray-400 mb-1.5 block">{t.shiftLabel}</label><div className="grid grid-cols-2 gap-2">{[['day',t.shiftDay],['night',t.shiftNight]].map(([sv,l])=>(<button key={sv} onClick={()=>setShift(sv)} className={`py-3 rounded-xl text-sm font-semibold transition-all ${shift===sv?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div></div>
     <div className="grid grid-cols-2 gap-2"><div><label className="text-sm text-gray-400 mb-1.5 block">{t.workStart}</label><select value={workStart} onChange={e=>onWorkStartChange(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3.5 text-base text-center text-gray-100 focus:outline-none focus:border-amber-500 appearance-none">{TIME_OPTS.map(o=><option key={o} value={o}>{o}</option>)}</select></div><div><label className="text-sm text-gray-400 mb-1.5 block">{t.workEnd}</label><select value={workEnd} onChange={e=>onWorkEndChange(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3.5 text-base text-center text-gray-100 focus:outline-none focus:border-amber-500 appearance-none">{TIME_OPTS.map(o=><option key={o} value={o}>{o}</option>)}</select></div></div>
-    <div className="space-y-3"><label className="text-sm text-gray-400 mb-1.5 block text-center">{t.lockPwdTitle}</label>
+    {!HIDE_COMPANY_FEATURES&&<div className="space-y-3"><label className="text-sm text-gray-400 mb-1.5 block text-center">{t.lockPwdTitle}</label>
       <div className="space-y-1.5"><p className="text-[11px] text-gray-600 text-center">{t.lockPwdHint}</p>
         <div className="relative flex justify-center">
           <PinDotsClickable length={pwd.length} total={4} active={activeField==='pwd1'} onClick={()=>toggleField('pwd1')} onClear={pwdClear}/>
@@ -386,7 +383,7 @@ function Onboarding({onComplete}){
       </div>
       {pwd.length===4&&!pinOk&&<p className="text-xs text-red-400 text-center">{t.lockPwdInvalid}</p>}
       {pwd2.length===4&&pwd!==pwd2&&<p className="text-xs text-red-400 text-center">{t.lockPwdMismatch}</p>}
-    </div>
+    </div>}
     <NoticeBox t={t} agreed={agreed} setAgreed={v=>{setAgreed(v);if(v)setAgreeErr(false)}}/>
     </fieldset>
     <button onClick={submitNew} disabled={!canSubmitNew||checking} className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${canSubmitNew&&!checking?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{checking?t.adminWelcome:t.submitActivation}</button>
@@ -1302,8 +1299,8 @@ function BottomSheetModal({onClose,children,heightPct}){
 
 // ═══ 1.13版:公司內部功能先隱藏、不刪除 ═══
 // 拿掉公司審核制度後,以下這些跟「公司/主管/團隊」綁定的功能先隱藏,程式碼跟底層邏輯完全保留不動。
-// 之後如果要復原,把這個常數改回false即可,不需要重寫任何程式碼。
-const HIDE_COMPANY_FEATURES=true;
+// 之後如果要復原,把common.js裡的這個常數改回false即可,不需要重寫任何程式碼。
+// (HIDE_COMPANY_FEATURES常數本身定義在common.js,從匯入清單取得,不在這裡重複宣告)
 
 function SupervisorSection({t,settings}){
   return(<div className="mt-5 pt-4 border-t border-white/[0.06] space-y-2">
@@ -1336,7 +1333,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
     const homeKey='home-daily-'+settings.code;
     let already=false;try{already=localStorage.getItem(homeKey)===today}catch(_e){}
     if(!already){
-      if(!settings.disableHomePwd&&settings.lockPwd)setDailyQueue(q=>[...q,'pwd']);
+      if(!HIDE_COMPANY_FEATURES&&!settings.disableHomePwd&&settings.lockPwd)setDailyQueue(q=>[...q,'pwd']);
       (async()=>{
         try{
           if(hasMyKey(settings.code)){const key=getMyKey(settings.code);await gasVerifyKey(settings.code,key)}
@@ -1502,16 +1499,18 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
     </div>
     <button onClick={()=>{
       if(showMoreFunc){setShowMoreFunc(false);return}
-      if(!settings.lockPwd){setMoreFuncGate('setup');setMfPinStep(1);setMfPin1('');setMfPin2('');setMfPinErr('');return}
-      const lockAutoTime=settings.lockAutoTime||60;
-      if(Date.now()-getInfoUnlockTs(settings.code)>lockAutoTime*60*1000){setMoreFuncGate('verify');setMfPin1('');setMfPinErr('');return}
+      if(!HIDE_COMPANY_FEATURES){
+        if(!settings.lockPwd){setMoreFuncGate('setup');setMfPinStep(1);setMfPin1('');setMfPin2('');setMfPinErr('');return}
+        const lockAutoTime=settings.lockAutoTime||60;
+        if(Date.now()-getInfoUnlockTs(settings.code)>lockAutoTime*60*1000){setMoreFuncGate('verify');setMfPin1('');setMfPinErr('');return}
+      }
       if(isStaffLeft(settings.code)){setMoreFuncBlocked(true);return}
       setMoreFuncBlocked(false);setShowMoreFunc(true);
     }} className="w-full mt-3 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06] text-xs text-gray-400 font-semibold flex items-center justify-center gap-1.5">
       <span>{t.moreFuncBtn||'更多功能'}</span>
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${showMoreFunc?'rotate-180':''}`}><path d="M6 9l6 6 6-6"/></svg>
     </button>
-    {moreFuncGate==='setup'&&(<div className="pinGateBackdrop fixed inset-0 z-[75] flex flex-col items-center justify-center gap-5 p-6" onClick={()=>setMoreFuncGate('')}>
+    {!HIDE_COMPANY_FEATURES&&moreFuncGate==='setup'&&(<div className="pinGateBackdrop fixed inset-0 z-[75] flex flex-col items-center justify-center gap-5 p-6" onClick={()=>setMoreFuncGate('')}>
       <div onClick={e=>e.stopPropagation()} className="flex flex-col items-center gap-5">
         <p className="pinGateTitle text-base font-bold text-center">{mfPinStep===1?t.lockPwdTitle:t.lockPwdConfirm}</p>
         {mfPinStep===1&&<p className="pinGateBody text-xs text-center max-w-xs -mt-3">{t.lockPwdHint}</p>}
@@ -1521,7 +1520,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
         <button onClick={()=>setMoreFuncGate('')} className="pinGateBody text-xs underline">{t.infoCancelBtn}</button>
       </div>
     </div>)}
-    {moreFuncGate==='verify'&&(<div className="pinGateBackdrop fixed inset-0 z-[75] flex flex-col items-center justify-center gap-5 p-6" onClick={()=>setMoreFuncGate('')}>
+    {!HIDE_COMPANY_FEATURES&&moreFuncGate==='verify'&&(<div className="pinGateBackdrop fixed inset-0 z-[75] flex flex-col items-center justify-center gap-5 p-6" onClick={()=>setMoreFuncGate('')}>
       <div onClick={e=>e.stopPropagation()} className="flex flex-col items-center gap-5">
         <p className="pinGateTitle text-base font-bold text-center">{t.homePwdPopupTitle}</p>
         <div className={mfPinShake?'text-red-500':''}><PinDots length={mfPin1.length}/></div>
