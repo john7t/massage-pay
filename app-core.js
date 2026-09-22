@@ -1,13 +1,9 @@
-// app-core.js v1.13-019 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-020 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
-// v1.13-019 / 月曆版繼續調整+首頁按鈕重排:
-// (月份切換)MonthlyCalendarPage改用完全獨立的本地state(calY/calM)管理年月,不再依賴settings.year/共用的curM——
-// 每次開啟這個元件都重新掛載、自動重置成今天所在的年月;支援跨年切換(1月按上一頁變去年12月,12月按下一頁變明年1月);
-// 點中間的年月文字直接跳回今天。DayEditor的高度比例維持不動(90%上限),因為是列表版共用元件,還沒得到調整許可。
-// (首頁按鈕重排)第一排改成:月曆、客管、備份、設定。原本第一排的「月份明細」跟「LINE Bot」搬進「更多功能」區塊,
-// 「更多功能」裡原本的「月曆」跟「備份」拿掉(避免重複入口)。月曆按鈕右上角加紅色NEW標記。
-// HomePage新增一個useEffect,用localStorage旗標(calendar-intro-shown)讓第一次進入首頁時自動打開月曆一次,
+// v1.13-020 / 首次自動打開月曆加2秒延遲:用setTimeout包住觸發動作,並在useEffect的cleanup清掉timer,
+// 避免元件在2秒內就被卸載卻還嘗試觸發。「已顯示過」的標記也延後到真正觸發的那一刻才寫入,不是一進首頁就寫,
+// 避免使用者2秒內就離開首頁卻被誤判成已經看過這個功能介紹 | 前: v1.13-019旗標(calendar-intro-shown)讓第一次進入首頁時自動打開月曆一次,
 // 之後不會再自動彈出 | 前: v1.13-018
 const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,getMyLineUserId,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
@@ -1286,14 +1282,19 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
   const[showDailyForgotPwd,setShowDailyForgotPwd]=useState(false);
   const advanceQueue=()=>setDailyQueue(q=>q.slice(1));
   useEffect(()=>{
-    // 1.13版:新功能上線,第一次進入首頁時自動打開月曆一次,讓使用者知道有這個新功能,之後不會再自動打開
+    // 1.13版:新功能上線,第一次進入首頁時自動打開月曆一次,讓使用者知道有這個新功能,之後不會再自動打開。
+    // 延遲2秒才跳出,讓使用者先看一眼首頁,不會一進來就被彈窗打斷
+    let timer=null;
     try{
       const seen=localStorage.getItem('calendar-intro-shown');
       if(!seen){
-        localStorage.setItem('calendar-intro-shown','1');
-        onGotoMonthlyCalendar&&onGotoMonthlyCalendar();
+        timer=setTimeout(()=>{
+          try{localStorage.setItem('calendar-intro-shown','1')}catch(_e){}
+          onGotoMonthlyCalendar&&onGotoMonthlyCalendar();
+        },2000);
       }
     }catch(_e){}
+    return()=>{if(timer)clearTimeout(timer)};
   },[]);
   useEffect(()=>{
     if(!settings.code)return;
