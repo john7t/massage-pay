@@ -1,10 +1,12 @@
-// app-core.js v1.13-016 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-017 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
-// v1.13-016 / 修正上一版遺留的bug:onCodeChange原本每次編號變動就重置codeCheck=null,這是舊架構「改編號要
-// 重新按檢查」的邏輯。1.13版拿掉檢查按鈕後,codeCheck一開始就固定是'new',但只要使用者一碰編號欄位,
-// onCodeChange還是會把它重置成null,連帶讓下面的fieldset(locked=codeCheck!=='new')整個變灰禁用——
-// 這就是「焦點在編號時下方欄位變灰」的成因。改成1.13版下編號變動不再重置codeCheck | 前: v1.13-015
+// v1.13-017 / 新增月曆版月份明細(MonthlyCalendarPage),跟既有列表式MonthlyPage並存、新增獨立入口(更多功能區塊多一個「月曆」按鈕)。
+// 這輪只做上半部(月曆呈現+統計),支出記錄下半部之後再做。重用既有的資料存取(dk/eMon/eDay)、月份切換、
+// 統計計算(SummaryTable)、狀態對照(SK/STC/SBG/canWork)、當日編輯彈窗(DayEditor)這些既有機制,不重新發明。
+// 月曆格子:左上角日期+狀態縮寫字(休/事/病/遲/退),右下角當天薪水金額(calcSal算出來的,不是流水支數)。
+// HomePage的props清單加onGotoMonthlyCalendar,index.html加tab==='calendar'的路由,並用preYearTab state
+// 記住是從月曆版還是列表版進年度總表,確保返回時回到正確的版本 | 前: v1.13-016
 const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,getMyLineUserId,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
@@ -1269,7 +1271,7 @@ function SupervisorSection({t,settings}){
   </div>);
 }
 
-function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,onGotoChart,onGotoSuggest,onGotoAcupoint,onGotoViolation,onGotoBackup,onGotoManage,onGotoMonthly,onGotoCustomers,onGotoSettings,settingsAlert,onUpdateSettings,onLogout}){
+function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,onGotoChart,onGotoSuggest,onGotoAcupoint,onGotoViolation,onGotoBackup,onGotoManage,onGotoMonthly,onGotoMonthlyCalendar,onGotoCustomers,onGotoSettings,settingsAlert,onUpdateSettings,onLogout}){
   const now=bizDate();const bp=bizParts();const ty=settings.year||bp.y,tm=bp.m,td=bp.d;
   const[data,setData]=useState(null);const[prev,setPrev]=useState(null);const[otherMode,setOtherMode]=useState(false);const[otherVal,setOtherVal]=useState('');const[editPrev,setEditPrev]=useState(false);const[editToday,setEditToday]=useState(false);
   const[showStoreInfo,setShowStoreInfo]=useState(false);const[showBasicInfo,setShowBasicInfo]=useState(false);
@@ -1488,6 +1490,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
       <div className="grid grid-cols-4 gap-y-3 mt-3">
       {!HIDE_COMPANY_FEATURES&&<button onClick={()=>onGotoNotices&&onGotoNotices()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M3 11l18-6v14l-18-6v-2z"/><path d="M8 15v4a2 2 0 002 2h1"/></svg></span><span className="text-[10px] text-gray-500">{t.tabNotice}</span></button>}
       <button onClick={()=>onGotoBook&&onGotoBook()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span><span className="text-[10px] text-gray-500">{t.tabBook2}</span></button>
+      <button onClick={()=>onGotoMonthlyCalendar&&onGotoMonthlyCalendar()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg></span><span className="text-[10px] text-gray-500">{t.monthlyCalendar||'月曆'}</span></button>
       <button onClick={()=>onGotoChart&&onGotoChart()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg></span><span className="text-[10px] text-gray-500">{t.tabChart}</span></button>
       {!HIDE_COMPANY_FEATURES&&<button onClick={()=>onGotoSuggest&&onGotoSuggest()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7V17h8v-2.3A7 7 0 0012 2z"/></svg></span><span className="text-[10px] text-gray-500">{t.tabSuggest}</span></button>}
       <button onClick={()=>onGotoAcupoint&&onGotoAcupoint()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><path d="M12 3a9 9 0 100 18 9 9 0 000-18z"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg></span><span className="text-[10px] text-gray-500">{t.acupointBtn}</span></button>
@@ -1635,6 +1638,42 @@ function DayEditor({day,d,y,m,t,up,sk,onSave,onCancel,code:editorCode}){
   </div></div>)}
 
 /* ══════════ Monthly ══════════ */
+/* ══════════ 月曆版月份明細(1.13版新功能,跟既有列表式MonthlyPage並存,新增獨立入口) ══════════ */
+// 這次先做上半部(月曆呈現+統計),下半部(支出記錄)之後再做
+function MonthlyCalendarPage({settings,curM,setCurM,t,onGotoYear,onClose}){
+  const[data,setData]=useState(null);const[editDay,setEditDay]=useState(null);const y=settings.year||bizParts().y;
+  useEffect(()=>{setData(LS.get(dk(settings.code,y,curM))||eMon())},[settings.code,y,curM]);
+  useEffect(()=>{const el=document.querySelector('[data-month-tab-active]');if(el)setTimeout(()=>{try{el.scrollIntoView({inline:'center',block:'nearest',behavior:'auto'})}catch(_e){}},0)},[curM]);
+  const saveDay=(d,dd)=>{const nd={...data,days:{...data.days,[d]:dd}};setData(nd);setEditDay(null);LS.set(dk(settings.code,y,curM),nd)};
+  const dm=dim(y,curM);
+  const firstDow=dow(y,curM,1); // 這個月1號是星期幾(0=日),決定第一週前面要留幾個空格
+  const calc=useMemo(()=>{if(!data)return{prev:{units:0,salary:0,laodian:0},next:{units:0,salary:0,laodian:0},month:{units:0,salary:0,laodian:0}};let pu=0,ps=0,pl=0,nu=0,ns=0,nl=0;for(let d=1;d<=dm;d++){const day=data.days[d]||eDay();const u=day.total||0,lo=day.laodian||0,s=calcSal(day,getUnitPriceForDate(settings,y,curM,d),settings.skills);if(d<=15){pu+=u;ps+=s;pl+=lo}else{nu+=u;ns+=s;nl+=lo}}return{prev:{units:pu,salary:ps,laodian:pl},next:{units:nu,salary:ns,laodian:nl},month:{units:pu+nu,salary:ps+ns,laodian:pl+nl}}},[data,dm,y,curM,settings.unitPrice,settings.unitPriceHistory,settings.skills]);
+  const cells=[];
+  for(let i=0;i<firstDow;i++)cells.push(null);
+  for(let d=1;d<=dm;d++)cells.push(d);
+  return(<div className="max-w-lg mx-auto fi"><div className="sticky top-0 z-10 bg-gray-950 pb-1">
+  <div className="flex items-center justify-center px-3 py-1.5"><h2 className="text-sm font-semibold text-gray-300">{t.monthlyCalendar||'月曆'}</h2></div>
+  <div className="px-2 py-2 flex gap-1 overflow-x-auto no-sb"><button onClick={()=>onGotoYear&&onGotoYear()} className="px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 bg-emerald-600 text-white">{t.yearly}</button>{Array.from({length:12},(_,i)=>i+1).map(m=>(<button key={m} data-month-tab-active={m===curM?true:undefined} onClick={()=>setCurM(m)} className={`px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 ${m===curM?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-600'}`}>{t.months[m-1]}</button>))}</div>
+  </div>
+  <div className="grid grid-cols-7 px-2 pt-1 pb-1">{t.dn.map((dn,i)=>(<div key={i} className={`text-center text-[11px] font-semibold ${i===0||i===6?'text-amber-500/70':'text-gray-600'}`}>{dn}</div>))}</div>
+  <div className="grid grid-cols-7 gap-1 px-2 pb-3">
+    {cells.map((d,i)=>{
+      if(d===null)return <div key={'e'+i}/>;
+      const day=data?.days[d]||eDay();
+      const nw=!canWork[day.status];
+      const isToday=curM===bizParts().m&&y===bizParts().y&&d===bizParts().d;
+      const sal=calcSal(day,getUnitPriceForDate(settings,y,curM,d),settings.skills);
+      return(<button key={d} onClick={()=>setEditDay(d)} className={`aspect-square rounded-lg p-1 flex flex-col justify-between text-left ${isToday?'bg-emerald-500/20 ring-1 ring-emerald-500':'bg-white/[0.03]'} active:bg-white/[0.08]`}>
+        <div className="flex items-center gap-0.5 flex-wrap"><span className="text-xs font-semibold text-gray-300">{d}</span>{day.status!==0&&<span className={`text-[9px] px-1 rounded-full leading-tight ${SBG[day.status]} ${STC[day.status]}`}>{t[SK[day.status]]}</span>}</div>
+        <div className="text-right">{!nw&&sal>0&&<span className="text-[10px] text-emerald-400/90 tabular-nums font-medium">{sal.toLocaleString()}</span>}</div>
+      </button>);
+    })}
+  </div>
+  <div className="px-3 py-2"><SummaryTable prev={calc.prev} next={calc.next} month={calc.month} t={t}/></div>
+  {editDay&&data&&<DayEditor day={data.days[editDay]||eDay()} d={editDay} y={y} m={curM} t={t} up={getUnitPriceForDate(settings,y,curM,editDay)} sk={settings.skills} code={settings.code} onSave={saveDay} onCancel={()=>setEditDay(null)}/>}
+  </div>);
+}
+
 function MonthlyPage({settings,curM,setCurM,t,onGotoYear,onClose}){
   const[data,setData]=useState(null);const[editDay,setEditDay]=useState(null);const y=settings.year||bizParts().y;
   useEffect(()=>{setData(LS.get(dk(settings.code,y,curM))||eMon())},[settings.code,y,curM]);
