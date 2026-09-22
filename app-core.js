@@ -1,12 +1,13 @@
-// app-core.js v1.13-017 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-018 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
-// v1.13-017 / 新增月曆版月份明細(MonthlyCalendarPage),跟既有列表式MonthlyPage並存、新增獨立入口(更多功能區塊多一個「月曆」按鈕)。
-// 這輪只做上半部(月曆呈現+統計),支出記錄下半部之後再做。重用既有的資料存取(dk/eMon/eDay)、月份切換、
-// 統計計算(SummaryTable)、狀態對照(SK/STC/SBG/canWork)、當日編輯彈窗(DayEditor)這些既有機制,不重新發明。
-// 月曆格子:左上角日期+狀態縮寫字(休/事/病/遲/退),右下角當天薪水金額(calcSal算出來的,不是流水支數)。
-// HomePage的props清單加onGotoMonthlyCalendar,index.html加tab==='calendar'的路由,並用preYearTab state
-// 記住是從月曆版還是列表版進年度總表,確保返回時回到正確的版本 | 前: v1.13-016
+// v1.13-018 / 月曆版月份明細操作體驗調整4項:
+// (2)拿掉頁面標題;(3)月份切換從12個按鈕列表改成「◀ 年月 ▶」箭頭形式,只在同一年內切換(不跨年),
+// 年度總表入口移到標題列左側;(4)上下期統計從SummaryTable表格改成一行文字,只顯示金額;
+// (5)新增selectedDay state,點月曆格子先選中(顯示外框標示),在統計文字下方顯示該日支數/老點/金額的資訊列,
+// 點這個資訊列才真正呼叫setEditDay開啟DayEditor編輯彈窗——解決「想加非當日的支出卻直接跳進編輯器」的問題。
+// 高度比例對調(月曆整頁80%→90%,DayEditor上限90%→70%)這項還沒動,因為DayEditor是列表版跟月曆版共用的
+// 元件,調整會連帶影響列表版,等使用者確認後再處理 | 前: v1.13-017
 const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,getMyLineUserId,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
@@ -1641,9 +1642,9 @@ function DayEditor({day,d,y,m,t,up,sk,onSave,onCancel,code:editorCode}){
 /* ══════════ 月曆版月份明細(1.13版新功能,跟既有列表式MonthlyPage並存,新增獨立入口) ══════════ */
 // 這次先做上半部(月曆呈現+統計),下半部(支出記錄)之後再做
 function MonthlyCalendarPage({settings,curM,setCurM,t,onGotoYear,onClose}){
-  const[data,setData]=useState(null);const[editDay,setEditDay]=useState(null);const y=settings.year||bizParts().y;
+  const[data,setData]=useState(null);const[editDay,setEditDay]=useState(null);const[selectedDay,setSelectedDay]=useState(null);const y=settings.year||bizParts().y;
   useEffect(()=>{setData(LS.get(dk(settings.code,y,curM))||eMon())},[settings.code,y,curM]);
-  useEffect(()=>{const el=document.querySelector('[data-month-tab-active]');if(el)setTimeout(()=>{try{el.scrollIntoView({inline:'center',block:'nearest',behavior:'auto'})}catch(_e){}},0)},[curM]);
+  useEffect(()=>{setSelectedDay(null)},[curM]); // 換月份時清掉選中狀態,避免顯示上個月的資訊列
   const saveDay=(d,dd)=>{const nd={...data,days:{...data.days,[d]:dd}};setData(nd);setEditDay(null);LS.set(dk(settings.code,y,curM),nd)};
   const dm=dim(y,curM);
   const firstDow=dow(y,curM,1); // 這個月1號是星期幾(0=日),決定第一週前面要留幾個空格
@@ -1651,9 +1652,18 @@ function MonthlyCalendarPage({settings,curM,setCurM,t,onGotoYear,onClose}){
   const cells=[];
   for(let i=0;i<firstDow;i++)cells.push(null);
   for(let d=1;d<=dm;d++)cells.push(d);
+  const selectedDayData=selectedDay?(data?.days[selectedDay]||eDay()):null;
+  const selectedSal=selectedDayData?calcSal(selectedDayData,getUnitPriceForDate(settings,y,curM,selectedDay),settings.skills):0;
   return(<div className="max-w-lg mx-auto fi"><div className="sticky top-0 z-10 bg-gray-950 pb-1">
-  <div className="flex items-center justify-center px-3 py-1.5"><h2 className="text-sm font-semibold text-gray-300">{t.monthlyCalendar||'月曆'}</h2></div>
-  <div className="px-2 py-2 flex gap-1 overflow-x-auto no-sb"><button onClick={()=>onGotoYear&&onGotoYear()} className="px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 bg-emerald-600 text-white">{t.yearly}</button>{Array.from({length:12},(_,i)=>i+1).map(m=>(<button key={m} data-month-tab-active={m===curM?true:undefined} onClick={()=>setCurM(m)} className={`px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 ${m===curM?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-600'}`}>{t.months[m-1]}</button>))}</div>
+  <div className="flex items-center justify-between px-3 py-2">
+    <button onClick={()=>onGotoYear&&onGotoYear()} className="px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-600 text-white flex-shrink-0">{t.yearly}</button>
+    <div className="flex items-center gap-3">
+      <button onClick={()=>curM>1&&setCurM(curM-1)} disabled={curM<=1} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 disabled:opacity-30 active:bg-white/[0.08]"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+      <span className="text-base font-bold text-gray-100 whitespace-nowrap">{t===T.zh?`${y}年${t.months[curM-1]}`:`${t.months[curM-1]} ${y}`}</span>
+      <button onClick={()=>curM<12&&setCurM(curM+1)} disabled={curM>=12} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 disabled:opacity-30 active:bg-white/[0.08]"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+    <div className="w-[52px] flex-shrink-0"></div>
+  </div>
   </div>
   <div className="grid grid-cols-7 px-2 pt-1 pb-1">{t.dn.map((dn,i)=>(<div key={i} className={`text-center text-[11px] font-semibold ${i===0||i===6?'text-amber-500/70':'text-gray-600'}`}>{dn}</div>))}</div>
   <div className="grid grid-cols-7 gap-1 px-2 pb-3">
@@ -1663,13 +1673,32 @@ function MonthlyCalendarPage({settings,curM,setCurM,t,onGotoYear,onClose}){
       const nw=!canWork[day.status];
       const isToday=curM===bizParts().m&&y===bizParts().y&&d===bizParts().d;
       const sal=calcSal(day,getUnitPriceForDate(settings,y,curM,d),settings.skills);
-      return(<button key={d} onClick={()=>setEditDay(d)} className={`aspect-square rounded-lg p-1 flex flex-col justify-between text-left ${isToday?'bg-emerald-500/20 ring-1 ring-emerald-500':'bg-white/[0.03]'} active:bg-white/[0.08]`}>
+      return(<button key={d} onClick={()=>setSelectedDay(d)} className={`aspect-square rounded-lg p-1 flex flex-col justify-between text-left ${selectedDay===d?'ring-2 ring-amber-500':isToday?'bg-emerald-500/20 ring-1 ring-emerald-500':'bg-white/[0.03]'} active:bg-white/[0.08]`}>
         <div className="flex items-center gap-0.5 flex-wrap"><span className="text-xs font-semibold text-gray-300">{d}</span>{day.status!==0&&<span className={`text-[9px] px-1 rounded-full leading-tight ${SBG[day.status]} ${STC[day.status]}`}>{t[SK[day.status]]}</span>}</div>
         <div className="text-right">{!nw&&sal>0&&<span className="text-[10px] text-emerald-400/90 tabular-nums font-medium">{sal.toLocaleString()}</span>}</div>
       </button>);
     })}
   </div>
-  <div className="px-3 py-2"><SummaryTable prev={calc.prev} next={calc.next} month={calc.month} t={t}/></div>
+  <div className="px-3 py-2 text-center text-sm">
+    <span className="text-gray-500">{t.prevPeriod}</span> <span className="font-bold text-emerald-400 tabular-nums">${calc.prev.salary.toLocaleString()}</span>
+    <span className="mx-2 text-gray-700">|</span>
+    <span className="text-gray-500">{t.nextPeriod}</span> <span className="font-bold text-emerald-400 tabular-nums">${calc.next.salary.toLocaleString()}</span>
+    <span className="mx-2 text-gray-700">|</span>
+    <span className="text-gray-500">{t.monthTotal}</span> <span className="font-bold text-amber-400 tabular-nums">${calc.month.salary.toLocaleString()}</span>
+  </div>
+  {selectedDay&&selectedDayData&&(
+    <div className="px-3 pb-3">
+      <button onClick={()=>setEditDay(selectedDay)} className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/[0.05] border border-amber-500/30 active:bg-white/[0.1]">
+        <span className="text-sm font-semibold text-gray-200 flex-shrink-0">{curM}/{selectedDay}</span>
+        <span className="flex items-center gap-3 text-xs flex-shrink-0">
+          <span className="text-gray-400">{t.units}:{selectedDayData.total||0}</span>
+          <span className="text-orange-400/80">{t.laodian}:{selectedDayData.laodian||0}</span>
+          <span className="text-emerald-400 font-bold tabular-nums">${selectedSal.toLocaleString()}</span>
+        </span>
+        <svg className="w-3.5 h-3.5 text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  )}
   {editDay&&data&&<DayEditor day={data.days[editDay]||eDay()} d={editDay} y={y} m={curM} t={t} up={getUnitPriceForDate(settings,y,curM,editDay)} sk={settings.skills} code={settings.code} onSave={saveDay} onCancel={()=>setEditDay(null)}/>}
   </div>);
 }
