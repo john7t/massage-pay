@@ -1,13 +1,14 @@
-// app-core.js v1.13-018 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-019 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
-// v1.13-018 / 月曆版月份明細操作體驗調整4項:
-// (2)拿掉頁面標題;(3)月份切換從12個按鈕列表改成「◀ 年月 ▶」箭頭形式,只在同一年內切換(不跨年),
-// 年度總表入口移到標題列左側;(4)上下期統計從SummaryTable表格改成一行文字,只顯示金額;
-// (5)新增selectedDay state,點月曆格子先選中(顯示外框標示),在統計文字下方顯示該日支數/老點/金額的資訊列,
-// 點這個資訊列才真正呼叫setEditDay開啟DayEditor編輯彈窗——解決「想加非當日的支出卻直接跳進編輯器」的問題。
-// 高度比例對調(月曆整頁80%→90%,DayEditor上限90%→70%)這項還沒動,因為DayEditor是列表版跟月曆版共用的
-// 元件,調整會連帶影響列表版,等使用者確認後再處理 | 前: v1.13-017
+// v1.13-019 / 月曆版繼續調整+首頁按鈕重排:
+// (月份切換)MonthlyCalendarPage改用完全獨立的本地state(calY/calM)管理年月,不再依賴settings.year/共用的curM——
+// 每次開啟這個元件都重新掛載、自動重置成今天所在的年月;支援跨年切換(1月按上一頁變去年12月,12月按下一頁變明年1月);
+// 點中間的年月文字直接跳回今天。DayEditor的高度比例維持不動(90%上限),因為是列表版共用元件,還沒得到調整許可。
+// (首頁按鈕重排)第一排改成:月曆、客管、備份、設定。原本第一排的「月份明細」跟「LINE Bot」搬進「更多功能」區塊,
+// 「更多功能」裡原本的「月曆」跟「備份」拿掉(避免重複入口)。月曆按鈕右上角加紅色NEW標記。
+// HomePage新增一個useEffect,用localStorage旗標(calendar-intro-shown)讓第一次進入首頁時自動打開月曆一次,
+// 之後不會再自動彈出 | 前: v1.13-018
 const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,getMyLineUserId,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
@@ -1285,6 +1286,16 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
   const[showDailyForgotPwd,setShowDailyForgotPwd]=useState(false);
   const advanceQueue=()=>setDailyQueue(q=>q.slice(1));
   useEffect(()=>{
+    // 1.13版:新功能上線,第一次進入首頁時自動打開月曆一次,讓使用者知道有這個新功能,之後不會再自動打開
+    try{
+      const seen=localStorage.getItem('calendar-intro-shown');
+      if(!seen){
+        localStorage.setItem('calendar-intro-shown','1');
+        onGotoMonthlyCalendar&&onGotoMonthlyCalendar();
+      }
+    }catch(_e){}
+  },[]);
+  useEffect(()=>{
     if(!settings.code)return;
     const today=new Date().toISOString().slice(0,10);
     const homeKey='home-daily-'+settings.code;
@@ -1449,10 +1460,10 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
     </div></div>)})()}
     {settings.homeShowC===true&&(<div><p className="text-sm text-gray-400 mb-3">{t.status}</p><div className="grid grid-cols-3 gap-2">{[0,3,4,1,2,5].map(s=>(<button key={s} onClick={()=>setTodayStatus(s)} className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${todayData.status===s?(s===0?'bg-gray-600 text-white ring-2 ring-gray-500':`${SBG[s].replace('/20','/30')} ${STC[s]} ring-2 ring-current`):'bg-white/[0.04] text-gray-600'}`}>{t[SK[s]]}</button>))}</div></div>)}
     <div className="grid grid-cols-4 gap-y-3 mt-3">
-      <button onClick={()=>onGotoMonthly&&onGotoMonthly()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="4" width="18" height="17" rx="2"/><path strokeWidth={1.8} d="M3 9h18M8 2v4M16 2v4"/></svg></span><span className="text-[10px] text-gray-500">{t.monthly}</span></button>
+      <button onClick={()=>onGotoMonthlyCalendar&&onGotoMonthlyCalendar()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1] relative"><span className="absolute -top-1 -right-1.5 bg-red-500 text-white text-[8px] font-bold px-1 rounded-full leading-tight">NEW</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg></span><span className="text-[10px] text-gray-500">{t.monthlyCalendar||'月曆'}</span></button>
       <button onClick={()=>onGotoCustomers&&onGotoCustomers()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM3 21v-1a6 6 0 0112 0v1"/><path d="M17 11a3 3 0 003-3M19 21v-1a5 5 0 00-3-4.6"/></svg></span><span className="text-[10px] text-gray-500">{t.custManage}</span></button>
+      <button onClick={()=>onGotoBackup&&onGotoBackup()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg></span><span className="text-[10px] text-gray-500">{t.tabBackup||'備份'}</span></button>
       <button onClick={()=>onGotoSettings&&onGotoSettings()} className="flex flex-col items-center gap-1 relative"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1] relative">{settingsAlert&&<span className="absolute -top-0.5 -right-0.5 text-red-500 text-[11px]">❗</span>}<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-2.82 1.17V21a2 2 0 01-4 0v-.09A1.65 1.65 0 006.6 19.4l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 8.6l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 6.6a1.65 1.65 0 001-1.51V5a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span><span className="text-[10px] text-gray-500">{t.settings}</span></button>
-      <button onClick={()=>setShowLineQr(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z"/></svg></span><span className="text-[10px] text-gray-500">LINE Bot</span></button>
     </div>
     <button onClick={()=>{
       if(showMoreFunc){setShowMoreFunc(false);return}
@@ -1491,12 +1502,12 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
       <div className="grid grid-cols-4 gap-y-3 mt-3">
       {!HIDE_COMPANY_FEATURES&&<button onClick={()=>onGotoNotices&&onGotoNotices()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M3 11l18-6v14l-18-6v-2z"/><path d="M8 15v4a2 2 0 002 2h1"/></svg></span><span className="text-[10px] text-gray-500">{t.tabNotice}</span></button>}
       <button onClick={()=>onGotoBook&&onGotoBook()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span><span className="text-[10px] text-gray-500">{t.tabBook2}</span></button>
-      <button onClick={()=>onGotoMonthlyCalendar&&onGotoMonthlyCalendar()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg></span><span className="text-[10px] text-gray-500">{t.monthlyCalendar||'月曆'}</span></button>
+      <button onClick={()=>onGotoMonthly&&onGotoMonthly()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="4" width="18" height="17" rx="2"/><path strokeWidth={1.8} d="M3 9h18M8 2v4M16 2v4"/></svg></span><span className="text-[10px] text-gray-500">{t.monthly}</span></button>
       <button onClick={()=>onGotoChart&&onGotoChart()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg></span><span className="text-[10px] text-gray-500">{t.tabChart}</span></button>
       {!HIDE_COMPANY_FEATURES&&<button onClick={()=>onGotoSuggest&&onGotoSuggest()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7V17h8v-2.3A7 7 0 0012 2z"/></svg></span><span className="text-[10px] text-gray-500">{t.tabSuggest}</span></button>}
       <button onClick={()=>onGotoAcupoint&&onGotoAcupoint()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><path d="M12 3a9 9 0 100 18 9 9 0 000-18z"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg></span><span className="text-[10px] text-gray-500">{t.acupointBtn}</span></button>
       {!HIDE_COMPANY_FEATURES&&<button onClick={()=>onGotoViolation&&onGotoViolation()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M4 22V4a1 1 0 011-1h13.5a.5.5 0 01.4.8l-2.9 3.7 2.9 3.7a.5.5 0 01-.4.8H5"/></svg></span><span className="text-[10px] text-gray-500">{t.tabViolation}</span></button>}
-      <button onClick={()=>onGotoBackup&&onGotoBackup()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg></span><span className="text-[10px] text-gray-500">{t.tabBackup||'備份'}</span></button>
+      <button onClick={()=>setShowLineQr(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z"/></svg></span><span className="text-[10px] text-gray-500">LINE Bot</span></button>
       {!HIDE_COMPANY_FEATURES&&<button onClick={()=>setShowGroupBuy(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></span><span className="text-[10px] text-gray-500">{t.groupBuyBtn}</span></button>}
       {!HIDE_COMPANY_FEATURES&&<button onClick={()=>setShowDisasterReport(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg></span><span className="text-[10px] text-gray-500">{t.drBtn}</span></button>}
       </div>
@@ -1641,26 +1652,31 @@ function DayEditor({day,d,y,m,t,up,sk,onSave,onCancel,code:editorCode}){
 /* ══════════ Monthly ══════════ */
 /* ══════════ 月曆版月份明細(1.13版新功能,跟既有列表式MonthlyPage並存,新增獨立入口) ══════════ */
 // 這次先做上半部(月曆呈現+統計),下半部(支出記錄)之後再做
-function MonthlyCalendarPage({settings,curM,setCurM,t,onGotoYear,onClose}){
-  const[data,setData]=useState(null);const[editDay,setEditDay]=useState(null);const[selectedDay,setSelectedDay]=useState(null);const y=settings.year||bizParts().y;
-  useEffect(()=>{setData(LS.get(dk(settings.code,y,curM))||eMon())},[settings.code,y,curM]);
-  useEffect(()=>{setSelectedDay(null)},[curM]); // 換月份時清掉選中狀態,避免顯示上個月的資訊列
-  const saveDay=(d,dd)=>{const nd={...data,days:{...data.days,[d]:dd}};setData(nd);setEditDay(null);LS.set(dk(settings.code,y,curM),nd)};
-  const dm=dim(y,curM);
-  const firstDow=dow(y,curM,1); // 這個月1號是星期幾(0=日),決定第一週前面要留幾個空格
-  const calc=useMemo(()=>{if(!data)return{prev:{units:0,salary:0,laodian:0},next:{units:0,salary:0,laodian:0},month:{units:0,salary:0,laodian:0}};let pu=0,ps=0,pl=0,nu=0,ns=0,nl=0;for(let d=1;d<=dm;d++){const day=data.days[d]||eDay();const u=day.total||0,lo=day.laodian||0,s=calcSal(day,getUnitPriceForDate(settings,y,curM,d),settings.skills);if(d<=15){pu+=u;ps+=s;pl+=lo}else{nu+=u;ns+=s;nl+=lo}}return{prev:{units:pu,salary:ps,laodian:pl},next:{units:nu,salary:ns,laodian:nl},month:{units:pu+nu,salary:ps+ns,laodian:pl+nl}}},[data,dm,y,curM,settings.unitPrice,settings.unitPriceHistory,settings.skills]);
+function MonthlyCalendarPage({settings,t,onGotoYear,onClose}){
+  const[calY,setCalY]=useState(()=>bizParts().y); // 本地年月state,跟settings.year/列表版的curM脫鉤,每次開啟這個元件都會重新掛載、重置成今天所在的年月
+  const[calM,setCalM]=useState(()=>bizParts().m);
+  const[data,setData]=useState(null);const[editDay,setEditDay]=useState(null);const[selectedDay,setSelectedDay]=useState(null);
+  useEffect(()=>{setData(LS.get(dk(settings.code,calY,calM))||eMon())},[settings.code,calY,calM]);
+  useEffect(()=>{setSelectedDay(null)},[calY,calM]); // 換月份時清掉選中狀態,避免顯示上個月的資訊列
+  const saveDay=(d,dd)=>{const nd={...data,days:{...data.days,[d]:dd}};setData(nd);setEditDay(null);LS.set(dk(settings.code,calY,calM),nd)};
+  const dm=dim(calY,calM);
+  const firstDow=dow(calY,calM,1); // 這個月1號是星期幾(0=日),決定第一週前面要留幾個空格
+  const calc=useMemo(()=>{if(!data)return{prev:{units:0,salary:0,laodian:0},next:{units:0,salary:0,laodian:0},month:{units:0,salary:0,laodian:0}};let pu=0,ps=0,pl=0,nu=0,ns=0,nl=0;for(let d=1;d<=dm;d++){const day=data.days[d]||eDay();const u=day.total||0,lo=day.laodian||0,s=calcSal(day,getUnitPriceForDate(settings,calY,calM,d),settings.skills);if(d<=15){pu+=u;ps+=s;pl+=lo}else{nu+=u;ns+=s;nl+=lo}}return{prev:{units:pu,salary:ps,laodian:pl},next:{units:nu,salary:ns,laodian:nl},month:{units:pu+nu,salary:ps+ns,laodian:pl+nl}}},[data,dm,calY,calM,settings.unitPrice,settings.unitPriceHistory,settings.skills]);
   const cells=[];
   for(let i=0;i<firstDow;i++)cells.push(null);
   for(let d=1;d<=dm;d++)cells.push(d);
   const selectedDayData=selectedDay?(data?.days[selectedDay]||eDay()):null;
-  const selectedSal=selectedDayData?calcSal(selectedDayData,getUnitPriceForDate(settings,y,curM,selectedDay),settings.skills):0;
+  const selectedSal=selectedDayData?calcSal(selectedDayData,getUnitPriceForDate(settings,calY,calM,selectedDay),settings.skills):0;
+  const goPrevMonth=()=>{if(calM<=1){setCalY(calY-1);setCalM(12)}else{setCalM(calM-1)}};
+  const goNextMonth=()=>{if(calM>=12){setCalY(calY+1);setCalM(1)}else{setCalM(calM+1)}};
+  const goToday=()=>{setCalY(bizParts().y);setCalM(bizParts().m)};
   return(<div className="max-w-lg mx-auto fi"><div className="sticky top-0 z-10 bg-gray-950 pb-1">
   <div className="flex items-center justify-between px-3 py-2">
     <button onClick={()=>onGotoYear&&onGotoYear()} className="px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-600 text-white flex-shrink-0">{t.yearly}</button>
     <div className="flex items-center gap-3">
-      <button onClick={()=>curM>1&&setCurM(curM-1)} disabled={curM<=1} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 disabled:opacity-30 active:bg-white/[0.08]"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
-      <span className="text-base font-bold text-gray-100 whitespace-nowrap">{t===T.zh?`${y}年${t.months[curM-1]}`:`${t.months[curM-1]} ${y}`}</span>
-      <button onClick={()=>curM<12&&setCurM(curM+1)} disabled={curM>=12} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 disabled:opacity-30 active:bg-white/[0.08]"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg></button>
+      <button onClick={goPrevMonth} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 active:bg-white/[0.08]"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+      <button onClick={goToday} className="text-base font-bold text-gray-100 whitespace-nowrap active:opacity-60">{t===T.zh?`${calY}年${t.months[calM-1]}`:`${t.months[calM-1]} ${calY}`}</button>
+      <button onClick={goNextMonth} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 active:bg-white/[0.08]"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg></button>
     </div>
     <div className="w-[52px] flex-shrink-0"></div>
   </div>
@@ -1671,8 +1687,8 @@ function MonthlyCalendarPage({settings,curM,setCurM,t,onGotoYear,onClose}){
       if(d===null)return <div key={'e'+i}/>;
       const day=data?.days[d]||eDay();
       const nw=!canWork[day.status];
-      const isToday=curM===bizParts().m&&y===bizParts().y&&d===bizParts().d;
-      const sal=calcSal(day,getUnitPriceForDate(settings,y,curM,d),settings.skills);
+      const isToday=calM===bizParts().m&&calY===bizParts().y&&d===bizParts().d;
+      const sal=calcSal(day,getUnitPriceForDate(settings,calY,calM,d),settings.skills);
       return(<button key={d} onClick={()=>setSelectedDay(d)} className={`aspect-square rounded-lg p-1 flex flex-col justify-between text-left ${selectedDay===d?'ring-2 ring-amber-500':isToday?'bg-emerald-500/20 ring-1 ring-emerald-500':'bg-white/[0.03]'} active:bg-white/[0.08]`}>
         <div className="flex items-center gap-0.5 flex-wrap"><span className="text-xs font-semibold text-gray-300">{d}</span>{day.status!==0&&<span className={`text-[9px] px-1 rounded-full leading-tight ${SBG[day.status]} ${STC[day.status]}`}>{t[SK[day.status]]}</span>}</div>
         <div className="text-right">{!nw&&sal>0&&<span className="text-[10px] text-emerald-400/90 tabular-nums font-medium">{sal.toLocaleString()}</span>}</div>
@@ -1689,7 +1705,7 @@ function MonthlyCalendarPage({settings,curM,setCurM,t,onGotoYear,onClose}){
   {selectedDay&&selectedDayData&&(
     <div className="px-3 pb-3">
       <button onClick={()=>setEditDay(selectedDay)} className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/[0.05] border border-amber-500/30 active:bg-white/[0.1]">
-        <span className="text-sm font-semibold text-gray-200 flex-shrink-0">{curM}/{selectedDay}</span>
+        <span className="text-sm font-semibold text-gray-200 flex-shrink-0">{calM}/{selectedDay}</span>
         <span className="flex items-center gap-3 text-xs flex-shrink-0">
           <span className="text-gray-400">{t.units}:{selectedDayData.total||0}</span>
           <span className="text-orange-400/80">{t.laodian}:{selectedDayData.laodian||0}</span>
@@ -1699,7 +1715,7 @@ function MonthlyCalendarPage({settings,curM,setCurM,t,onGotoYear,onClose}){
       </button>
     </div>
   )}
-  {editDay&&data&&<DayEditor day={data.days[editDay]||eDay()} d={editDay} y={y} m={curM} t={t} up={getUnitPriceForDate(settings,y,curM,editDay)} sk={settings.skills} code={settings.code} onSave={saveDay} onCancel={()=>setEditDay(null)}/>}
+  {editDay&&data&&<DayEditor day={data.days[editDay]||eDay()} d={editDay} y={calY} m={calM} t={t} up={getUnitPriceForDate(settings,calY,calM,editDay)} sk={settings.skills} code={settings.code} onSave={saveDay} onCancel={()=>setEditDay(null)}/>}
   </div>);
 }
 
