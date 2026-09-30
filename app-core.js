@@ -1,10 +1,21 @@
-// app-core.js v1.13-020 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-022 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
-// v1.13-020 / 首次自動打開月曆加2秒延遲:用setTimeout包住觸發動作,並在useEffect的cleanup清掉timer,
-// 避免元件在2秒內就被卸載卻還嘗試觸發。「已顯示過」的標記也延後到真正觸發的那一刻才寫入,不是一進首頁就寫,
-// 避免使用者2秒內就離開首頁卻被誤判成已經看過這個功能介紹 | 前: v1.13-019旗標(calendar-intro-shown)讓第一次進入首頁時自動打開月曆一次,
-// 之後不會再自動彈出 | 前: v1.13-018
+// v1.13-022 / 修正bug:iOS Safari上開啟某些日期的DayEditor後按「完成」會整頁白屏(錯誤代碼00015375)——
+// 根因是day.slips陣列裡如果混入null元素(舊資料/搬移過程殘留),save()裡兩個forEach跟共用的slipUnitsTotal/
+// slipLaodianTotal都沒防護,遇到null直接s.xxx就拋TypeError,被App層級的錯誤兜底攔截器接住變成白畫面。
+// 這次(1)DayEditor的slips useState初始化時就filter(Boolean)濾掉null,從源頭清乾淨(2)save()裡兩個forEach
+// 額外加if(!s)return防線(3)common.js同步硬化slipUnitsTotal/slipLaodianTotal/collectSlips/collectAllSlips/
+// tagStats/searchSlips共6個函式,客戶管理頁等其他地方讀到同樣髒資料也不會再整頁崩潰
+// 另外發現:上線的app-core.js實際還停在v1.13-020(上一輪的月曆年度導覽調整v1.13-021沒有真的部署上去,
+// index.html雖然已經指到?v=1.13-021但實際檔案內容是舊的),這次一併把v1.13-021的內容補上去,
+// 之後部署務必index.html/common.js/settings.js/app-core.js四個檔案一起上傳,避免又缺一個 | 前: v1.13-021 / 月曆版跟列表版的年度導覽調整:
+// (月曆版)左側原本的「年度」按鈕換成「今日」按鈕(點擊回到今天所在的年月);中間的年月文字改成點擊跳去年度總表,
+// 帶著目前導覽到的calY年份(不是settings.year)。
+// (列表版)頂部原本顯示「月份明細」文字的地方,改成「◀ 年份 ▶」箭頭形式,新增獨立的listY本地state(不影響settings.year),
+// 點年份文字跳年度總表(帶著listY);月份列表左右兩側原本各一個「年度」按鈕拿掉。
+// (YearlyPage)加year prop(選填),沒傳的話退回settings.year維持向下相容,讓兩個頁面能各自帶著自己導覽到的年份跳過來。
+// index.html加yearlyYear state記住要顯示哪一年,onGotoYear callback改成接收年份參數。加todayBtn翻譯key | 前: v1.13-020
 const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,shouldClaimKey,hasMyKey,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,autoClaimKey,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,getMyLineUserId,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
@@ -1624,10 +1635,10 @@ function SlipEditFields({s,t,editorCode,custQuery,setCustQuery,onUpdate,onDelete
 
 function DayEditor({day,d,y,m,t,up,sk,onSave,onCancel,code:editorCode}){
   const[groups,setGroups]=useState((day.groups&&(day.groups||[]).length>0)?[...day.groups]:[]);const[lo,setLo]=useState(day.laodian);const[st,setSt]=useState(day.status);const[skCounts,setSkCounts]=useState(()=>{const s=day.skills||{};return{guasha:s.guasha||0,baguang:s.baguang||0,xiujiao:s.xiujiao||0}});
-  const[slips,setSlips]=useState(()=>day.slips?JSON.parse(JSON.stringify(day.slips)):[]);
+  const[slips,setSlips]=useState(()=>day.slips?JSON.parse(JSON.stringify(day.slips)).filter(Boolean):[]); // filter(Boolean):濾掉舊資料/搬移過程可能殘留的null元素,避免後面forEach/map直接崩潰
   const[editSlipId,setEditSlipId]=useState(null);
   const dw=dow(y,m,d);const slipTotal=slipUnitsTotal(slips);const oldGroupTotal=groups.reduce((a,b)=>a+(parseInt(b)||0),0);const ct=(!canWork[st])?0:slipTotal;const laodianTotal=slipLaodianTotal(slips);const sw=canWork[st];const previewSal=ct*up+SKILL_KEYS.reduce((a,k,i)=>a+(sk?.[k]?(skCounts[k]||0)*SKILL_PRICES[i]:0),0);
-  const save=()=>{const nr=!canWork[st];if(!nr){(slips||[]).forEach(s=>{if((s.laodian||0)>=1&&(s.custName||'').trim()&&(s.custTitle||'').trim()){if(!s.tags)s.tags=[];if(!s.tags.includes('老點'))s.tags.push('老點')}});if(editorCode){(slips||[]).forEach(s=>{if((s.custName||'').trim()||(s.custPhone||'').trim()){try{upsertCust(editorCode,s)}catch(e){}}})}}onSave(d,{groups:[],total:nr?0:ct,laodian:nr?0:laodianTotal,status:st,skills:nr?{guasha:0,baguang:0,xiujiao:0}:skCounts,slips:nr?[]:(slips||[]),did:getDeviceId(),ts:Date.now()})};
+  const save=()=>{const nr=!canWork[st];if(!nr){(slips||[]).forEach(s=>{if(!s)return;if((s.laodian||0)>=1&&(s.custName||'').trim()&&(s.custTitle||'').trim()){if(!s.tags)s.tags=[];if(!s.tags.includes('老點'))s.tags.push('老點')}});if(editorCode){(slips||[]).forEach(s=>{if(!s)return;if((s.custName||'').trim()||(s.custPhone||'').trim()){try{upsertCust(editorCode,s)}catch(e){}}})}}onSave(d,{groups:[],total:nr?0:ct,laodian:nr?0:laodianTotal,status:st,skills:nr?{guasha:0,baguang:0,xiujiao:0}:skCounts,slips:nr?[]:(slips||[]).filter(Boolean),did:getDeviceId(),ts:Date.now()})};
   const clearAll=()=>{setLo(0);setSt(0);setGroups([]);setSlips([]);setSkCounts({guasha:0,baguang:0,xiujiao:0})};
   const skAdj=(k,delta)=>setSkCounts(p=>({...p,[k]:Math.max(0,(p[k]||0)+delta)}));
   const[eOtherMode,setEOtherMode]=useState(false);const[eOtherVal,setEOtherVal]=useState('');
@@ -1673,10 +1684,10 @@ function MonthlyCalendarPage({settings,t,onGotoYear,onClose}){
   const goToday=()=>{setCalY(bizParts().y);setCalM(bizParts().m)};
   return(<div className="max-w-lg mx-auto fi"><div className="sticky top-0 z-10 bg-gray-950 pb-1">
   <div className="flex items-center justify-between px-3 py-2">
-    <button onClick={()=>onGotoYear&&onGotoYear()} className="px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-600 text-white flex-shrink-0">{t.yearly}</button>
+    <button onClick={goToday} className="px-3 py-1.5 rounded-full text-xs font-semibold bg-white/[0.06] text-gray-300 flex-shrink-0">{t.todayBtn||'今日'}</button>
     <div className="flex items-center gap-3">
       <button onClick={goPrevMonth} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 active:bg-white/[0.08]"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
-      <button onClick={goToday} className="text-base font-bold text-gray-100 whitespace-nowrap active:opacity-60">{t===T.zh?`${calY}年${t.months[calM-1]}`:`${t.months[calM-1]} ${calY}`}</button>
+      <button onClick={()=>onGotoYear&&onGotoYear(calY)} className="text-base font-bold text-gray-100 whitespace-nowrap active:opacity-60">{t===T.zh?`${calY}年${t.months[calM-1]}`:`${t.months[calM-1]} ${calY}`}</button>
       <button onClick={goNextMonth} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 active:bg-white/[0.08]"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg></button>
     </div>
     <div className="w-[52px] flex-shrink-0"></div>
@@ -1721,25 +1732,30 @@ function MonthlyCalendarPage({settings,t,onGotoYear,onClose}){
 }
 
 function MonthlyPage({settings,curM,setCurM,t,onGotoYear,onClose}){
-  const[data,setData]=useState(null);const[editDay,setEditDay]=useState(null);const y=settings.year||bizParts().y;
-  useEffect(()=>{setData(LS.get(dk(settings.code,y,curM))||eMon())},[settings.code,y,curM]);
-  useEffect(()=>{if(data&&curM===bizParts().m&&y===bizParts().y){const el=document.querySelector('[data-today-row]');if(el)setTimeout(()=>{try{el.scrollIntoView({block:'center',behavior:'smooth'})}catch(_e){}},150)}},[data,curM,y]);
+  const[listY,setListY]=useState(()=>settings.year||bizParts().y); // 獨立年份state,不影響settings.year,只在這個頁面內部切換要看哪一年
+  const[data,setData]=useState(null);const[editDay,setEditDay]=useState(null);
+  useEffect(()=>{setData(LS.get(dk(settings.code,listY,curM))||eMon())},[settings.code,listY,curM]);
+  useEffect(()=>{if(data&&curM===bizParts().m&&listY===bizParts().y){const el=document.querySelector('[data-today-row]');if(el)setTimeout(()=>{try{el.scrollIntoView({block:'center',behavior:'smooth'})}catch(_e){}},150)}},[data,curM,listY]);
   useEffect(()=>{const el=document.querySelector('[data-month-tab-active]');if(el)setTimeout(()=>{try{el.scrollIntoView({inline:'center',block:'nearest',behavior:'auto'})}catch(_e){}},0)},[curM]);
-  const saveDay=(d,dd)=>{const nd={...data,days:{...data.days,[d]:dd}};setData(nd);setEditDay(null);LS.set(dk(settings.code,y,curM),nd)};
-  const dm=dim(y,curM);
-  const calc=useMemo(()=>{if(!data)return{prev:{units:0,salary:0,laodian:0},next:{units:0,salary:0,laodian:0},month:{units:0,salary:0,laodian:0}};let pu=0,ps=0,pl=0,nu=0,ns=0,nl=0;for(let d=1;d<=dm;d++){const day=data.days[d]||eDay();const u=day.total||0,lo=day.laodian||0,s=calcSal(day,getUnitPriceForDate(settings,y,curM,d),settings.skills);if(d<=15){pu+=u;ps+=s;pl+=lo}else{nu+=u;ns+=s;nl+=lo}}return{prev:{units:pu,salary:ps,laodian:pl},next:{units:nu,salary:ns,laodian:nl},month:{units:pu+nu,salary:ps+ns,laodian:pl+nl}}},[data,dm,y,curM,settings.unitPrice,settings.unitPriceHistory,settings.skills]);
+  const saveDay=(d,dd)=>{const nd={...data,days:{...data.days,[d]:dd}};setData(nd);setEditDay(null);LS.set(dk(settings.code,listY,curM),nd)};
+  const dm=dim(listY,curM);
+  const calc=useMemo(()=>{if(!data)return{prev:{units:0,salary:0,laodian:0},next:{units:0,salary:0,laodian:0},month:{units:0,salary:0,laodian:0}};let pu=0,ps=0,pl=0,nu=0,ns=0,nl=0;for(let d=1;d<=dm;d++){const day=data.days[d]||eDay();const u=day.total||0,lo=day.laodian||0,s=calcSal(day,getUnitPriceForDate(settings,listY,curM,d),settings.skills);if(d<=15){pu+=u;ps+=s;pl+=lo}else{nu+=u;ns+=s;nl+=lo}}return{prev:{units:pu,salary:ps,laodian:pl},next:{units:nu,salary:ns,laodian:nl},month:{units:pu+nu,salary:ps+ns,laodian:pl+nl}}},[data,dm,listY,curM,settings.unitPrice,settings.unitPriceHistory,settings.skills]);
   return(<div className="max-w-lg mx-auto fi"><div className="sticky top-0 z-10 bg-gray-950 pb-1">
-  <div className="flex items-center justify-center px-3 py-1.5"><h2 className="text-sm font-semibold text-gray-300">{t.monthly}</h2></div>
-  <div className="px-2 py-2 flex gap-1 overflow-x-auto no-sb"><button onClick={()=>onGotoYear&&onGotoYear()} className="px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 bg-emerald-600 text-white">{t.yearly}</button>{Array.from({length:12},(_,i)=>i+1).map(m=>(<button key={m} data-month-tab-active={m===curM?true:undefined} onClick={()=>setCurM(m)} className={`px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 ${m===curM?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-600'}`}>{t.months[m-1]}</button>))}<button onClick={()=>onGotoYear&&onGotoYear()} className="px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 bg-emerald-600 text-white">{t.yearly}</button></div><div className="px-3 py-2"><SummaryTable prev={calc.prev} next={calc.next} month={calc.month} t={t}/></div></div>
+  <div className="flex items-center justify-center gap-3 px-3 py-1.5">
+    <button onClick={()=>setListY(listY-1)} className="w-7 h-7 rounded-full flex items-center justify-center text-gray-400 active:bg-white/[0.08]"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+    <button onClick={()=>onGotoYear&&onGotoYear(listY)} className="text-sm font-bold text-gray-100 active:opacity-60">{listY}</button>
+    <button onClick={()=>setListY(listY+1)} className="w-7 h-7 rounded-full flex items-center justify-center text-gray-400 active:bg-white/[0.08]"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg></button>
+  </div>
+  <div className="px-2 py-2 flex gap-1 overflow-x-auto no-sb">{Array.from({length:12},(_,i)=>i+1).map(m=>(<button key={m} data-month-tab-active={m===curM?true:undefined} onClick={()=>setCurM(m)} className={`px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 ${m===curM?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-600'}`}>{t.months[m-1]}</button>))}</div><div className="px-3 py-2"><SummaryTable prev={calc.prev} next={calc.next} month={calc.month} t={t}/></div></div>
   <div className="px-3 py-1.5 bg-amber-600/[0.06] border-b border-amber-500/10"><span className="text-[11px] text-amber-500/80 font-semibold">{t.p1}</span></div>
-  {Array.from({length:Math.min(15,dm)},(_,i)=>i+1).map(d=>(<DayRow key={d} d={d} day={data?.days[d]||eDay()} y={y} m={curM} t={t} up={getUnitPriceForDate(settings,y,curM,d)} sk={settings.skills} onEdit={setEditDay} isToday={curM===bizParts().m&&y===bizParts().y&&d===bizParts().d}/>))}
-  {dm>15&&(<><div className="px-3 py-1.5 bg-amber-600/[0.06] border-b border-amber-500/10 mt-0.5"><span className="text-[11px] text-amber-500/80 font-semibold">{t.p2}</span></div>{Array.from({length:dm-15},(_,i)=>i+16).map(d=>(<DayRow key={d} d={d} day={data?.days[d]||eDay()} y={y} m={curM} t={t} up={getUnitPriceForDate(settings,y,curM,d)} sk={settings.skills} onEdit={setEditDay} isToday={curM===bizParts().m&&y===bizParts().y&&d===bizParts().d}/>))}</>)}
-  {editDay&&data&&<DayEditor day={data.days[editDay]||eDay()} d={editDay} y={y} m={curM} t={t} up={getUnitPriceForDate(settings,y,curM,editDay)} sk={settings.skills} code={settings.code} onSave={saveDay} onCancel={()=>setEditDay(null)}/>}
+  {Array.from({length:Math.min(15,dm)},(_,i)=>i+1).map(d=>(<DayRow key={d} d={d} day={data?.days[d]||eDay()} y={listY} m={curM} t={t} up={getUnitPriceForDate(settings,listY,curM,d)} sk={settings.skills} onEdit={setEditDay} isToday={curM===bizParts().m&&listY===bizParts().y&&d===bizParts().d}/>))}
+  {dm>15&&(<><div className="px-3 py-1.5 bg-amber-600/[0.06] border-b border-amber-500/10 mt-0.5"><span className="text-[11px] text-amber-500/80 font-semibold">{t.p2}</span></div>{Array.from({length:dm-15},(_,i)=>i+16).map(d=>(<DayRow key={d} d={d} day={data?.days[d]||eDay()} y={listY} m={curM} t={t} up={getUnitPriceForDate(settings,listY,curM,d)} sk={settings.skills} onEdit={setEditDay} isToday={curM===bizParts().m&&listY===bizParts().y&&d===bizParts().d}/>))}</>)}
+  {editDay&&data&&<DayEditor day={data.days[editDay]||eDay()} d={editDay} y={listY} m={curM} t={t} up={getUnitPriceForDate(settings,listY,curM,editDay)} sk={settings.skills} code={settings.code} onSave={saveDay} onCancel={()=>setEditDay(null)}/>}
   </div>)}
 
 /* ══════════ Yearly ══════════ */
-function YearlyPage({settings,t,onBack}){
-  const y=settings.year||bizParts().y;
+function YearlyPage({settings,t,onBack,year}){
+  const y=year||settings.year||bizParts().y;
   const rows=useMemo(()=>{const r=[];for(let m=1;m<=12;m++){const d=LS.get(dk(settings.code,y,m));let u=0,lo=0,sal=0;if(d?.days){for(let i=1;i<=dim(y,m);i++){const day=d.days[i];if(day){u+=day.total||0;lo+=day.laodian||0;sal+=calcSal(day,getUnitPriceForDate(settings,y,m,i),settings.skills)}}}r.push({month:m,units:u,salary:sal,laodian:lo})}return r},[settings.code,y,settings.unitPrice,settings.unitPriceHistory,settings.skills]);
   const tot=rows.reduce((a,r)=>({u:a.u+r.units,s:a.s+r.salary,l:a.l+r.laodian}),{u:0,s:0,l:0});
   return(<div className="max-w-lg mx-auto fi"><div className="px-4 py-3 flex items-baseline justify-between"><h2 className="text-xl font-bold text-gray-100"><button onClick={()=>onBack&&onBack()} className="mr-2 text-gray-500 active:text-gray-300 align-middle"><svg className="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg></button>{y} {t.yearly}</h2><span className="text-xs text-gray-600 font-mono">#{settings.code}</span></div><div className="flex px-3 py-2 border-b border-white/[0.06] text-[11px] text-gray-600 font-medium"><div className="w-12"></div><div className="flex-1 text-right">{t.units}</div><div className="flex-1 text-right">{t.salary}</div><div className="w-12 text-right">{t.laodian}</div><div className="flex-1 text-right">{t.subtotal}</div></div>{rows.map(r=>(<div key={r.month} className={`flex items-center px-3 py-3 border-b border-white/[0.03] ${r.units>0?'':'opacity-30'}`}><div className="w-12 text-sm font-medium text-gray-300">{t.months[r.month-1]}</div><div className="flex-1 text-right text-sm text-gray-400 tabular-nums">{r.units}</div><div className="flex-1 text-right text-sm text-emerald-400/80 tabular-nums">{r.salary.toLocaleString()}</div><div className="w-12 text-right text-sm text-orange-400/80 tabular-nums">{r.laodian}</div><div className="flex-1 text-right text-sm text-emerald-400 font-semibold tabular-nums">{r.salary.toLocaleString()}</div></div>))}<div className="flex items-center px-3 py-3.5 bg-amber-600/10 border-t-2 border-amber-500/40"><div className="w-12 text-sm font-bold text-amber-400">{t.total}</div><div className="flex-1 text-right text-sm text-amber-300 font-bold tabular-nums">{tot.u}</div><div className="flex-1 text-right text-sm text-emerald-400 font-bold tabular-nums">{tot.s.toLocaleString()}</div><div className="w-12 text-right text-sm text-orange-400 font-bold tabular-nums">{tot.l}</div><div className="flex-1 text-right text-sm text-emerald-400 font-bold tabular-nums">{tot.s.toLocaleString()}</div></div></div>)}
