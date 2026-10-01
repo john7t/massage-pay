@@ -1,7 +1,11 @@
-// app-core.js v1.13-022 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-023 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
-// v1.13-022 / 修正bug:iOS Safari上開啟某些日期的DayEditor後按「完成」會整頁白屏(錯誤代碼00015375)——
+// v1.13-023 / 新增每日自動雲端備份:HomePage新增doDailyAutoCloudBackup共用函式,前提是設定頁已用LINE登入(有lineUserId),
+// 沒登入就直接跳過不做任何事,不再依賴settings.autoCloudBackup這個舊勾選欄位(公司化時代的設計)。
+// 接進既有的每日第一次開啟App檢查流程(homeKey='home-daily-'+settings.code的useEffect)裡,跟gasLogDailyCheck等動作一起
+// fire-and-forget執行,失敗也不影響其他每日檢查流程。同時把舊的PIN解鎖後備份死代碼(HIDE_COMPANY_FEATURES拿掉PIN閘門後
+// 已經不會被觸發到)簡化成呼叫同一個共用函式,配合settings.js v1.13-012拿掉手動備份按鈕、改全自動 | 前: v1.13-022 / 修正bug:iOS Safari上開啟某些日期的DayEditor後按「完成」會整頁白屏(錯誤代碼00015375)——
 // 根因是day.slips陣列裡如果混入null元素(舊資料/搬移過程殘留),save()裡兩個forEach跟共用的slipUnitsTotal/
 // slipLaodianTotal都沒防護,遇到null直接s.xxx就拋TypeError,被App層級的錯誤兜底攔截器接住變成白畫面。
 // 這次(1)DayEditor的slips useState初始化時就filter(Boolean)濾掉null,從源頭清乾淨(2)save()裡兩個forEach
@@ -1292,6 +1296,18 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
   const[pwdInput,setPwdInput]=useState('');const[pwdErr,setPwdErr]=useState('');
   const[showDailyForgotPwd,setShowDailyForgotPwd]=useState(false);
   const advanceQueue=()=>setDailyQueue(q=>q.slice(1));
+  // 1.13版:每日自動雲端備份共用邏輯——前提是設定頁已用LINE登入(有lineUserId),沒登入就直接跳過不做任何事。
+  // 不再依賴settings.autoCloudBackup這個舊勾選欄位(公司化時代的設計),改成「有登入LINE=自動備份,沒登入=不備份」,
+  // 使用者不需要再另外勾選開關。fire-and-forget,失敗也不影響其他每日檢查流程
+  const doDailyAutoCloudBackup=async()=>{
+    const lineUid=getMyLineUserId();
+    if(!lineUid)return;
+    try{
+      const obj=makePersonalBackup(settings.code,settings.year||bizParts().y);
+      const profileJson=JSON.stringify({store:settings.store||'',gender:settings.gender||'',shift:settings.shift||'',workStart:settings.workStart||'',workEnd:settings.workEnd||''});
+      await gasBackupSubmit(lineUid,settings.code,settings.year||bizParts().y,JSON.stringify(obj),profileJson);
+    }catch(_e){}
+  };
   useEffect(()=>{
     // 1.13版:新功能上線,第一次進入首頁時自動打開月曆一次,讓使用者知道有這個新功能,之後不會再自動打開。
     // 延遲2秒才跳出,讓使用者先看一眼首頁,不會一進來就被彈窗打斷
@@ -1320,6 +1336,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
           await gasLogDailyCheck(settings.code);
           await syncMyStaffStatus(settings.code); // 同步staff.json裡自己這筆的狀態存本機,供「更多功能」區塊判斷離職與否用
         }catch(_e){}
+        doDailyAutoCloudBackup(); // 1.13版:每日第一次打開時,如果已用LINE登入就順便自動備份一次,不等待、不影響上面的每日檢查流程
         try{localStorage.setItem(homeKey,today)}catch(_e){}
       })();
     }
@@ -1346,7 +1363,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
     const next=(pwdInput+d).slice(0,4);
     setPwdInput(next);
     if(next.length===4){
-      if(next===settings.lockPwd){setPwdInput('');setPwdErr('');setInfoUnlockTs(settings.code);advanceQueue();if(settings.autoCloudBackup){const lineUid=getMyLineUserId();if(lineUid){try{const obj=makePersonalBackup(settings.code,settings.year||bizParts().y);const profileJson=JSON.stringify({store:settings.store||'',gender:settings.gender||'',shift:settings.shift||'',workStart:settings.workStart||'',workEnd:settings.workEnd||''});gasBackupSubmit(lineUid,settings.code,settings.year||bizParts().y,JSON.stringify(obj),profileJson).catch(()=>{})}catch(_e){}}}}
+      if(next===settings.lockPwd){setPwdInput('');setPwdErr('');setInfoUnlockTs(settings.code);advanceQueue();doDailyAutoCloudBackup()}
       else{setPwdErr(t.noticePwdWrong||'密碼錯誤');setPwdShake(true);setTimeout(()=>{setPwdShake(false);setPwdInput('')},500)}
     }
   };
