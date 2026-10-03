@@ -1,5 +1,11 @@
 // settings.js — 設定頁相關元件(從 index.html 抽離,降低 index 體積)
-// v1.13-015 / 【測試用】LINE登入成功當下立刻備份一次,不等每日自動備份:方便逐一請不同老師點「使用LINE登入」測試手機能不能
+// v1.13-016 / 「我的自約」整合進index內:設定頁subTab='book'原本是一顆按鈕location.href跳去獨立的booking.html頁面
+// (離開SPA狀態),底下還有一塊從沒做完的「同步店家預約資訊」框架(textarea+複製/貼上+灰字disabled的同步鈕,本來就是空殼)。
+// 這次拿掉這兩塊,改成直接渲染app-core.js新增的<BookingSection code={settings.code} t={t}/>——自約的新增/列表/詳情/
+// 編輯/確認/複製全部都在這裡用BottomSheet同一個畫面完成,不再跳頁;自約的老點資訊改接common.js的custdb(searchCustDB/
+// upsertCust),跟流水共用同一份客戶資料,不再是booking.html自己那套獨立的getCustomers/upsertCustomer系統。
+// 詳細設計跟取捨記在DEV_NOTES。booking.html檔案本身先不刪(隱藏不刪除),但已經沒有任何內部連結指向它了
+// | 前: v1.13-015 / 【測試用】LINE登入成功當下立刻備份一次,不等每日自動備份:方便逐一請不同老師點「使用LINE登入」測試手機能不能
 // 正常登入時,馬上就能在GAS的Backups工作表看到一筆新紀錄當佐證,不用等到隔天才知道這支手機有沒有成功——跟目前還在排查的
 // 「LINE登入在部分裝置真實環境大量失敗」問題有關(見DEV_NOTES已知擱置事項),純粹是測試階段的輔助,之後正式穩定後這個
 // 「登入當下就備份」的動作要不要繼續保留可以再討論 | 前: v1.13-014 / 拿掉獨立的「LINE登出/換帳號」按鈕,併入既有的「登出／切換帳號」:討論後確認這顆按鈕對一般使用者沒有真實用途——
@@ -1071,20 +1077,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme,onClose,onLogout}){
 
       {subTab==='book'&&(<div className="space-y-4 fi">
         <div className="sticky top-0 z-10 -mx-4 px-4 py-1 bg-gray-950 flex items-center justify-center"><h2 className="text-sm font-semibold text-gray-300">{t.myBooking2}</h2></div>
-        <button onClick={()=>{location.href='./booking.html'}} className="w-full py-3.5 rounded-xl bg-amber-600/15 border border-amber-500/25 text-amber-400 text-sm font-semibold active:bg-amber-600/25 flex items-center justify-center gap-2">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-          {t.booking}
-        </button>
-        {/* 同步店家預約資訊框架(尚無功能) */}
-        <div className="pt-4 border-t border-white/[0.06] space-y-2">
-          <p className="text-sm text-gray-400 font-medium">{t.syncStoreBooking}</p>
-          <textarea rows={2} placeholder={t.connInput} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none"/>
-          <div className="flex gap-2">
-            <button className="flex-1 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-gray-400 text-sm flex items-center justify-center gap-1"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M12 4v12m0 0l-4-4m4 4l4-4"/></svg></button>
-            <button className="flex-1 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-gray-400 text-sm">{t.pasteBtn}</button>
-          </div>
-          <button disabled className="w-full py-2.5 rounded-xl bg-white/[0.03] text-gray-600 text-sm font-medium cursor-not-allowed">{t.syncBtn}{t.noFuncYet}</button>
-        </div>
+        <BookingSection code={settings.code} t={t}/>
       </div>)}
 
       {subTab==='cust'&&<CustomerPage t={t} settings={settings} onClose={onClose}/>}
