@@ -1,7 +1,23 @@
-// app-core.js v1.13-024 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-025 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
-// v1.13-024 / 三項改動:
+// v1.13-025 / 「我的自約」大改版,整合進index內不再跳booking.html頁:
+// (1) 新增BookingSection/BookingListPanel/BookingFormPanel/BookingDetailPanel/BookingCustFields這組元件,取代原本
+//     booking.html整頁獨立應用,settings.js的subTab='book'改成直接渲染<BookingSection/>,所有新增/列表/詳情/編輯/
+//     跟櫃台或指定老師確認/刪除/複製都在同一個BottomSheet畫面內完成,不再有頁面跳轉
+// (2) 老點資訊改接common.js既有的custdb(searchCustDB/upsertCust,custKey=姓/稱謂/手機),跟流水編輯(SlipEditFields)
+//     共用同一份客戶資料庫——自約不再用booking.html自己那套獨立的getCustomers/saveCustomers/upsertCustomer系統
+//     (那套函式留在common.js裡沒刪,只是這次新寫的自約功能不再呼叫它們)。booking物件直接存custName/custTitle/
+//     custPhone三個欄位,不再透過customerId去查另一份清單
+// (3) 移除「同步店家預約資訊」框架(textarea+複製/貼上+灰字disabled的同步鈕,本來就是從沒做出功能的空殼UI)
+// (4) 過期自約(以服務結束時間判定)收合進「歷史」區塊(可展開/收起,維持原本就有的設計,這次補上越南文,原本是中文寫死
+//     的「已過期」/「▲收起」/「▼展開」);新增「複製為新的自約」:過期的自約卡片跟詳情頁都有↻複製鈕,點了帶著同一位
+//     老點+服務+同行人數直接開新增自約表單(日期時間重設成現在,其他照抄),不用重新搜尋老點、重新選服務
+// (5) 評估是否把自約資料存進備份json:結論是「只備份還沒過期的」,過期的自約本身沒有保存價值(真正有價值的服務紀錄
+//     早就在每月流水/custdb裡),順便修正common.js v1.13-020發現的備份key打錯字bug(exportPersonalData/
+//     restorePersonalBackup都已同步修正,還原改成以id跟本機既有自約合併,不整包覆蓋)
+// booking.html檔案本身保留不刪(隱藏不刪除),但已經沒有任何地方連結過去
+// | 前: v1.13-024 / 三項改動:
 // (1) 移除新老師啟動時自動領金鑰的機制(doActivate裡的shouldClaimKey/autoClaimKey呼叫)——這是舊公司審核時代的設計,
 //     現在BUILTIN_BATCH_CODE多半已在GAS端清掉停用,新老師啟動時只會留下「batchClaim 失敗 尚未產金鑰」這種無意義的失敗log,
 //     拿掉這個自動觸發點。公告已讀/領金鑰的handleNoticeAction也一併拿掉(本來就是沒接到任何按鈕的死代碼)。
@@ -30,7 +46,7 @@
 // 點年份文字跳年度總表(帶著listY);月份列表左右兩側原本各一個「年度」按鈕拿掉。
 // (YearlyPage)加year prop(選填),沒傳的話退回settings.year維持向下相容,讓兩個頁面能各自帶著自己導覽到的年份跳過來。
 // index.html加yearlyYear state記住要顯示哪一年,onGotoYear callback改成接收年份參數。加todayBtn翻譯key | 前: v1.13-020
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,hasMyKey,isNoticeRead,getNoticeReadCount,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,getMyLineUserId,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,hasMyKey,isNoticeRead,getNoticeReadCount,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,svcByCode,bookUnits,bookMinutes,bookLabel,bookRange,findConflicts,dayOffStatus,skName,getBookings,addBooking,updateBooking,deleteBooking,confirmBooking,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,getMyLineUserId,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 
@@ -1766,4 +1782,291 @@ function YearlyPage({settings,t,onBack,year}){
   const rows=useMemo(()=>{const r=[];for(let m=1;m<=12;m++){const d=LS.get(dk(settings.code,y,m));let u=0,lo=0,sal=0;if(d?.days){for(let i=1;i<=dim(y,m);i++){const day=d.days[i];if(day){u+=day.total||0;lo+=day.laodian||0;sal+=calcSal(day,getUnitPriceForDate(settings,y,m,i),settings.skills)}}}r.push({month:m,units:u,salary:sal,laodian:lo})}return r},[settings.code,y,settings.unitPrice,settings.unitPriceHistory,settings.skills]);
   const tot=rows.reduce((a,r)=>({u:a.u+r.units,s:a.s+r.salary,l:a.l+r.laodian}),{u:0,s:0,l:0});
   return(<div className="max-w-lg mx-auto fi"><div className="px-4 py-3 flex items-baseline justify-between"><h2 className="text-xl font-bold text-gray-100"><button onClick={()=>onBack&&onBack()} className="mr-2 text-gray-500 active:text-gray-300 align-middle"><svg className="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg></button>{y} {t.yearly}</h2><span className="text-xs text-gray-600 font-mono">#{settings.code}</span></div><div className="flex px-3 py-2 border-b border-white/[0.06] text-[11px] text-gray-600 font-medium"><div className="w-12"></div><div className="flex-1 text-right">{t.units}</div><div className="flex-1 text-right">{t.salary}</div><div className="w-12 text-right">{t.laodian}</div><div className="flex-1 text-right">{t.subtotal}</div></div>{rows.map(r=>(<div key={r.month} className={`flex items-center px-3 py-3 border-b border-white/[0.03] ${r.units>0?'':'opacity-30'}`}><div className="w-12 text-sm font-medium text-gray-300">{t.months[r.month-1]}</div><div className="flex-1 text-right text-sm text-gray-400 tabular-nums">{r.units}</div><div className="flex-1 text-right text-sm text-emerald-400/80 tabular-nums">{r.salary.toLocaleString()}</div><div className="w-12 text-right text-sm text-orange-400/80 tabular-nums">{r.laodian}</div><div className="flex-1 text-right text-sm text-emerald-400 font-semibold tabular-nums">{r.salary.toLocaleString()}</div></div>))}<div className="flex items-center px-3 py-3.5 bg-amber-600/10 border-t-2 border-amber-500/40"><div className="w-12 text-sm font-bold text-amber-400">{t.total}</div><div className="flex-1 text-right text-sm text-amber-300 font-bold tabular-nums">{tot.u}</div><div className="flex-1 text-right text-sm text-emerald-400 font-bold tabular-nums">{tot.s.toLocaleString()}</div><div className="w-12 text-right text-sm text-orange-400 font-bold tabular-nums">{tot.l}</div><div className="flex-1 text-right text-sm text-emerald-400 font-bold tabular-nums">{tot.s.toLocaleString()}</div></div></div>)}
+
+/* ══════════ 我的自約(v1.13-025 整合進index內,拿掉跳booking.html頁+店家同步框架;老點改接common.js的custdb,跟流水的SlipEditFields共用同一套搜尋) ══════════ */
+function bkPad(n){return String(n).padStart(2,'0')}
+function bkFmtLogStr(s,args){return(args||[]).reduce((r,a,i)=>r.replace('{'+i+'}',a),s||'')}
+function bkFmtDateInput(ts){const d=ts?new Date(ts):new Date();return `${d.getFullYear()}-${bkPad(d.getMonth()+1)}-${bkPad(d.getDate())}`}
+function bkFmtTimeInput(ts){const d=ts?new Date(ts):new Date();return `${bkPad(d.getHours())}:${bkPad(d.getMinutes())}`}
+function bkNextHourTime(){const d=new Date();let h=d.getHours();if(d.getMinutes()>0)h+=1;if(h>23)h=23;return bkPad(h)+':00'}
+
+/* 老點搜尋+直接編輯三欄(姓/稱謂/手機),跟SlipEditFields共用同一套custdb(searchCustDB/upsertCust),
+   自約跟流水的老點資料從此是同一份,不再各自獨立一套客戶清單 */
+function BookingCustFields({code,t,custName,custTitle,custPhone,onChange}){
+  const[q,setQ]=useState('');
+  const lang=t===T.zh?'zh':'vi';
+  const results=useMemo(()=>q.trim()?searchCustDB(code,q):[],[code,q]);
+  const applyCust=(c)=>{onChange({custName:c.custName||'',custTitle:c.custTitle||'sir',custPhone:c.custPhone||''});setQ('')};
+  return(<div className="space-y-2">
+    <input value={q} onChange={e=>setQ(e.target.value)} placeholder={t.custSearchHint} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>
+    {q.trim()&&(results.length>0?(<div className="space-y-1 max-h-48 overflow-y-auto no-sb fi">{results.map((c,i)=>(
+      <button key={i} onClick={()=>applyCust(c)} className="w-full text-left bg-white/[0.03] rounded-lg px-3 py-2 text-sm text-gray-200 active:bg-white/[0.06]"><span>{c.custName||'—'}</span> <span className="text-[11px] text-amber-400">{bookTitleName(c.custTitle,lang)}</span>{c.custPhone&&<span className="text-[11px] text-gray-500 font-mono ml-2">{c.custPhone}</span>}</button>
+    ))}</div>):(<p className="text-[11px] text-amber-500/70">{t.custNewHint}</p>))}
+    <div className="grid gap-2" style={{gridTemplateColumns:'1.2fr 0.85fr 1.3fr'}}>
+      <input value={custName||''} onChange={e=>onChange({custName:e.target.value})} placeholder={t.custName} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-sm text-gray-100 focus:outline-none focus:border-amber-500 min-w-0"/>
+      <select value={custTitle||'sir'} onChange={e=>onChange({custTitle:e.target.value})} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-0.5 py-2 text-sm text-gray-200 focus:outline-none focus:border-amber-500 min-w-0">{BOOK_TITLES.filter(o=>o.v==='sir'||o.v==='ms').map(o=><option key={o.v} value={o.v}>{o[lang]}</option>)}</select>
+      <input value={custPhone||''} onChange={e=>onChange({custPhone:e.target.value})} inputMode="numeric" placeholder={t.custPhone} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 min-w-0"/>
+    </div>
+  </div>);
+}
+
+/* 新增/複製自約表單:initial有值時代表從一筆過期自約複製過來(日期/時間重設成現在,其他欄位帶入) */
+function BookingFormPanel({code,t,initial,onSave,onCancel}){
+  const settings=LS.get('app-settings')||{};
+  const lang=t===T.zh?'zh':'vi';
+  const[custName,setCustName]=useState(initial?.custName||'');
+  const[custTitle,setCustTitle]=useState(initial?.custTitle||'sir');
+  const[custPhone,setCustPhone]=useState(initial?.custPhone||'');
+  const[date,setDate]=useState(bkFmtDateInput());
+  const[time,setTime]=useState(bkNextHourTime());
+  const[svc,setSvc]=useState(initial?.svc||'FB3');
+  const[extra,setExtra]=useState(initial?.extra||0);
+  const[party,setParty]=useState(initial?.party||0);
+  const[partyDetails,setPartyDetails]=useState(initial?.partyDetails?JSON.parse(JSON.stringify(initial.partyDetails)):[]);
+  const[note,setNote]=useState(initial?.note||'');
+  const[err,setErr]=useState('');
+  const dt=useMemo(()=>{const[y,m,d]=date.split('-').map(Number);const[hh,mm]=time.split(':').map(Number);return new Date(y,m-1,d,hh,mm).getTime()},[date,time]);
+  const endTs=dt+bookMinutes(svc,extra)*60000;
+  const conflicts=useMemo(()=>findConflicts(code,{datetime:dt,svc,extra},null),[code,dt,svc,extra]);
+  const dayOff=useMemo(()=>dayOffStatus(code,dt),[code,dt]);
+  const overWork=useMemo(()=>{if(!settings.workEnd)return false;const[eh,em]=settings.workEnd.split(':').map(Number);const d=new Date(dt);let weTs=new Date(d.getFullYear(),d.getMonth(),d.getDate(),eh,em).getTime();
+    if(settings.workStart){const[sh,sm]=settings.workStart.split(':').map(Number);const swMin=sh*60+sm,ewMin=eh*60+em;if(ewMin<=swMin)weTs+=86400000}
+    return endTs>weTs},[dt,endTs,settings.workEnd,settings.workStart]);
+  const fmtHM=ts=>{const d=new Date(ts);return bkPad(d.getHours())+':'+bkPad(d.getMinutes())};
+  const save=()=>{
+    if(!custName.trim()&&!custPhone.trim()){setErr(t.bookNoCustHint||t.pickCustomerFirst);return}
+    try{upsertCust(code,{custName:custName.trim(),custTitle,custPhone:custPhone.trim()})}catch(_e){}
+    addBooking(code,{custName:custName.trim(),custTitle,custPhone:custPhone.trim(),datetime:dt,svc,extra,party,partyDetails:partyDetails.slice(0,party),note:note.trim(),status:'confirmed'});
+    onSave();
+  };
+  return(<div className="space-y-4 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4 fi">
+    <h3 className="text-sm font-semibold text-amber-400">{initial?(t.duplicateBtn||t.bookingNew):t.bookingNew}</h3>
+    <div><label className="text-xs text-gray-500 mb-1.5 block">{t.selectCustomer||t.custName}</label><BookingCustFields code={code} t={t} custName={custName} custTitle={custTitle} custPhone={custPhone} onChange={p=>{if(p.custName!==undefined)setCustName(p.custName);if(p.custTitle!==undefined)setCustTitle(p.custTitle);if(p.custPhone!==undefined)setCustPhone(p.custPhone);setErr('')}}/></div>
+    <div className="space-y-3">
+      <div><label className="text-xs text-gray-500 mb-1.5 block">{t.bookDate}</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>
+      <div><label className="text-xs text-gray-500 mb-1.5 block">{t.bookTime}</label><input type="time" step="600" value={time} onChange={e=>setTime(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>
+    </div>
+    {dayOff>0&&<p className="text-xs text-red-400">⚠️ {bkFmtLogStr(t.dayOffWarn,[skName(dayOff,lang)])}</p>}
+    {conflicts.length>0&&conflicts.map(o=>(<p key={o.id} className="text-xs text-red-400">⚠️ {bkFmtLogStr(t.conflictWarn,[fmtHM(o.datetime),((o.custName||'')+' '+bookTitleName(o.custTitle,lang))])}</p>))}
+    {overWork&&<p className="text-xs text-red-400">⚠️ {bookLabel(svc,extra)} → {fmtHM(endTs)}{settings.workEnd?'（'+t.workEnd+' '+settings.workEnd+'）':''}</p>}
+    {!settings.workEnd&&<p className="text-[11px] text-gray-600">{t.noWorkEnd}</p>}
+    <div className="grid grid-cols-2 gap-2">
+      <div><label className="text-xs text-gray-500 mb-1.5 block">{t.svcLabel}</label><select value={svc} onChange={e=>setSvc(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500">{SERVICES.map(s=><option key={s.code} value={s.code}>{s.code}（{s.min}{lang==='zh'?'分':'p'}）</option>)}</select></div>
+      <div><label className="text-xs text-gray-500 mb-1.5 block">{t.addHour}</label><select value={extra} onChange={e=>setExtra(parseInt(e.target.value))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500">{[0,1,2,3,4,5,6,7,8].map(n=><option key={n} value={n}>+{n}</option>)}</select></div>
+    </div>
+    <div className="flex items-center justify-between bg-white/[0.02] rounded-xl px-3 py-2">
+      <span className="text-xs text-gray-500">{bookLabel(svc,extra)} = {bookUnits(svc,extra)} {t.units} · {bookMinutes(svc,extra)}{lang==='zh'?'分':'p'}</span>
+    </div>
+    <div><label className="text-xs text-gray-500 mb-1.5 block">{t.party}</label>
+      <div className="flex items-center gap-3"><button onClick={()=>{const np=Math.max(0,party-1);setParty(np);setPartyDetails(d=>d.slice(0,np))}} className="w-11 h-11 rounded-xl bg-white/[0.04] text-gray-300 text-xl">−</button><span className="text-xl font-bold text-gray-100 flex-1 text-center">{party} {t.partyUnit}</span><button onClick={()=>{const np=party+1;setParty(np);setPartyDetails(d=>[...d,{svc:svc,teacher:'',note:''}])}} className="w-11 h-11 rounded-xl bg-white/[0.04] text-gray-300 text-xl">+</button></div>
+    </div>
+    {party>0&&<div className="space-y-2">{Array.from({length:party},(_,i)=>{const pd=partyDetails[i]||{svc:svc,assignMode:'none',teacher:'',conds:{},oil:false,note:''};const setPd=(patch)=>{setPartyDetails(d=>{const nd=[...d];while(nd.length<party)nd.push({svc:svc,assignMode:'none',teacher:'',conds:{},oil:false,note:''});nd[i]={...nd[i],...patch};return nd})};const conds=pd.conds||{};const toggleCond=(k)=>setPd({conds:{...conds,[k]:!conds[k]}});return(
+      <div key={i} className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-3 space-y-2">
+        <p className="text-xs text-amber-400 font-semibold">{t.partyMember}{i+1}{t.partyUnit}</p>
+        <select value={pd.svc} onChange={e=>setPd({svc:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-500">{SERVICES.map(s=><option key={s.code} value={s.code}>{s.code}（{s.min}分）</option>)}</select>
+        <select value={pd.assignMode||'none'} onChange={e=>setPd({assignMode:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-500">
+          <option value="none">{t.noAssignTeacher}</option>
+          <option value="assign">{t.assignTeacherMode}</option>
+        </select>
+        {pd.assignMode==='assign'&&(<div className="space-y-2 fi">
+          <input value={pd.teacher||''} onChange={e=>setPd({teacher:e.target.value,conds:{}})} placeholder={t.assignByCode} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-500"/>
+          <div className="grid grid-cols-4 gap-1">{[['male',t.assignMale],['female',t.assignFemale],['tw',t.assignTW],['vn',t.assignVN]].map(([k,l])=>(<button key={k} onClick={()=>{setPd({teacher:''});toggleCond(k)}} className={`py-1.5 rounded-lg text-[11px] font-medium ${conds[k]?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div>
+        </div>)}
+        <button onClick={()=>setPd({oil:!pd.oil})} className={`w-full py-1.5 rounded-lg text-[11px] font-medium ${pd.oil?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t.assignOil}</button>
+        <input value={pd.note||''} onChange={e=>setPd({note:e.target.value})} placeholder={t.svcNote} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-500"/>
+      </div>);
+    })}</div>}
+    <div><label className="text-xs text-gray-500 mb-1.5 block">{t.custNote}</label><textarea value={note} onChange={e=>setNote(e.target.value)} rows={2} placeholder={t.custNote} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 resize-none"/></div>
+    {err&&<p className="text-xs text-red-400">{err}</p>}
+    <div className="flex gap-2"><button onClick={onCancel} className="flex-1 py-3 bg-white/[0.04] rounded-xl text-gray-400 font-medium">{t.bookCancel}</button><button onClick={save} className="flex-1 py-3 bg-amber-600 rounded-xl text-white font-bold">{t.bookSave}</button></div>
+  </div>);
+}
+
+/* 自約清單:今日以後的依日期分組,過期的收合進「歷史」區塊(可展開/收起),每筆過期自約都能一鍵複製成新的自約 */
+function BookingListPanel({code,t,refresh,onOpen,onDuplicate}){
+  const[viewMode,setViewMode]=useState('cal');
+  const[hidePast,setHidePast]=useState(false);
+  const[histOpen,setHistOpen]=useState(false);
+  const bookings=useMemo(()=>{const list=(getBookings(code)||[]).filter(Boolean);return list.sort((a,b)=>(a.datetime||0)-(b.datetime||0))},[code,refresh]);
+  const lang=t===T.zh?'zh':'vi';
+  if(bookings.length===0)return<p className="text-sm text-gray-600 text-center py-8">{t.bookingEmpty}</p>;
+  const now=Date.now();
+  const conflictMap={};bookings.forEach(b=>{const[s1,e1]=bookRange(b);const hit=bookings.find(o=>o.id!==b.id&&(()=>{const[s2,e2]=bookRange(o);return s1<e2&&s2<e1})());if(hit)conflictMap[b.id]=hit});
+  // 已過時間(以結束時間判定)的自約移進「歷史」收合區塊,不是直接隱藏消失
+  const pastBookings=bookings.filter(b=>{const[,e]=bookRange(b);return e<now});
+  const upcomingBookings=bookings.filter(b=>{const[,e]=bookRange(b);return e>=now});
+  const fmtDay=ts=>{const d=new Date(ts);return `${d.getMonth()+1}/${bkPad(d.getDate())}`};
+  const fmtHM=ts=>{const d=new Date(ts);return `${bkPad(d.getHours())}:${bkPad(d.getMinutes())}`};
+  const card=(b,showDate)=>{const past=b.datetime<now;const conf=conflictMap[b.id];const d=new Date(b.datetime);const wd=['日','一','二','三','四','五','六'][d.getDay()];return(
+    <div key={b.id} className={`w-full rounded-xl p-3 border ${past?'bg-white/[0.01] border-white/[0.04] opacity-60':'bg-white/[0.03] border-white/[0.08]'} ${conf?'border-red-500/30':''}`}>
+      <button onClick={()=>onOpen(b.id)} className="w-full text-left flex gap-3 active:opacity-70">
+        <div className="flex flex-col items-center justify-center flex-shrink-0 w-14">
+          {showDate&&<span className="text-[10px] text-gray-500">{fmtDay(b.datetime)}（{wd}）</span>}
+          <span className={`text-base font-bold ${past?'text-gray-500':'text-amber-400'}`}>{fmtHM(b.datetime)}</span>
+          <span className="text-[10px] text-gray-600">{bookMinutes(b.svc,b.extra)}分</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-gray-100"><span className="text-emerald-400 font-bold">{bookLabel(b.svc,b.extra)}</span>　{b.custName||'—'} <span className="text-[11px] text-gray-500">{bookTitleName(b.custTitle,lang)}</span>{b.party>0?<span className="text-[11px] text-amber-400 ml-1">{t.totalPeople}{b.party+1}{t.peopleUnit}</span>:''}</p>
+          {(()=>{if(b.confirmed)return<span className="text-[10px] text-emerald-400">✓ {t.statusConfirmed}</span>;if(b.needReconfirm)return<span className="text-[10px] text-red-400">{t.statusReconfirm}</span>;return<span className="text-[10px] text-gray-500">{t.statusUnconfirmed}</span>})()}
+          {conf&&<p className="text-[11px] text-red-400 mt-0.5">⚠️ {bkFmtLogStr(t.conflictWarn,[fmtHM(conf.datetime),((conf.custName||'')+' '+bookTitleName(conf.custTitle,lang))])}</p>}
+        </div>
+        <span className="text-gray-600 self-center">›</span>
+      </button>
+      {past&&<button onClick={()=>onDuplicate(b)} className="w-full mt-2 py-1.5 rounded-lg bg-amber-600/15 border border-amber-500/25 text-amber-400 text-xs font-semibold active:bg-amber-600/25">↻ {t.duplicateBtn}</button>}
+    </div>);};
+  const switcher=(<div className="space-y-2 mb-3">
+    <div className="flex gap-1 bg-white/[0.03] rounded-lg p-1">
+      <button onClick={()=>setViewMode('cal')} className={`flex-1 py-1.5 rounded-md text-xs font-semibold ${viewMode==='cal'?'bg-amber-600 text-white':'text-gray-500'}`}>{t.calView}</button>
+      <button onClick={()=>setViewMode('event')} className={`flex-1 py-1.5 rounded-md text-xs font-semibold ${viewMode==='event'?'bg-amber-600 text-white':'text-gray-500'}`}>{t.eventView}</button>
+    </div>
+    <button onClick={()=>setHidePast(!hidePast)} className={`w-full py-1.5 rounded-md text-xs font-medium border ${hidePast?'bg-amber-600/20 border-amber-500/30 text-amber-400':'bg-white/[0.02] border-white/[0.06] text-gray-500'}`}>{hidePast?'✓ ':''}{t.hidePast}</button>
+  </div>);
+  const histSection=pastBookings.length>0&&(<div className="mt-4 pt-3 border-t border-white/[0.06]">
+    <button onClick={()=>setHistOpen(v=>!v)} className="w-full flex items-center justify-between py-1.5">
+      <span className="text-xs text-gray-500 font-semibold">{t.bookHistory}（{pastBookings.length}）</span>
+      <span className="text-gray-600 text-xs">{histOpen?'▲ '+t.collapseBtn:'▼ '+t.expandBtn}</span>
+    </button>
+    {histOpen&&<div className="space-y-1.5 mt-2 fi">{pastBookings.map(b=>card(b,true))}</div>}
+  </div>);
+  if(hidePast&&viewMode==='event'){
+    return(<div>{switcher}<div className="space-y-1.5">{upcomingBookings.map(b=>card(b,true))}</div></div>);
+  }
+  if(viewMode==='event'){
+    return(<div>{switcher}<div className="space-y-1.5">{upcomingBookings.map(b=>card(b,true))}</div>{histSection}</div>);
+  }
+  const groups={};upcomingBookings.forEach(b=>{const d=new Date(b.datetime);const key=`${d.getFullYear()}-${bkPad(d.getMonth()+1)}-${bkPad(d.getDate())}`;if(!groups[key])groups[key]=[];groups[key].push(b)});
+  return(<div>{switcher}<div className="space-y-4">{Object.keys(groups).sort().map(key=>{const items=groups[key];const d0=new Date(items[0].datetime);const wd=['日','一','二','三','四','五','六'][d0.getDay()];return(
+    <div key={key}>
+      <p className="text-xs text-gray-500 font-semibold mb-2">{d0.getFullYear()}/{bkPad(d0.getMonth()+1)}/{bkPad(d0.getDate())}（{lang==='zh'?wd:d0.getDay()}）</p>
+      <div className="space-y-1.5">{items.map(b=>card(b,false))}</div>
+    </div>);})}</div>{!hidePast&&histSection}</div>);
+}
+
+/* 自約詳情(編輯+跟櫃台/指定老師確認+log時間軸);過期的自約詳情裡也有「複製為新的自約」入口 */
+function BookingDetailPanel({code,t,bookId,onDone,onCancel,onDuplicate}){
+  const lang=t===T.zh?'zh':'vi';
+  const bk=useMemo(()=>(getBookings(code)||[]).find(b=>b&&b.id===bookId),[code,bookId]);
+  const[editing,setEditing]=useState(false);
+  const[date,setDate]=useState(bk?bkFmtDateInput(bk.datetime):bkFmtDateInput());
+  const[time,setTime]=useState(bk?bkFmtTimeInput(bk.datetime):'06:00');
+  const[svc,setSvc]=useState(bk?.svc||'FB3');
+  const[extra,setExtra]=useState(bk?.extra||0);
+  const[note,setNote]=useState(bk?.note||'');
+  const[editParty,setEditParty]=useState(bk?.partyDetails?JSON.parse(JSON.stringify(bk.partyDetails)):[]);
+  const[delConfirm,setDelConfirm]=useState(false);
+  const[confirmToast,setConfirmToast]=useState('');
+  const[,force]=useState(0);
+  if(!bk)return<p className="text-gray-500">—</p>;
+  const past=bk.datetime<Date.now();
+  const confirmed=bk.confirmed;
+  const fmtLogTime=ts=>{const d=new Date(ts);return `${d.getFullYear()}/${bkPad(d.getMonth()+1)}/${bkPad(d.getDate())} ${bkPad(d.getHours())}:${bkPad(d.getMinutes())}`};
+  const logMsg=(l)=>{if(l.type==='create')return t.logCreate;if(l.type==='confirm')return t.logConfirm;if(l.type==='change')return l.detail||t.logChange;if(l.type==='conflict')return t.logConflict;return l.msg||''};
+  const saveEdit=()=>{
+    const[y,m,d]=date.split('-').map(Number);const[hh,mm]=time.split(':').map(Number);
+    const newDt=new Date(y,m-1,d,hh,mm).getTime();
+    const changes=[];
+    if(newDt!==bk.datetime)changes.push(bkFmtLogStr(t.timeChanged,[fmtLogTime(bk.datetime).slice(-5),time]));
+    if(svc!==bk.svc||extra!==bk.extra)changes.push(bkFmtLogStr(t.svcChanged,[bookLabel(bk.svc,bk.extra),bookLabel(svc,extra)]));
+    const detail=changes.length?t.logChange+'：'+changes.join('、'):t.logChange;
+    updateBooking(code,bookId,{datetime:newDt,svc,extra,note:note.trim(),partyDetails:editParty,confirmed:false,needReconfirm:true,confirmedTeachers:[]},{type:'change',detail});
+    setEditing(false);force(x=>x+1);
+  };
+  const doConfirm=()=>{confirmBooking(code,bookId);setConfirmToast(t.confirmedCounterToast);setTimeout(()=>setConfirmToast(''),3000);force(x=>x+1)};
+  const assignedTeachers=(bk&&bk.partyDetails?bk.partyDetails.filter(p=>p&&p.assignMode==='assign'&&p.teacher&&p.teacher.trim()).map(p=>p.teacher.trim()):[]);
+  const doConfirmAssigned=(tcode)=>{const cur=(bk.confirmedTeachers||[]).slice();if(!cur.includes(tcode))cur.push(tcode);const total=assignedTeachers.length;updateBooking(code,bookId,{confirmedTeachers:cur},{type:'confirmAssigned',msg:bkFmtLogStr(t.logConfirmAssigned,[tcode])});setConfirmToast(bkFmtLogStr(t.confirmedTeacherToast,[cur.length,total]));setTimeout(()=>setConfirmToast(''),3000);force(x=>x+1)};
+  const ro=!editing;
+  return(<div className="space-y-4 fi">
+    <div className="flex items-center gap-3">
+      <button onClick={onCancel} className="text-gray-500"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg></button>
+      <h2 className="text-lg font-bold text-gray-100">{bk.custName||'—'} {bookTitleName(bk.custTitle,lang)}</h2>
+      {(()=>{if(bk.confirmed)return<span className="text-[11px] text-emerald-400 ml-auto">✓ {t.statusConfirmed}</span>;if(bk.needReconfirm)return<span className="text-[11px] text-red-400 ml-auto">{t.statusReconfirm}</span>;return<span className="text-[11px] text-gray-500 ml-auto">{t.statusUnconfirmed}</span>})()}
+    </div>
+    {past&&<button onClick={()=>onDuplicate(bk)} className="w-full py-2.5 rounded-xl bg-amber-600/15 border border-amber-500/25 text-amber-400 text-sm font-semibold active:bg-amber-600/25">↻ {t.duplicateBtn}</button>}
+    <div className={`space-y-4 rounded-2xl p-4 border ${ro?'bg-white/[0.01] border-white/[0.04]':'bg-white/[0.02] border-white/[0.06]'}`}>
+      <div className="space-y-3">
+        <div><label className="text-xs text-gray-500 mb-1.5 block">{t.bookDate}</label><input type="date" disabled={ro} value={date} onChange={e=>setDate(e.target.value)} className={`w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 ${ro?'opacity-50':''}`}/></div>
+        <div><label className="text-xs text-gray-500 mb-1.5 block">{t.bookTime}</label><input type="time" step="600" disabled={ro} value={time} onChange={e=>setTime(e.target.value)} className={`w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 ${ro?'opacity-50':''}`}/></div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div><label className="text-xs text-gray-500 mb-1.5 block">{t.svcLabel}</label><select disabled={ro} value={svc} onChange={e=>setSvc(e.target.value)} className={`w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 ${ro?'opacity-50':''}`}>{SERVICES.map(s=><option key={s.code} value={s.code}>{s.code}（{s.min}{lang==='zh'?'分':'p'}）</option>)}</select></div>
+        <div><label className="text-xs text-gray-500 mb-1.5 block">{t.addHour}</label><select disabled={ro} value={extra} onChange={e=>setExtra(parseInt(e.target.value))} className={`w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 ${ro?'opacity-50':''}`}>{[0,1,2,3,4,5,6,7,8].map(n=><option key={n} value={n}>+{n}</option>)}</select></div>
+      </div>
+      <p className="text-xs text-gray-500">{bookLabel(svc,extra)} = {bookUnits(svc,extra)} {t.units} · {bookMinutes(svc,extra)}{lang==='zh'?'分':'p'}</p>
+      <div><label className="text-xs text-gray-500 mb-1.5 block">{t.custNote}</label><textarea disabled={ro} value={note} onChange={e=>setNote(e.target.value)} rows={2} className={`w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 resize-none ${ro?'opacity-50':''}`}/></div>
+      {bk.party>0&&(<div className="space-y-2">
+        <p className="text-xs text-gray-500">{t.party}：{t.totalPeople}{bk.party+1}{t.peopleUnit}</p>
+        {(editing?editParty:(bk.partyDetails||[])).map((pd,i)=>{if(!pd)return null;const condList=[];if(pd.conds){if(pd.conds.male)condList.push(t.assignMale);if(pd.conds.female)condList.push(t.assignFemale);if(pd.conds.tw)condList.push(t.assignTW);if(pd.conds.vn)condList.push(t.assignVN)}return(
+          <div key={i} className="bg-white/[0.02] border border-white/[0.06] rounded-lg px-3 py-2 text-xs">
+            <span className="text-amber-400 font-semibold">{t.partyMember}{i+1}{t.partyUnit}</span>
+            {editing?(
+              <select value={pd.svc} onChange={e=>{const np=[...editParty];np[i]={...np[i],svc:e.target.value};setEditParty(np)}} className="ml-2 bg-white/[0.06] border border-white/[0.08] rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:border-amber-500">{SERVICES.map(s=><option key={s.code} value={s.code}>{s.code}（{s.min}分）</option>)}</select>
+            ):(<span className="text-emerald-400 ml-2 font-bold">{pd.svc}</span>)}
+            {pd.assignMode==='assign'&&pd.teacher&&<span className="text-amber-300 ml-2">{t.assignTeacher} {pd.teacher}</span>}
+            {condList.length>0&&<span className="text-amber-300 ml-2">{condList.join('/')}</span>}
+            {pd.oil&&<span className="text-purple-300 ml-2">{t.assignOil}</span>}
+            {pd.note&&<span className="text-gray-400 ml-2">· {pd.note}</span>}
+          </div>);})}
+      </div>)}
+    </div>
+    {editing?(
+      <div className="flex gap-2"><button onClick={()=>setEditing(false)} className="flex-1 py-3 bg-white/[0.04] rounded-xl text-gray-400 font-medium">{t.bookCancel}</button><button onClick={saveEdit} className="flex-1 py-3 bg-amber-600 rounded-xl text-white font-bold">{t.saveChange}</button></div>
+    ):(
+      <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={()=>setEditing(true)} className="py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-gray-300 font-medium">{t.editBtn}</button>
+          <button onClick={doConfirm} className={`py-3 rounded-xl font-bold border ${confirmed?'bg-emerald-600/10 border-emerald-500/20 text-emerald-400/70':'bg-emerald-600/20 border-emerald-500/30 text-emerald-400 active:bg-emerald-600/30'}`}>{confirmed?'✓ '+t.confirmWithCounter:t.confirmWithCounter}</button>
+        </div>
+        {assignedTeachers.length>0?(
+          <div className="space-y-1.5">
+            <p className="text-[11px] text-gray-500">{t.confirmWithAssigned}</p>
+            <div className="flex flex-wrap gap-2">{assignedTeachers.map((tc,idx)=>(
+              <button key={idx} onClick={()=>doConfirmAssigned(tc)} className="px-4 py-2.5 bg-amber-600/20 border border-amber-500/30 rounded-xl text-amber-400 text-sm font-bold active:bg-amber-600/30">{tc}</button>
+            ))}</div>
+          </div>
+        ):(
+          <button disabled className="w-full py-3 bg-white/[0.02] border border-white/[0.04] rounded-xl text-gray-700 font-medium cursor-not-allowed">{t.confirmWithAssigned}</button>
+        )}
+        {confirmToast&&<p className="text-sm text-center text-red-400 font-semibold fi">✓ {confirmToast}</p>}
+        <div className="pt-1">
+          {delConfirm?(
+            <button onClick={()=>{deleteBooking(code,bookId);onDone()}} className="w-full py-3 bg-red-500 rounded-xl text-white font-bold">{t.bookDeleteConfirm2||'確定刪除'}</button>
+          ):(
+            <button onClick={()=>{setDelConfirm(true);setTimeout(()=>setDelConfirm(false),3000)}} className="w-full py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 font-medium">{t.bookDelete}</button>
+          )}
+        </div>
+      </div>
+    )}
+    {bk.logs&&bk.logs.length>0&&(<div className="pt-2">
+      <h3 className="text-sm font-semibold text-gray-400 mb-3">{t.bookLogTitle}</h3>
+      <div className="space-y-0">{bk.logs.slice().reverse().map((l,i)=>(
+        <div key={i} className="flex gap-3 pb-3 relative">
+          <div className="flex flex-col items-center">
+            <div className="w-2 h-2 rounded-full bg-amber-400 mt-1.5 flex-shrink-0"></div>
+            {i<bk.logs.length-1&&<div className="w-px flex-1 bg-white/[0.1] my-1"></div>}
+          </div>
+          <div className="flex-1 -mt-0.5">
+            <p className="text-[11px] text-gray-500 font-mono">{fmtLogTime(l.ts)}</p>
+            <p className="text-sm text-gray-300">{logMsg(l)}</p>
+          </div>
+        </div>))}</div>
+    </div>)}
+  </div>);
+}
+
+/* 根元件:取代原本「點了跳booking.html」的按鈕,整個自約功能都在index內的這個區塊完成 */
+function BookingSection({code,t}){
+  const[mode,setMode]=useState('list');
+  const[openId,setOpenId]=useState(null);
+  const[dupInit,setDupInit]=useState(null);
+  const[refresh,setRefresh]=useState(0);
+  const toNew=(fromBk)=>{setDupInit(fromBk?{custName:fromBk.custName,custTitle:fromBk.custTitle,custPhone:fromBk.custPhone,svc:fromBk.svc,extra:fromBk.extra,party:fromBk.party,partyDetails:fromBk.partyDetails,note:fromBk.note}:null);setMode('new')};
+  return(<div className="space-y-3">
+    {mode==='list'&&(<>
+      <button onClick={()=>toNew(null)} className="w-full py-3.5 rounded-xl bg-amber-600 text-white font-bold active:bg-amber-700">+ {t.bookingNew}</button>
+      <BookingListPanel code={code} t={t} refresh={refresh} onOpen={id=>{setOpenId(id);setMode('detail')}} onDuplicate={toNew}/>
+    </>)}
+    {mode==='new'&&<BookingFormPanel code={code} t={t} initial={dupInit} onSave={()=>{setMode('list');setDupInit(null);setRefresh(x=>x+1)}} onCancel={()=>{setMode('list');setDupInit(null)}}/>}
+    {mode==='detail'&&<BookingDetailPanel code={code} t={t} bookId={openId} onDone={()=>{setMode('list');setRefresh(x=>x+1)}} onCancel={()=>{setMode('list');setRefresh(x=>x+1)}} onDuplicate={toNew}/>}
+  </div>);
+}
 
