@@ -1,7 +1,18 @@
-// app-core.js v1.13-025 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-026 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
-// v1.13-025 / 「我的自約」大改版,整合進index內不再跳booking.html頁:
+// v1.13-026 / 「我的自約」v1.13-025的四項微調:
+// (1) BookingFormPanel新增表單裡,日期/時間輸入從直的space-y-3兩列各100%寬,改成flex橫排各40%寬(flexBasis:'40%'),
+//     同一排就能看到日期跟時間,不用捲動
+// (2)(3) BookingDetailPanel原本「跟櫃台確認」後狀態徽章(已確認/待確認)跟最下面的異動記錄時間軸都要重開頁面才會更新——
+//     根因是bk=useMemo(()=>...find...,[code,bookId])這個memo,doConfirm/doConfirmAssigned/saveEdit改動後都只呼叫
+//     force(x=>x+1)讓元件重render,但force沒有被列進useMemo的dependency array,所以bk(以及從它衍生出的
+//     bk.confirmed/bk.needReconfirm/bk.logs)都還是改動前的舊快取值,只有整個元件真的unmount再mount(重開頁/離開再進來)
+//     才會重新算。拿掉這個useMemo,改成bk每次render都直接.find()重算(自約清單筆數不大,重算成本可忽略),確認狀態跟
+//     異動記錄log就能在同一頁即時反映,不用重開
+// (4) BookingDetailPanel編輯區的日期/時間輸入(跟上面(1)同樣的排版問題)也改成flex橫排各40%寬,搭配原本已經並排的
+//     服務種類/加時(grid-cols-2),整頁在50%高度的BottomSheet彈窗裡能一次看到更多欄位,減少捲動
+// | 前: v1.13-025 / 「我的自約」大改版,整合進index內不再跳booking.html頁:
 // (1) 新增BookingSection/BookingListPanel/BookingFormPanel/BookingDetailPanel/BookingCustFields這組元件,取代原本
 //     booking.html整頁獨立應用,settings.js的subTab='book'改成直接渲染<BookingSection/>,所有新增/列表/詳情/編輯/
 //     跟櫃台或指定老師確認/刪除/複製都在同一個BottomSheet畫面內完成,不再有頁面跳轉
@@ -1842,9 +1853,9 @@ function BookingFormPanel({code,t,initial,onSave,onCancel}){
   return(<div className="space-y-4 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4 fi">
     <h3 className="text-sm font-semibold text-amber-400">{initial?(t.duplicateBtn||t.bookingNew):t.bookingNew}</h3>
     <div><label className="text-xs text-gray-500 mb-1.5 block">{t.selectCustomer||t.custName}</label><BookingCustFields code={code} t={t} custName={custName} custTitle={custTitle} custPhone={custPhone} onChange={p=>{if(p.custName!==undefined)setCustName(p.custName);if(p.custTitle!==undefined)setCustTitle(p.custTitle);if(p.custPhone!==undefined)setCustPhone(p.custPhone);setErr('')}}/></div>
-    <div className="space-y-3">
-      <div><label className="text-xs text-gray-500 mb-1.5 block">{t.bookDate}</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>
-      <div><label className="text-xs text-gray-500 mb-1.5 block">{t.bookTime}</label><input type="time" step="600" value={time} onChange={e=>setTime(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>
+    <div className="flex gap-3">
+      <div style={{flexBasis:'40%'}}><label className="text-xs text-gray-500 mb-1.5 block">{t.bookDate}</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>
+      <div style={{flexBasis:'40%'}}><label className="text-xs text-gray-500 mb-1.5 block">{t.bookTime}</label><input type="time" step="600" value={time} onChange={e=>setTime(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>
     </div>
     {dayOff>0&&<p className="text-xs text-red-400">⚠️ {bkFmtLogStr(t.dayOffWarn,[skName(dayOff,lang)])}</p>}
     {conflicts.length>0&&conflicts.map(o=>(<p key={o.id} className="text-xs text-red-400">⚠️ {bkFmtLogStr(t.conflictWarn,[fmtHM(o.datetime),((o.custName||'')+' '+bookTitleName(o.custTitle,lang))])}</p>))}
@@ -1945,7 +1956,11 @@ function BookingListPanel({code,t,refresh,onOpen,onDuplicate}){
 /* 自約詳情(編輯+跟櫃台/指定老師確認+log時間軸);過期的自約詳情裡也有「複製為新的自約」入口 */
 function BookingDetailPanel({code,t,bookId,onDone,onCancel,onDuplicate}){
   const lang=t===T.zh?'zh':'vi';
-  const bk=useMemo(()=>(getBookings(code)||[]).find(b=>b&&b.id===bookId),[code,bookId]);
+  const[,force]=useState(0);
+  // 自約/觸底存在記錄此處不用useMemo:改動後(確認/編輯/指定老師確認)都是呼叫force(x=>x+1)觸發重render,
+  // 若bk是useMemo([code,bookId])算出來的,force改變不會讓它重新算,畫面上的狀態徽章跟異動記錄就會停在改動前、要整頁重開才會更新。
+  // 這裡資料量小(單筆自約的.find()),直接每次render都重算,換掉過期的cache換取即時同步。
+  const bk=(getBookings(code)||[]).find(b=>b&&b.id===bookId);
   const[editing,setEditing]=useState(false);
   const[date,setDate]=useState(bk?bkFmtDateInput(bk.datetime):bkFmtDateInput());
   const[time,setTime]=useState(bk?bkFmtTimeInput(bk.datetime):'06:00');
@@ -1955,7 +1970,6 @@ function BookingDetailPanel({code,t,bookId,onDone,onCancel,onDuplicate}){
   const[editParty,setEditParty]=useState(bk?.partyDetails?JSON.parse(JSON.stringify(bk.partyDetails)):[]);
   const[delConfirm,setDelConfirm]=useState(false);
   const[confirmToast,setConfirmToast]=useState('');
-  const[,force]=useState(0);
   if(!bk)return<p className="text-gray-500">—</p>;
   const past=bk.datetime<Date.now();
   const confirmed=bk.confirmed;
@@ -1983,9 +1997,9 @@ function BookingDetailPanel({code,t,bookId,onDone,onCancel,onDuplicate}){
     </div>
     {past&&<button onClick={()=>onDuplicate(bk)} className="w-full py-2.5 rounded-xl bg-amber-600/15 border border-amber-500/25 text-amber-400 text-sm font-semibold active:bg-amber-600/25">↻ {t.duplicateBtn}</button>}
     <div className={`space-y-4 rounded-2xl p-4 border ${ro?'bg-white/[0.01] border-white/[0.04]':'bg-white/[0.02] border-white/[0.06]'}`}>
-      <div className="space-y-3">
-        <div><label className="text-xs text-gray-500 mb-1.5 block">{t.bookDate}</label><input type="date" disabled={ro} value={date} onChange={e=>setDate(e.target.value)} className={`w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 ${ro?'opacity-50':''}`}/></div>
-        <div><label className="text-xs text-gray-500 mb-1.5 block">{t.bookTime}</label><input type="time" step="600" disabled={ro} value={time} onChange={e=>setTime(e.target.value)} className={`w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 ${ro?'opacity-50':''}`}/></div>
+      <div className="flex gap-3">
+        <div style={{flexBasis:'40%'}}><label className="text-xs text-gray-500 mb-1.5 block">{t.bookDate}</label><input type="date" disabled={ro} value={date} onChange={e=>setDate(e.target.value)} className={`w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 ${ro?'opacity-50':''}`}/></div>
+        <div style={{flexBasis:'40%'}}><label className="text-xs text-gray-500 mb-1.5 block">{t.bookTime}</label><input type="time" step="600" disabled={ro} value={time} onChange={e=>setTime(e.target.value)} className={`w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 ${ro?'opacity-50':''}`}/></div>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div><label className="text-xs text-gray-500 mb-1.5 block">{t.svcLabel}</label><select disabled={ro} value={svc} onChange={e=>setSvc(e.target.value)} className={`w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 ${ro?'opacity-50':''}`}>{SERVICES.map(s=><option key={s.code} value={s.code}>{s.code}（{s.min}{lang==='zh'?'分':'p'}）</option>)}</select></div>
