@@ -1,7 +1,10 @@
-// app-core.js v1.13-030 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-031 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
-// v1.13-030 / BookingDetailPanel「其他老師」「跟櫃台確認」改成iOS設定頁樣式的開關列(使用者提供截圖範例):
+// v1.13-031 / 首頁「其他功能」展開/收合狀態改記在本機localStorage(home-morefunc-open),開啟頁面時沿用上次的
+// 操作狀態,不再每次都預設展開。初始值用useState的lazy initializer讀取,之後用一個監看showMoreFunc變化的
+// useEffect同步寫回localStorage,讀寫失敗都有try/catch保護,不會因為無痕模式之類的情境卡住
+// | 前: v1.13-030 / BookingDetailPanel「其他老師」「跟櫃台確認」改成iOS設定頁樣式的開關列(使用者提供截圖範例):
 // 從上一版「整顆按鈕當開關、文字寫在開關裡面、底色白↔綠」改成「整排灰底列+文字固定在左邊+右邊一顆w-11 h-6的
 // 小開關」,文字不再隨狀態變動(跟§41的固定文字原則一致),只有右邊小開關本身的底色(灰↔綠)跟滑塊左右位置會變,
 // 滑塊固定白色圓點。原本並排的grid-cols-2改成直排的space-y-2(每顆開關列全寬,比側邊硬塞兩顆窄按鈕更貼近截圖範例)
@@ -1361,7 +1364,11 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
   const[showStoreInfo,setShowStoreInfo]=useState(false);const[showBasicInfo,setShowBasicInfo]=useState(false);
   const[showGroupBuy,setShowGroupBuy]=useState(false);const[showDisasterReport,setShowDisasterReport]=useState(false);const[showLineQr,setShowLineQr]=useState(false);const[lineQrIdx,setLineQrIdx]=useState(0);
   const[dailyQueue,setDailyQueue]=useState([]);const[gbPromptData,setGbPromptData]=useState(null);
-  const[showMoreFunc,setShowMoreFunc]=useState(true);const[moreFuncBlocked,setMoreFuncBlocked]=useState(false);
+  // 1.13版:「其他功能」展開/收合狀態改成記在本機localStorage,開啟頁面時讀上次的狀態,不再每次都預設展開。
+  // 讀取失敗(無痕模式/被擋)一律fallback成預設展開(true),不會因為讀不到就卡住
+  const[showMoreFunc,setShowMoreFunc]=useState(()=>{try{const v=localStorage.getItem('home-morefunc-open');return v===null?true:v==='1'}catch(_e){return true}});
+  useEffect(()=>{try{localStorage.setItem('home-morefunc-open',showMoreFunc?'1':'0')}catch(_e){}},[showMoreFunc]);
+  const[moreFuncBlocked,setMoreFuncBlocked]=useState(false);
   const[moreFuncGate,setMoreFuncGate]=useState(''); // ''=無/setup=要求設新密碼/verify=要求重新輸入密碼
   const[mfPinStep,setMfPinStep]=useState(1);const[mfPin1,setMfPin1]=useState('');const[mfPin2,setMfPin2]=useState('');const[mfPinErr,setMfPinErr]=useState('');const[mfPinShake,setMfPinShake]=useState(false);
   const[pwdInput,setPwdInput]=useState('');const[pwdErr,setPwdErr]=useState('');
