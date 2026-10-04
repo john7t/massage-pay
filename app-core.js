@@ -1,7 +1,18 @@
-// app-core.js v1.13-026 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-027 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
-// v1.13-026 / 「我的自約」v1.13-025的四項微調:
+// v1.13-027 / 「我的自約」v1.13-026的再三項微調(日期時間間距改法/跟櫃台確認可取消/確認區塊版面重排):
+// (1) 日期/時間並排的40%/40%,改成flex justify-between(拿掉gap-3固定間距),讓中間空出來的20%就是兩欄之間的留白,
+//     不是另外加的gap——FormPanel/DetailPanel兩處都同步改
+// (2) 跟櫃台確認新增「取消」動作:原本確認後再點同一顆鈕只會重複呼叫confirmBooking、重複寫入同一句log,沒有回頭路。
+//     這次改成確認後按鈕變色(綠→紅)、文字變成「跟櫃台取消」,點了呼叫新的doCancelConfirm把confirmed改回false,
+//     同時寫入新的unconfirm類型log(common.js新增logUnconfirm/cancelWithCounter/cancelledCounterToast三個翻譯key,
+//     BookingDetailPanel的logMsg()加一個unconfirm分支)
+// (3) 確認區塊版面重排成三排:第一排「編輯／刪除」並排(刪除維持原本二段式確認,只是跟編輯擠進同一個grid-cols-2);
+//     第二排改成純文字呈現目前確認情形(用common.js裡本來就有、但這次才真正接起來用的statusTeacherProgress翻譯key,
+//     顯示「已確認/未確認」加上(若有指定老師)「已與老師確認(n/m)」的進度);第三排「其他老師／櫃台」並排的按鈕,
+//     指定老師清單跟跟櫃台確認/取消鈕左右各佔一個grid欄位
+// | 前: v1.13-026 / 「我的自約」v1.13-025的四項微調:
 // (1) BookingFormPanel新增表單裡,日期/時間輸入從直的space-y-3兩列各100%寬,改成flex橫排各40%寬(flexBasis:'40%'),
 //     同一排就能看到日期跟時間,不用捲動
 // (2)(3) BookingDetailPanel原本「跟櫃台確認」後狀態徽章(已確認/待確認)跟最下面的異動記錄時間軸都要重開頁面才會更新——
@@ -1853,7 +1864,7 @@ function BookingFormPanel({code,t,initial,onSave,onCancel}){
   return(<div className="space-y-4 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4 fi">
     <h3 className="text-sm font-semibold text-amber-400">{initial?(t.duplicateBtn||t.bookingNew):t.bookingNew}</h3>
     <div><label className="text-xs text-gray-500 mb-1.5 block">{t.selectCustomer||t.custName}</label><BookingCustFields code={code} t={t} custName={custName} custTitle={custTitle} custPhone={custPhone} onChange={p=>{if(p.custName!==undefined)setCustName(p.custName);if(p.custTitle!==undefined)setCustTitle(p.custTitle);if(p.custPhone!==undefined)setCustPhone(p.custPhone);setErr('')}}/></div>
-    <div className="flex gap-3">
+    <div className="flex justify-between">
       <div style={{flexBasis:'40%'}}><label className="text-xs text-gray-500 mb-1.5 block">{t.bookDate}</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>
       <div style={{flexBasis:'40%'}}><label className="text-xs text-gray-500 mb-1.5 block">{t.bookTime}</label><input type="time" step="600" value={time} onChange={e=>setTime(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>
     </div>
@@ -1974,7 +1985,7 @@ function BookingDetailPanel({code,t,bookId,onDone,onCancel,onDuplicate}){
   const past=bk.datetime<Date.now();
   const confirmed=bk.confirmed;
   const fmtLogTime=ts=>{const d=new Date(ts);return `${d.getFullYear()}/${bkPad(d.getMonth()+1)}/${bkPad(d.getDate())} ${bkPad(d.getHours())}:${bkPad(d.getMinutes())}`};
-  const logMsg=(l)=>{if(l.type==='create')return t.logCreate;if(l.type==='confirm')return t.logConfirm;if(l.type==='change')return l.detail||t.logChange;if(l.type==='conflict')return t.logConflict;return l.msg||''};
+  const logMsg=(l)=>{if(l.type==='create')return t.logCreate;if(l.type==='confirm')return t.logConfirm;if(l.type==='unconfirm')return t.logUnconfirm||l.msg;if(l.type==='change')return l.detail||t.logChange;if(l.type==='conflict')return t.logConflict;return l.msg||''};
   const saveEdit=()=>{
     const[y,m,d]=date.split('-').map(Number);const[hh,mm]=time.split(':').map(Number);
     const newDt=new Date(y,m-1,d,hh,mm).getTime();
@@ -1986,6 +1997,9 @@ function BookingDetailPanel({code,t,bookId,onDone,onCancel,onDuplicate}){
     setEditing(false);force(x=>x+1);
   };
   const doConfirm=()=>{confirmBooking(code,bookId);setConfirmToast(t.confirmedCounterToast);setTimeout(()=>setConfirmToast(''),3000);force(x=>x+1)};
+  // 跟doConfirm對稱的取消動作:原本點「跟櫃台確認」之後,再點同一顆鈕只會重複呼叫confirmBooking、重複寫入同樣的log,
+  // 完全沒有「取消」這個狀態可以回去。這次改成確認後按鈕變成「跟櫃台取消」,點了就把confirmed改回false並留一筆取消的log
+  const doCancelConfirm=()=>{updateBooking(code,bookId,{confirmed:false},{type:'unconfirm',msg:t.logUnconfirm});setConfirmToast(t.cancelledCounterToast||t.logUnconfirm);setTimeout(()=>setConfirmToast(''),3000);force(x=>x+1)};
   const assignedTeachers=(bk&&bk.partyDetails?bk.partyDetails.filter(p=>p&&p.assignMode==='assign'&&p.teacher&&p.teacher.trim()).map(p=>p.teacher.trim()):[]);
   const doConfirmAssigned=(tcode)=>{const cur=(bk.confirmedTeachers||[]).slice();if(!cur.includes(tcode))cur.push(tcode);const total=assignedTeachers.length;updateBooking(code,bookId,{confirmedTeachers:cur},{type:'confirmAssigned',msg:bkFmtLogStr(t.logConfirmAssigned,[tcode])});setConfirmToast(bkFmtLogStr(t.confirmedTeacherToast,[cur.length,total]));setTimeout(()=>setConfirmToast(''),3000);force(x=>x+1)};
   const ro=!editing;
@@ -1997,7 +2011,7 @@ function BookingDetailPanel({code,t,bookId,onDone,onCancel,onDuplicate}){
     </div>
     {past&&<button onClick={()=>onDuplicate(bk)} className="w-full py-2.5 rounded-xl bg-amber-600/15 border border-amber-500/25 text-amber-400 text-sm font-semibold active:bg-amber-600/25">↻ {t.duplicateBtn}</button>}
     <div className={`space-y-4 rounded-2xl p-4 border ${ro?'bg-white/[0.01] border-white/[0.04]':'bg-white/[0.02] border-white/[0.06]'}`}>
-      <div className="flex gap-3">
+      <div className="flex justify-between">
         <div style={{flexBasis:'40%'}}><label className="text-xs text-gray-500 mb-1.5 block">{t.bookDate}</label><input type="date" disabled={ro} value={date} onChange={e=>setDate(e.target.value)} className={`w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 ${ro?'opacity-50':''}`}/></div>
         <div style={{flexBasis:'40%'}}><label className="text-xs text-gray-500 mb-1.5 block">{t.bookTime}</label><input type="time" step="600" disabled={ro} value={time} onChange={e=>setTime(e.target.value)} className={`w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 ${ro?'opacity-50':''}`}/></div>
       </div>
@@ -2026,28 +2040,32 @@ function BookingDetailPanel({code,t,bookId,onDone,onCancel,onDuplicate}){
       <div className="flex gap-2"><button onClick={()=>setEditing(false)} className="flex-1 py-3 bg-white/[0.04] rounded-xl text-gray-400 font-medium">{t.bookCancel}</button><button onClick={saveEdit} className="flex-1 py-3 bg-amber-600 rounded-xl text-white font-bold">{t.saveChange}</button></div>
     ):(
       <div className="space-y-2">
+        {/* 第一排:編輯／刪除並排(刪除維持原本點兩次才真的刪除的二段式確認,只是這次跟編輯擠進同一排的右格) */}
         <div className="grid grid-cols-2 gap-2">
           <button onClick={()=>setEditing(true)} className="py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-gray-300 font-medium">{t.editBtn}</button>
-          <button onClick={doConfirm} className={`py-3 rounded-xl font-bold border ${confirmed?'bg-emerald-600/10 border-emerald-500/20 text-emerald-400/70':'bg-emerald-600/20 border-emerald-500/30 text-emerald-400 active:bg-emerald-600/30'}`}>{confirmed?'✓ '+t.confirmWithCounter:t.confirmWithCounter}</button>
-        </div>
-        {assignedTeachers.length>0?(
-          <div className="space-y-1.5">
-            <p className="text-[11px] text-gray-500">{t.confirmWithAssigned}</p>
-            <div className="flex flex-wrap gap-2">{assignedTeachers.map((tc,idx)=>(
-              <button key={idx} onClick={()=>doConfirmAssigned(tc)} className="px-4 py-2.5 bg-amber-600/20 border border-amber-500/30 rounded-xl text-amber-400 text-sm font-bold active:bg-amber-600/30">{tc}</button>
-            ))}</div>
-          </div>
-        ):(
-          <button disabled className="w-full py-3 bg-white/[0.02] border border-white/[0.04] rounded-xl text-gray-700 font-medium cursor-not-allowed">{t.confirmWithAssigned}</button>
-        )}
-        {confirmToast&&<p className="text-sm text-center text-red-400 font-semibold fi">✓ {confirmToast}</p>}
-        <div className="pt-1">
           {delConfirm?(
-            <button onClick={()=>{deleteBooking(code,bookId);onDone()}} className="w-full py-3 bg-red-500 rounded-xl text-white font-bold">{t.bookDeleteConfirm2||'確定刪除'}</button>
+            <button onClick={()=>{deleteBooking(code,bookId);onDone()}} className="py-3 bg-red-500 rounded-xl text-white font-bold">{t.bookDeleteConfirm2||'確定刪除'}</button>
           ):(
-            <button onClick={()=>{setDelConfirm(true);setTimeout(()=>setDelConfirm(false),3000)}} className="w-full py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 font-medium">{t.bookDelete}</button>
+            <button onClick={()=>{setDelConfirm(true);setTimeout(()=>setDelConfirm(false),3000)}} className="py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 font-medium">{t.bookDelete}</button>
           )}
         </div>
+        {/* 第二排:純文字記錄目前的確認情形(櫃台+指定老師進度),取代原本只靠按鈕顏色深淺才看得出狀態的作法 */}
+        <p className="text-xs text-gray-500 text-center py-0.5">
+          {confirmed?('✓ '+t.statusConfirmed):t.statusUnconfirmed}
+          {assignedTeachers.length>0&&('　·　'+bkFmtLogStr(t.statusTeacherProgress,[(bk.confirmedTeachers||[]).length,assignedTeachers.length]))}
+        </p>
+        {/* 第三排:其他老師／櫃台並排的按鈕。櫃台確認後同一顆鈕變色並換成「跟櫃台取消」,不用再重複跳出同樣的確認log */}
+        <div className="grid grid-cols-2 gap-2">
+          {assignedTeachers.length>0?(
+            <div className="flex flex-wrap gap-1.5 content-start">{assignedTeachers.map((tc,idx)=>{const done=(bk.confirmedTeachers||[]).includes(tc);return(
+              <button key={idx} onClick={()=>doConfirmAssigned(tc)} className={`px-3 py-2 rounded-lg text-xs font-bold border ${done?'bg-emerald-600/10 border-emerald-500/20 text-emerald-400/70':'bg-amber-600/20 border-amber-500/30 text-amber-400 active:bg-amber-600/30'}`}>{done?'✓ ':''}{tc}</button>
+            );})}</div>
+          ):(
+            <button disabled className="py-3 bg-white/[0.02] border border-white/[0.04] rounded-xl text-gray-700 text-xs font-medium cursor-not-allowed">{t.confirmWithAssigned}</button>
+          )}
+          <button onClick={confirmed?doCancelConfirm:doConfirm} className={`py-3 rounded-xl font-bold border text-sm ${confirmed?'bg-red-600/15 border-red-500/25 text-red-400 active:bg-red-600/25':'bg-emerald-600/20 border-emerald-500/30 text-emerald-400 active:bg-emerald-600/30'}`}>{confirmed?t.cancelWithCounter:t.confirmWithCounter}</button>
+        </div>
+        {confirmToast&&<p className="text-sm text-center text-red-400 font-semibold fi">✓ {confirmToast}</p>}
       </div>
     )}
     {bk.logs&&bk.logs.length>0&&(<div className="pt-2">
