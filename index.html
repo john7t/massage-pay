@@ -40,7 +40,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#030712">
-<title>薪資追蹤 v1.13-035</title>
+<title>薪資追蹤 v1.13-037</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -527,12 +527,12 @@ html[data-theme="apple"] [data-light] [class*="accent-amber"]{accent-color:#0066
   </div>
 </div>
 <style>@keyframes fbspin{to{transform:rotate(360deg)}}@keyframes fbpulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
-<script src="./common.js?v=1.13-022"></script>
+<script src="./common.js?v=1.13-023"></script>
 <script type="text/babel" src="./notice-modal.js?v=1.12-047"></script>
 <script type="text/babel" src="./settings.js?v=1.13-016"></script>
-<script type="text/babel" src="./app-core.js?v=1.13-028"></script>
+<script type="text/babel" src="./app-core.js?v=1.13-030"></script>
 <script type="text/babel">
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,hasMyKey,isNoticeRead,getNoticeReadCount,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,DISABLE_GH_DATA_FETCH,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,hasMyKey,isNoticeRead,getNoticeReadCount,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 function App(){
@@ -543,7 +543,10 @@ function App(){
   useEffect(()=>{localStorage.setItem('app-theme',theme)},[theme]);
   useEffect(()=>{buildDynamicKey()},[]);
   useEffect(()=>{const tmr=setTimeout(()=>{if(!ready)window.__showFallback(4,{lineno:0,msg:'初始化逾時(8秒)，可能是網路較慢或本機資料異常'})},8000);return()=>clearTimeout(tmr)},[ready]);
-  useEffect(()=>{if(!settings||!settings.code)return;const _bd=bizDate();const today=_bd.getFullYear()+'-'+String(_bd.getMonth()+1).padStart(2,'0')+'-'+String(_bd.getDate()).padStart(2,'0');const lastCheck=localStorage.getItem('staff-sync-date');(async()=>{
+  // 1.13版:DISABLE_GH_DATA_FETCH=true時整個跳過,連fetch('./staff.json')都不送出——GitHub Pages上目前根本沒有
+  // 部署這份檔案,readStaff每次都是空手而回,這個effect從頭到尾只是白白發一次請求,拿掉以後基資/店資的「公司端最新值」
+  // 同步功能停用(settings保持本機原值不被覆蓋),之後如果真的有部署staff.json,把common.js的開關改回false即可恢復
+  useEffect(()=>{if(DISABLE_GH_DATA_FETCH)return;if(!settings||!settings.code)return;const _bd=bizDate();const today=_bd.getFullYear()+'-'+String(_bd.getMonth()+1).padStart(2,'0')+'-'+String(_bd.getDate()).padStart(2,'0');const lastCheck=localStorage.getItem('staff-sync-date');(async()=>{
     try{const staff=await readStaff({});const me=Array.isArray(staff)?staff.find(s=>String(s.code)===String(settings.code)):null;
       if(me){
         // token綁定檢查(原邏輯)
