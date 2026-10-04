@@ -1,6 +1,9 @@
 /* ════════════════════════════════════════════════════════════
    common.js — 薪資追蹤系統 共用工具
-   v1.13-022 / 配合app-core.js v1.13-028,加logUnconfirmAssigned(取消與指定老師{0}確認)/bookConfirmStatusLabel
+   v1.13-023 / 加DISABLE_GH_DATA_FETCH總開關(=true):目前GitHub Pages上沒有部署staff.json/notices.json,
+   index.html/app-core.js對應的readStaff/fetchNotices呼叫點改用這個開關直接跳過,不再白發永遠拿空結果的網路請求。
+   寫法跟HIDE_COMPANY_FEATURES同一套,之後真的部署了這兩份檔案,改回false即可整套恢復
+   | 前: v1.13-022 / 配合app-core.js v1.13-028,加logUnconfirmAssigned(取消與指定老師{0}確認)/bookConfirmStatusLabel
    (自約確認情形的固定標籤文字)兩個翻譯key(中越文皆補)
    | 前: v1.13-021 / 配合app-core.js v1.13-027「跟櫃台確認」加可取消的動作,加cancelWithCounter(跟櫃台取消)/
    cancelledCounterToast(已取消與櫃台確認)/logUnconfirm(取消與櫃台確認)三個翻譯key(中越文皆補)
@@ -353,6 +356,11 @@ function noticeTags(list){const s={};(list||[]).forEach(n=>{String(n.tags||'').s
 // 1.13版:拿掉公司化功能的總開關。原本定義在app-core.js裡,但settings.js比app-core.js先載入,
 // 跨檔案引用會因為執行順序問題拋出ReferenceError,所以搬到這裡(common.js永遠最先載入,所有檔案都能安全引用)
 const HIDE_COMPANY_FEATURES=true;
+// 1.13版:目前GitHub Pages上根本沒有部署staff.json/notices.json這兩份檔案(從來沒下載成功過,readStaff/
+// fetchNotices永遠拿到空陣列),這個開關讓index.html的對應呼叫點直接跳過、連fetch都不送出,不是「隱藏功能不刪除」
+// 那種UI層級的隱藏,是真的連網路請求都不觸發——跟HIDE_COMPANY_FEATURES同樣的總開關寫法,方便之後如果真的部署了
+// 這兩份檔案,只要把這裡改回false就能整套恢復,呼叫點程式碼不用再改一次
+const DISABLE_GH_DATA_FETCH=true;
 const INDEX_LIFF_ID='2010673151-QNFLrsH0';
 function getMyLineUserId(){try{return localStorage.getItem('my-line-userid')||''}catch(_e){return ''}}
 function setMyLineUserId(uid){try{localStorage.setItem('my-line-userid',uid)}catch(_e){}}
@@ -944,7 +952,7 @@ window.MP={
   // data helpers
   SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,
   toB36,fromB36,dim,dow,bizDate,bizParts,BIZ_CUTOFF_MIN,getBizCutoff,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,
-  newSlip,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,saveCustDB,getCust,getGasUrl,setGasUrl,getBuiltinGasUrl,shouldClaimKey,autoClaimKey,diagClaimKey,gasCall,gasCallPost,gasWarmup,getNoticesLocal,saveNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,getNoticeListText,getNoticeCountType,getNoticeMainCats,publishNotices,noticeBody,noticeTitle,noticeSummary,noticeCats,noticeTags,getMyKey,setMyKey,hasMyKey,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,getMyLineUserId,setMyLineUserId,clearMyLineUserId,getLineLogoutFlag,setLineLogoutFlag,clearLineLogoutFlag,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,getNoticeUnread,gasTranslate,gasAnalyze,gasUsage,gasAddNotice,gasEditNotice,gasSubmitAction,gasCheckAction,gasApproveAction,gasBlacklistSubmit,gasBlacklistCheck,gasBlacklistApprove,gasBlacklistSearch,gasBackupSubmit,gasBackupCheck,gasBackupFetch,gasSfGetPendingDetail,gasSfApprovePendingRegistration,gasUpdatePwd,gasLoginPwd,gasSetInitialPwd,gasResetLockPwd,gasSyncProfile,gasCheckCode,gasCheckStaffCode,gasAuthStaffList,gasGetGHConfigForSupervisor,gasRevokeSup,gasRejectAction,gasVerifyKey,gasLogNoticeOpen,gasLeaveTeacher,gasPreApprove,gasGetPreApprove,gasCancelPreApprove,gasToggleNoticeStatus,gasSubmitSuggestion,gasListSuggestions,gasPushNoticeFlexToMe,gasLogDailyCheck,gasLogFlowEnter,gasDebugEcho,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasSubmitDisasterReport,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasCloseGroupBuy,gasGroupBuyDetail,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasCreateDisasterSurvey,gasEndDisasterSurvey,gasDeleteDisasterSurvey,gasListDisasterSurveys,gasMyDisasterReports,gasDisasterDayStatus,getAdminSecret,setAdminSecret,hasAdminSecret,issueKey,claimMyKey,upsertCust,deleteCust,searchCustDB,recentCust,custLastSlip,migrateDayGroups,migrateMonthGroups,slipSvcLabel,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,
+  newSlip,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,saveCustDB,getCust,getGasUrl,setGasUrl,getBuiltinGasUrl,shouldClaimKey,autoClaimKey,diagClaimKey,gasCall,gasCallPost,gasWarmup,getNoticesLocal,saveNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,getNoticeListText,getNoticeCountType,getNoticeMainCats,publishNotices,noticeBody,noticeTitle,noticeSummary,noticeCats,noticeTags,getMyKey,setMyKey,hasMyKey,HIDE_COMPANY_FEATURES,DISABLE_GH_DATA_FETCH,INDEX_LIFF_ID,getMyLineUserId,setMyLineUserId,clearMyLineUserId,getLineLogoutFlag,setLineLogoutFlag,clearLineLogoutFlag,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,getNoticeUnread,gasTranslate,gasAnalyze,gasUsage,gasAddNotice,gasEditNotice,gasSubmitAction,gasCheckAction,gasApproveAction,gasBlacklistSubmit,gasBlacklistCheck,gasBlacklistApprove,gasBlacklistSearch,gasBackupSubmit,gasBackupCheck,gasBackupFetch,gasSfGetPendingDetail,gasSfApprovePendingRegistration,gasUpdatePwd,gasLoginPwd,gasSetInitialPwd,gasResetLockPwd,gasSyncProfile,gasCheckCode,gasCheckStaffCode,gasAuthStaffList,gasGetGHConfigForSupervisor,gasRevokeSup,gasRejectAction,gasVerifyKey,gasLogNoticeOpen,gasLeaveTeacher,gasPreApprove,gasGetPreApprove,gasCancelPreApprove,gasToggleNoticeStatus,gasSubmitSuggestion,gasListSuggestions,gasPushNoticeFlexToMe,gasLogDailyCheck,gasLogFlowEnter,gasDebugEcho,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasSubmitDisasterReport,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasCloseGroupBuy,gasGroupBuyDetail,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasCreateDisasterSurvey,gasEndDisasterSurvey,gasDeleteDisasterSurvey,gasListDisasterSurveys,gasMyDisasterReports,gasDisasterDayStatus,getAdminSecret,setAdminSecret,hasAdminSecret,issueKey,claimMyKey,upsertCust,deleteCust,searchCustDB,recentCust,custLastSlip,migrateDayGroups,migrateMonthGroups,slipSvcLabel,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,
   getCustomers,saveCustomers,getBookings,saveBookings,uid,upsertCustomer,normPhone,searchCustomers,addBooking,updateBooking,deleteBooking,confirmBooking,BOOK_TITLES,bookTitleName,fetchAcupoints,clearAcupointsCache,checkCredentialValid,
   SERVICES,svcByCode,bookUnits,bookMinutes,bookLabel,bookRange,findConflicts,dayOffStatus,bookLog,skName,
   TW_REGIONS,LANG_SCHOOLS,
