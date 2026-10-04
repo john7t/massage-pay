@@ -1,7 +1,19 @@
-// app-core.js v1.13-028 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-030 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
-// v1.13-028 / 「我的自約」v1.13-027的再四項微調(確認情形文字固定/開關鈕樣式/取消log空白bug/日期時間比例調整):
+// v1.13-030 / BookingDetailPanel「其他老師」「跟櫃台確認」改成iOS設定頁樣式的開關列(使用者提供截圖範例):
+// 從上一版「整顆按鈕當開關、文字寫在開關裡面、底色白↔綠」改成「整排灰底列+文字固定在左邊+右邊一顆w-11 h-6的
+// 小開關」,文字不再隨狀態變動(跟§41的固定文字原則一致),只有右邊小開關本身的底色(灰↔綠)跟滑塊左右位置會變,
+// 滑塊固定白色圓點。原本並排的grid-cols-2改成直排的space-y-2(每顆開關列全寬,比側邊硬塞兩顆窄按鈕更貼近截圖範例)
+// | 前: v1.13-029 / 開啟首頁的行為清理(拿掉自動彈窗+停用目前根本抓不到資料的GitHub靜態檔案請求):
+// (1) HomePage daily effect裡的syncMyStaffStatus(讀GitHub Pages的staff.json)、notices effect裡的fetchNotices
+//     (讀GitHub Pages的notices.json),這兩份檔案GitHub Pages上根本沒部署過,呼叫永遠拿空結果,白白多發一次網路請求。
+//     改成用common.js新增的DISABLE_GH_DATA_FETCH開關(=true)直接跳過,不送出fetch。之後真的部署了這兩份檔案,
+//     只要把開關改回false就整套恢復,呼叫點不用再改
+// (2) 移除3個會自動彈出的提示:月曆介紹彈窗(第一次進首頁自動打開月曆)、每日鎖屏密碼要求彈窗、團購提示彈窗——
+//     原本的邏輯整段註解保留(不是刪除,之後想恢復取消註解即可),團購本身功能(手動點圖示進去看)不受影響
+// (3) 拿掉月曆按鈕上的紅色「NEW」徽章
+// | 前: v1.13-028 / 「我的自約」v1.13-027的再四項微調(確認情形文字固定/開關鈕樣式/取消log空白bug/日期時間比例調整):
 // (1) 確認情形那排文字改成固定不隨狀態變動的標籤(bookConfirmStatusLabel:「自約確認情形」),不再顯示「✓已確認/未確認」
 //     這種會變動的文字——實際狀態改由第三排開關鈕本身的白/綠底色呈現
 // (2) 「其他老師」「跟櫃台確認」兩組按鈕改成開關鈕(switch)樣式:預設白底、滑塊在左,點擊後滑塊切到另一側、底色變綠。
@@ -80,7 +92,7 @@
 // 點年份文字跳年度總表(帶著listY);月份列表左右兩側原本各一個「年度」按鈕拿掉。
 // (YearlyPage)加year prop(選填),沒傳的話退回settings.year維持向下相容,讓兩個頁面能各自帶著自己導覽到的年份跳過來。
 // index.html加yearlyYear state記住要顯示哪一年,onGotoYear callback改成接收年份參數。加todayBtn翻譯key | 前: v1.13-020
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,hasMyKey,isNoticeRead,getNoticeReadCount,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,svcByCode,bookUnits,bookMinutes,bookLabel,bookRange,findConflicts,dayOffStatus,skName,getBookings,addBooking,updateBooking,deleteBooking,confirmBooking,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,getMyLineUserId,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,DISABLE_GH_DATA_FETCH,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,hasMyKey,isNoticeRead,getNoticeReadCount,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,svcByCode,bookUnits,bookMinutes,bookLabel,bookRange,findConflicts,dayOffStatus,skName,getBookings,addBooking,updateBooking,deleteBooking,confirmBooking,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,getMyLineUserId,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 
@@ -1367,55 +1379,63 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
       await gasBackupSubmit(lineUid,settings.code,settings.year||bizParts().y,JSON.stringify(obj),profileJson);
     }catch(_e){}
   };
-  useEffect(()=>{
-    // 1.13版:新功能上線,第一次進入首頁時自動打開月曆一次,讓使用者知道有這個新功能,之後不會再自動打開。
-    // 延遲2秒才跳出,讓使用者先看一眼首頁,不會一進來就被彈窗打斷
-    let timer=null;
-    try{
-      const seen=localStorage.getItem('calendar-intro-shown');
-      if(!seen){
-        timer=setTimeout(()=>{
-          try{localStorage.setItem('calendar-intro-shown','1')}catch(_e){}
-          onGotoMonthlyCalendar&&onGotoMonthlyCalendar();
-        },2000);
-      }
-    }catch(_e){}
-    return()=>{if(timer)clearTimeout(timer)};
-  },[]);
+  // 1.13版:月曆介紹彈窗(第一次進首頁自動打開月曆)整個移除,使用者這次要求拿掉所有會自動彈出的提示——保留原本的
+  // seen旗標+setTimeout邏輯在下面註解掉,之後想恢復只要把這段取消註解即可,不用重寫
+  // useEffect(()=>{
+  //   let timer=null;
+  //   try{
+  //     const seen=localStorage.getItem('calendar-intro-shown');
+  //     if(!seen){
+  //       timer=setTimeout(()=>{
+  //         try{localStorage.setItem('calendar-intro-shown','1')}catch(_e){}
+  //         onGotoMonthlyCalendar&&onGotoMonthlyCalendar();
+  //       },2000);
+  //     }
+  //   }catch(_e){}
+  //   return()=>{if(timer)clearTimeout(timer)};
+  // },[]);
   useEffect(()=>{
     if(!settings.code)return;
     const today=new Date().toISOString().slice(0,10);
     const homeKey='home-daily-'+settings.code;
     let already=false;try{already=localStorage.getItem(homeKey)===today}catch(_e){}
     if(!already){
-      if(!HIDE_COMPANY_FEATURES&&!settings.disableHomePwd&&settings.lockPwd)setDailyQueue(q=>[...q,'pwd']);
+      // 1.13版:每日鎖屏密碼要求彈窗移除(使用者要求拿掉自動彈出的提示),不再setDailyQueue(q=>[...q,'pwd'])。
+      // 原判斷邏輯註解保留,之後想恢復只要取消註解
+      // if(!HIDE_COMPANY_FEATURES&&!settings.disableHomePwd&&settings.lockPwd)setDailyQueue(q=>[...q,'pwd']);
       (async()=>{
         try{
           if(hasMyKey(settings.code)){const key=getMyKey(settings.code);await gasVerifyKey(settings.code,key)}
           await gasLogDailyCheck(settings.code);
-          await syncMyStaffStatus(settings.code); // 同步staff.json裡自己這筆的狀態存本機,供「更多功能」區塊判斷離職與否用
+          // 1.13版:DISABLE_GH_DATA_FETCH=true時跳過——syncMyStaffStatus內部呼叫readStaff去抓GitHub Pages上的
+          // staff.json,但那份檔案目前根本沒有部署,每次呼叫都是白跑一趟net請求,拿掉以後isStaffLeft永遠讀不到快取、
+          // 預設回false(等同視為在職),「更多功能」區塊不會被誤擋
+          if(!DISABLE_GH_DATA_FETCH)await syncMyStaffStatus(settings.code);
         }catch(_e){}
         doDailyAutoCloudBackup(); // 1.13版:每日第一次打開時,如果已用LINE登入就順便自動備份一次,不等待、不影響上面的每日檢查流程
         try{localStorage.setItem(homeKey,today)}catch(_e){}
       })();
     }
-    const gbPromptKey='gb-prompt-'+settings.code;
-    let gbAlready=false;try{gbAlready=localStorage.getItem(gbPromptKey)===today}catch(_e){}
-    if(!gbAlready){
-      (async()=>{
-        try{
-          const r=await gasListGroupBuys();
-          const now=Date.now();
-          const open=(r&&r.ok&&Array.isArray(r.list))?r.list.find(g=>g.status==='open'&&(g.scope==='store'||g.scope==='all')&&(!g.deadline||new Date(g.deadline).getTime()>now)):null;
-          if(open){
-            const mr=await gasMyGroupBuyOrders(settings.code);
-            const mine=(mr&&mr.ok&&Array.isArray(mr.list))?mr.list:[];
-            if(!mine.some(o=>o.buyId===open.id)){setGbPromptData(open);setDailyQueue(q=>[...q,'groupbuy'])}
-          }
-        }catch(_e){}
-        try{localStorage.setItem(gbPromptKey,today)}catch(_e){}
-      })();
-    }
+    // 1.13版:團購提示彈窗整個移除(使用者要求拿掉自動彈出的提示)。原本查詢gasListGroupBuys/gasMyGroupBuyOrders、
+    // 符合條件才setDailyQueue(q=>[...q,'groupbuy'])的邏輯整段註解保留,團購本身的功能(首頁圖示點進去手動看)不受影響,
+    // 只是不再「每天自動跳出來問你要不要參加」
+    // const gbPromptKey='gb-prompt-'+settings.code;
+    // let gbAlready=false;try{gbAlready=localStorage.getItem(gbPromptKey)===today}catch(_e){}
+    // if(!gbAlready){
+    //   (async()=>{
+    //     try{
+    //       const r=await gasListGroupBuys();
+    //       const now=Date.now();
+    //       const open=(r&&r.ok&&Array.isArray(r.list))?r.list.find(g=>g.status==='open'&&(g.scope==='store'||g.scope==='all')&&(!g.deadline||new Date(g.deadline).getTime()>now)):null;
+    //       if(open){
+    //         const mr=await gasMyGroupBuyOrders(settings.code);
+    //         const mine=(mr&&mr.ok&&Array.isArray(mr.list))?mr.list:[];
+    //         if(!mine.some(o=>o.buyId===open.id)){setGbPromptData(open);setDailyQueue(q=>[...q,'groupbuy'])}
+    //       }
+    //     }catch(_e){}
+    //     try{localStorage.setItem(gbPromptKey,today)}catch(_e){}
+    //   })();
+    // }
   },[settings.code]);
   const[pwdShake,setPwdShake]=useState(false);
   const pressPwdDigit=(d)=>{
@@ -1478,7 +1498,9 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
   const load=()=>{const md=LS.get(dk(settings.code,ty,tm));if(md&&migrateMonthGroups(md)){LS.set(dk(settings.code,ty,tm),md)}setData(md);let found=false;if(md?.days){for(let d=td-1;d>=1;d--){const day=md.days[d];if(day&&(day.total>0||day.status>0)){setPrev({day:d,month:tm,year:ty,...day});found=true;break}}}if(!found){for(let pm=tm-1;pm>=1;pm--){const pmd=LS.get(dk(settings.code,ty,pm));if(!pmd)continue;for(let d=dim(ty,pm);d>=1;d--){const day=pmd.days?.[d];if(day&&(day.total>0||day.status>0)){setPrev({day:d,month:pm,year:ty,...day});found=true;break}}if(found)break}}if(!found)setPrev(null)};
   useEffect(load,[settings.code,refreshKey]);
   const[notices,setNotices]=useState(()=>{try{return typeof getNoticesLocal==='function'?getNoticesLocal():[]}catch(_e){return []}});const[noticeView,setNoticeView]=useState(null);const[nvLang,setNvLang]=useState({zh:true,vi:false});
-  useEffect(()=>{try{if(typeof fetchNotices==='function')fetchNotices().then(list=>{if(Array.isArray(list))setNotices(list)}).catch(()=>{})}catch(_e){}},[]);
+  // 1.13版:DISABLE_GH_DATA_FETCH=true時跳過——fetchNotices讀的是GitHub Pages上的notices.json,目前沒有部署這份
+  // 檔案,呼叫永遠拿空陣列,拿掉以後notices維持用getNoticesLocal()讀到的本機快取(通常也是空的),公告區塊不會顯示內容
+  useEffect(()=>{if(DISABLE_GH_DATA_FETCH)return;try{if(typeof fetchNotices==='function')fetchNotices().then(list=>{if(Array.isArray(list))setNotices(list)}).catch(()=>{})}catch(_e){}},[]);
   const latestNotices=(Array.isArray(notices)?notices:[]).slice().reverse().slice(0,(typeof getNoticeHomeCount==='function'?getNoticeHomeCount():2));
   const openNotice=(n)=>{const vi=settings.lang==='vi';setNvLang({zh:!vi,vi:vi});setNoticeView(n);setNoticeReadCount(null);setReadersView(null);try{const c=getNoticeReadCount(n.id);if(c!==null)setNoticeReadCount(c)}catch(_e){}};
   const isAllStore=(n)=>{const d=String(n&&n.date||'');return d.indexOf('06-27')>=0||d.indexOf('6/27')>=0};
@@ -1566,7 +1588,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
     {showMoreFunc&&(<>
       <div className="grid grid-cols-4 gap-y-3 mt-1">
       <button onClick={()=>onGotoMonthly&&onGotoMonthly()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="4" width="18" height="17" rx="2"/><path strokeWidth={1.8} d="M3 9h18M8 2v4M16 2v4"/></svg></span><span className="text-[10px] text-gray-500">{t.monthly}</span></button>
-      <button onClick={()=>onGotoMonthlyCalendar&&onGotoMonthlyCalendar()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1] relative"><span className="absolute -top-1 -right-1.5 bg-red-500 text-white text-[8px] font-bold px-1 rounded-full leading-tight">NEW</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg></span><span className="text-[10px] text-gray-500">{t.monthlyCalendar||'月曆'}</span></button>
+      <button onClick={()=>onGotoMonthlyCalendar&&onGotoMonthlyCalendar()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1] relative"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg></span><span className="text-[10px] text-gray-500">{t.monthlyCalendar||'月曆'}</span></button>
       <button onClick={()=>onGotoCustomers&&onGotoCustomers()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM3 21v-1a6 6 0 0112 0v1"/><path d="M17 11a3 3 0 003-3M19 21v-1a5 5 0 00-3-4.6"/></svg></span><span className="text-[10px] text-gray-500">{t.custManage}</span></button>
       <button onClick={()=>onGotoSettings&&onGotoSettings()} className="flex flex-col items-center gap-1 relative"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1] relative">{settingsAlert&&<span className="absolute -top-0.5 -right-0.5 text-red-500 text-[11px]">❗</span>}<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-2.82 1.17V21a2 2 0 01-4 0v-.09A1.65 1.65 0 006.6 19.4l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 8.6l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 6.6a1.65 1.65 0 001-1.51V5a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span><span className="text-[10px] text-gray-500">{t.settings}</span></button>
       <button onClick={()=>onGotoBackup&&onGotoBackup()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg></span><span className="text-[10px] text-gray-500">{t.tabBackup||'備份'}</span></button>
@@ -2075,23 +2097,30 @@ function BookingDetailPanel({code,t,bookId,onDone,onCancel,onDuplicate}){
         {/* 第二排:固定文字標籤,不隨確認狀態變動(使用者要求「這文字固定不要跟著狀態變動」)——實際狀態改由
             下面第三排開關鈕本身的白/綠底色呈現,這排純粹是區塊標題 */}
         <p className="text-xs text-gray-500 text-center py-0.5">{t.bookConfirmStatusLabel||(lang==='zh'?'自約確認情形':'Tình trạng xác nhận lịch hẹn')}</p>
-        {/* 第三排:其他老師／櫃台改成關閉按鈕樣式(開關):預設白底、滑塊在左,點了切到另一側、底色變綠。
-            老師那顆現在也能再點一次切回白底(取消該位老師的確認),跟櫃台確認/取消對稱 */}
-        <div className="grid grid-cols-2 gap-2">
-          {assignedTeachers.length>0?(
-            <div className="flex flex-wrap gap-1.5 content-start">{assignedTeachers.map((tc,idx)=>{const done=(bk.confirmedTeachers||[]).includes(tc);return(
-              <button key={idx} onClick={()=>doToggleAssigned(tc)} style={{minWidth:'84px'}} className={`relative h-9 px-1 rounded-full border transition-colors duration-200 ${done?'bg-emerald-600 border-emerald-500':'bg-white border-gray-300'}`}>
-                <span className={`absolute top-1 bottom-1 w-8 rounded-full shadow transition-all duration-200 ${done?'right-1 bg-white':'left-1 bg-gray-300'}`}></span>
-                <span className={`relative z-10 block text-xs font-bold px-2 ${done?'text-white pl-2':'text-gray-700 pr-2 text-right'}`}>{tc}</span>
+        {/* 第三排:其他老師／櫃台改成iOS設定頁常見的「整排灰底+文字在左+小開關在右」樣式(使用者提供截圖範例):
+            開關本身是w-11 h-6的軌道,關閉時深灰底、滑塊貼左;開啟時綠底、滑塊貼右,滑塊永遠是白色圓點。
+            跟上一版「整顆按鈕當開關、文字寫在開關裡面」的做法不同,這次文字固定在列的左邊不隨狀態變動,
+            只有右邊那顆小開關的底色/滑塊位置會變 */}
+        <div className="space-y-2">
+          {assignedTeachers.length>0?assignedTeachers.map((tc,idx)=>{const done=(bk.confirmedTeachers||[]).includes(tc);return(
+            <div key={idx} className="flex items-center justify-between rounded-xl bg-white/[0.04] border border-white/[0.08] px-3 py-2.5">
+              <span className="text-xs text-gray-300 font-medium">{tc}</span>
+              <button onClick={()=>doToggleAssigned(tc)} className={`relative w-11 h-6 rounded-full flex-shrink-0 transition-colors duration-200 ${done?'bg-emerald-500':'bg-gray-600'}`}>
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${done?'translate-x-5':'translate-x-0'}`}></span>
               </button>
-            );})}</div>
-          ):(
-            <button disabled className="py-3 bg-white/[0.02] border border-white/[0.04] rounded-xl text-gray-700 text-xs font-medium cursor-not-allowed">{t.confirmWithAssigned}</button>
+            </div>
+          );}):(
+            <div className="flex items-center justify-between rounded-xl bg-white/[0.02] border border-white/[0.04] px-3 py-2.5 opacity-50">
+              <span className="text-xs text-gray-600 font-medium">{t.confirmWithAssigned}</span>
+              <span className="relative w-11 h-6 rounded-full bg-gray-700 flex-shrink-0"><span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-gray-500"></span></span>
+            </div>
           )}
-          <button onClick={confirmed?doCancelConfirm:doConfirm} className={`relative h-9 rounded-full border transition-colors duration-200 ${confirmed?'bg-emerald-600 border-emerald-500':'bg-white border-gray-300'}`}>
-            <span className={`absolute top-1 bottom-1 w-1/2 rounded-full shadow transition-all duration-200 ${confirmed?'right-1 bg-white':'left-1 bg-gray-300'}`}></span>
-            <span className={`relative z-10 text-xs font-bold ${confirmed?'text-white':'text-gray-700'}`}>{confirmed?t.cancelWithCounter:t.confirmWithCounter}</span>
-          </button>
+          <div className="flex items-center justify-between rounded-xl bg-white/[0.04] border border-white/[0.08] px-3 py-2.5">
+            <span className="text-xs text-gray-300 font-medium">{t.confirmWithCounter}</span>
+            <button onClick={confirmed?doCancelConfirm:doConfirm} className={`relative w-11 h-6 rounded-full flex-shrink-0 transition-colors duration-200 ${confirmed?'bg-emerald-500':'bg-gray-600'}`}>
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${confirmed?'translate-x-5':'translate-x-0'}`}></span>
+            </button>
+          </div>
         </div>
         {confirmToast&&<p className="text-sm text-center text-red-400 font-semibold fi">✓ {confirmToast}</p>}
       </div>
