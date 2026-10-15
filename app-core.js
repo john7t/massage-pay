@@ -1,6 +1,7 @@
-// app-core.js v1.13-039 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-040 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
+// v1.13-040 / 啟動頁NoticeBox改版:上方標題、說明文字放大(text-sm)、勾選移到說明下方。
 // v1.13-039 / 修正bug:NameCardModal用到CARD_STORE_DEFAULTS卻沒加進window.MP的解構清單,開首頁就報「Can't find variable: CARD_STORE_DEFAULTS」。
 // v1.13-038 / 名片加Apple地圖連結欄位(換館同步重設、存檔存cardAppleUrl)。
 // v1.13-037 / 名片彈窗開啟時讀cardstores.json更新各館預設(沒改過的欄位跟著更新)。
@@ -118,7 +119,7 @@ const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHas
 const{useState,useEffect,useCallback,useMemo}=React;
 
 
-function NoticeBox({t,agreed,setAgreed}){return(<div className="mt-6 space-y-2"><button onClick={()=>setAgreed(!agreed)} className="flex items-center gap-2 w-full text-left"><span className={`w-5 h-5 rounded flex items-center justify-center text-xs flex-shrink-0 ${agreed?'bg-amber-600 text-white':'bg-white/[0.06] border border-white/[0.12] text-transparent'}`}>✓</span><span className="text-[13px] text-gray-300 font-semibold">{t.readConfirm}</span></button><div className="space-y-1.5 text-[11px] text-gray-500 leading-relaxed pl-7"><p>{t.privacyBody}</p><p>{t.browserNote}</p><p className="text-red-400/80">{t.backupReminder}</p></div></div>)}
+function NoticeBox({t,agreed,setAgreed}){return(<div className="mt-6 space-y-3"><p className="text-[15px] text-gray-200 font-bold">{t.noticeTitle||'本系統記錄的資料說明'}</p><div className="space-y-2.5 text-sm text-gray-400 leading-relaxed"><p>{t.privacyBody}</p><p>{t.browserNote}</p><p className="text-red-400/90">{t.backupReminder}</p></div><button onClick={()=>setAgreed(!agreed)} className="flex items-center gap-2 w-full text-left pt-1"><span className={`w-5 h-5 rounded flex items-center justify-center text-xs flex-shrink-0 ${agreed?'bg-amber-600 text-white':'bg-white/[0.06] border border-white/[0.12] text-transparent'}`}>✓</span><span className="text-sm text-gray-200 font-semibold">{t.readConfirm}</span></button></div>)}
 
 /* ══════════ StaffListSection ══════════ */
 function _pad2(n){return String(n).padStart(2,'0')}
