@@ -1,7 +1,21 @@
-// app-core.js v1.13-031 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-034 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
-// v1.13-031 / 首頁「其他功能」展開/收合狀態改記在本機localStorage(home-morefunc-open),開啟頁面時沿用上次的
+// v1.13-034 / 新增名片分享:HomePage加「名片」按鈕+NameCardModal(欄位編輯/存檔存回基資店資/分享LINE好友Flex)。
+// v1.13-033 / 修正bug:每日第一次開啟App檢查流程(home-daily-{code}旗標)裡,「今天已經檢查過」這個旗標原本
+// 是在gasVerifyKey+gasLogDailyCheck(甚至syncMyStaffStatus)這幾個await全部跑完之後才寫回localStorage,
+// 中間有1~2秒的競態窗口——這段時間如果使用者幾乎同時重新整理/重開一次(LINE內建瀏覽器重整、連點兩次圖示等),
+// 第二次的useEffect也會讀到還沒寫入的舊旗標、判斷成「今天還沒檢查過」,導致同一天對GAS打了兩次logDailyCheck,
+// 這就是Log工作表會看到同一個編號、幾乎同一秒出現兩筆dailyCredCheck紀錄的根因(使用者回報發現)。
+// 改成旗標在進入async流程**之前**就先同步寫入,關掉這個競態窗口
+// | 前: v1.13-032 / 翻綠(休息)計時器(BreakTimerSection)去公司化:原本翻綠/回牌會打GAS寫進公司共用的雲端表格
+// (BreakTickets,含店名),還會分享連結讓櫃台用fd-liff.html/fd-quick.html確認——這是舊時代留下、沒跟上1.13系列
+// 整理的公司化殘留(詳見DEV_NOTES §47)。這次改成完全不連線,翻綠/回牌只讀寫本機localStorage(common.js新增的
+// loadBreakStatus/breakFlipGreenLocal/breakFlipWhiteLocal),移除reqId/store/busy(等GAS回應用的)/對時用的
+// greenAt字串解析等所有跟連線有關的狀態跟邏輯,狀態直接每次render時從localStorage算,不用async載入也不用轉圈圈。
+// 同時拿掉「今天已累計使用 X／01:00:00」裡的公司規定上限(/01:00:00那段),改成單純顯示「今天已累計休息 X」,
+// 因為這個每日上限是公司規則,個人記帳工具沒有誰要管你休息多久
+// | 前: v1.13-031 / 首頁「其他功能」展開/收合狀態改記在本機localStorage(home-morefunc-open),開啟頁面時沿用上次的
 // 操作狀態,不再每次都預設展開。初始值用useState的lazy initializer讀取,之後用一個監看showMoreFunc變化的
 // useEffect同步寫回localStorage,讀寫失敗都有try/catch保護,不會因為無痕模式之類的情境卡住
 // | 前: v1.13-030 / BookingDetailPanel「其他老師」「跟櫃台確認」改成iOS設定頁樣式的開關列(使用者提供截圖範例):
@@ -95,7 +109,7 @@
 // 點年份文字跳年度總表(帶著listY);月份列表左右兩側原本各一個「年度」按鈕拿掉。
 // (YearlyPage)加year prop(選填),沒傳的話退回settings.year維持向下相容,讓兩個頁面能各自帶著自己導覽到的年份跳過來。
 // index.html加yearlyYear state記住要顯示哪一年,onGotoYear callback改成接收年份參數。加todayBtn翻譯key | 前: v1.13-020
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,DISABLE_GH_DATA_FETCH,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,hasMyKey,isNoticeRead,getNoticeReadCount,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,svcByCode,bookUnits,bookMinutes,bookLabel,bookRange,findConflicts,dayOffStatus,skName,getBookings,addBooking,updateBooking,deleteBooking,confirmBooking,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,getMyLineUserId,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,DISABLE_GH_DATA_FETCH,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,hasMyKey,isNoticeRead,getNoticeReadCount,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,svcByCode,bookUnits,bookMinutes,bookLabel,bookRange,findConflicts,dayOffStatus,skName,getBookings,addBooking,updateBooking,deleteBooking,confirmBooking,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,getCardData,sendCardFlex,CARD_BRAND,loadBreakStatus,breakFlipGreenLocal,breakFlipWhiteLocal,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,getMyLineUserId,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 
@@ -1259,71 +1273,44 @@ function DisasterReportModal({t,settings,onClose,onSaved}){
     </div>)}
   </div></div>);
 }
+// 1.13版去公司化:這個功能原本翻綠/回牌會打GAS寫進公司共用的雲端表格(BreakTickets)+分享連結給櫃台確認,
+// 跟整個1.13系列「拿掉公司內部的東西,系統改造成純個人工具」的方向不一致(詳見DEV_NOTES)。
+// 這次改成完全不連線:翻綠/回牌只讀寫本機localStorage(common.js的loadBreakStatus/breakFlipGreenLocal/
+// breakFlipWhiteLocal),純粹當自己記錄休息時間的小計時工具用,不會有任何資料傳出這支手機、也不會有人被通知
 function BreakTimerSection({settings}){
-  const[status,setStatus]=useState(null); // null=載入中, {exists,usedSeconds,...}(不含isOpen/remainSeconds即時倒數,那些改本機算)
-  const[busy,setBusy]=useState(false);
-  const[tick,setTick]=useState(0); // 每秒觸發重新渲染,讓計時畫面動起來
-  const[localOpen,setLocalOpen]=useState(false); // 本機立刻知道的翻綠狀態,不用等GAS回應
-  const[localGreenAt,setLocalGreenAt]=useState(0); // 本機這次翻綠的開始時間(ms),用來算「本次翻綠了幾分幾秒」
-  const[lastSessionMsg,setLastSessionMsg]=useState(''); // 剛翻回白牌時,先顯示「本次翻綠了X分Y秒」,等GAS回應才換成總計
-  const load=async()=>{
-    try{
-      const r=await gasCall('breakGetStatus',{code:settings.code,workStart:settings.workStart||'',workEnd:settings.workEnd||''},10000);
-      if(r&&r.ok){
-        setStatus(r);
-        if(r.isOpen&&r.sessions&&r.sessions.length){
-          const last=r.sessions[r.sessions.length-1];
-          if(last&&last.greenAt&&!last.whiteAt){
-            setLocalOpen(true);
-            if(!localGreenAt){const ms=new Date(last.greenAt.replace(' ','T')+'+08:00').getTime();if(ms)setLocalGreenAt(ms)}
-          }
-        }
-      }else setStatus({exists:false});
-    }catch(_e){setStatus({exists:false})}
-  };
-  useEffect(()=>{load()},[]);
-  useEffect(()=>{const iv=setInterval(()=>setTick(x=>x+1),1000);return()=>clearInterval(iv)},[]);
-  // 本次翻綠已經過去的秒數:純本機計算,從點翻綠那一刻算起,不用問GAS,所以不需要每30秒對時
-  const localElapsed=localOpen&&localGreenAt?Math.floor((Date.now()-localGreenAt)/1000):0;
-  const fmtSec=(s)=>{const neg=s<0;const a=Math.abs(s);return (neg?'-':'')+String(Math.floor(a/3600)).padStart(2,'0')+':'+String(Math.floor(a/60)%60).padStart(2,'0')+':'+String(a%60).padStart(2,'0')};
+  const[tick,setTick]=useState(0); // 每秒觸發重新渲染,讓計時畫面動起來(本機算,不用對時)
   const[actionErr,setActionErr]=useState('');
+  const[lastSessionMsg,setLastSessionMsg]=useState('');
+  useEffect(()=>{const iv=setInterval(()=>setTick(x=>x+1),1000);return()=>clearInterval(iv)},[]);
+  const status=loadBreakStatus(settings.code,settings.workStart||'',settings.workEnd||'');
+  const lastSession=status.sessions.length?status.sessions[status.sessions.length-1]:null;
+  const localElapsed=status.isOpen&&lastSession?Math.floor((Date.now()-lastSession.greenAt)/1000):0;
+  const fmtSec=(s)=>{const neg=s<0;const a=Math.abs(s);return (neg?'-':'')+String(Math.floor(a/3600)).padStart(2,'0')+':'+String(Math.floor(a/60)%60).padStart(2,'0')+':'+String(a%60).padStart(2,'0')};
   const doFlipGreen=()=>{
-    // 立刻本機開始計時,不等GAS回應
-    setLocalOpen(true);setLocalGreenAt(Date.now());setActionErr('');setLastSessionMsg('');
-    gasCallPost('breakFlipGreen',{code:settings.code,store:settings.store||'',workStart:settings.workStart||'',workEnd:settings.workEnd||''},10000)
-      .then(r=>{if(!(r&&r.ok)){setActionErr((r&&r.error)||'翻綠失敗，請稍後再試');setLocalOpen(false);setLocalGreenAt(0)}})
-      .catch(e=>{setActionErr('連線失敗：'+String(e));setLocalOpen(false);setLocalGreenAt(0)});
+    const r=breakFlipGreenLocal(settings.code,settings.workStart||'',settings.workEnd||'');
+    if(!r.ok){setActionErr(r.error||'翻綠失敗');return}
+    setActionErr('');setLastSessionMsg('');setTick(x=>x+1);
   };
-  const doFlipWhite=async()=>{
-    // 立刻顯示本次翻綠了多久,不等GAS回應;GAS回應後再補上總計/剩餘
+  const doFlipWhite=()=>{
     const thisSessionSec=localElapsed;
-    setLocalOpen(false);setActionErr('');
-    setLastSessionMsg('本次翻綠了 '+fmtSec(thisSessionSec).replace(/^00:/,'')+'，計算總計中…');
-    setBusy(true);
-    try{
-      const r=await gasCallPost('breakFlipWhite',{reqId:status&&status.reqId||'',code:settings.code,workStart:settings.workStart||'',workEnd:settings.workEnd||''},10000);
-      if(r&&r.ok){
-        setLastSessionMsg('本次翻綠了 '+fmtSec(thisSessionSec).replace(/^00:/,''));
-        await load();
-      }else{setLastSessionMsg('本次翻綠了 '+fmtSec(thisSessionSec).replace(/^00:/,'')+'（總計同步失敗，稍後會自動補上）')}
-    }catch(e){setLastSessionMsg('本次翻綠了 '+fmtSec(thisSessionSec).replace(/^00:/,'')+'（總計同步失敗，稍後會自動補上）')}
-    setLocalGreenAt(0);
-    setBusy(false);
+    const r=breakFlipWhiteLocal(settings.code,settings.workStart||'',settings.workEnd||'');
+    if(r.ok){setActionErr('');setLastSessionMsg('本次翻綠了 '+fmtSec(thisSessionSec).replace(/^00:/,''))}
+    else{setActionErr(r.error||'回牌失敗')}
+    setTick(x=>x+1);
   };
-  if(status===null)return(<div className="mt-5 pt-4 border-t border-white/[0.06] flex justify-center py-3"><span className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/></div>);
   return(<div className="mt-5 pt-4 border-t border-white/[0.06] space-y-2">
     <p className="text-xs font-semibold text-emerald-400 px-1">翻綠（休息）計時</p>
     {actionErr&&<p className="text-xs text-red-400 text-center px-2">{actionErr}</p>}
-    {!localOpen?(<>
-      <button onClick={doFlipGreen} disabled={busy} className="w-full py-3 rounded-xl bg-white text-gray-900 text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2 border border-white/20">{busy&&<span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"/>}⚪ 翻綠（開始休息）</button>
+    {!status.isOpen?(<>
+      <button onClick={doFlipGreen} className="w-full py-3 rounded-xl bg-white text-gray-900 text-sm font-bold flex items-center justify-center gap-2 border border-white/20">⚪ 翻綠（開始休息）</button>
       {lastSessionMsg&&<p className="text-[11px] text-emerald-400 text-center">{lastSessionMsg}</p>}
-      {status.exists&&status.usedSeconds>0&&<p className="text-[11px] text-gray-500 text-center">今天已累計使用 {fmtSec(status.usedSeconds)}／01:00:00</p>}
+      {status.usedSeconds>0&&<p className="text-[11px] text-gray-500 text-center">今天已累計休息 {fmtSec(status.usedSeconds)}</p>}
     </>):(<>
       <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-center">
         <p className="text-[11px] text-gray-500 mb-1">本次已翻綠時間</p>
         <p className="text-3xl font-bold tabular-nums text-emerald-400">{fmtSec(localElapsed)}</p>
       </div>
-      <button onClick={doFlipWhite} disabled={busy} className="w-full py-3 rounded-xl bg-emerald-600 text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{busy&&<span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>}🟢 回牌（結束休息）</button>
+      <button onClick={doFlipWhite} className="w-full py-3 rounded-xl bg-emerald-600 text-white text-sm font-bold flex items-center justify-center gap-2">🟢 回牌（結束休息）</button>
     </>)}
   </div>);
 }
@@ -1358,11 +1345,54 @@ function SupervisorSection({t,settings}){
   </div>);
 }
 
+// ===== 名片彈窗(1.13-034):欄位=館名/老師編號/上班時間/訂位電話/會館地址/地址補充/Google Maps連結;存檔直接存本機(基資/店資同一份settings),分享走LIFF發Flex =====
+function NameCardModal({t,settings,onClose,onUpdateSettings}){
+  const init=getCardData(settings);
+  const[f,setF]=useState({workStart:init.workStart,workEnd:init.workEnd,phone:init.phone,addr:init.addr,addrNote:init.addrNote,mapUrl:init.mapUrl});
+  const[msg,setMsg]=useState('');
+  const up=(k,v)=>{setF(o=>Object.assign({},o,{[k]:v}));setMsg('')};
+  const times=[];for(let h=0;h<24;h++){['00','30'].forEach(m=>times.push(String(h).padStart(2,'0')+':'+m))}
+  if(f.workStart&&!times.includes(f.workStart))times.push(f.workStart);
+  if(f.workEnd&&!times.includes(f.workEnd))times.push(f.workEnd);
+  times.sort();
+  const save=()=>{
+    const updated=Object.assign({},settings,{workStart:f.workStart,workEnd:f.workEnd,cardPhone:f.phone,cardAddr:f.addr,cardAddrNote:f.addrNote,cardMapUrl:f.mapUrl});
+    try{LS.set('app-settings',updated)}catch(_e){}
+    if(onUpdateSettings)onUpdateSettings(updated);
+    setMsg(t.cardSaved||'已存檔');
+  };
+  const share=()=>{save();sendCardFlex(Object.assign({},init,f))};
+  const inp="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500";
+  const lab="text-xs text-gray-400 mb-1 block";
+  return(<BottomSheetModal onClose={onClose} heightPct={86}>
+    <div className="px-4 pb-6 space-y-3">
+      <p className="text-base font-bold text-gray-100 text-center pt-1">{t.cardTitle||'名片'}</p>
+      <div><label className={lab}>{t.cardBrand||'館名'}</label><div className={inp+" opacity-70"}>{CARD_BRAND}</div></div>
+      <div><label className={lab}>{t.cardCode||'老師編號'}</label><div className={inp+" opacity-70"}>{init.code}</div></div>
+      <div><label className={lab}>{t.cardWork||'上班時間'}</label>
+        <div className="flex items-center gap-2">
+          <select value={f.workStart} onChange={e=>up('workStart',e.target.value)} className={inp}>{times.map(x=><option key={x} value={x}>{x}</option>)}</select>
+          <span className="text-gray-400">~</span>
+          <select value={f.workEnd} onChange={e=>up('workEnd',e.target.value)} className={inp}>{times.map(x=><option key={x} value={x}>{x}</option>)}</select>
+        </div></div>
+      <div><label className={lab}>{t.cardPhone||'訂位電話'}</label><input type="tel" value={f.phone} onChange={e=>up('phone',e.target.value)} className={inp}/></div>
+      <div><label className={lab}>{t.cardAddr||'會館地址'}</label><input value={f.addr} onChange={e=>up('addr',e.target.value)} className={inp}/></div>
+      <div><label className={lab}>{t.cardAddrNote||'地址補充'}</label><input value={f.addrNote} onChange={e=>up('addrNote',e.target.value)} className={inp}/></div>
+      <div><label className={lab}>{t.cardMapUrl||'Google Maps 連結'}</label><input value={f.mapUrl} onChange={e=>up('mapUrl',e.target.value)} className={inp}/></div>
+      {msg&&<p className="text-xs text-emerald-400 text-center">{msg}</p>}
+      <div className="grid grid-cols-2 gap-2 pt-1">
+        <button onClick={save} className="py-3 rounded-xl bg-amber-600 text-white text-sm font-bold active:opacity-80">{t.cardSave||'存檔'}</button>
+        <button onClick={share} className="py-3 rounded-xl text-white text-sm font-bold active:opacity-80" style={{background:'#06c755'}}>{t.cardShare||'分享給 LINE 好友'}</button>
+      </div>
+    </div>
+  </BottomSheetModal>);
+}
+
 function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,onGotoChart,onGotoSuggest,onGotoAcupoint,onGotoViolation,onGotoBackup,onGotoManage,onGotoMonthly,onGotoMonthlyCalendar,onGotoCustomers,onGotoSettings,settingsAlert,onUpdateSettings,onLogout}){
   const now=bizDate();const bp=bizParts();const ty=settings.year||bp.y,tm=bp.m,td=bp.d;
   const[data,setData]=useState(null);const[prev,setPrev]=useState(null);const[otherMode,setOtherMode]=useState(false);const[otherVal,setOtherVal]=useState('');const[editPrev,setEditPrev]=useState(false);const[editToday,setEditToday]=useState(false);
   const[showStoreInfo,setShowStoreInfo]=useState(false);const[showBasicInfo,setShowBasicInfo]=useState(false);
-  const[showGroupBuy,setShowGroupBuy]=useState(false);const[showDisasterReport,setShowDisasterReport]=useState(false);const[showLineQr,setShowLineQr]=useState(false);const[lineQrIdx,setLineQrIdx]=useState(0);
+  const[showGroupBuy,setShowGroupBuy]=useState(false);const[showDisasterReport,setShowDisasterReport]=useState(false);const[showLineQr,setShowLineQr]=useState(false);const[showCard,setShowCard]=useState(false);const[lineQrIdx,setLineQrIdx]=useState(0);
   const[dailyQueue,setDailyQueue]=useState([]);const[gbPromptData,setGbPromptData]=useState(null);
   // 1.13版:「其他功能」展開/收合狀態改成記在本機localStorage,開啟頁面時讀上次的狀態,不再每次都預設展開。
   // 讀取失敗(無痕模式/被擋)一律fallback成預設展開(true),不會因為讀不到就卡住
@@ -1407,6 +1437,15 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
     const homeKey='home-daily-'+settings.code;
     let already=false;try{already=localStorage.getItem(homeKey)===today}catch(_e){}
     if(!already){
+      // 修正bug:這個旗標原本是在下面的async流程「全部跑完」之後才寫回localStorage,
+      // 中間要等gasVerifyKey+gasLogDailyCheck(甚至syncMyStaffStatus)這幾個await依序跑完,
+      // 加起來可能要1~2秒——這段等待期間如果使用者幾乎同時重新整理/重開一次(例如LINE內建瀏覽器重整、
+      // 手動連點兩次圖示),第二次的這個useEffect也會讀到還沒寫入的旗標、判斷成「今天還沒檢查過」,
+      // 於是同一天打了兩次gasLogDailyCheck,這就是GAS端Log工作表會看到同一個編號、幾乎同一秒出現
+      // 兩筆dailyCredCheck紀錄的根因。改成「要做這件事」的旗標在進入async流程**之前**就先同步寫入,
+      // 關掉這個競態窗口——即使等一下GAS真的連線失敗,頂多今天這次的檢查/備份沒跑到,
+      // 也不會因為旗標還沒寫入而被重複呼叫,跟「今天最多打一次」這個設計初衷更吻合
+      try{localStorage.setItem(homeKey,today)}catch(_e){}
       // 1.13版:每日鎖屏密碼要求彈窗移除(使用者要求拿掉自動彈出的提示),不再setDailyQueue(q=>[...q,'pwd'])。
       // 原判斷邏輯註解保留,之後想恢復只要取消註解
       // if(!HIDE_COMPANY_FEATURES&&!settings.disableHomePwd&&settings.lockPwd)setDailyQueue(q=>[...q,'pwd']);
@@ -1420,7 +1459,6 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
           if(!DISABLE_GH_DATA_FETCH)await syncMyStaffStatus(settings.code);
         }catch(_e){}
         doDailyAutoCloudBackup(); // 1.13版:每日第一次打開時,如果已用LINE登入就順便自動備份一次,不等待、不影響上面的每日檢查流程
-        try{localStorage.setItem(homeKey,today)}catch(_e){}
       })();
     }
     // 1.13版:團購提示彈窗整個移除(使用者要求拿掉自動彈出的提示)。原本查詢gasListGroupBuys/gasMyGroupBuyOrders、
@@ -1602,6 +1640,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
       {!HIDE_COMPANY_FEATURES&&<button onClick={()=>onGotoNotices&&onGotoNotices()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M3 11l18-6v14l-18-6v-2z"/><path d="M8 15v4a2 2 0 002 2h1"/></svg></span><span className="text-[10px] text-gray-500">{t.tabNotice}</span></button>}
       <button onClick={()=>onGotoBook&&onGotoBook()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span><span className="text-[10px] text-gray-500">{t.tabBook2}</span></button>
       <button onClick={()=>onGotoChart&&onGotoChart()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg></span><span className="text-[10px] text-gray-500">{t.tabChart}</span></button>
+      <button onClick={()=>setShowCard(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="2.5" y="5" width="19" height="14" rx="2"/><circle cx="8.5" cy="11" r="2"/><path d="M5.5 16c.6-1.6 1.7-2.4 3-2.4s2.4.8 3 2.4M14 10h5M14 13.5h4"/></svg></span><span className="text-[10px] text-gray-500">{t.cardBtn||'名片'}</span></button>
       {!HIDE_COMPANY_FEATURES&&<button onClick={()=>onGotoSuggest&&onGotoSuggest()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7V17h8v-2.3A7 7 0 0012 2z"/></svg></span><span className="text-[10px] text-gray-500">{t.tabSuggest}</span></button>}
       <button onClick={()=>onGotoAcupoint&&onGotoAcupoint()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><path d="M12 3a9 9 0 100 18 9 9 0 000-18z"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg></span><span className="text-[10px] text-gray-500">{t.acupointBtn}</span></button>
       {!HIDE_COMPANY_FEATURES&&<button onClick={()=>onGotoViolation&&onGotoViolation()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M4 22V4a1 1 0 011-1h13.5a.5.5 0 01.4.8l-2.9 3.7 2.9 3.7a.5.5 0 01-.4.8H5"/></svg></span><span className="text-[10px] text-gray-500">{t.tabViolation}</span></button>}
@@ -1613,6 +1652,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
     </>)}
     {!HIDE_COMPANY_FEATURES&&<SupervisorSection t={t} settings={settings}/>}
     {showGroupBuy&&<GroupBuyModal t={t} settings={settings} onClose={()=>setShowGroupBuy(false)}/>}
+    {showCard&&<NameCardModal t={t} settings={settings} onClose={()=>setShowCard(false)} onUpdateSettings={onUpdateSettings}/>}
     {showLineQr&&(()=>{
       const qrPages=[
         {title:'加入 LINE Bot',data:'https://lin.ee/58Dsob3',label:'直接開啟'},
