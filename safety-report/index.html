@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>安全回報 v1.13-003</title>
+<title>雲心閣按摩會館24H v1.13-006</title>
 <meta property="og:title" content="天然災害每日安全回報中心">
 <meta property="og:description" content="請點擊連結進行安全回報">
 <meta property="og:type" content="website">
@@ -878,31 +878,102 @@ function CardShareFlow({data}){
     if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setStatus('error');setErr('此環境不支援分享功能，請在LINE App內開啟');return}
     const tel='tel:'+String(d.p||'').replace(/[^0-9+]/g,'');
     const mapUri=/^https?:\/\//.test(d.m||'')?d.m:'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(d.a||'');
-    const R='end';
-    liff.shareTargetPicker([{type:'flex',altText:(d.bm||'雲心閣')+(d.bs||'養生會館')+' 老師名片 '+d.c,contents:{
-      type:'bubble',size:'mega',
+    const appleUri=/^https?:\/\//.test(d.am||'')?d.am:'https://maps.apple.com/?q='+encodeURIComponent(d.a||'');
+    // 分享名片按鈕:收到的人點了開同一個LIFF頁,可再轉給別人(URI動作上限1000字,太長就不放)
+    const shareUri0='https://liff.line.me/'+LIFF_ID_HARDCODED+'?cardShare='+encodeURIComponent(JSON.stringify(d));
+    const shareUri=shareUri0.length<=1000?shareUri0:'';
+    // 按鈕文字:地址去掉郵遞區號/台北市/XX區;電話去掉02區碼(撥號仍用完整號碼)
+    const shortAddr=String(d.a||'').replace(/^\d*\s*(?:[臺台]北市)?(?:[\u4e00-\u9fa5]{2}區)?/,'')||String(d.a||'');
+    const _dg=String(d.p||'').replace(/\D/g,'');
+    const shortTel=(_dg.length===10&&_dg.indexOf('02')===0)?_dg.slice(2,6)+'-'+_dg.slice(6):String(d.p||'');
+    // 兩行式按鈕(box+action,文字不會被截斷):上行主文字,下行小字說明
+    const cell=(main,sub,uri)=>({type:'box',layout:'vertical',flex:1,paddingAll:'6px',justifyContent:'center',alignItems:'center',action:{type:'uri',label:(main||'名片').slice(0,20),uri:uri},contents:[
+      {type:'text',text:main||'-',size:'sm',weight:'bold',color:'#2563eb',align:'center'},
+      ...(sub?[{type:'text',text:sub,size:'xxs',color:'#6b7280',align:'center'}]:[])
+    ]});
+    const BM=d.bm||'雲心閣',BS=d.bs||'養生會館';
+    const brandRow=(light,tag)=>({type:'box',layout:'horizontal',spacing:'sm',alignItems:'center',contents:[
+      {type:'text',text:BM,weight:'bold',size:'md',color:light?'#FFFFFF':'#111827',flex:0,gravity:'center'},
+      {type:'text',text:BS,size:'xs',color:light?'#eeeeff':'#6b7280',flex:0,gravity:'center'},
+      ...(light?[]:[{type:'box',layout:'vertical',flex:0,backgroundColor:'#dc2626',cornerRadius:'sm',paddingTop:'2px',paddingBottom:'2px',paddingStart:'6px',paddingEnd:'6px',contents:[{type:'text',text:'24h',size:'xxs',weight:'bold',color:'#FFFFFF'}]},
+        {type:'text',text:tag,size:'xxs',color:'#9ca3af',flex:0,gravity:'center'}])
+    ]});
+    // 第1頁:名片(上下用filler撐開,讓編號在中間;多頁時LINE會把各頁撐成同高)
+    const page1={type:'bubble',size:'mega',
+      body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
+        brandRow(false,'老師個人名片'),
+        {type:'filler'},
+        {type:'box',layout:'baseline',justifyContent:'center',spacing:'sm',contents:[
+          {type:'text',text:String(d.c),size:'5xl',weight:'bold',color:'#111827',flex:0},
+          {type:'text',text:'號老師',size:'sm',weight:'bold',color:'#6b7280',flex:0}
+        ]},
+        {type:'text',text:d.ws+' ~ '+d.we,size:'xs',align:'center',color:'#6b7280',margin:'md'},
+        {type:'filler'},
+        ...(d.n?[{type:'text',text:d.n,size:'xs',color:'#6b7280',align:'end',wrap:true,margin:'xl'}]:[])
+      ]},
+      footer:{type:'box',layout:'vertical',spacing:'xs',paddingAll:'md',contents:[
+        {type:'box',layout:'horizontal',spacing:'sm',contents:[cell(shortAddr,'Apple 地圖',appleUri),cell(shortAddr,'Google 地圖',mapUri)]},
+        {type:'box',layout:'horizontal',spacing:'sm',contents:[cell(shortTel,'訂位電話',tel),shareUri?cell('分享給朋友','',shareUri):{type:'filler'}]}
+      ]}};
+    // 第2頁:早鳥夜貓專案
+    const promoRule=(t)=>({type:'text',text:'◎ '+t,size:'xs',color:'#6b7280',wrap:true,margin:'xs'});
+    const page2={type:'bubble',size:'mega',
+      header:{type:'box',layout:'vertical',paddingAll:'lg',background:{type:'linearGradient',angle:'135deg',startColor:'#bcd9f5',endColor:'#6d4aa8'},contents:[
+        brandRow(true),
+        {type:'text',text:'☀ 早鳥 · 夜貓 專案 ☾',size:'xl',weight:'bold',color:'#FFFFFF',margin:'md'},
+        {type:'text',text:'平日 凌晨12:00 ~ 中午12:00',size:'xs',color:'#FFFFFF',margin:'xs'}
+      ]},
+      body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
+        {type:'text',text:'腳底+身體按摩 120分鐘',size:'sm',weight:'bold',align:'center',color:'#111827'},
+        {type:'box',layout:'baseline',justifyContent:'center',spacing:'sm',margin:'sm',contents:[
+          {type:'text',text:'1,099',size:'4xl',weight:'bold',color:'#ea580c',flex:0},
+          {type:'text',text:'NT',size:'sm',weight:'bold',color:'#ea580c',flex:0}
+        ]},
+        {type:'box',layout:'vertical',margin:'lg',contents:[
+          promoRule('以實際進場時間為主'),promoRule('不與其他活動合併使用'),promoRule('腳底與身體限定同一位師傅'),
+          promoRule('雲心閣保留活動修改、暫停及終止之權利'),promoRule('周五過12點後是周六，算假日'),promoRule('周日過12點後是周一，算平日')
+        ]},
+        {type:'filler'}
+      ]}};
+    // 第3、4頁:價目表
+    const row=(n,sub,price,orig)=>({type:'box',layout:'horizontal',margin:'md',contents:[
+      {type:'box',layout:'vertical',flex:1,contents:[
+        {type:'text',text:n,size:'xs',weight:'bold',color:'#111827',wrap:true},
+        ...(sub?[{type:'text',text:sub,size:'xxs',color:'#9ca3af',wrap:true}]:[])
+      ]},
+      {type:'box',layout:'vertical',flex:0,contents:[
+        {type:'text',text:price,size:'sm',weight:'bold',color:'#b91c1c',align:'end'},
+        ...(orig?[{type:'text',text:'原價 '+orig,size:'xxs',color:'#9ca3af',align:'end',decoration:'line-through'}]:[])
+      ]}
+    ]});
+    const sep=()=>({type:'separator',margin:'md'});
+    const priceNote={type:'text',text:'本表非即時更新，請訂位時務必確認費用',size:'xxs',color:'#9ca3af',align:'center',margin:'lg'};
+    const pricePage=(title,rows)=>({type:'bubble',size:'mega',
       body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
         {type:'box',layout:'horizontal',spacing:'sm',alignItems:'center',contents:[
-          {type:'text',text:d.bm||'雲心閣',weight:'bold',size:'md',color:'#111827',flex:0,gravity:'center'},
-          {type:'text',text:d.bs||'養生會館',size:'xs',color:'#6b7280',flex:0,gravity:'center'},
-          {type:'box',layout:'vertical',flex:0,backgroundColor:'#dc2626',cornerRadius:'sm',paddingTop:'2px',paddingBottom:'2px',paddingStart:'6px',paddingEnd:'6px',contents:[
-            {type:'text',text:'24h',size:'xxs',weight:'bold',color:'#FFFFFF'}
-          ]},
-          {type:'text',text:'老師個人名片',size:'xxs',color:'#9ca3af',flex:0,gravity:'center'}
+          {type:'text',text:BM,weight:'bold',size:'md',color:'#111827',flex:0},
+          {type:'text',text:BS,size:'xs',color:'#6b7280',flex:0},
+          {type:'text',text:'價目表',size:'xxs',color:'#9ca3af',flex:0}
         ]},
-        {type:'text',text:String(d.c),size:'5xl',weight:'bold',align:'center',color:'#111827',margin:'xxl'},
-        {type:'text',text:'上班時間　'+d.ws+' ~ '+d.we,size:'xs',align:'center',color:'#6b7280',margin:'md'},
-        {type:'box',layout:'vertical',margin:'xxl',spacing:'xs',contents:[
-          {type:'text',text:'訂位電話：'+d.p,size:'xs',color:'#374151',align:R},
-          {type:'text',text:'會館地址：'+d.a,size:'xs',color:'#374151',align:R,wrap:true},
-          ...(d.n?[{type:'text',text:d.n,size:'xs',color:'#6b7280',align:R,wrap:true}]:[])
-        ]}
-      ]},
-      footer:{type:'box',layout:'horizontal',spacing:'sm',paddingAll:'md',contents:[
-        {type:'button',style:'link',height:'sm',action:{type:'uri',label:'地址',uri:mapUri}},
-        {type:'button',style:'link',height:'sm',action:{type:'uri',label:'電話',uri:tel}}
-      ]}
-    }}]).then(res=>{setStatus(res?'done':'cancelled')}).catch(e=>{setStatus('error');setErr(String(e&&e.message||e))});
+        {type:'text',text:title,size:'md',weight:'bold',color:'#111827',margin:'md'},
+        ...rows,
+        {type:'filler'},
+        priceNote
+      ]}});
+    const page3=pricePage('最划算套餐',[
+      row('腳底+身體按摩 120分鐘','含轉場時間・含精油泡腳及肩頸按摩','1,299','1,600'),
+      row('腳底+身體按摩 70分鐘','含轉場時間・含精油泡腳及肩頸按摩','850','1,100'),
+      sep(),
+      row('腳底按摩 40分鐘','','500','600'),row('腳底按摩 70分鐘','','850','1,100'),
+      row('身體按摩 35分鐘','','500','600'),row('身體按摩 70分鐘','','850','1,100')
+    ]);
+    const page4=pricePage('加節表',[
+      row('腳底+身體按摩 120分鐘','含轉場時間','1,299','1,600'),
+      row('腳底按摩 110分鐘','','1,299','1,600'),row('身體按摩 110分鐘','','1,299','1,600'),
+      sep(),
+      row('加節 30分鐘','','500'),row('加節 60分鐘','','850')
+    ]);
+    liff.shareTargetPicker([{type:'flex',altText:BM+BS+' '+d.c+'號老師名片',contents:{type:'carousel',contents:[page1,page2,page3,page4]}}]).then(res=>{setStatus(res?'done':'cancelled')}).catch(e=>{setStatus('error');setErr(String(e&&e.message||e))});
   },[]);
   const goBack=()=>{try{liff.closeWindow()}catch(_e){location.href=INDEX_URL}};
   return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
