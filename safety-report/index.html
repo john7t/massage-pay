@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>安全回報 v1.12-061</title>
+<title>安全回報 v1.13-001</title>
 <meta property="og:title" content="天然災害每日安全回報中心">
 <meta property="og:description" content="請點擊連結進行安全回報">
 <meta property="og:type" content="website">
@@ -798,6 +798,45 @@ function ShareFlow({sid,liffId}){
 
 // 通用的行為代碼Flex分享橋接:任何地方要傳代碼都導來這裡,帶title/body/link三個參數,統一組成Flex卡片分享
 // shareTargetPicker一定要透過 liff.line.me/{id} 這個網址正式啟動LIFF才能用,主程式/管理頁/公告頁都不是走這個網址,所以全部導來這裡代發
+// 備份專頁:index.html刻意不呼叫liff.init(保留離線記帳能力),備份的分享功能借這個正式LIFF端點處理
+function BackupViewPage({code,year}){
+  const[jsonStr,setJsonStr]=useState('');
+  const[range,setRange]=useState(null);
+  const[err,setErr]=useState('');
+  const[copied,setCopied]=useState(false);
+  const LINE_SHARE_LIMIT=4500; // LINE文字訊息分享實務上的安全長度,超過這個長度shareTargetPicker容易失敗,改引導用複製
+  useEffect(()=>{
+    try{
+      const MP=window.MP;
+      if(!code||!year){setErr('缺少編號或年份參數');return}
+      const r=MP.dataMonthRange(code,Number(year));
+      if(!r){setErr('這個年度查無資料');return}
+      setRange(r);
+      const obj=MP.makePersonalBackup(code,Number(year));
+      setJsonStr(JSON.stringify(obj));
+    }catch(e){setErr(String(e))}
+  },[]);
+  const doCopy=async()=>{try{await navigator.clipboard.writeText(jsonStr)}catch(_e){};setCopied(true);setTimeout(()=>setCopied(false),2000)};
+  const doShare=()=>{
+    liff.shareTargetPicker([{type:'text',text:jsonStr}]).catch(e=>alert('分享失敗，請改用複製按鈕：'+e));
+  };
+  const goBack=()=>{try{liff.closeWindow()}catch(_e){}};
+  if(err)return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center"><p className="text-sm text-red-400">{err}</p><button onClick={goBack} className="px-6 py-3 rounded-xl bg-amber-600 text-white text-sm font-bold">返回</button></div>);
+  if(!jsonStr)return(<div className="min-h-screen flex items-center justify-center"><Spinner size={28}/></div>);
+  const tooLarge=jsonStr.length>LINE_SHARE_LIMIT;
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+    <p className="text-lg font-bold text-gray-100">📦 資料備份</p>
+    <p className="text-xs text-gray-500">編號 {code}　{year}年　{range.first}~{range.last}月</p>
+    <p className="text-[11px] text-gray-600">內容長度約 {jsonStr.length} 字元</p>
+    {tooLarge&&<p className="text-xs text-amber-400 max-w-xs">內容較長，直接用LINE分享可能會失敗，建議改用「複製」貼到LINE Keep或記事本保存</p>}
+    <div className="flex gap-3">
+      <button onClick={doCopy} className="px-6 py-3 rounded-xl bg-white/[0.08] text-gray-200 text-sm font-bold">{copied?'✓ 已複製':'📋 複製備份內容'}</button>
+      <button onClick={doShare} disabled={tooLarge} className="px-6 py-3 rounded-xl bg-[#06C755] text-white text-sm font-bold disabled:opacity-40">傳送給自己/好友</button>
+    </div>
+    <button onClick={goBack} className="text-xs text-gray-500 underline mt-2">關閉</button>
+  </div>);
+}
+
 function TicketFlexShare({title,body,link}){
   const[status,setStatus]=useState('loading'); // loading/picking/done/cancelled/error
   const[err,setErr]=useState('');
@@ -821,6 +860,51 @@ function TicketFlexShare({title,body,link}){
   return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
     {status==='loading'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">準備中…</p></>)}
     {status==='picking'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">請選擇要分享的對象…</p></>)}
+    {status==='done'&&(<p className="text-base text-emerald-500 font-semibold">✓ 已分享</p>)}
+    {status==='cancelled'&&(<p className="text-sm text-gray-500">已取消分享</p>)}
+    {status==='error'&&(<p className="text-sm text-red-400">{err}</p>)}
+    {(status==='done'||status==='cancelled'||status==='error')&&<button onClick={goBack} className="px-6 py-3 rounded-xl bg-amber-600 text-white text-sm font-bold">返回</button>}
+  </div>);
+}
+
+function CardShareFlow({data}){
+  const[status,setStatus]=useState('loading');
+  const[err,setErr]=useState('');
+  const INDEX_URL='https://john7t.github.io/massage-pay/index.html';
+  useEffect(()=>{
+    let d=null;try{d=JSON.parse(data)}catch(_e){}
+    if(!d||!d.c){setStatus('error');setErr('缺少參數');return}
+    setStatus('picking');
+    if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setStatus('error');setErr('此環境不支援分享功能，請在LINE App內開啟');return}
+    const tel='tel:'+String(d.p||'').replace(/[^0-9+]/g,'');
+    const mapUri=/^https?:\/\//.test(d.m||'')?d.m:'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(d.a||'');
+    const R='end';
+    liff.shareTargetPicker([{type:'flex',altText:'雲心閣養生會館 老師名片 '+d.c,contents:{
+      type:'bubble',size:'mega',
+      body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
+        {type:'box',layout:'baseline',spacing:'sm',contents:[
+          {type:'text',text:'雲心閣',weight:'bold',size:'md',color:'#111827',flex:0},
+          {type:'text',text:'養生會館',size:'xs',color:'#6b7280',flex:0},
+          {type:'text',text:'24h',size:'xxs',weight:'bold',color:'#FFFFFF',backgroundColor:'#dc2626',flex:0},
+          {type:'text',text:'老師個人名片',size:'xxs',color:'#9ca3af',flex:0}
+        ]},
+        {type:'text',text:String(d.c),size:'5xl',weight:'bold',align:'center',color:'#111827',margin:'xxl'},
+        {type:'text',text:'上班時間　'+d.ws+' ~ '+d.we,size:'xs',align:'center',color:'#6b7280',margin:'md'},
+        {type:'box',layout:'vertical',margin:'xxl',spacing:'xs',contents:[
+          {type:'text',text:'訂位電話：'+d.p,size:'xs',color:'#374151',align:R},
+          {type:'text',text:'會館地址：'+d.a,size:'xs',color:'#374151',align:R,wrap:true},
+          ...(d.n?[{type:'text',text:d.n,size:'xs',color:'#6b7280',align:R,wrap:true}]:[])
+        ]}
+      ]},
+      footer:{type:'box',layout:'horizontal',spacing:'sm',paddingAll:'md',contents:[
+        {type:'button',style:'link',height:'sm',action:{type:'uri',label:'地址',uri:mapUri}},
+        {type:'button',style:'link',height:'sm',action:{type:'uri',label:'電話',uri:tel}}
+      ]}
+    }}]).then(res=>{setStatus(res?'done':'cancelled')}).catch(e=>{setStatus('error');setErr(String(e&&e.message||e))});
+  },[]);
+  const goBack=()=>{try{liff.closeWindow()}catch(_e){location.href=INDEX_URL}};
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+    {(status==='loading'||status==='picking')&&(<><Spinner size={32}/><p className="text-sm text-gray-400">請選擇要分享的對象…</p></>)}
     {status==='done'&&(<p className="text-base text-emerald-500 font-semibold">✓ 已分享</p>)}
     {status==='cancelled'&&(<p className="text-sm text-gray-500">已取消分享</p>)}
     {status==='error'&&(<p className="text-sm text-red-400">{err}</p>)}
@@ -933,13 +1017,19 @@ function App(){
   const flexTitle=new URLSearchParams(location.search).get('flexTitle')||''; // 通用行為代碼Flex分享,標題/內文/連結三個參數
   const flexBody=new URLSearchParams(location.search).get('flexBody')||'';
   const flexLink=new URLSearchParams(location.search).get('flexLink')||'';
+  const cardShare=new URLSearchParams(location.search).get('cardShare')||''; // 老師名片Flex分享(index.html的名片彈窗借這裡發)
+  const backupView=new URLSearchParams(location.search).get('backupView')||''; // 備份專頁:index.html不呼叫liff.init(刻意保留離線記帳能力),備份的分享功能借這裡處理
+  const backupCode=new URLSearchParams(location.search).get('code')||'';
+  const backupYear=new URLSearchParams(location.search).get('year')||'';
 
   useEffect(()=>{
     const initLiff=(id)=>{
       setLiffId(id);
       return liff.init({liffId:id}).then(()=>{
         if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return} // 明確帶目前完整網址(含?sid=...),避免LINE登入導轉過程弄丟參數
+        if(cardShare){setPhase('cardShare');return}
         if(flexTitle&&flexLink){setPhase('ticketFlex');return} // 通用行為代碼分享,不用先查有沒有登記過,直接進分享流程
+        if(backupView){setPhase('backupView');return} // 備份專頁,不用先查有沒有登記過,直接進備份流程
         if(approveReg){return liff.getProfile().then(p=>{setProfile(p);setPhase('approveReg')})} // 審核模式:不用先查有沒有登記過,直接進審核流程(裡面自己檢查主管權限)
         if(breakShare){setPhase('breakShare');return} // 翻綠計時器分享,不用先查有沒有登記過,直接進分享流程
         if(action==='share'){setPhase('share');return} // 分享模式不用先查有沒有登記過,直接進分享流程
@@ -970,7 +1060,9 @@ function App(){
   if(phase==='share')return(<ShareFlow sid={sid} liffId={liffId}/>);
   if(phase==='approveReg')return(<ApproveRegFlow reqId={approveReg} profile={profile}/>);
   if(phase==='breakShare')return(<BreakShareFlow kind={breakShare} reqId={breakReqId}/>);
+  if(phase==='cardShare')return(<CardShareFlow data={cardShare}/>);
   if(phase==='ticketFlex')return(<TicketFlexShare title={flexTitle} body={flexBody} link={flexLink}/>);
+  if(phase==='backupView')return(<BackupViewPage code={backupCode} year={backupYear}/>);
   if(blocked)return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{SF_T.zh.accountBlocked} / {SF_T.vi.accountBlocked}</p></div>);
   if(phase==='register')return(<RegisterFlow profile={profile} sid={sid} onDone={()=>{sfGetUser(profile.userId).then(r=>{if(r&&r.ok&&r.exists){
     // 登記完成導回原本帶的sid頁面(不然使用者原本是要去回報某一項,卻被丟到看不到那項的首頁)
