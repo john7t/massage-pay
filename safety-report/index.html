@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>安全回報 v1.13-001</title>
+<title>安全回報 v1.13-003</title>
 <meta property="og:title" content="天然災害每日安全回報中心">
 <meta property="og:description" content="請點擊連結進行安全回報">
 <meta property="og:type" content="website">
@@ -879,14 +879,16 @@ function CardShareFlow({data}){
     const tel='tel:'+String(d.p||'').replace(/[^0-9+]/g,'');
     const mapUri=/^https?:\/\//.test(d.m||'')?d.m:'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(d.a||'');
     const R='end';
-    liff.shareTargetPicker([{type:'flex',altText:'雲心閣養生會館 老師名片 '+d.c,contents:{
+    liff.shareTargetPicker([{type:'flex',altText:(d.bm||'雲心閣')+(d.bs||'養生會館')+' 老師名片 '+d.c,contents:{
       type:'bubble',size:'mega',
       body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
-        {type:'box',layout:'baseline',spacing:'sm',contents:[
-          {type:'text',text:'雲心閣',weight:'bold',size:'md',color:'#111827',flex:0},
-          {type:'text',text:'養生會館',size:'xs',color:'#6b7280',flex:0},
-          {type:'text',text:'24h',size:'xxs',weight:'bold',color:'#FFFFFF',backgroundColor:'#dc2626',flex:0},
-          {type:'text',text:'老師個人名片',size:'xxs',color:'#9ca3af',flex:0}
+        {type:'box',layout:'horizontal',spacing:'sm',alignItems:'center',contents:[
+          {type:'text',text:d.bm||'雲心閣',weight:'bold',size:'md',color:'#111827',flex:0,gravity:'center'},
+          {type:'text',text:d.bs||'養生會館',size:'xs',color:'#6b7280',flex:0,gravity:'center'},
+          {type:'box',layout:'vertical',flex:0,backgroundColor:'#dc2626',cornerRadius:'sm',paddingTop:'2px',paddingBottom:'2px',paddingStart:'6px',paddingEnd:'6px',contents:[
+            {type:'text',text:'24h',size:'xxs',weight:'bold',color:'#FFFFFF'}
+          ]},
+          {type:'text',text:'老師個人名片',size:'xxs',color:'#9ca3af',flex:0,gravity:'center'}
         ]},
         {type:'text',text:String(d.c),size:'5xl',weight:'bold',align:'center',color:'#111827',margin:'xxl'},
         {type:'text',text:'上班時間　'+d.ws+' ~ '+d.we,size:'xs',align:'center',color:'#6b7280',margin:'md'},
