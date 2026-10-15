@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>雲心閣按摩會館24H v1.13-006</title>
+<title>安全回報 v1.13-007</title>
 <meta property="og:title" content="天然災害每日安全回報中心">
 <meta property="og:description" content="請點擊連結進行安全回報">
 <meta property="og:type" content="website">
@@ -892,16 +892,20 @@ function CardShareFlow({data}){
       ...(sub?[{type:'text',text:sub,size:'xxs',color:'#6b7280',align:'center'}]:[])
     ]});
     const BM=d.bm||'雲心閣',BS=d.bs||'養生會館';
-    const brandRow=(light,tag)=>({type:'box',layout:'horizontal',spacing:'sm',alignItems:'center',contents:[
-      {type:'text',text:BM,weight:'bold',size:'md',color:light?'#FFFFFF':'#111827',flex:0,gravity:'center'},
-      {type:'text',text:BS,size:'xs',color:light?'#eeeeff':'#6b7280',flex:0,gravity:'center'},
-      ...(light?[]:[{type:'box',layout:'vertical',flex:0,backgroundColor:'#dc2626',cornerRadius:'sm',paddingTop:'2px',paddingBottom:'2px',paddingStart:'6px',paddingEnd:'6px',contents:[{type:'text',text:'24h',size:'xxs',weight:'bold',color:'#FFFFFF'}]},
-        {type:'text',text:tag,size:'xxs',color:'#9ca3af',flex:0,gravity:'center'}])
+    const GRAD={type:'linearGradient',angle:'135deg',startColor:'#bcd9f5',endColor:'#6d4aa8'};
+    // 所有頁頂部的「雲心閣」那一排:漸層底色+白字(24h紅標、tag小字可選)
+    const brandRow=(tag)=>({type:'box',layout:'horizontal',spacing:'sm',alignItems:'center',contents:[
+      {type:'text',text:BM,weight:'bold',size:'md',color:'#FFFFFF',flex:0,gravity:'center'},
+      {type:'text',text:BS,size:'xs',color:'#eeeeff',flex:0,gravity:'center'},
+      {type:'box',layout:'vertical',flex:0,backgroundColor:'#dc2626',cornerRadius:'sm',paddingTop:'2px',paddingBottom:'2px',paddingStart:'6px',paddingEnd:'6px',contents:[{type:'text',text:'24h',size:'xxs',weight:'bold',color:'#FFFFFF'}]},
+      ...(tag?[{type:'text',text:tag,size:'xxs',color:'#eeeeff',flex:0,gravity:'center'}]:[])
     ]});
+    const brandHeader=(tag)=>({type:'box',layout:'vertical',paddingAll:'lg',background:GRAD,contents:[brandRow(tag)]});
+    const priceNote={type:'text',text:'本表非即時更新，請訂位時務必確認費用',size:'xxs',color:'#9ca3af',align:'center',margin:'lg'};
     // 第1頁:名片(上下用filler撐開,讓編號在中間;多頁時LINE會把各頁撐成同高)
     const page1={type:'bubble',size:'mega',
+      header:brandHeader('老師個人名片'),
       body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
-        brandRow(false,'老師個人名片'),
         {type:'filler'},
         {type:'box',layout:'baseline',justifyContent:'center',spacing:'sm',contents:[
           {type:'text',text:String(d.c),size:'5xl',weight:'bold',color:'#111827',flex:0},
@@ -918,8 +922,8 @@ function CardShareFlow({data}){
     // 第2頁:早鳥夜貓專案
     const promoRule=(t)=>({type:'text',text:'◎ '+t,size:'xs',color:'#6b7280',wrap:true,margin:'xs'});
     const page2={type:'bubble',size:'mega',
-      header:{type:'box',layout:'vertical',paddingAll:'lg',background:{type:'linearGradient',angle:'135deg',startColor:'#bcd9f5',endColor:'#6d4aa8'},contents:[
-        brandRow(true),
+      header:{type:'box',layout:'vertical',paddingAll:'lg',background:GRAD,contents:[
+        brandRow(),
         {type:'text',text:'☀ 早鳥 · 夜貓 專案 ☾',size:'xl',weight:'bold',color:'#FFFFFF',margin:'md'},
         {type:'text',text:'平日 凌晨12:00 ~ 中午12:00',size:'xs',color:'#FFFFFF',margin:'xs'}
       ]},
@@ -933,7 +937,8 @@ function CardShareFlow({data}){
           promoRule('以實際進場時間為主'),promoRule('不與其他活動合併使用'),promoRule('腳底與身體限定同一位師傅'),
           promoRule('雲心閣保留活動修改、暫停及終止之權利'),promoRule('周五過12點後是周六，算假日'),promoRule('周日過12點後是周一，算平日')
         ]},
-        {type:'filler'}
+        {type:'filler'},
+        priceNote
       ]}};
     // 第3、4頁:價目表
     const row=(n,sub,price,orig)=>({type:'box',layout:'horizontal',margin:'md',contents:[
@@ -947,15 +952,10 @@ function CardShareFlow({data}){
       ]}
     ]});
     const sep=()=>({type:'separator',margin:'md'});
-    const priceNote={type:'text',text:'本表非即時更新，請訂位時務必確認費用',size:'xxs',color:'#9ca3af',align:'center',margin:'lg'};
     const pricePage=(title,rows)=>({type:'bubble',size:'mega',
+      header:brandHeader('價目表'),
       body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
-        {type:'box',layout:'horizontal',spacing:'sm',alignItems:'center',contents:[
-          {type:'text',text:BM,weight:'bold',size:'md',color:'#111827',flex:0},
-          {type:'text',text:BS,size:'xs',color:'#6b7280',flex:0},
-          {type:'text',text:'價目表',size:'xxs',color:'#9ca3af',flex:0}
-        ]},
-        {type:'text',text:title,size:'md',weight:'bold',color:'#111827',margin:'md'},
+        {type:'text',text:title,size:'md',weight:'bold',color:'#111827'},
         ...rows,
         {type:'filler'},
         priceNote
