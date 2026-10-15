@@ -1,0 +1,39 @@
+{
+  "_說明": "名片用各館預設資料。key=館別(要跟stores.cfg的店名一致),bm=館名主體,bs=館名後綴,phone=訂位電話,addr=會館地址,addrNote=地址補充,mapUrl=Google Maps連結,appleUrl=Apple地圖連結。改這個檔案即可,不用改程式;抓不到時App用內建同一份資料。",
+  "龍山寺店": {
+    "bm": "雲心閣",
+    "bs": "養生會館",
+    "phone": "(02)2338-0193",
+    "addr": "台北市西園路一段218號",
+    "addrNote": "龍山寺捷運站1號出口對面",
+    "mapUrl": "https://maps.app.goo.gl/mco4AX52NrL7HaP9A?g_st=ic",
+    "appleUrl": "https://maps.apple/p/RpjW94GS9r5ZVd"
+  },
+  "東門店": {
+    "bm": "映禪",
+    "bs": "養生館",
+    "phone": "02 3322 6176",
+    "addr": "106臺北市大安區信義路二段176號",
+    "addrNote": "東門捷運站5號出口",
+    "mapUrl": "https://maps.app.goo.gl/pVDzhGJsT2UAJjrH6?g_st=ic",
+    "appleUrl": "https://maps.apple/p/EMiV82dAh3KoW6"
+  },
+  "古亭店": {
+    "bm": "禪云心",
+    "bs": "養生會館",
+    "phone": "02 2356 7017",
+    "addr": "100臺北市中正區和平西路一段19號",
+    "addrNote": "古亭捷運站7號出口走到和平西路右轉",
+    "mapUrl": "https://maps.app.goo.gl/8HkE2QFALZDY2vfj8?g_st=ic",
+    "appleUrl": "https://maps.apple/p/FKY5tqMv7fUC3F"
+  },
+  "公館店": {
+    "bm": "雲禪居",
+    "bs": "養生會館",
+    "phone": "02 2362 0393",
+    "addr": "100臺北市中正區汀州路三段199號",
+    "addrNote": "公館捷運站4號出口往52巷走",
+    "mapUrl": "https://maps.app.goo.gl/J6UjtaBCbUdpPyCm7?g_st=ic",
+    "appleUrl": "https://maps.apple/p/hAb8wkkjQZg~pm"
+  }
+}
