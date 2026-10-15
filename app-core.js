@@ -1,6 +1,7 @@
-// app-core.js v1.13-040 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-041 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
+// v1.13-041 / 首頁左上角館名跟著店別(店資storeSel,沒有就用啟動時選的store)變動:龍山寺=雲心閣養生會館、東門=映禪養生館、古亭=禪云心養生會館、公館=雲禪居養生會館;本部/教學處等沒有對應的用雲心閣。
 // v1.13-040 / 啟動頁NoticeBox改版:上方標題、說明文字放大(text-sm)、勾選移到說明下方。
 // v1.13-039 / 修正bug:NameCardModal用到CARD_STORE_DEFAULTS卻沒加進window.MP的解構清單,開首頁就報「Can't find variable: CARD_STORE_DEFAULTS」。
 // v1.13-038 / 名片加Apple地圖連結欄位(換館同步重設、存檔存cardAppleUrl)。
@@ -1599,7 +1600,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
   const prevDow=prev?dow(prev.year,prev.month,prev.day):0;
   return(<div className="p-5 max-w-md mx-auto fi">
     <div className="flex items-center justify-between mb-2 px-1">
-      <div onClick={()=>setShowStoreInfo(true)} className="flex items-baseline gap-1.5 active:opacity-70 cursor-pointer"><span className="text-base font-bold text-gray-100">雲心閣</span><span className="text-xs text-gray-500">養生會館</span><span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-600 text-white font-bold border border-red-400">24h</span></div>
+      <div onClick={()=>setShowStoreInfo(true)} className="flex items-baseline gap-1.5 active:opacity-70 cursor-pointer"><span className="text-base font-bold text-gray-100">{(CARD_STORE_DEFAULTS[settings.storeSel||settings.store]||CARD_STORE_DEFAULTS['龍山寺店']).bm}</span><span className="text-xs text-gray-500">{(CARD_STORE_DEFAULTS[settings.storeSel||settings.store]||CARD_STORE_DEFAULTS['龍山寺店']).bs}</span><span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-600 text-white font-bold border border-red-400">24h</span></div>
       <button onClick={()=>setShowBasicInfo(true)} className="text-sm text-gray-500 font-mono active:text-gray-300 px-2 py-1 -mr-1">#{settings.code}</button>
     </div>
     {showStoreInfo&&<InfoEditModal type="store" settings={settings} t={t} onClose={()=>setShowStoreInfo(false)} onUpdateSettings={onUpdateSettings} onLogout={onLogout}/>}
