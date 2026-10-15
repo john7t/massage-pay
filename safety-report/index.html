@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>安全回報 v1.13-008</title>
+<title>安全回報 v1.13-010</title>
 <meta property="og:title" content="天然災害每日安全回報中心">
 <meta property="og:description" content="請點擊連結進行安全回報">
 <meta property="og:type" content="website">
@@ -880,7 +880,9 @@ function CardShareFlow({data}){
     const mapUri=/^https?:\/\//.test(d.m||'')?d.m:'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(d.a||'');
     const appleUri=/^https?:\/\//.test(d.am||'')?d.am:'https://maps.apple.com/?q='+encodeURIComponent(d.a||'');
     // 分享名片按鈕:收到的人點了開同一個LIFF頁,可再轉給別人(URI動作上限1000字,太長就不放)
-    const shareUri0='https://liff.line.me/'+LIFF_ID_HARDCODED+'?cardShare='+encodeURIComponent(JSON.stringify(d));
+    // g=第幾次轉傳(App發出=0,每轉傳一層+1),寫log用
+    const gen=Number(d.g)||0;
+    const shareUri0='https://liff.line.me/'+LIFF_ID_HARDCODED+'?cardShare='+encodeURIComponent(JSON.stringify(Object.assign({},d,{g:gen+1})));
     const shareUri=shareUri0.length<=1000?shareUri0:'';
     // 按鈕文字:地址去掉郵遞區號/台北市/XX區;電話去掉02區碼(撥號仍用完整號碼)
     const shortAddr=String(d.a||'').replace(/^\d*\s*(?:[臺台]北市)?(?:[\u4e00-\u9fa5]{2}區)?/,'')||String(d.a||'');
@@ -901,7 +903,8 @@ function CardShareFlow({data}){
       ...(tag?[{type:'text',text:tag,size:'xxs',color:'#eeeeff',flex:0,gravity:'center'}]:[])
     ]});
     const brandHeader=(tag)=>({type:'box',layout:'vertical',paddingAll:'lg',background:GRAD,contents:[brandRow(tag)]});
-    const priceNote={type:'text',text:'本表非即時更新，請訂位時務必確認費用',size:'xxs',color:'#9ca3af',align:'center',margin:'lg'};
+    const _n=new Date();const genDate=_n.getFullYear()+'/'+String(_n.getMonth()+1).padStart(2,'0')+'/'+String(_n.getDate()).padStart(2,'0'); // 產生Flex當下的日期,避免有人拿舊表來說事
+    const priceNote={type:'text',text:'本表於'+genDate+'產生，非即時更新，訂位時務必確認費用',wrap:true,size:'xxs',color:'#9ca3af',align:'center',margin:'lg'};
     // 第1頁:名片(上下用filler撐開,讓編號在中間;多頁時LINE會把各頁撐成同高)
     const page1={type:'bubble',size:'mega',
       header:brandHeader('老師個人名片'),
@@ -973,7 +976,11 @@ function CardShareFlow({data}){
       sep(),
       row('加節 30分鐘','','500'),row('加節 60分鐘','','850')
     ]);
-    liff.shareTargetPicker([{type:'flex',altText:BM+BS+' '+d.c+'號老師名片',contents:{type:'carousel',contents:[page1,page2,page3,page4]}}]).then(res=>{setStatus(res?'done':'cancelled')}).catch(e=>{setStatus('error');setErr(String(e&&e.message||e))});
+    liff.shareTargetPicker([{type:'flex',altText:BM+BS+' '+d.c+'號老師名片',contents:{type:'carousel',contents:[page1,page2,page3,page4]}}]).then(res=>{
+      setStatus(res?'done':'cancelled');
+      // 有人完成分享就記一筆Log(單純記錄:不等回應、不驗證有沒有寫成功;失敗靜默)。code=名片老師編號,flow=cardShare:g{轉傳層數}(g0=老師本人發出,g1=朋友第一次轉傳,g2=再轉傳…)
+      if(res){try{gasCall('logFlowEnter',{code:String(d.c),flow:'cardShare:g'+gen},8000)}catch(_e){}}
+    }).catch(e=>{setStatus('error');setErr(String(e&&e.message||e))});
   },[]);
   const goBack=()=>{try{liff.closeWindow()}catch(_e){location.href=INDEX_URL}};
   return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
