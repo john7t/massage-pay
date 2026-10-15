@@ -1,6 +1,10 @@
-// app-core.js v1.13-034 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-038 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
+// v1.13-038 / 名片加Apple地圖連結欄位(換館同步重設、存檔存cardAppleUrl)。
+// v1.13-037 / 名片彈窗開啟時讀cardstores.json更新各館預設(沒改過的欄位跟著更新)。
+// v1.13-036 / 名片彈窗館名改下拉(四店),換館即重設為該館資料,存檔只保留最後選的館別(cardStore+card*覆蓋舊值),不改店資storeSel。
+// v1.13-035 / 名片彈窗館名改依店別顯示(init.brandMain+brandSub)。
 // v1.13-034 / 新增名片分享:HomePage加「名片」按鈕+NameCardModal(欄位編輯/存檔存回基資店資/分享LINE好友Flex)。
 // v1.13-033 / 修正bug:每日第一次開啟App檢查流程(home-daily-{code}旗標)裡,「今天已經檢查過」這個旗標原本
 // 是在gasVerifyKey+gasLogDailyCheck(甚至syncMyStaffStatus)這幾個await全部跑完之後才寫回localStorage,
@@ -109,7 +113,7 @@
 // 點年份文字跳年度總表(帶著listY);月份列表左右兩側原本各一個「年度」按鈕拿掉。
 // (YearlyPage)加year prop(選填),沒傳的話退回settings.year維持向下相容,讓兩個頁面能各自帶著自己導覽到的年份跳過來。
 // index.html加yearlyYear state記住要顯示哪一年,onGotoYear callback改成接收年份參數。加todayBtn翻譯key | 前: v1.13-020
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,DISABLE_GH_DATA_FETCH,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,hasMyKey,isNoticeRead,getNoticeReadCount,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,svcByCode,bookUnits,bookMinutes,bookLabel,bookRange,findConflicts,dayOffStatus,skName,getBookings,addBooking,updateBooking,deleteBooking,confirmBooking,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,getCardData,sendCardFlex,CARD_BRAND,loadBreakStatus,breakFlipGreenLocal,breakFlipWhiteLocal,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,getMyLineUserId,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,DISABLE_GH_DATA_FETCH,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,hasMyKey,isNoticeRead,getNoticeReadCount,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,svcByCode,bookUnits,bookMinutes,bookLabel,bookRange,findConflicts,dayOffStatus,skName,getBookings,addBooking,updateBooking,deleteBooking,confirmBooking,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,getCardData,sendCardFlex,loadCardStores,CARD_BRAND,loadBreakStatus,breakFlipGreenLocal,breakFlipWhiteLocal,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,getMyLineUserId,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 
@@ -1348,26 +1352,39 @@ function SupervisorSection({t,settings}){
 // ===== 名片彈窗(1.13-034):欄位=館名/老師編號/上班時間/訂位電話/會館地址/地址補充/Google Maps連結;存檔直接存本機(基資/店資同一份settings),分享走LIFF發Flex =====
 function NameCardModal({t,settings,onClose,onUpdateSettings}){
   const init=getCardData(settings);
-  const[f,setF]=useState({workStart:init.workStart,workEnd:init.workEnd,phone:init.phone,addr:init.addr,addrNote:init.addrNote,mapUrl:init.mapUrl});
+  const storeKeys=Object.keys(CARD_STORE_DEFAULTS);
+  const[f,setF]=useState({store:init.store,workStart:init.workStart,workEnd:init.workEnd,phone:init.phone,addr:init.addr,addrNote:init.addrNote,mapUrl:init.mapUrl,appleUrl:init.appleUrl});
   const[msg,setMsg]=useState('');
+  const[,setTick]=useState(0);
+  useEffect(()=>{
+    const old=JSON.parse(JSON.stringify(CARD_STORE_DEFAULTS));
+    loadCardStores().then(ch=>{if(!ch)return;
+      // 使用者沒改過的欄位(值還等於舊預設)跟著新預設更新
+      setF(o=>{const od=old[o.store]||{},nd=CARD_STORE_DEFAULTS[o.store]||{};const n=Object.assign({},o);
+        [['phone','phone'],['addr','addr'],['addrNote','addrNote'],['mapUrl','mapUrl'],['appleUrl','appleUrl']].forEach(([fk,dk])=>{if(o[fk]===od[dk]&&nd[dk]!=null)n[fk]=nd[dk]});return n});
+      setTick(x=>x+1)});
+  },[]);
   const up=(k,v)=>{setF(o=>Object.assign({},o,{[k]:v}));setMsg('')};
+  const dflt=CARD_STORE_DEFAULTS[f.store]||CARD_STORE_DEFAULTS['龍山寺店'];
+  // 換館:上一館自填的電話/地址/補充/地圖全部丟掉,改帶新館預設(上班時間是老師自己的,保留)
+  const changeStore=(st)=>{const d=CARD_STORE_DEFAULTS[st]||CARD_STORE_DEFAULTS['龍山寺店'];setF(o=>Object.assign({},o,{store:st,phone:d.phone,addr:d.addr,addrNote:d.addrNote,mapUrl:d.mapUrl,appleUrl:d.appleUrl||''}));setMsg('')};
   const times=[];for(let h=0;h<24;h++){['00','30'].forEach(m=>times.push(String(h).padStart(2,'0')+':'+m))}
   if(f.workStart&&!times.includes(f.workStart))times.push(f.workStart);
   if(f.workEnd&&!times.includes(f.workEnd))times.push(f.workEnd);
   times.sort();
   const save=()=>{
-    const updated=Object.assign({},settings,{workStart:f.workStart,workEnd:f.workEnd,cardPhone:f.phone,cardAddr:f.addr,cardAddrNote:f.addrNote,cardMapUrl:f.mapUrl});
+    const updated=Object.assign({},settings,{workStart:f.workStart,workEnd:f.workEnd,cardStore:f.store,cardPhone:f.phone,cardAddr:f.addr,cardAddrNote:f.addrNote,cardMapUrl:f.mapUrl,cardAppleUrl:f.appleUrl});
     try{LS.set('app-settings',updated)}catch(_e){}
     if(onUpdateSettings)onUpdateSettings(updated);
     setMsg(t.cardSaved||'已存檔');
   };
-  const share=()=>{save();sendCardFlex(Object.assign({},init,f))};
+  const share=()=>{save();sendCardFlex({code:init.code,brandMain:dflt.bm,brandSub:dflt.bs,workStart:f.workStart,workEnd:f.workEnd,phone:f.phone,addr:f.addr,addrNote:f.addrNote,mapUrl:f.mapUrl,appleUrl:f.appleUrl})};
   const inp="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500";
   const lab="text-xs text-gray-400 mb-1 block";
   return(<BottomSheetModal onClose={onClose} heightPct={86}>
     <div className="px-4 pb-6 space-y-3">
       <p className="text-base font-bold text-gray-100 text-center pt-1">{t.cardTitle||'名片'}</p>
-      <div><label className={lab}>{t.cardBrand||'館名'}</label><div className={inp+" opacity-70"}>{CARD_BRAND}</div></div>
+      <div><label className={lab}>{t.cardBrand||'館名'}</label><select value={f.store} onChange={e=>changeStore(e.target.value)} className={inp}>{storeKeys.map(k=>{const d=CARD_STORE_DEFAULTS[k];return <option key={k} value={k}>{d.bm+d.bs}（{k}）</option>})}</select></div>
       <div><label className={lab}>{t.cardCode||'老師編號'}</label><div className={inp+" opacity-70"}>{init.code}</div></div>
       <div><label className={lab}>{t.cardWork||'上班時間'}</label>
         <div className="flex items-center gap-2">
@@ -1379,6 +1396,7 @@ function NameCardModal({t,settings,onClose,onUpdateSettings}){
       <div><label className={lab}>{t.cardAddr||'會館地址'}</label><input value={f.addr} onChange={e=>up('addr',e.target.value)} className={inp}/></div>
       <div><label className={lab}>{t.cardAddrNote||'地址補充'}</label><input value={f.addrNote} onChange={e=>up('addrNote',e.target.value)} className={inp}/></div>
       <div><label className={lab}>{t.cardMapUrl||'Google Maps 連結'}</label><input value={f.mapUrl} onChange={e=>up('mapUrl',e.target.value)} className={inp}/></div>
+      <div><label className={lab}>{t.cardAppleUrl||'Apple 地圖連結'}</label><input value={f.appleUrl} onChange={e=>up('appleUrl',e.target.value)} className={inp}/></div>
       {msg&&<p className="text-xs text-emerald-400 text-center">{msg}</p>}
       <div className="grid grid-cols-2 gap-2 pt-1">
         <button onClick={save} className="py-3 rounded-xl bg-amber-600 text-white text-sm font-bold active:opacity-80">{t.cardSave||'存檔'}</button>
