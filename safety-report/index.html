@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>安全回報 v1.13-010</title>
+<title>安全回報 v1.13-011</title>
 <meta property="og:title" content="天然災害每日安全回報中心">
 <meta property="og:description" content="請點擊連結進行安全回報">
 <meta property="og:type" content="website">
@@ -903,8 +903,8 @@ function CardShareFlow({data}){
       ...(tag?[{type:'text',text:tag,size:'xxs',color:'#eeeeff',flex:0,gravity:'center'}]:[])
     ]});
     const brandHeader=(tag)=>({type:'box',layout:'vertical',paddingAll:'lg',background:GRAD,contents:[brandRow(tag)]});
-    const _n=new Date();const genDate=_n.getFullYear()+'/'+String(_n.getMonth()+1).padStart(2,'0')+'/'+String(_n.getDate()).padStart(2,'0'); // 產生Flex當下的日期,避免有人拿舊表來說事
-    const priceNote={type:'text',text:'本表於'+genDate+'產生，非即時更新，訂位時務必確認費用',wrap:true,size:'xxs',color:'#9ca3af',align:'center',margin:'lg'};
+    const _n=new Date();const genDate=String(_n.getFullYear()).slice(2)+'/'+String(_n.getMonth()+1).padStart(2,'0')+'/'+String(_n.getDate()).padStart(2,'0'); // 產生Flex當下的日期,避免有人拿舊表來說事
+    const priceNote={type:'text',text:'本文於'+genDate+'產生，非即時更新，訂位時，務必確認費用',wrap:true,size:'xxs',color:'#9ca3af',align:'center',margin:'lg'};
     // 第1頁:名片(上下用filler撐開,讓編號在中間;多頁時LINE會把各頁撐成同高)
     const page1={type:'bubble',size:'mega',
       header:brandHeader('老師個人名片'),
