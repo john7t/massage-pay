@@ -1,6 +1,19 @@
 /* ════════════════════════════════════════════════════════════
    common.js — 薪資追蹤系統 共用工具
-   v1.13-024 / 配合settings.js的ChartPage個人資料圖表重構,新增personalChartStats(slipsWithTime)——
+   v1.13-027 / 新增名片分享:CARD_STORE_DEFAULTS四店預設資料、getCardData、sendCardFlex。
+   v1.13-026 / 配合app-core.js的BreakTimerSection(翻綠/休息計時器)去公司化,新增breakDayKey/loadBreakStatus/
+   breakFlipGreenLocal/breakFlipWhiteLocal四個函式,把原本會打GAS寫進公司共用雲端表格(BreakTickets,含店名,
+   還會分享連結給櫃台確認)的翻綠/回牌動作,改成純本機localStorage讀寫(LS key: break-{code}),不連線、不傳出
+   任何資料、不會有人被通知。breakDayKey沿用GAS端原本_breakDayKey同一套「跨夜班別算前一天」的邏輯,確保
+   凌晨翻綠的紀錄會跟前一晚算在同一個休息日,不會被切成兩段。詳見DEV_NOTES §47
+   | 前: v1.13-025 / 修正personalChartStats的時段軸在晚班(跨夜)情境下失真的問題:原本單純用minHour/maxHour算範圍,
+   遇到下午5點上工、凌晨3點下班這種跨夜班別,min會被凌晨時段拉到0、max被下午拉到23,軸變成幾乎整天(0~23),完全沒有
+   縮小範圍的效果。改成新增_hourOrder(hasHour)輔助函式:把24小時視為環狀,找出「資料實際出現的小時」裡最大的一段連續
+   空檔(沒工作的那段),從空檔結束後排到空檔開始前,這樣晚班會自然排成17,18,...,23,0,1,2,3這種跨夜但連續的順序;
+   日班(例如8~20點)的最大空檔自然落在夜間,排序結果跟原本min~max等價,不受影響。回傳值的minHour/maxHour兩個欄位
+   改成hourOrder(排好順序的小時陣列),settings.js的ChartPage熱力圖跟著改用這個陣列畫橫軸。流水歸屬哪一天完全不受影響,
+   一律用該筆流水原始日期的getDay()判定周幾,不會因為跨夜就自動+1天(這點原本的寫法就是對的,這次只是確認並寫進註解)
+   | 前: v1.13-024 / 配合settings.js的ChartPage個人資料圖表重構,新增personalChartStats(slipsWithTime)——
    依流水開始時間(slipStartTime)算出weekday×hour熱力圖矩陣、周幾單位數加總趨勢、單日流水數分布(>=2筆的天數依2/3/4/5+分組),
    並附上資料實際出現的minHour/maxHour供圖表動態決定時間軸範圍(不同時間區間各自算各自的動態範圍,不是全域固定一個範圍)。
    「本週」(含今天、可能還沒過完的這個ISO週)的資料另外算在curWeek,不併入跨週加總的heat/weekdayTotals/extraDist裡面
@@ -118,6 +131,33 @@ function sendTicketFlex(title,body,link,viBody){
   const fullBody=viBody?(body+'\n\n'+viBody):body;
   const uri='https://liff.line.me/'+TICKET_FLEX_LIFF_ID+'?flexTitle='+encodeURIComponent(title)+'&flexBody='+encodeURIComponent(fullBody||'')+'&flexLink='+encodeURIComponent(link);
   location.href=uri;
+}
+// ===== 名片分享(1.13-027) =====
+const CARD_STORE_DEFAULTS={
+  '龍山寺店':{phone:'(02)2338-0193',addr:'台北市西園路一段218號',addrNote:'龍山寺捷運站1號出口對面',mapUrl:'https://maps.app.goo.gl/mco4AX52NrL7HaP9A?g_st=ic'},
+  '東門店':{phone:'02 3322 6176',addr:'106臺北市大安區信義路二段176號',addrNote:'東門捷運站5號出口',mapUrl:'https://maps.app.goo.gl/pVDzhGJsT2UAJjrH6?g_st=ic'},
+  '古亭店':{phone:'02 2356 7017',addr:'100臺北市中正區和平西路一段19號',addrNote:'古亭捷運站7號出口走到和平西路右轉',mapUrl:'https://maps.app.goo.gl/8HkE2QFALZDY2vfj8?g_st=ic'},
+  '公館店':{phone:'02 2362 0393',addr:'100臺北市中正區汀州路三段199號',addrNote:'公館捷運站4號出口往52巷走',mapUrl:'https://maps.app.goo.gl/J6UjtaBCbUdpPyCm7?g_st=ic'}
+};
+const CARD_BRAND='雲心閣養生會館';
+// 名片資料:使用者自填(settings.card*)優先,沒填用店別預設;本部/教學處等沒有預設的店別一律用龍山寺店
+function getCardData(settings){
+  const s=settings||{};
+  const store=s.storeSel||s.store||'龍山寺店';
+  const d=CARD_STORE_DEFAULTS[store]||CARD_STORE_DEFAULTS['龍山寺店'];
+  return{
+    store,code:String(s.code||''),
+    workStart:s.workStart||'09:00',workEnd:s.workEnd||'21:00',
+    phone:s.cardPhone!=null&&s.cardPhone!==''?s.cardPhone:d.phone,
+    addr:s.cardAddr!=null&&s.cardAddr!==''?s.cardAddr:d.addr,
+    addrNote:s.cardAddrNote!=null&&s.cardAddrNote!==''?s.cardAddrNote:d.addrNote,
+    mapUrl:s.cardMapUrl!=null&&s.cardMapUrl!==''?s.cardMapUrl:d.mapUrl
+  };
+}
+// 導去safety-report.html的LIFF網址代發名片Flex(同sendTicketFlex機制)
+function sendCardFlex(card){
+  const o={c:card.code,ws:card.workStart,we:card.workEnd,p:card.phone,a:card.addr,n:card.addrNote,m:card.mapUrl};
+  location.href='https://liff.line.me/'+TICKET_FLEX_LIFF_ID+'?cardShare='+encodeURIComponent(JSON.stringify(o));
 }
 // 從 hash 還原完整碼：依序接回 req,req2,req3...
 function parseReqHash(hash,prefix){const P=prefix||'req';const h=(hash||'').replace(/^#/,'');if(!h)return null;const params={};h.split('&').forEach(kv=>{const idx=kv.indexOf('=');if(idx>0){const k=kv.slice(0,idx);const v=kv.slice(idx+1);params[k]=v}});if(params[P]===undefined)return null;let code='';try{code=decodeURIComponent(params[P])}catch(_e){code=params[P]}let n=2;while(params[P+n]!==undefined){try{code+=decodeURIComponent(params[P+n])}catch(_e){code+=params[P+n]}n++}return code}
@@ -753,10 +793,33 @@ function searchSlips(slips,q){q=(q||'').trim().toLowerCase();if(!q)return[];retu
 // ISO週數(週一為一週開始),回傳{year,week} — 用來判斷「本週」是否還沒過完,本週資料不計入跨週加總統計
 function _isoWeek(d){const date=new Date(d.getFullYear(),d.getMonth(),d.getDate());const day=(date.getDay()+6)%7;date.setDate(date.getDate()-day+3);const firstThu=new Date(date.getFullYear(),0,4);const diff=date-firstThu;const week=1+Math.round(diff/(7*86400000));return{year:date.getFullYear(),week}}
 function _weekKeyOf(ms){const d=new Date(ms);const{year,week}=_isoWeek(d);return year+'-W'+week}
+// 時段軸排序(處理晚班跨夜問題):輸入hasHour[24](某小時有沒有出現過流水),找出「資料實際出現的小時」裡最大的一段連續空檔
+// (circular,把0點跟23點視為相鄰),把這個最大空檔當成「沒在工作的那段」,從空檔結束後的小時開始排到空檔開始前的小時,
+// 這樣像晚班下午5點~凌晨3點這種跨夜班別,軸會自然排成17,18,...,23,0,1,2,3,而不是被minHour/maxHour簡單算成0~23
+// (那樣等於整天都算進去,等於沒有縮小範圍)。日班(例如8點~20點)的最大空檔自然會落在夜間那段,排序結果跟原本min~max一樣。
+// 這只決定「畫面上怎麼排列時段」,跟流水歸屬哪一天完全無關——歸屬哪一天永遠依流水本身的日期(dt.getDay())判定,
+// 不會因為橫跨午夜就自動算成下一天,這點在personalChartStats裡本來就是直接用該筆流水的原始日期算weekday,沒有做任何+1天的校正
+function _hourOrder(hasHour){
+  const present=[];
+  for(let h=0;h<24;h++)if(hasHour[h])present.push(h);
+  if(present.length===0)return[];
+  if(present.length===24)return Array.from({length:24},(_,i)=>i);
+  let maxGap=-1,gapIdx=0;
+  for(let i=0;i<present.length;i++){
+    const cur=present[i];
+    const next=present[(i+1)%present.length];
+    let diff=next-cur;if(diff<=0)diff+=24;
+    if(diff>maxGap){maxGap=diff;gapIdx=i}
+  }
+  const startIdx=(gapIdx+1)%present.length;
+  const order=[];
+  for(let i=0;i<present.length;i++)order.push(present[(startIdx+i)%present.length]);
+  return order;
+}
 // 個人資料圖表統計(1.13版圖表重構用):依流水的開始時間(slipStartTime)算出:
 // (1)依weekday×hour的熱力圖矩陣heat[7][24](weekday:0=日~6=六) (2)周幾單位數趨勢weekdayTotals[7]
-// (3)單日流水數分布extraDist(>=2筆的日子,依2/3/4/5+分組計次數) (4)minHour/maxHour=資料實際出現的最早/最晚小時,
-// 給圖表動態決定時間軸範圍用,不同時間區間(周/月/年)各自呼叫這個函式會得到各自的動態範圍。
+// (3)單日流水數分布extraDist(>=2筆的日子,依2/3/4/5+分組計次數) (4)hourOrder=資料實際出現的小時,依_hourOrder排好順序的陣列,
+// 給圖表動態決定時間軸範圍/排列用,不同時間區間(周/月/年)各自呼叫這個函式會得到各自的動態範圍,也各自正確處理跨夜排序。
 // 「本週」(含今天的這個ISO週,可能還沒過完)的資料另外歸在curWeek,不併入heat/weekdayTotals/extraDist這些跨週加總統計
 // (避免還沒發生的日子被誤判成「比較少客人」),但仍即時算出來給畫面即時顯示「本週目前」用,不會被整個隱藏看不到
 function personalChartStats(slipsWithTime){
@@ -765,16 +828,16 @@ function personalChartStats(slipsWithTime){
   const weekdayTotals=Array.from({length:7},()=>0);
   const curHeat=Array.from({length:7},()=>Array.from({length:24},()=>0));
   const curWeekdayTotals=Array.from({length:7},()=>0);
+  const hasHour=Array.from({length:24},()=>false);
   const dayMap={};
-  let minHour=null,maxHour=null,curWeekSlips=0;
+  let curWeekSlips=0;
   (slipsWithTime||[]).forEach(s=>{
     if(!s||!s.time)return;
     const dt=new Date(s.time);
     const h=dt.getHours();
-    const wd=dt.getDay();
+    const wd=dt.getDay(); // 依流水本身的日期算周幾,不因跨夜自動+1天
     const u=s.units||1;
-    if(minHour===null||h<minHour)minHour=h;
-    if(maxHour===null||h>maxHour)maxHour=h;
+    hasHour[h]=true;
     const wk=_weekKeyOf(s.time);
     const dstr=dt.getFullYear()+'-'+(dt.getMonth()+1)+'-'+dt.getDate();
     if(!dayMap[dstr])dayMap[dstr]={slips:0,weekKey:wk};
@@ -789,10 +852,55 @@ function personalChartStats(slipsWithTime){
     if(d.slips>=2){const key=d.slips>=5?'5+':String(d.slips);extraDist[key]=(extraDist[key]||0)+1}
   });
   return{
-    minHour,maxHour,heat,weekdayTotals,extraDist,totalDaysWithData,
+    hourOrder:_hourOrder(hasHour),heat,weekdayTotals,extraDist,totalDaysWithData,
     curWeek:{heat:curHeat,weekdayTotals:curWeekdayTotals,slips:curWeekSlips,extraDays:curWeekExtraDays,key:curWeekKey},
     totalSlips:(slipsWithTime||[]).length,updatedAt:Date.now()
   };
+}
+// ===== 翻綠(休息)計時,1.13版去公司化改成純本機記錄 =====
+// 原本這個功能會把翻綠/回牌動作打去GAS,寫進公司共用的雲端表格(BreakTickets),還會分享連結給櫃台確認——
+// 跟1.13系列「拿掉所有公司內部的東西,系統改造成老師自己用的純個人工具」這個核心決策不一致(詳見DEV_NOTES),
+// 這次改成完全本機:不打GAS、不分享連結給任何人確認,翻綠/回牌只存在自己手機的localStorage裡,單純當個人計時小工具用。
+// 算「今天」用哪一天當基準,跟GAS端原本的_breakDayKey同一套邏輯:如果上下工時間跨夜(下班時間<上班時間,例如晚班22:00~06:00),
+// 現在時間還沒到下班時間(例如凌晨3點),就算昨天(這樣凌晨翻綠的紀錄會跟前一晚的算在同一天,不會被切成兩段)
+function breakDayKey(workStart,workEnd){
+  const now=new Date();
+  const todayStr=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  if(!workStart||!workEnd)return todayStr;
+  const toMin=(s)=>{const p=String(s).split(':').map(Number);return(p[0]||0)*60+(p[1]||0)};
+  const startMin=toMin(workStart),endMin=toMin(workEnd),nowMin=now.getHours()*60+now.getMinutes();
+  if(endMin>=startMin)return todayStr;
+  if(nowMin<endMin){const d=new Date(now);d.setDate(d.getDate()-1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+  return todayStr;
+}
+// 讀「今天」的翻綠紀錄(跨日自動視為沒有資料,不會沿用到前一個工作日的狀態)
+function loadBreakStatus(code,workStart,workEnd){
+  const day=breakDayKey(workStart,workEnd);
+  const rec=LS.get('break-'+code);
+  if(!rec||rec.date!==day)return{exists:false,sessions:[],usedSeconds:0,isOpen:false,date:day};
+  const sessions=rec.sessions||[];
+  const nowMs=Date.now();let usedMs=0,isOpen=false;
+  sessions.forEach(s=>{if(s.greenAt&&s.whiteAt)usedMs+=(s.whiteAt-s.greenAt);else if(s.greenAt&&!s.whiteAt){usedMs+=(nowMs-s.greenAt);isOpen=true}});
+  return{exists:true,sessions,usedSeconds:Math.floor(usedMs/1000),isOpen,date:day};
+}
+function breakFlipGreenLocal(code,workStart,workEnd){
+  const day=breakDayKey(workStart,workEnd);
+  let rec=LS.get('break-'+code);
+  if(!rec||rec.date!==day)rec={date:day,sessions:[]};
+  if(rec.sessions.length>0&&!rec.sessions[rec.sessions.length-1].whiteAt)return{ok:false,error:'目前已經在翻綠狀態，請先回牌'};
+  rec.sessions.push({greenAt:Date.now(),whiteAt:0});
+  LS.set('break-'+code,rec);
+  return{ok:true};
+}
+function breakFlipWhiteLocal(code,workStart,workEnd){
+  const day=breakDayKey(workStart,workEnd);
+  const rec=LS.get('break-'+code);
+  if(!rec||rec.date!==day||!rec.sessions||!rec.sessions.length)return{ok:false,error:'查無此翻綠紀錄'};
+  const last=rec.sessions[rec.sessions.length-1];
+  if(last.whiteAt)return{ok:false,error:'目前沒有進行中的翻綠'};
+  last.whiteAt=Date.now();
+  LS.set('break-'+code,rec);
+  return{ok:true};
 }
 const calcSal=(day,unitPrice,enabledSkills)=>{let sal=day.total*unitPrice;const sk=day.skills||{};SKILL_KEYS.forEach((k,i)=>{if(enabledSkills?.[k])sal+=(sk[k]||0)*SKILL_PRICES[i]});return sal};
 // 依指定日期查對應單價:settings.unitPriceHistory是[{from:'YYYY-MM-DD',price:數字},...]分段紀錄,
@@ -959,7 +1067,7 @@ secBasic:"基本資料",secStore:"在店資訊",nameZh:"中文姓名",nameVi:"�
 storeName:"店名",shift:"班別",shiftDay:"早班",shiftNight:"晚班",workNote:"特別上下工備註",
 skPregnant:"特殊客人（懷孕）",skOil:"油壓",
 custMgmt:"客戶管理",noticeCenter:"公司宣達事項",suggestBox:"提供建議",manageCenter:"管理中心",underConstruction:"施工中",
-confirmWithSup:"與主管確認",permitNo:"許可文號",permitExpiry:"到期日",permitOrgOpt:"核發單位",orgWDA:"勞動部勞動力發展署",orgNIA:"內政部移民署",orgOther:"其他",permitExpiringSoon:"工作證即將到期",phone2:"手機",city:"縣市",district:"區/鄉鎮市",addrDetail:"地址",selectCity:"選擇縣市",selectDist:"選擇區",myBookingNote:"「我的自約」非店家正式預約資料，僅供老師方便記錄使用。",partyMember:"同行第",assignTeacher:"指定老師",noAssign:"不指定",svcNote:"服務備註",calView:"日曆式",eventView:"事件序",totalPeople:"共",peopleUnit:"人",alsoAssign:"另指定",assignMode:"指定方式",noAssignTeacher:"不指定老師",assignTeacherMode:"指定老師",assignByCode:"指定編號",assignByCond:"指定條件",assignMale:"指男",assignFemale:"指女",assignTW:"指台",assignVN:"指越",assignOil:"油壓",confirmWithCounter:"跟櫃台確認",confirmWithAssigned:"跟指定老師確認",editBtn:"編輯",saveChange:"儲存變更",logConfirmCounter:"與櫃台確認該時段",logConfirmAssigned:"與指定老師{0}確認",logEditChange:"編輯：{0}",foreignSection:"外籍員工",permitNoLabel:"工作證許可文號",langSchool:"目前就讀語言學校",schoolType:"目前就讀",schoolTypeLang:"語言學校",schoolTypeUni:"大學",schoolTypeMaster:"研究所",schoolTypePhd:"博士班",selectLangSchool:"選擇語言學校",closeThis:"關閉此頁",confirmedAssignedToast:"已與{0}老師確認",confirmedCounterToast:"已與櫃台確認",statusUnconfirmed:"未確認",statusConfirmed:"已確認",statusAssignedConfirmed:"已跟指定老師確認",statusReconfirm:"自約變更，請重新確認",statusTeacherProgress:"已與老師確認 ({0}/{1})",confirmedTeacherToast:"已與老師確認 ({0}/{1})",hidePast:"隱藏已過期",workTimeEdit:"上下工時間",workStartH:"上工",workEndH:"下工",saveWorkTime:"儲存工時",internSup:"實習副理",confirmSuccess:"已確認，資料已更新",confirmFail:"確認碼錯誤或不符",scanReqEntry:"刷申請碼",reqBasic:"基資申請",reqStore:"店資申請",agreeWrite:"同意並寫入",disagree:"不同意",writeOk:"已寫入，確認碼：",giveConfirmCode:"請將確認碼給老師",logReqWritten:"寫入{0}申請：{1}",uuidBound:"已綁定裝置",uuidNew:"新裝置(將綁定)",workChartTitle:"上工人數統計",workChartOnline:"在線人數",workChartStart:"上工分布",workChartOnlineDesc:"各時段在線老師人數",workChartStartDesc:"各時間點上工的老師人數",allStores:"全部店家",tabChart:"圖表",chartShiftRatio:"班別比",chartGenderRatio:"性別比",chartAnalysis1:"分析1",chartAnalysis2:"分析2",chartWorkStart:"上工人數",chartOnline:"在線人數",chartWorkStartDesc:"各時間點上工的老師人數",chartOnlineDesc:"各時段在線老師人數（含跨夜）",peopleUnit2:"人",chartDayShift:"早班",chartNightShift:"晚班",chartMale:"男",chartFemale:"女",chartOther:"其他",chartUpdatedAt:"資料更新",chartNoData:"尚無統計資料，請待主管發布",chartSupOnly:"需主管權限",chartPublished:"已發布給成員",statTotal:"總人數",chartUpdate:"更新",
+confirmWithSup:"與主管確認",permitNo:"許可文號",permitExpiry:"到期日",permitOrgOpt:"核發單位",orgWDA:"勞動部勞動力發展署",orgNIA:"內政部移民署",orgOther:"其他",permitExpiringSoon:"工作證即將到期",phone2:"手機",city:"縣市",district:"區/鄉鎮市",addrDetail:"地址",selectCity:"選擇縣市",selectDist:"選擇區",myBookingNote:"「我的自約」非店家正式預約資料，僅供老師方便記錄使用。",partyMember:"同行第",assignTeacher:"指定老師",noAssign:"不指定",svcNote:"服務備註",calView:"日曆式",eventView:"事件序",totalPeople:"共",peopleUnit:"人",alsoAssign:"另指定",assignMode:"指定方式",noAssignTeacher:"不指定老師",assignTeacherMode:"指定老師",assignByCode:"指定編號",assignByCond:"指定條件",assignMale:"指男",assignFemale:"指女",assignTW:"指台",assignVN:"指越",assignOil:"油壓",confirmWithCounter:"跟櫃台確認",confirmWithAssigned:"跟指定老師確認",editBtn:"編輯",saveChange:"儲存變更",logConfirmCounter:"與櫃台確認該時段",logConfirmAssigned:"與指定老師{0}確認",logEditChange:"編輯：{0}",foreignSection:"外籍員工",permitNoLabel:"工作證許可文號",langSchool:"目前就讀語言學校",schoolType:"目前就讀",schoolTypeLang:"語言學校",schoolTypeUni:"大學",schoolTypeMaster:"研究所",schoolTypePhd:"博士班",selectLangSchool:"選擇語言學校",closeThis:"關閉此頁",confirmedAssignedToast:"已與{0}老師確認",confirmedCounterToast:"已與櫃台確認",statusUnconfirmed:"未確認",statusConfirmed:"已確認",statusAssignedConfirmed:"已跟指定老師確認",statusReconfirm:"自約變更，請重新確認",statusTeacherProgress:"已與老師確認 ({0}/{1})",confirmedTeacherToast:"已與老師確認 ({0}/{1})",hidePast:"隱藏已過期",workTimeEdit:"上下工時間",workStartH:"上工",workEndH:"下工",saveWorkTime:"儲存工時",internSup:"實習副理",confirmSuccess:"已確認，資料已更新",confirmFail:"確認碼錯誤或不符",scanReqEntry:"刷申請碼",reqBasic:"基資申請",reqStore:"店資申請",agreeWrite:"同意並寫入",disagree:"不同意",writeOk:"已寫入，確認碼：",giveConfirmCode:"請將確認碼給老師",logReqWritten:"寫入{0}申請：{1}",uuidBound:"已綁定裝置",uuidNew:"新裝置(將綁定)",workChartTitle:"上工人數統計",workChartOnline:"在線人數",workChartStart:"上工分布",workChartOnlineDesc:"各時段在線老師人數",workChartStartDesc:"各時間點上工的老師人數",allStores:"全部店家",tabChart:"圖表",chartShiftRatio:"班別比",chartGenderRatio:"性別比",chartAnalysis1:"分析1",chartAnalysis2:"分析2",chartWorkStart:"上工人數",chartOnline:"在線人數",chartWorkStartDesc:"各時間點上工的老師人數",chartOnlineDesc:"各時段在線老師人數（含跨夜）",peopleUnit2:"人",chartDayShift:"早班",chartNightShift:"晚班",chartMale:"男",chartFemale:"女",chartOther:"其他",chartUpdatedAt:"資料更新",chartNoData:"尚無統計資料，請待主管發布",chartSupOnly:"需主管權限",chartPublished:"已發布給成員",statTotal:"總人數",cardBtn:"名片",cardTitle:"名片",cardBrand:"館名",cardCode:"老師編號",cardWork:"上班時間",cardPhone:"訂位電話",cardAddr:"會館地址",cardAddrNote:"地址補充",cardMapUrl:"Google Maps 連結",cardSave:"存檔",cardShare:"分享給 LINE 好友",cardSaved:"已存檔",cardPersonal:"老師個人名片",cardAddrBtn:"地址",cardPhoneBtn:"電話",chartUpdate:"更新",
 chartTabHeat:"熱力圖",chartTabWeekday:"周幾趨勢",chartTabExtra:"加訪趨勢",chartHeatDesc:"依資料實際出現的時間範圍，顯示周幾、幾點客人較集中（顏色越深代表支數越多）",chartWeekdayDesc:"依周幾加總各天的支數，看哪天客人較多／較少",chartExtraDesc:"當天流水超過1筆時，統計目前有幾天達到2／3／4／5筆以上",chartCurWeekNote:"本週（進行中，尚未計入上方統計）目前已有 {0} 支",chartExtraDaysUnit:"天",chartNoSlipData:"尚無流水資料，先記幾筆流水再回來看圖表",chartMockupHint:"（樣版）之後會加上可切換統計區間的功能",slipList:"流水紀錄",slipAuto:"自動",slipStartTime:"開始時間",slipDelete:"刪除此筆",slipTags:"客管標籤（選填）",slipTagsPlaceholder:"空格分隔，按 Enter 或 + 加入",slipTagHistory:"歷史標籤：",slipTagAdd:"加入",custTagStats:"標籤統計",custSearchBtn:"客戶管理",custNoTags:"尚無標籤，請在每日流水裡記錄",custSearchPlaceholder:"搜尋姓名 / 稱謂 / 手機",myBooking2:"我的自約",bookHistory:"歷史",collapseBtn:"收起",expandBtn:"展開",duplicateBtn:"複製為新的自約",bookNoCustHint:"請先搜尋或輸入老點姓名/手機",cancelWithCounter:"跟櫃台取消",cancelledCounterToast:"已取消與櫃台確認",logUnconfirm:"取消與櫃台確認",logUnconfirmAssigned:"取消與指定老師{0}確認",bookConfirmStatusLabel:"自約確認情形",
 tabHome2:"首設",tabBackup:"備份",homeSettings:"系統設定",backupCenter:"備份",
 curStore:"目前服務店家",applyChange:"申請更改",genBasicCode:"產生基資申請碼",genStoreCode:"產生店資申請碼",basicApplyCode:"基資申請碼",storeApplyCode:"店資申請碼",confirmCode2:"確認碼",copyBtn:"複製",lastSyncAt:"最後同步時間",fullStaffData:"完整資料",fullBasicData:"基資完整資料",fullStoreData:"店資完整資料",saveToStaff:"存回 staff",saved:"已存回",saveFailStaff:"存檔失敗",staffValueHint:"公司登記",
@@ -973,7 +1081,7 @@ secBasic:"Thông tin cơ bản",secStore:"Thông tin cửa hàng",nameZh:"Tên t
 storeName:"Tên cửa hàng",shift:"Ca làm",shiftDay:"Ca sáng",shiftNight:"Ca đêm",workNote:"Ghi chú giờ làm đặc biệt",
 skPregnant:"Khách đặc biệt (mang thai)",skOil:"Massage dầu",
 custMgmt:"Quản lý khách",noticeCenter:"Thông báo công ty",suggestBox:"Góp ý",manageCenter:"Trung tâm quản lý",underConstruction:"Đang xây dựng",
-confirmWithSup:"Xác nhận với quản lý",permitNo:"Số giấy phép",permitExpiry:"Ngày hết hạn",permitOrgOpt:"Đơn vị cấp",orgWDA:"Cục Phát triển Lực lượng LĐ",orgNIA:"Cục Di trú",orgOther:"Khác",permitExpiringSoon:"Giấy phép sắp hết hạn",phone2:"Điện thoại",city:"Tỉnh/Thành",district:"Quận/Huyện",addrDetail:"Địa chỉ",selectCity:"Chọn tỉnh/thành",selectDist:"Chọn quận",myBookingNote:"Lịch hẹn của tôi không phải dữ liệu đặt chỗ chính thức, chỉ để giáo viên ghi chú.",partyMember:"Người đi cùng thứ ",assignTeacher:"Chỉ định GV",noAssign:"Không chỉ định",svcNote:"Ghi chú dịch vụ",calView:"Lịch",eventView:"Sự kiện",totalPeople:"Tổng ",peopleUnit:" người",alsoAssign:"chỉ định thêm",assignMode:"Cách chỉ định",noAssignTeacher:"Không chỉ định GV",assignTeacherMode:"Chỉ định GV",assignByCode:"Theo mã số",assignByCond:"Theo điều kiện",assignMale:"GV nam",assignFemale:"GV nữ",assignTW:"GV Đài",assignVN:"GV Việt",assignOil:"Massage dầu",confirmWithCounter:"Xác nhận với quầy",confirmWithAssigned:"Xác nhận với GV",editBtn:"Sửa",saveChange:"Lưu thay đổi",logConfirmCounter:"Đã xác nhận giờ với quầy",logConfirmAssigned:"Đã xác nhận với GV {0}",logEditChange:"Sửa: {0}",foreignSection:"Nhân viên nước ngoài",permitNoLabel:"Số giấy phép làm việc",langSchool:"Trường ngôn ngữ đang học",schoolType:"Đang học",schoolTypeLang:"Trường ngôn ngữ",schoolTypeUni:"Đại học",schoolTypeMaster:"Thạc sĩ",schoolTypePhd:"Tiến sĩ",selectLangSchool:"Chọn trường",closeThis:"Đóng trang",confirmedAssignedToast:"Đã xác nhận với GV {0}",confirmedCounterToast:"Đã xác nhận với quầy",statusUnconfirmed:"Chưa xác nhận",statusConfirmed:"Đã xác nhận",statusAssignedConfirmed:"Đã xác nhận với GV chỉ định",statusReconfirm:"Lịch hẹn đã đổi, xác nhận lại",statusTeacherProgress:"Đã xác nhận GV ({0}/{1})",confirmedTeacherToast:"Đã xác nhận GV ({0}/{1})",hidePast:"Ẩn đã qua",workTimeEdit:"Giờ làm việc",workStartH:"Vào ca",workEndH:"Tan ca",saveWorkTime:"Lưu giờ",internSup:"Phó QL thực tập",confirmSuccess:"Đã xác nhận, dữ liệu cập nhật",confirmFail:"Mã xác nhận sai",scanReqEntry:"Quét mã yêu cầu",reqBasic:"YC hồ sơ",reqStore:"YC cửa hàng",agreeWrite:"Đồng ý & ghi",disagree:"Không đồng ý",writeOk:"Đã ghi, mã XN: ",giveConfirmCode:"Đưa mã XN cho GV",logReqWritten:"Đã ghi YC {0}: {1}",uuidBound:"Đã gắn thiết bị",uuidNew:"Thiết bị mới",workChartTitle:"Thống kê giờ làm",workChartOnline:"Đang làm",workChartStart:"Giờ vào ca",workChartOnlineDesc:"Số GV đang làm theo giờ",workChartStartDesc:"Số GV vào ca theo giờ",allStores:"Tất cả CH",tabChart:"Biểu đồ",chartShiftRatio:"Tỷ lệ ca",chartGenderRatio:"Tỷ lệ giới",chartAnalysis1:"Phân tích 1",chartAnalysis2:"Phân tích 2",chartWorkStart:"Số vào ca",chartOnline:"Đang làm",chartWorkStartDesc:"Số GV vào ca theo giờ",chartOnlineDesc:"Số GV đang làm theo giờ (gồm qua đêm)",peopleUnit2:"người",chartDayShift:"Ca sáng",chartNightShift:"Ca tối",chartMale:"Nam",chartFemale:"Nữ",chartOther:"Khác",chartUpdatedAt:"Cập nhật",chartNoData:"Chưa có dữ liệu, chờ QL công bố",chartSupOnly:"Cần quyền QL",chartPublished:"Đã công bố",statTotal:"Tổng số",chartUpdate:"Cập nhật",
+confirmWithSup:"Xác nhận với quản lý",permitNo:"Số giấy phép",permitExpiry:"Ngày hết hạn",permitOrgOpt:"Đơn vị cấp",orgWDA:"Cục Phát triển Lực lượng LĐ",orgNIA:"Cục Di trú",orgOther:"Khác",permitExpiringSoon:"Giấy phép sắp hết hạn",phone2:"Điện thoại",city:"Tỉnh/Thành",district:"Quận/Huyện",addrDetail:"Địa chỉ",selectCity:"Chọn tỉnh/thành",selectDist:"Chọn quận",myBookingNote:"Lịch hẹn của tôi không phải dữ liệu đặt chỗ chính thức, chỉ để giáo viên ghi chú.",partyMember:"Người đi cùng thứ ",assignTeacher:"Chỉ định GV",noAssign:"Không chỉ định",svcNote:"Ghi chú dịch vụ",calView:"Lịch",eventView:"Sự kiện",totalPeople:"Tổng ",peopleUnit:" người",alsoAssign:"chỉ định thêm",assignMode:"Cách chỉ định",noAssignTeacher:"Không chỉ định GV",assignTeacherMode:"Chỉ định GV",assignByCode:"Theo mã số",assignByCond:"Theo điều kiện",assignMale:"GV nam",assignFemale:"GV nữ",assignTW:"GV Đài",assignVN:"GV Việt",assignOil:"Massage dầu",confirmWithCounter:"Xác nhận với quầy",confirmWithAssigned:"Xác nhận với GV",editBtn:"Sửa",saveChange:"Lưu thay đổi",logConfirmCounter:"Đã xác nhận giờ với quầy",logConfirmAssigned:"Đã xác nhận với GV {0}",logEditChange:"Sửa: {0}",foreignSection:"Nhân viên nước ngoài",permitNoLabel:"Số giấy phép làm việc",langSchool:"Trường ngôn ngữ đang học",schoolType:"Đang học",schoolTypeLang:"Trường ngôn ngữ",schoolTypeUni:"Đại học",schoolTypeMaster:"Thạc sĩ",schoolTypePhd:"Tiến sĩ",selectLangSchool:"Chọn trường",closeThis:"Đóng trang",confirmedAssignedToast:"Đã xác nhận với GV {0}",confirmedCounterToast:"Đã xác nhận với quầy",statusUnconfirmed:"Chưa xác nhận",statusConfirmed:"Đã xác nhận",statusAssignedConfirmed:"Đã xác nhận với GV chỉ định",statusReconfirm:"Lịch hẹn đã đổi, xác nhận lại",statusTeacherProgress:"Đã xác nhận GV ({0}/{1})",confirmedTeacherToast:"Đã xác nhận GV ({0}/{1})",hidePast:"Ẩn đã qua",workTimeEdit:"Giờ làm việc",workStartH:"Vào ca",workEndH:"Tan ca",saveWorkTime:"Lưu giờ",internSup:"Phó QL thực tập",confirmSuccess:"Đã xác nhận, dữ liệu cập nhật",confirmFail:"Mã xác nhận sai",scanReqEntry:"Quét mã yêu cầu",reqBasic:"YC hồ sơ",reqStore:"YC cửa hàng",agreeWrite:"Đồng ý & ghi",disagree:"Không đồng ý",writeOk:"Đã ghi, mã XN: ",giveConfirmCode:"Đưa mã XN cho GV",logReqWritten:"Đã ghi YC {0}: {1}",uuidBound:"Đã gắn thiết bị",uuidNew:"Thiết bị mới",workChartTitle:"Thống kê giờ làm",workChartOnline:"Đang làm",workChartStart:"Giờ vào ca",workChartOnlineDesc:"Số GV đang làm theo giờ",workChartStartDesc:"Số GV vào ca theo giờ",allStores:"Tất cả CH",tabChart:"Biểu đồ",chartShiftRatio:"Tỷ lệ ca",chartGenderRatio:"Tỷ lệ giới",chartAnalysis1:"Phân tích 1",chartAnalysis2:"Phân tích 2",chartWorkStart:"Số vào ca",chartOnline:"Đang làm",chartWorkStartDesc:"Số GV vào ca theo giờ",chartOnlineDesc:"Số GV đang làm theo giờ (gồm qua đêm)",peopleUnit2:"người",chartDayShift:"Ca sáng",chartNightShift:"Ca tối",chartMale:"Nam",chartFemale:"Nữ",chartOther:"Khác",chartUpdatedAt:"Cập nhật",chartNoData:"Chưa có dữ liệu, chờ QL công bố",chartSupOnly:"Cần quyền QL",chartPublished:"Đã công bố",statTotal:"Tổng số",cardBtn:"Danh thiếp",cardTitle:"Danh thiếp",cardBrand:"Tên spa",cardCode:"Mã KTV",cardWork:"Giờ làm việc",cardPhone:"SĐT đặt chỗ",cardAddr:"Địa chỉ",cardAddrNote:"Ghi chú địa chỉ",cardMapUrl:"Liên kết Google Maps",cardSave:"Lưu",cardShare:"Chia sẻ cho bạn LINE",cardSaved:"Đã lưu",cardPersonal:"Danh thiếp cá nhân",cardAddrBtn:"Địa chỉ",cardPhoneBtn:"Gọi",chartUpdate:"Cập nhật",
 chartTabHeat:"Bản đồ nhiệt",chartTabWeekday:"Xu hướng theo ngày",chartTabExtra:"Xu hướng khách thêm",chartHeatDesc:"Theo khoảng thời gian thực tế trong dữ liệu, hiển thị ngày/giờ nào đông khách (màu đậm = nhiều lượt hơn)",chartWeekdayDesc:"Tổng lượt theo từng ngày trong tuần, xem ngày nào đông/vắng khách hơn",chartExtraDesc:"Khi một ngày có hơn 1 lượt, thống kê hiện có bao nhiêu ngày đạt 2/3/4/5+ lượt",chartCurWeekNote:"Tuần này (đang diễn ra, chưa tính vào thống kê trên) hiện có {0} lượt",chartExtraDaysUnit:"ngày",chartNoSlipData:"Chưa có dữ liệu lượt khách, hãy ghi vài lượt rồi xem lại biểu đồ",chartMockupHint:"(Bản mẫu) Sắp tới sẽ thêm tính năng chọn khoảng thời gian",slipList:"Lịch sử",slipAuto:"Tự động",slipStartTime:"Giờ bắt đầu",slipDelete:"Xóa mục này",slipTags:"Nhãn KH (tùy chọn)",slipTagsPlaceholder:"Cách bằng dấu cách, Enter hoặc +",slipTagHistory:"Nhãn cũ:",slipTagAdd:"Thêm",custTagStats:"Thống kê nhãn",custSearchBtn:"Quản lý khách",custNoTags:"Chưa có nhãn, hãy ghi ở lịch sử mỗi ngày",custSearchPlaceholder:"Tìm tên / xưng hô / SĐT",myBooking2:"Lịch hẹn của tôi",bookHistory:"Lịch sử",collapseBtn:"Thu gọn",expandBtn:"Mở rộng",duplicateBtn:"Sao chép thành lịch hẹn mới",bookNoCustHint:"Vui lòng tìm hoặc nhập tên/SĐT khách",cancelWithCounter:"Hủy xác nhận với quầy",cancelledCounterToast:"Đã hủy xác nhận với quầy",logUnconfirm:"Hủy xác nhận với quầy",logUnconfirmAssigned:"Hủy xác nhận với GV {0}",bookConfirmStatusLabel:"Tình trạng xác nhận lịch hẹn",
 tabHome2:"Trang chính",tabBackup:"Sao lưu",homeSettings:"Cài đặt hệ thống",backupCenter:"Sao lưu",
 curStore:"Cửa hàng hiện tại",applyChange:"Xin đổi",genBasicCode:"Tạo mã hồ sơ",genStoreCode:"Tạo mã cửa hàng",basicApplyCode:"Mã hồ sơ",storeApplyCode:"Mã cửa hàng",confirmCode2:"Mã xác nhận",copyBtn:"Sao chép",lastSyncAt:"Đồng bộ lần cuối",fullStaffData:"Dữ liệu đầy đủ",fullBasicData:"Hồ sơ cơ bản",fullStoreData:"Hồ sơ cửa hàng",saveToStaff:"Lưu vào staff",saved:"Đã lưu",saveFailStaff:"Lưu thất bại",staffValueHint:"Công ty ghi",
@@ -1004,7 +1112,7 @@ window.MP={
   // data helpers
   SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,
   toB36,fromB36,dim,dow,bizDate,bizParts,BIZ_CUTOFF_MIN,getBizCutoff,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,
-  newSlip,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,saveCustDB,getCust,getGasUrl,setGasUrl,getBuiltinGasUrl,shouldClaimKey,autoClaimKey,diagClaimKey,gasCall,gasCallPost,gasWarmup,getNoticesLocal,saveNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,getNoticeListText,getNoticeCountType,getNoticeMainCats,publishNotices,noticeBody,noticeTitle,noticeSummary,noticeCats,noticeTags,getMyKey,setMyKey,hasMyKey,HIDE_COMPANY_FEATURES,DISABLE_GH_DATA_FETCH,INDEX_LIFF_ID,getMyLineUserId,setMyLineUserId,clearMyLineUserId,getLineLogoutFlag,setLineLogoutFlag,clearLineLogoutFlag,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,getNoticeUnread,gasTranslate,gasAnalyze,gasUsage,gasAddNotice,gasEditNotice,gasSubmitAction,gasCheckAction,gasApproveAction,gasBlacklistSubmit,gasBlacklistCheck,gasBlacklistApprove,gasBlacklistSearch,gasBackupSubmit,gasBackupCheck,gasBackupFetch,gasSfGetPendingDetail,gasSfApprovePendingRegistration,gasUpdatePwd,gasLoginPwd,gasSetInitialPwd,gasResetLockPwd,gasSyncProfile,gasCheckCode,gasCheckStaffCode,gasAuthStaffList,gasGetGHConfigForSupervisor,gasRevokeSup,gasRejectAction,gasVerifyKey,gasLogNoticeOpen,gasLeaveTeacher,gasPreApprove,gasGetPreApprove,gasCancelPreApprove,gasToggleNoticeStatus,gasSubmitSuggestion,gasListSuggestions,gasPushNoticeFlexToMe,gasLogDailyCheck,gasLogFlowEnter,gasDebugEcho,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasSubmitDisasterReport,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasCloseGroupBuy,gasGroupBuyDetail,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasCreateDisasterSurvey,gasEndDisasterSurvey,gasDeleteDisasterSurvey,gasListDisasterSurveys,gasMyDisasterReports,gasDisasterDayStatus,getAdminSecret,setAdminSecret,hasAdminSecret,issueKey,claimMyKey,upsertCust,deleteCust,searchCustDB,recentCust,custLastSlip,migrateDayGroups,migrateMonthGroups,slipSvcLabel,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,personalChartStats,
+  newSlip,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,saveCustDB,getCust,getGasUrl,setGasUrl,getBuiltinGasUrl,shouldClaimKey,autoClaimKey,diagClaimKey,gasCall,gasCallPost,gasWarmup,getNoticesLocal,saveNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,getNoticeListText,getNoticeCountType,getNoticeMainCats,publishNotices,noticeBody,noticeTitle,noticeSummary,noticeCats,noticeTags,getMyKey,setMyKey,hasMyKey,HIDE_COMPANY_FEATURES,DISABLE_GH_DATA_FETCH,INDEX_LIFF_ID,getMyLineUserId,setMyLineUserId,clearMyLineUserId,getLineLogoutFlag,setLineLogoutFlag,clearLineLogoutFlag,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,getNoticeUnread,gasTranslate,gasAnalyze,gasUsage,gasAddNotice,gasEditNotice,gasSubmitAction,gasCheckAction,gasApproveAction,gasBlacklistSubmit,gasBlacklistCheck,gasBlacklistApprove,gasBlacklistSearch,gasBackupSubmit,gasBackupCheck,gasBackupFetch,gasSfGetPendingDetail,gasSfApprovePendingRegistration,gasUpdatePwd,gasLoginPwd,gasSetInitialPwd,gasResetLockPwd,gasSyncProfile,gasCheckCode,gasCheckStaffCode,gasAuthStaffList,gasGetGHConfigForSupervisor,gasRevokeSup,gasRejectAction,gasVerifyKey,gasLogNoticeOpen,gasLeaveTeacher,gasPreApprove,gasGetPreApprove,gasCancelPreApprove,gasToggleNoticeStatus,gasSubmitSuggestion,gasListSuggestions,gasPushNoticeFlexToMe,gasLogDailyCheck,gasLogFlowEnter,gasDebugEcho,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasSubmitDisasterReport,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasCloseGroupBuy,gasGroupBuyDetail,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasCreateDisasterSurvey,gasEndDisasterSurvey,gasDeleteDisasterSurvey,gasListDisasterSurveys,gasMyDisasterReports,gasDisasterDayStatus,getAdminSecret,setAdminSecret,hasAdminSecret,issueKey,claimMyKey,upsertCust,deleteCust,searchCustDB,recentCust,custLastSlip,migrateDayGroups,migrateMonthGroups,slipSvcLabel,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,personalChartStats,CARD_STORE_DEFAULTS,CARD_BRAND,getCardData,sendCardFlex,breakDayKey,loadBreakStatus,breakFlipGreenLocal,breakFlipWhiteLocal,
   getCustomers,saveCustomers,getBookings,saveBookings,uid,upsertCustomer,normPhone,searchCustomers,addBooking,updateBooking,deleteBooking,confirmBooking,BOOK_TITLES,bookTitleName,fetchAcupoints,clearAcupointsCache,checkCredentialValid,
   SERVICES,svcByCode,bookUnits,bookMinutes,bookLabel,bookRange,findConflicts,dayOffStatus,bookLog,skName,
   TW_REGIONS,LANG_SCHOOLS,
