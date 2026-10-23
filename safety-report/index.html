@@ -1,422 +1,1164 @@
-/* ══════════════════════════════════════════════════════════
-   gas-safety2.gs — 安全回報 2.0(以 LINE userId 為主,去公司化重寫)v1.13-001
-   跟舊版 gas-safetyreport.gs 完全分開(舊檔與舊資料表 SafetyUsers 等保留不動,不再使用)。
-   必須跟 gas-keyservice.gs 貼在「同一個」GAS專案(共用全域函式 _prop / _now / _linePushFlex 等)。
-   新資料表(自動建立):S2Users / S2Surveys / S2Reports / S2Mgrs / S2Pending / S2Mode
-   指令碼屬性(請自行設定):
-     S2_ADMIN_IDS        管理者的 LINE userId,多個用逗號分隔(必填,沒設就沒有管理者)
-     LINE_CHANNEL_ACCESS_TOKEN  (舊檔已使用,Messaging API 用)
-     LIFF_ID             (舊檔已使用,推播申請通知的按鈕連結用;沒設用內建預設)
-     RM_TEACHER          老師模式 Rich Menu 的 richMenuId(Rich Menu 做好後再填;沒填就只回覆文字、不切換選單)
-     RM_DEFAULT          (目前不使用;老師名單只進不出,要移出請在 S2Mode 表把 on 改成 0)
-     S2_HIDE_ADMIN       '1' = 已刪除的回報對管理者自己也隱藏(由主管功能頁切換)
-   安全:所有 s2 開頭的動作都要帶 LIFF accessToken,由 GAS 向 LINE 的 profile API 換出 userId,
-         不信任前端自報的 userId(避免有人用別人的 userId 冒名呼叫)。
-   Webhook:doPost 收到含 events 的 JSON 就交給 s2Webhook(目前只處理文字「122」:切換為老師 Rich Menu,並把 userId 記進 S2Mode;122 與安全回報權限完全無關)。
-   ══════════════════════════════════════════════════════════ */
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+<title>安全回報 v1.13-013</title>
+<meta property="og:title" content="天然災害每日安全回報中心">
+<meta property="og:description" content="請點擊連結進行安全回報">
+<meta property="og:type" content="website">
+<script>
+  // ══════════ 全域錯誤攔截(白畫面診斷用,比照專案裡其他頁面的做法) ══════════
+  var PAGE="safety",PCODE="02";
+  var __fbL={zh:{title:"網站更新中",info:function(p,v,c){return p+" 網頁 v"+v+" 更新中　代碼 "+c},keep:"你所輸入的舊資料仍保存在你的手機暫存檔中。",warn:"資料只存在本機，不會上傳雲端。"}};
+  window.__fbLang='zh';
+  window.__fbApply=function(){var L=__fbL.zh;var t=document.getElementById('__fbtitle');if(t)t.textContent=L.title;var k=document.getElementById('__fbkeep');if(k)k.textContent=L.keep;var w=document.getElementById('__fbwarn');if(w)w.textContent=L.warn;if(window.__fbData){var info=document.getElementById("__fbinfo");if(info)info.textContent=L.info(window.__fbData.page,window.__fbData.ver,window.__fbData.code);try{var md=document.getElementById("__fbmsg");if(md&&window.__fbData.msg){md.textContent=window.__fbData.msg;md.style.display="block";}}catch(_e){}}};
+  window.__showFallback=function(src,detail){
+    if(window.__shownFallback)return;window.__shownFallback=true;
+    try{
+      var ver=(document.title.match(/v?(\d+\.\d+[-.]\d+)/)||[])[1]||"?";
+      var line=(detail&&detail.lineno)?detail.lineno:0;
+      var ecode=PCODE+String(src).padStart(2,"0")+String(line%10000).padStart(4,"0");
+      window.__fbData={page:PAGE,ver:ver,code:ecode,msg:(detail&&detail.msg)||''};
+      var el=document.getElementById("__fallback");
+      if(el){window.__fbApply();el.style.display="flex";}
+    }catch(_e){}
+  };
+  window.addEventListener("error",function(e){window.__showFallback(1,{lineno:e.lineno,msg:(e.message||'')+(e.filename?(' @'+e.filename.split('/').pop()+':'+e.lineno+':'+e.colno):'')});},true);
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>body{background:#0a0a0f;color:#e5e7eb;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}#root{min-height:100vh}</style>
+</head>
+<body>
+<div id="root"></div>
 
-const S2_LEVELS=['實習副理','櫃台組長','經理','區經理','執行長']; // 前3個只看本店(idx<3),後2個看全部
-const S2_STORES=['龍山寺店','東門店','古亭店','公館店'];
-const S2_LIFF_DEFAULT='2010673151-kemVP4Pi';
-const S2_NAME={users:'S2Users',surveys:'S2Surveys',reports:'S2Reports',mgrs:'S2Mgrs',pending:'S2Pending',mode:'S2Mode'};
-const S2_H={
-  users:['lineUserId','role','store','lang','code','displayName','registeredAt','updatedAt'],
-  surveys:['id','title','creatorId','creatorStore','creatorLabel','createdAt','endDate','hidden','hiddenAt','hiddenBy'],
-  reports:['surveyId','lineUserId','status','otherText','time'],
-  mgrs:['lineUserId','level','store','label','notify','since','updatedBy'],
-  pending:['reqId','lineUserId','level','store','label','requestedAt','status','decidedBy','decidedAt'],
-  mode:['lineUserId','on','updatedAt']
-};
+<!-- 白畫面救援畫面(語法/執行錯誤時顯示) -->
+<div id="__fallback" style="display:none;position:fixed;inset:0;z-index:99999;background:#0a0a0f;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;font-family:-apple-system,sans-serif">
+  <div style="width:64px;height:64px;border-radius:50%;border:3px solid #d97706;display:flex;align-items:center;justify-content:center;margin-bottom:24px">🔧</div>
+  <h1 id="__fbtitle" style="font-size:22px;font-weight:500;color:#f3f4f6;margin:0 0 1rem;line-height:1.3">網站更新中</h1>
+  <p id="__fbinfo" style="font-size:12px;color:#6b7280;margin:0 0 2rem;font-family:monospace"></p>
+  <div id="__fbmsg" style="display:none;margin:-1rem 0 2rem;padding:10px 12px;background:#1e1b1b;border:1px solid #7f1d1d;border-radius:8px;font-family:monospace;font-size:11px;color:#fca5a5;max-width:90%;word-break:break-all;white-space:pre-wrap"></div>
+  <div style="max-width:320px;padding:16px;background:#111114;border-radius:12px;border:1px solid #27272a">
+    <p id="__fbkeep" style="font-size:13px;color:#9ca3af;margin:0 0 8px;line-height:1.5"></p>
+    <p id="__fbwarn" style="font-size:12px;color:#f59e0b;margin:0">⚠️ <span id="__fbwarn2"></span></p>
+  </div>
+</div>
 
-// ───────── 資料表工具 ─────────
-function _s2Sh(key){
-  const ss=SpreadsheetApp.openById(_prop('SHEET_ID'));
-  let sh=ss.getSheetByName(S2_NAME[key]);
-  if(!sh){sh=ss.insertSheet(S2_NAME[key]);sh.getRange(1,1,sh.getMaxRows(),sh.getMaxColumns()).setNumberFormat('@');} // 全表純文字,避免編號/日期被自動轉型
-  if(sh.getLastRow()===0)sh.appendRow(S2_H[key]);
-  return sh;
-}
-function _s2D(v){ // 日期欄位一律轉成 yyyy-MM-dd 字串(試算表可能把字串自動轉成 Date)
-  if(v instanceof Date)return Utilities.formatDate(v,'Asia/Taipei','yyyy-MM-dd');
-  return String(v==null?'':v);
-}
-function _s2T(v){
-  if(v instanceof Date)return Utilities.formatDate(v,'Asia/Taipei','yyyy-MM-dd HH:mm:ss');
-  return String(v==null?'':v);
-}
-function _s2Read(key){
-  const v=_s2Sh(key).getDataRange().getValues();const h=S2_H[key];const out=[];
-  for(let i=1;i<v.length;i++){
-    const o={_row:i+1};
-    h.forEach((k,j)=>{o[k]=v[i][j];});
-    out.push(o);
+<script src="../common.js"></script>
+<script type="text/babel" src="./safety2.js?v=1.13-001"></script>
+<script type="text/babel">
+(function(){
+const{useState,useEffect,useMemo}=React;
+const{gasCall,gasCallPost,getGasUrl,setGasUrl,TW_REGIONS,LANG_SCHOOLS,isValidPin,lockPwdCred,gasSetInitialPwd,gasLoginPwd}=window.MP||{};
+
+const STORES=['龍山寺店','東門店','古亭店','公館店','本部','教學處'];
+const CITY_PRIORITY=['桃園市','新北市','臺北市','宜蘭縣'];
+const CITY_OPTIONS=[...CITY_PRIORITY,...Object.keys(TW_REGIONS||{}).filter(c=>!CITY_PRIORITY.includes(c))];
+
+// 這個頁面獨立於主系統,自己帶一份輕量翻譯字典(語系選擇是進頁面第一步,選了之後全程套用)
+const SF_T={
+  zh:{
+    appTitle:'安全回報登記',appSubtitle:'第一次使用請先完成人員登記',
+    chooseLang:'選擇語系',chooseStore:'選擇店別',choosePersonType:'選擇人員別',
+    typeManager:'主管',typeFrontdesk:'櫃台',typeTeacher:'老師',typeStudent:'教學處學生',
+    chooseSubType:'選擇主管別',subTypes:['執行長','區經理','經理','副理','實習副理','櫃台組長'],
+    customNameLabel:'自訂名稱',customNamePh:'請輸入自訂名稱(或直接輸入編號)',
+    teacherCode:'老師編號',teacherCodePh:'編號',gender:'性別',genderM:'男',genderF:'女',
+    codeHintForNonTeacher:'這欄填的是老師編號，如果你同時有老師的身分就可以填上，編號跟名稱建議擇一填寫',
+    codeOrNameHint:'編號跟名稱可以擇一填寫，都填的話兩個都會顯示',
+    shift:'班別',shiftDay:'早班',shiftNight:'晚班',
+    addr:'居住地區',addrCity:'縣市',addrDist:'鄉鎮市區',
+    submitBtn:'完成登記',submitting:'處理中…',
+    statusSafe:'我很安全',statusFlooded:'道路積水封路',statusSick:'人不舒服',
+    otherLabel:'其他',otherPh:'自行填寫狀況',submitReportBtn:'送出回報',submitting2:'…',
+    createNewBtn:'發起新的',createTitleLabel:'發起通報標題',createTitlePh:'例如：0710強颱安全回報',createBtn:'發起',
+    selectDay:'選擇天數',endBtn:'結束通報',reportedCount:'已回報',notReportedCount:'未回報',
+    reportedList:'已回報人員',noReports:'尚無人回報',loading:'載入中…',noActiveSurvey:'目前沒有進行中的通報',
+    historyTitle:'歷史通報(可刪除)',ended:'已結束',
+    centerTitle:'天然災害每日安全回報中心',sortByTime:'時間',sortByCode:'編號',sortByCity:'居住地',sortByStore:'店名',shareBtn:'分享',
+    pushFlexBtn:'推播到我的LINE',pushedMsg:'✓ 已推播',
+    backHomeBtn:'回主頁',
+    listQueryBtn:'查詢',backToList:'← 列表',noSurveys:'目前沒有進行中的通報',
+    myProfileTitle:'我的資料',editBtn:'編輯',saveBtn:'更新',cancelBtn:'取消',saved:'已更新',
+    myReportsSectionTitle:'我回報過的項目',noMyReports:'目前沒有回報過的項目',thisSurveyEnded:'本項安全回報已結束',
+    surveyListTab:'通報列表',userListTab:'人員列表',
+    deleteUserConfirm:'確定要刪除這個人的登記資料嗎？刪除後他可以重新登記。',
+    blockBtn:'封鎖',unblockBtn:'解除封鎖',blockedTag:'已封鎖',
+    invalidParam:'參數錯誤',accountBlocked:'此帳號已被封鎖,無法使用本服務',
+    storeFilterAll:'全部店別',
+    copyDayBtn:'複製當天回報名單',copiedMsg:'已複製',
+    notReportedShareBtn:'未回報人員',
+    switchRoleLabel:'切換角色',roleManager:'主管',roleFrontdesk:'櫃台',roleTeacher:'老師',
+  },
+  vi:{
+    appTitle:'Đăng ký báo cáo an toàn',appSubtitle:'Lần đầu sử dụng vui lòng hoàn tất đăng ký',
+    chooseLang:'Chọn ngôn ngữ',chooseStore:'Chọn cửa hàng',choosePersonType:'Chọn loại nhân sự',
+    typeManager:'Quản lý',typeFrontdesk:'Lễ tân',typeTeacher:'Nhân viên kỹ thuật',typeStudent:'Học viên phòng đào tạo',
+    chooseSubType:'Chọn cấp bậc quản lý',subTypes:['Giám đốc điều hành','Quản lý khu vực','Quản lý','Phó quản lý','Phó quản lý thực tập','Tổ trưởng lễ tân'],
+    customNameLabel:'Tên tùy chỉnh',customNamePh:'Nhập tên tùy chỉnh (hoặc nhập mã số)',
+    teacherCode:'Mã nhân viên',teacherCodePh:'Mã số',gender:'Giới tính',genderM:'Nam',genderF:'Nữ',
+    codeHintForNonTeacher:'Mục này là mã nhân viên kỹ thuật, nếu bạn cũng có thân phận nhân viên kỹ thuật thì có thể điền vào, nên chọn 1 trong 2 (mã số hoặc tên)',
+    codeOrNameHint:'Có thể chỉ điền 1 trong 2 (mã số hoặc tên), nếu điền cả 2 thì cả 2 đều hiển thị',
+    shift:'Ca làm',shiftDay:'Ca sáng',shiftNight:'Ca tối',
+    addr:'Khu vực sinh sống',addrCity:'Tỉnh/Thành',addrDist:'Quận/Huyện',
+    submitBtn:'Hoàn tất đăng ký',submitting:'Đang xử lý…',
+    statusSafe:'Tôi an toàn',statusFlooded:'Đường ngập/tắc',statusSick:'Không khỏe',
+    otherLabel:'Khác',otherPh:'Tự điền tình trạng',submitReportBtn:'Gửi báo cáo',submitting2:'…',
+    createNewBtn:'Phát động mới',createTitleLabel:'Tiêu đề thông báo',createTitlePh:'VD: Báo cáo an toàn bão 0710',createBtn:'Phát động',
+    selectDay:'Chọn ngày thứ mấy',endBtn:'Kết thúc',reportedCount:'Đã báo cáo',notReportedCount:'Chưa báo cáo',
+    reportedList:'Người đã báo cáo',noReports:'Chưa có ai báo cáo',loading:'Đang tải…',noActiveSurvey:'Hiện không có thông báo nào',
+    historyTitle:'Lịch sử (có thể xóa)',ended:'Đã kết thúc',
+    centerTitle:'Trung tâm báo cáo an toàn thiên tai hàng ngày',sortByTime:'Thời gian',sortByCode:'Mã số',sortByCity:'Nơi ở',sortByStore:'Cửa hàng',shareBtn:'Chia sẻ',
+    pushFlexBtn:'Gửi đến LINE của tôi',pushedMsg:'✓ Đã gửi',
+    backHomeBtn:'Về trang chính',
+    listQueryBtn:'Tra cứu',backToList:'← Danh sách',noSurveys:'Hiện không có thông báo nào',
+    myProfileTitle:'Thông tin của tôi',editBtn:'Sửa',saveBtn:'Cập nhật',cancelBtn:'Hủy',saved:'Đã cập nhật',
+    myReportsSectionTitle:'Các mục tôi đã báo cáo',noMyReports:'Chưa có mục nào',thisSurveyEnded:'Báo cáo an toàn này đã kết thúc',
+    surveyListTab:'Danh sách thông báo',userListTab:'Danh sách nhân sự',
+    deleteUserConfirm:'Xác nhận xóa đăng ký của người này? Sau khi xóa họ có thể đăng ký lại.',
+    blockBtn:'Khóa',unblockBtn:'Mở khóa',blockedTag:'Đã khóa',
+    invalidParam:'Tham số không hợp lệ',accountBlocked:'Tài khoản này đã bị khóa, không thể sử dụng dịch vụ',
+    storeFilterAll:'Tất cả cửa hàng',
+    copyDayBtn:'Sao chép DS báo cáo ngày này',copiedMsg:'Đã sao chép',
+    notReportedShareBtn:'Người chưa báo cáo',
+    switchRoleLabel:'Chuyển vai trò',roleManager:'Quản lý',roleFrontdesk:'Lễ tân',roleTeacher:'Nhân viên',
   }
-  return out;
+};
+const STATUS_KEYS=['safe','flooded','sick'];
+// 測速用:如果這裡填了LIFF ID,會直接跳過問GAS要LIFF_ID那一次來回(省一段網路延遲)。
+// 留空的話會照原本方式去問GAS的指令碼屬性(多一次來回,但LIFF ID要改的話不用重新部署前端)。
+const LIFF_ID_HARDCODED='2010673151-kemVP4Pi';
+const Spinner=({size})=>(<svg className="animate-spin" width={size||14} height={size||14} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>);
+function MiniPinDots({length,total,digits}){
+  return(<div className="flex gap-2.5 justify-center py-1">{Array.from({length:total}).map((_,i)=>{
+    const filled=length>i;const ch=digits&&digits[i];
+    return(<div key={i} className={`flex items-center justify-center rounded-full border-2 ${ch?'w-7 h-7 text-sm font-bold':'w-3.5 h-3.5'} ${filled?'bg-amber-500 border-amber-500 text-white':'border-white/[0.25]'}`}>{ch||''}</div>);
+  })}</div>);
 }
-function _s2Append(key,obj){_s2Sh(key).appendRow(S2_H[key].map(k=>obj[k]===undefined?'':obj[k]));}
-function _s2Update(key,row,obj){
-  const sh=_s2Sh(key);
-  Object.keys(obj).forEach(k=>{const c=S2_H[key].indexOf(k);if(c>=0)sh.getRange(row,c+1).setValue(obj[k]);});
+function MiniPinKeypad({onDigit,onBackspace}){
+  const BtnCls="w-11 h-12 rounded-lg bg-white/[0.08] text-gray-100 text-base font-semibold active:bg-white/[0.15] flex items-center justify-center flex-shrink-0";
+  return(<div className="grid grid-cols-3 gap-5 justify-items-center max-w-[260px] mx-auto">
+    {['1','2','3','4','5','6','7','8','9'].map(k=>(<button key={k} type="button" onClick={()=>onDigit(k)} className={BtnCls}>{k}</button>))}
+    <div/>
+    <button type="button" onClick={()=>onDigit('0')} className={BtnCls}>0</button>
+    <button type="button" onClick={onBackspace} className={BtnCls+" text-gray-400"}>⌫</button>
+  </div>);
 }
-function _s2Rand(){
-  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';
-  for(let i=0;i<8;i++)s+=chars.charAt(Math.floor(Math.random()*chars.length));
-  return 'S'+s;
+function MiniPinDotsClickable({length,total,digits,active,onClick,onClear}){
+  return(<div className="flex items-center justify-center gap-2">
+    <button type="button" onClick={onClick} className={`flex gap-2.5 p-1.5 rounded-xl ${active?'bg-white/[0.06] ring-1 ring-amber-500/40':''}`}>
+      {Array.from({length:total}).map((_,i)=>{
+        const filled=length>i;const ch=digits&&digits[i];
+        return(<div key={i} className={`flex items-center justify-center rounded-full border-2 ${ch?'w-7 h-7 text-sm font-bold':'w-3.5 h-3.5'} ${filled?'bg-amber-500 border-amber-500 text-white':'border-white/[0.25]'}`}>{ch||''}</div>);
+      })}
+    </button>
+    {length>0&&<button type="button" onClick={onClear} className="w-6 h-6 rounded-full bg-white/[0.06] text-gray-500 text-xs flex items-center justify-center flex-shrink-0">✕</button>}
+  </div>);
+}
+// 主管的自訂名稱如果純數字(例如管理者直接輸入編號當識別碼),自動補上「號」讀起來才順(例如「5」顯示成「5號」);如果是打真的名字就照原樣顯示
+const fmtManagerName=(name)=>/^\d+$/.test(String(name||''))?(name+'號'):name;
+
+async function sfConfig(){const r=await gasCall('sfConfig',{},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfGetUser(lineUserId){const r=await gasCall('sfGetUser',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfRegister(data){const r=await gasCallPost('sfRegister',data,15000);return r||{ok:false,error:'GAS無回應'};}
+async function sfCreateSurvey(title,lineUserId){const r=await gasCallPost('sfCreateSurvey',{title,lineUserId},15000);return r||{ok:false,error:'GAS無回應'};}
+async function sfPushFlexToMe(id,lineUserId){const r=await gasCallPost('sfPushFlexToMe',{id,lineUserId},15000);return r||{ok:false,error:'GAS無回應'};}
+async function sfGetFlexContent(id,liffId){const r=await gasCall('sfGetFlexContent',{id,liffId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfEndSurvey(id){const r=await gasCallPost('sfEndSurvey',{id},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfDeleteSurvey(id,lineUserId){const r=await gasCallPost('sfDeleteSurvey',{id,lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfListSurveys(lineUserId){const r=await gasCall('sfListSurveys',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfGetSurvey(id,lineUserId){const r=await gasCall('sfGetSurvey',{id,lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfListUsers(lineUserId){const r=await gasCall('sfListUsers',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfRegisterRequest(data){const r=await gasCallPost('sfRegisterRequest',data,15000);return r||{ok:false,error:'GAS無回應'};}
+async function sfCheckPendingStatus(reqId){const r=await gasCall('sfCheckPendingStatus',{reqId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfGetPendingDetail(lineUserId,reqId){const r=await gasCall('sfGetPendingDetail',{lineUserId,reqId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfApprovePendingRegistration(lineUserId,reqId,approve){const r=await gasCallPost('sfApprovePendingRegistration',{lineUserId,reqId,approve},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfDeleteUser(lineUserId,targetLineUserId){const r=await gasCallPost('sfDeleteUser',{lineUserId,targetLineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfBlockUser(lineUserId,targetLineUserId){const r=await gasCallPost('sfBlockUser',{lineUserId,targetLineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfMyReportedSurveys(lineUserId){const r=await gasCall('sfMyReportedSurveys',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfSubmitReport(surveyId,lineUserId,status,otherText){const r=await gasCallPost('sfSubmitReport',{surveyId,lineUserId,status,otherText},15000);return r||{ok:false,error:'GAS無回應'};}
+async function sfTodayReports(surveyId,lineUserId){const r=await gasCall('sfTodayReports',{surveyId,lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfDayStatus(surveyId,date,lineUserId){const r=await gasCall('sfDayStatus',{surveyId,date,lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function checkStaffCode(code){const r=await gasCall('checkStaffCode',{code},10000);return r||{ok:false,error:'GAS無回應'};}
+
+function PendingApprovalScreen({reqId,store,onApproved}){
+  const[shareStatus,setShareStatus]=useState(''); // ''/sharing/done/cancelled/error
+  const[checkStatus,setCheckStatus]=useState(''); // ''/checking/pending/approved/rejected
+  const doShare=async()=>{
+    setShareStatus('sharing');
+    try{
+      if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setShareStatus('error');return}
+      const uri='https://john7t.github.io/massage-pay/auth.html#req='+reqId;
+      const res=await liff.shareTargetPicker([{type:'flex',altText:'審核通知',contents:{
+        type:'bubble',
+        body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
+          {type:'text',text:'📝 人員登記審核通知',weight:'bold',size:'md',color:'#111111'},
+          {type:'text',text:'請主管協助審核此筆登記申請',size:'sm',color:'#666666',wrap:true,margin:'md'},
+          {type:'text',text:'審核代碼：'+reqId,size:'xs',color:'#999999',margin:'md'}
+        ]},
+        footer:{type:'box',layout:'vertical',paddingAll:'lg',contents:[
+          {type:'button',style:'primary',color:'#d97706',height:'sm',action:{type:'uri',label:'前往審核',uri:uri}}
+        ]}
+      }}]);
+      setShareStatus(res?'done':'cancelled');
+    }catch(_e){setShareStatus('error')}
+  };
+  const doCheck=async()=>{
+    setCheckStatus('checking');
+    try{
+      const r=await sfCheckPendingStatus(reqId);
+      if(r&&r.ok)setCheckStatus(r.status);else setCheckStatus('')
+    }catch(_e){setCheckStatus('')}
+  };
+  if(checkStatus==='approved')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center"><p className="text-base text-emerald-500 font-semibold">✓ 已核准！</p><button onClick={onApproved} className="px-6 py-3 rounded-xl bg-amber-600 text-white text-sm font-bold">開始使用</button></div>);
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-5 p-6 text-center">
+    <div className="w-16 h-16 rounded-full bg-amber-500/15 flex items-center justify-center text-2xl">⏳</div>
+    <div><p className="text-base text-gray-100 font-semibold">查無此編號的員工資料</p><p className="text-sm text-gray-400 mt-1">已建立審核申請，請將下方通知分享給主管審核</p></div>
+    <div className="bg-white/[0.04] rounded-xl px-4 py-2.5"><p className="text-xs text-gray-500">審核代碼</p><p className="text-lg text-amber-400 font-bold font-mono">{reqId}</p></div>
+    <div className="w-full max-w-xs space-y-2.5">
+      <button onClick={doShare} disabled={shareStatus==='sharing'} className="w-full py-3 rounded-xl bg-[#06C755] text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{shareStatus==='sharing'?<Spinner size={14}/>:<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.5 2 2 5.6 2 10c0 3.9 3.6 7.2 8.4 7.9.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1.1 1 .6 1.1-.5 6.2-3.7 8.5-6.3C22.1 12.6 22 11.3 22 10c0-4.4-4.5-8-10-8z"/></svg>}分享給主管審核</button>
+      {shareStatus==='done'&&<p className="text-xs text-emerald-400">✓ 已分享</p>}
+      {shareStatus==='cancelled'&&<p className="text-xs text-gray-500">已取消分享</p>}
+      {shareStatus==='error'&&<p className="text-xs text-red-400">分享失敗，請確認在LINE App內開啟</p>}
+      <button onClick={doCheck} disabled={checkStatus==='checking'} className="w-full py-3 rounded-xl bg-white/[0.06] border border-white/[0.1] text-gray-300 text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">{checkStatus==='checking'&&<Spinner size={14}/>}檢查核准情形</button>
+      <a href="https://lin.ee/58Dsob3" target="_blank" rel="noopener" className="w-full py-3 rounded-xl bg-[#06C755] text-white text-sm font-bold flex items-center justify-center gap-2"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.5 2 2 5.6 2 10c0 3.9 3.6 7.2 8.4 7.9.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1.1 1 .6 1.1-.5 6.2-3.7 8.5-6.3C22.1 12.6 22 11.3 22 10c0-4.4-4.5-8-10-8z"/></svg>加入 LINE 官方帳號</a>
+      {checkStatus==='pending'&&<p className="text-xs text-gray-500">尚未核准，請耐心等候</p>}
+      {checkStatus==='rejected'&&<p className="text-xs text-red-400">很抱歉，這筆申請已被拒絕</p>}
+    </div>
+  </div>);
 }
 
-// ───────── 身分:用 LIFF accessToken 向 LINE 換 userId ─────────
-function _s2Who(p){
-  const tok=String((p&&p.accessToken)||'').trim();
-  if(!tok)return '';
-  const cache=CacheService.getScriptCache();
-  const d=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,tok);
-  const key='s2tok:'+Utilities.base64EncodeWebSafe(d).slice(0,40);
-  const c=cache.get(key);if(c)return c;
-  try{
-    const r=UrlFetchApp.fetch('https://api.line.me/v2/profile',{headers:{Authorization:'Bearer '+tok},muteHttpExceptions:true});
-    if(r.getResponseCode()!==200)return '';
-    const uid=String(JSON.parse(r.getContentText()).userId||'');
-    if(uid)cache.put(key,uid,300);
-    return uid;
-  }catch(_e){return '';}
-}
-function _s2AdminIds(){return String(_prop('S2_ADMIN_IDS')||'').split(',').map(s=>s.trim()).filter(Boolean);}
-function _s2IsAdmin(uid){return !!uid&&_s2AdminIds().indexOf(uid)>=0;}
-function _s2HideAdmin(){return String(_prop('S2_HIDE_ADMIN')||'')==='1';}
-function _s2User(uid){
-  const r=_s2Read('users');
-  for(let i=0;i<r.length;i++)if(String(r[i].lineUserId)===uid)return r[i];
-  return null;
-}
-function _s2UserOut(u){return u?{role:String(u.role),store:String(u.store),lang:String(u.lang||'zh'),code:String(u.code)}:null;}
-function _s2MgrRow(uid){
-  const r=_s2Read('mgrs');
-  for(let i=0;i<r.length;i++)if(String(r[i].lineUserId)===uid)return r[i];
-  return null;
-}
-function _s2ModeOn(uid){
-  const r=_s2Read('mode');
-  for(let i=0;i<r.length;i++)if(String(r[i].lineUserId)===uid)return String(r[i].on)==='1';
-  return false;
-}
-// 權限物件:admin 管理者;idx 主管職級索引(-1=不是主管);all 看全部;store 所屬店別(本店範圍用)
-function _s2Perm(uid){
-  const admin=_s2IsAdmin(uid);
-  const m=_s2MgrRow(uid);
-  const idx=m?S2_LEVELS.indexOf(String(m.level)):-1;
-  const u=_s2User(uid);
-  return {uid:uid,admin:admin,idx:idx,level:idx>=0?S2_LEVELS[idx]:'',all:admin||idx>=3,
-          store:String((m&&m.store)||(u&&u.store)||''),notify:m?String(m.notify)!=='0':true,
-          isMgr:idx>=0,initiator:!!u||admin||idx>=0}; // 可進發起/清單頁=已登記的人(管理者、主管不用登記也能看清單);建立仍須登記。122/老師名單只管 Rich Menu,與權限無關
-}
-function _s2LabelOf(u){return u?String(u.code):'';}
-// 回報人顯示:老師=編號;櫃台=自訂名稱
-function _s2Label(u){return u?(String(u.role)==='teacher'?String(u.code)+'號':String(u.code)):'';}
-
-// 這份通報對 perm 是否可見(管理者可設定對自己也隱藏已刪除的)
-function _s2CanSee(s,perm){
-  const hidden=String(s.hidden)==='1';
-  if(hidden){ if(!(perm.admin&&!_s2HideAdmin()))return false; return true; }
-  if(perm.admin||perm.all)return true;
-  if(String(s.creatorId)===perm.uid)return true;
-  if(perm.idx>=0&&perm.store&&String(s.creatorStore)===perm.store)return true;
-  return false;
-}
-// 可看詳細(時間、其他說明)
-function _s2CanDetail(s,perm){
-  if(perm.admin||perm.all)return true;
-  if(String(s.creatorId)===perm.uid)return true;
-  return perm.idx>=0&&perm.store&&String(s.creatorStore)===perm.store;
-}
-function _s2CanDelete(s,perm){return _s2CanDetail(s,perm);}
-function _s2Today(){return Utilities.formatDate(new Date(),'Asia/Taipei','yyyy-MM-dd');}
-function _s2IsClosed(s){const e=_s2D(s.endDate);return !!e&&_s2Today()>e;}
-
-// ───────── 動作:自己的資料 ─────────
-function s2Me(p){
-  const uid=_s2Who(p);if(!uid)return {ok:false,error:'登入驗證失敗,請重新開啟'};
-  const perm=_s2Perm(uid);
-  let pending=null;
-  const pr=_s2Read('pending');
-  for(let i=pr.length-1;i>=0;i--)if(String(pr[i].lineUserId)===uid&&String(pr[i].status)==='pending'){pending={level:String(pr[i].level)};break;}
-  return {ok:true,uid:uid,user:_s2UserOut(_s2User(uid)),mode:_s2ModeOn(uid),
-          admin:perm.admin,level:perm.level,all:perm.all,initiator:perm.initiator,notify:perm.notify,
-          hideAdmin:_s2HideAdmin(),pending:pending,levels:S2_LEVELS,stores:S2_STORES};
-}
-function s2Register(p){
-  const uid=_s2Who(p);if(!uid)return {ok:false,error:'登入驗證失敗,請重新開啟'};
-  const role=String(p.role||'');const store=String(p.store||'');const lang=String(p.lang||'zh');
-  const code=String(p.code||'').trim();
-  if(role!=='teacher'&&role!=='counter')return {ok:false,error:'請選擇角色'};
-  if(S2_STORES.indexOf(store)<0)return {ok:false,error:'請選擇店別'};
-  if(lang!=='zh'&&lang!=='vi')return {ok:false,error:'請選擇語系'};
-  if(!code)return {ok:false,error:role==='teacher'?'請輸入編號':'請輸入自訂名稱'};
-  if(role==='teacher'&&!/^[0-9A-Za-z]{1,6}$/.test(code))return {ok:false,error:'編號格式不正確'};
-  if(code.length>20)return {ok:false,error:'名稱太長(最多20字)'};
-  const u=_s2User(uid);const now=_now();
-  const disp=String(p.displayName||'').slice(0,40);
-  if(u)_s2Update('users',u._row,{role:role,store:store,lang:lang,code:code,displayName:disp,updatedAt:now});
-  else _s2Append('users',{lineUserId:uid,role:role,store:store,lang:lang,code:code,displayName:disp,registeredAt:now,updatedAt:now});
-  return {ok:true,user:{role:role,store:store,lang:lang,code:code}};
-}
-
-// ───────── 動作:通報 ─────────
-function s2CreateSurvey(p){
-  const uid=_s2Who(p);if(!uid)return {ok:false,error:'登入驗證失敗'};
-  const perm=_s2Perm(uid);
-  const u=_s2User(uid);if(!u)return {ok:false,error:'請先完成基本資料'};
-  const title=String(p.title||'').trim();const endDate=String(p.endDate||'').trim();
-  if(!title||title.length>40)return {ok:false,error:'標題必填(最多40字)'};
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(endDate))return {ok:false,error:'請選擇截止日'};
-  if(endDate<_s2Today())return {ok:false,error:'截止日不能早於今天'};
-  const id=_s2Rand();
-  _s2Append('surveys',{id:id,title:title,creatorId:uid,creatorStore:String(u.store),creatorLabel:_s2Label(u),
-    createdAt:_now(),endDate:endDate,hidden:0,hiddenAt:'',hiddenBy:''});
-  return {ok:true,id:id};
-}
-function _s2SurveyById(id){
-  const r=_s2Read('surveys');
-  for(let i=0;i<r.length;i++)if(String(r[i].id)===id)return r[i];
-  return null;
-}
-function _s2SurveyOut(s){
-  return {id:String(s.id),title:String(s.title),creatorLabel:String(s.creatorLabel),creatorStore:String(s.creatorStore),
-          endDate:_s2D(s.endDate),createdAt:_s2T(s.createdAt),closed:_s2IsClosed(s),hidden:String(s.hidden)==='1'};
-}
-// 回報頁/分享頁用:通報基本資料 + 我自己的回報
-function s2GetSurvey(p){
-  const uid=_s2Who(p);if(!uid)return {ok:false,error:'登入驗證失敗,請重新開啟'};
-  const id=String(p.id||'').trim();const s=_s2SurveyById(id);
-  if(!s)return {ok:false,error:'找不到這筆回報'};
-  const perm=_s2Perm(uid);
-  if(String(s.hidden)==='1'&&!(perm.admin&&!_s2HideAdmin()))return {ok:false,error:'這筆回報已被刪除'};
-  let mine=null;
-  const rr=_s2Read('reports');
-  for(let i=0;i<rr.length;i++)if(String(rr[i].surveyId)===id&&String(rr[i].lineUserId)===uid){mine={status:String(rr[i].status),otherText:String(rr[i].otherText||''),time:_s2T(rr[i].time)};break;}
-  return {ok:true,survey:_s2SurveyOut(s),mine:mine,canDetail:_s2CanDetail(s,perm)};
-}
-function s2Report(p){
-  const uid=_s2Who(p);if(!uid)return {ok:false,error:'登入驗證失敗,請重新開啟'};
-  const id=String(p.id||'').trim();const status=String(p.status||'');const other=String(p.otherText||'').trim().slice(0,200);
-  if(['ok','help','other'].indexOf(status)<0)return {ok:false,error:'請選擇狀況'};
-  if(status==='other'&&!other)return {ok:false,error:'請填寫說明'};
-  const u=_s2User(uid);if(!u)return {ok:false,error:'請先完成基本資料'};
-  const s=_s2SurveyById(id);if(!s||String(s.hidden)==='1')return {ok:false,error:'找不到這筆回報'};
-  if(_s2IsClosed(s))return {ok:false,error:'這筆回報已截止'};
-  const rr=_s2Read('reports');let row=-1;
-  for(let i=0;i<rr.length;i++)if(String(rr[i].surveyId)===id&&String(rr[i].lineUserId)===uid){row=rr[i]._row;break;}
-  const obj={status:status,otherText:status==='other'?other:'',time:_now()};
-  if(row>0)_s2Update('reports',row,obj);
-  else _s2Append('reports',Object.assign({surveyId:id,lineUserId:uid},obj));
-  return {ok:true};
-}
-// 名單頁:依店別分組(分母=該店所有已登記的人數);所有已登記者都看得到編號與店別,詳細(時間、其他說明)限有權限者
-function s2GetList(p){
-  const uid=_s2Who(p);if(!uid)return {ok:false,error:'登入驗證失敗,請重新開啟'};
-  if(!_s2User(uid))return {ok:false,error:'請先完成基本資料',needReg:true};
-  const id=String(p.id||'').trim();const s=_s2SurveyById(id);
-  if(!s)return {ok:false,error:'找不到這筆回報'};
-  const perm=_s2Perm(uid);
-  if(String(s.hidden)==='1'&&!(perm.admin&&!_s2HideAdmin()))return {ok:false,error:'這筆回報已被刪除'};
-  const detail=_s2CanDetail(s,perm);
-  const users=_s2Read('users');const byId={};const total={};
-  users.forEach(u=>{byId[String(u.lineUserId)]=u;const st=String(u.store);total[st]=(total[st]||0)+1;});
-  const groups={};
-  S2_STORES.forEach(st=>{groups[st]={store:st,total:total[st]||0,items:[]};});
-  _s2Read('reports').forEach(r=>{
-    if(String(r.surveyId)!==id)return;
-    const u=byId[String(r.lineUserId)];if(!u)return;
-    const st=String(u.store);if(!groups[st])groups[st]={store:st,total:total[st]||0,items:[]};
-    const it={label:String(u.code),role:String(u.role),status:String(r.status)};
-    if(detail){it.time=_s2T(r.time);it.otherText=String(r.otherText||'');}
-    groups[st].items.push(it);
-  });
-  const arr=S2_STORES.map(st=>groups[st]).concat(Object.keys(groups).filter(k=>S2_STORES.indexOf(k)<0).map(k=>groups[k]));
-  arr.forEach(g=>g.items.sort((a,b)=>{const x=parseFloat(a.label),y=parseFloat(b.label);return(isNaN(x)||isNaN(y))?String(a.label).localeCompare(String(b.label)):x-y;}));
-  return {ok:true,survey:_s2SurveyOut(s),stores:arr,detail:detail,at:Utilities.formatDate(new Date(),'Asia/Taipei','yyyy/MM/dd HH:mm')};
-}
-// 我發起的清單(依權限):發起人看自己的;本店主管加看本店;區經理以上、管理者看全部(用店別分群)
-function s2MySurveys(p){
-  const uid=_s2Who(p);if(!uid)return {ok:false,error:'登入驗證失敗,請重新開啟'};
-  const perm=_s2Perm(uid);
-  if(!perm.initiator)return {ok:false,error:'請先完成基本資料'};
-  const cnt={},help={};
-  _s2Read('reports').forEach(r=>{const k=String(r.surveyId);cnt[k]=(cnt[k]||0)+1;if(String(r.status)==='help')help[k]=(help[k]||0)+1;});
-  const out=[];
-  _s2Read('surveys').forEach(s=>{
-    if(!_s2CanSee(s,perm))return;
-    const o=_s2SurveyOut(s);o.count=cnt[o.id]||0;o.help=help[o.id]||0;o.mine=String(s.creatorId)===uid;o.canDelete=_s2CanDelete(s,perm);
-    out.push(o);
-  });
-  out.sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
-  return {ok:true,surveys:out,groupByStore:perm.all,canRestore:perm.admin};
-}
-function s2DeleteSurvey(p){ // 隱藏不刪:hidden=1,資料保留
-  const uid=_s2Who(p);if(!uid)return {ok:false,error:'登入驗證失敗'};
-  const s=_s2SurveyById(String(p.id||''));if(!s)return {ok:false,error:'找不到這筆回報'};
-  const perm=_s2Perm(uid);
-  if(!_s2CanDelete(s,perm))return {ok:false,error:'沒有權限'};
-  _s2Update('surveys',s._row,{hidden:1,hiddenAt:_now(),hiddenBy:uid});
-  return {ok:true};
-}
-function s2RestoreSurvey(p){
-  const uid=_s2Who(p);if(!uid)return {ok:false,error:'登入驗證失敗'};
-  if(!_s2IsAdmin(uid))return {ok:false,error:'僅管理者可還原'};
-  const s=_s2SurveyById(String(p.id||''));if(!s)return {ok:false,error:'找不到這筆回報'};
-  _s2Update('surveys',s._row,{hidden:0,hiddenAt:'',hiddenBy:''});
-  return {ok:true};
-}
-
-// ───────── 動作:主管功能 ─────────
-// 某筆申請(店別+職級)可由哪些人核准:管理者;區經理以上;本店前3級主管(僅限申請前3級、同店)
-function _s2CanApprove(perm,store,levelIdx){
-  if(perm.admin)return true;
-  if(perm.idx>=3)return true;
-  if(perm.idx>=0&&levelIdx<3&&perm.store&&perm.store===store)return true;
-  return false;
-}
-function _s2Approvers(store,levelIdx){
-  const ids={};
-  _s2AdminIds().forEach(id=>{ids[id]=1;});
-  _s2Read('mgrs').forEach(m=>{
-    const idx=S2_LEVELS.indexOf(String(m.level));if(idx<0)return;
-    if(idx>=3||(levelIdx<3&&String(m.store)===store))ids[String(m.lineUserId)]=1;
-  });
-  // 排除關閉通知的人(管理者也以 S2Mgrs 的 notify 欄位為準)
-  const off={};_s2Read('mgrs').forEach(m=>{if(String(m.notify)==='0')off[String(m.lineUserId)]=1;});
-  return Object.keys(ids).filter(id=>!off[id]);
-}
-function s2MgrApply(p){
-  const uid=_s2Who(p);if(!uid)return {ok:false,error:'登入驗證失敗'};
-  const lv=String(p.level||'');const idx=S2_LEVELS.indexOf(lv);
-  if(idx<0)return {ok:false,error:'請選擇職級'};
-  const u=_s2User(uid);if(!u)return {ok:false,error:'請先完成基本資料',needReg:true};
-  const pr=_s2Read('pending');let row=-1;let rid='';
-  for(let i=0;i<pr.length;i++)if(String(pr[i].lineUserId)===uid&&String(pr[i].status)==='pending'){row=pr[i]._row;rid=String(pr[i].reqId);break;}
-  const now=_now();
-  if(row>0)_s2Update('pending',row,{level:lv,store:String(u.store),label:_s2Label(u),requestedAt:now});
-  else{rid='P'+_s2Rand().slice(1);_s2Append('pending',{reqId:rid,lineUserId:uid,level:lv,store:String(u.store),label:_s2Label(u),requestedAt:now,status:'pending'});}
-  // 通知可核准的人
-  const liff=_prop('LIFF_ID')||S2_LIFF_DEFAULT;
-  const url='https://liff.line.me/'+liff+'?s2=apv&rid='+rid;
-  const flex={type:'bubble',body:{type:'box',layout:'vertical',spacing:'sm',paddingAll:'lg',contents:[
-    {type:'text',text:'🛡️ 主管設定申請',weight:'bold',size:'sm',color:'#6d4aa8'},
-    {type:'text',text:String(u.store)+' '+_s2Label(u),weight:'bold',size:'lg',wrap:true},
-    {type:'text',text:'申請職級:'+lv,size:'md',wrap:true},
-    {type:'text',text:'申請時間 '+now,size:'xs',color:'#888888'}]},
-    footer:{type:'box',layout:'vertical',paddingAll:'lg',contents:[{type:'button',style:'primary',color:'#6d4aa8',height:'sm',action:{type:'uri',label:'審核',uri:url}}]}};
-  let sent=0;
-  _s2Approvers(String(u.store),idx).forEach(id=>{if(id===uid)return;const r=_linePushFlex(id,'主管設定申請',flex);if(r&&r.ok)sent++;});
-  return {ok:true,notified:sent};
-}
-function _s2PendingForMe(perm){
-  const out=[];
-  _s2Read('pending').forEach(r=>{
-    if(String(r.status)!=='pending')return;
-    const idx=S2_LEVELS.indexOf(String(r.level));
-    if(_s2CanApprove(perm,String(r.store),idx))out.push({reqId:String(r.reqId),level:String(r.level),store:String(r.store),label:String(r.label),requestedAt:_s2T(r.requestedAt)});
-  });
-  return out;
-}
-function _s2MgrListForMe(perm){
-  const out=[];const users={};_s2Read('users').forEach(u=>{users[String(u.lineUserId)]=u;});
-  _s2Read('mgrs').forEach(m=>{
-    const idx=S2_LEVELS.indexOf(String(m.level));if(idx<0)return;
-    if(!(perm.admin||perm.idx>=3||(String(m.store)===perm.store&&perm.idx>=0)))return;
-    out.push({lineUserId:String(m.lineUserId),level:String(m.level),store:String(m.store),label:String(m.label),canEdit:_s2CanApprove(perm,String(m.store),idx)});
-  });
-  return out;
-}
-function s2MgrInfo(p){
-  const uid=_s2Who(p);if(!uid)return {ok:false,error:'登入驗證失敗'};
-  const perm=_s2Perm(uid);
-  if(!perm.isMgr&&!perm.admin)return {ok:true,isMgr:false};
-  return {ok:true,isMgr:true,admin:perm.admin,level:perm.admin&&!perm.isMgr?'管理者':perm.level,all:perm.all,notify:perm.notify,
-          hideAdmin:_s2HideAdmin(),pending:_s2PendingForMe(perm),mgrs:_s2MgrListForMe(perm),levels:S2_LEVELS};
-}
-function s2MgrApprove(p){ // 核准或拒絕一筆申請(從 Flex 按鈕進 LIFF 頁後呼叫)
-  const uid=_s2Who(p);if(!uid)return {ok:false,error:'登入驗證失敗'};
-  const rid=String(p.rid||'');const approve=!!p.approve;
-  const pr=_s2Read('pending');let r=null;
-  for(let i=0;i<pr.length;i++)if(String(pr[i].reqId)===rid){r=pr[i];break;}
-  if(!r)return {ok:false,error:'找不到申請'};
-  if(String(r.status)!=='pending')return {ok:false,error:'這筆申請已處理過了'};
-  const perm=_s2Perm(uid);const idx=S2_LEVELS.indexOf(String(r.level));
-  if(!_s2CanApprove(perm,String(r.store),idx))return {ok:false,error:'你沒有核准這個職級的權限'};
-  _s2Update('pending',r._row,{status:approve?'approved':'rejected',decidedBy:uid,decidedAt:_now()});
-  if(approve)_s2SetMgr(String(r.lineUserId),String(r.level),String(r.store),String(r.label),uid);
-  _linePushText(String(r.lineUserId),approve?('✅ 你的主管設定申請已核准:'+r.level):('❌ 你的主管設定申請未通過'));
-  return {ok:true};
-}
-function _s2SetMgr(targetId,level,store,label,by){
-  const m=_s2MgrRow(targetId);const now=_now();
-  if(!level){if(m)_s2Update('mgrs',m._row,{level:'',updatedBy:by});return;}
-  if(m)_s2Update('mgrs',m._row,{level:level,store:store,label:label,updatedBy:by});
-  else _s2Append('mgrs',{lineUserId:targetId,level:level,store:store,label:label,notify:1,since:now,updatedBy:by});
-}
-// 調整某個 id 的主管職級(level 空字串=取消主管)
-function s2MgrSet(p){
-  const uid=_s2Who(p);if(!uid)return {ok:false,error:'登入驗證失敗'};
-  const perm=_s2Perm(uid);
-  const tid=String(p.targetId||'');const lv=String(p.level||'');
-  const m=_s2MgrRow(tid);if(!m)return {ok:false,error:'找不到這位主管'};
-  const curIdx=S2_LEVELS.indexOf(String(m.level));
-  const newIdx=lv?S2_LEVELS.indexOf(lv):-1;
-  if(lv&&newIdx<0)return {ok:false,error:'職級不正確'};
-  if(!_s2CanApprove(perm,String(m.store),Math.max(curIdx,newIdx)))return {ok:false,error:'沒有權限調整'};
-  _s2Update('mgrs',m._row,{level:lv,updatedBy:uid});
-  return {ok:true};
-}
-function s2MgrNotify(p){
-  const uid=_s2Who(p);if(!uid)return {ok:false,error:'登入驗證失敗'};
-  const perm=_s2Perm(uid);if(!perm.isMgr&&!perm.admin)return {ok:false,error:'沒有權限'};
-  const on=p.on?1:0;const m=_s2MgrRow(uid);
-  if(m)_s2Update('mgrs',m._row,{notify:on});
-  else _s2Append('mgrs',{lineUserId:uid,level:'',store:perm.store,label:'管理者',notify:on,since:_now(),updatedBy:uid}); // 管理者本身可能不在主管表,用 level 空白的一列只存通知偏好
-  return {ok:true};
-}
-function s2AdminHide(p){
-  const uid=_s2Who(p);if(!uid)return {ok:false,error:'登入驗證失敗'};
-  if(!_s2IsAdmin(uid))return {ok:false,error:'僅管理者可設定'};
-  PropertiesService.getScriptProperties().setProperty('S2_HIDE_ADMIN',p.on?'1':'0');
-  return {ok:true};
-}
-
-// ───────── LINE Webhook:文字「122」切換老師模式 ─────────
-function _s2Reply(replyToken,text){
-  const token=_lineChannelToken();if(!token||!replyToken)return;
-  try{UrlFetchApp.fetch('https://api.line.me/v2/bot/message/reply',{method:'post',contentType:'application/json',headers:{Authorization:'Bearer '+token},
-    payload:JSON.stringify({replyToken:replyToken,messages:[{type:'text',text:text}]}),muteHttpExceptions:true});}catch(_e){}
-}
-function _s2LinkMenu(uid,on){
-  const token=_lineChannelToken();if(!token)return;
-  try{
-    const rm=_prop(on?'RM_TEACHER':'RM_DEFAULT')||'';
-    if(on){ if(!rm)return;
-      UrlFetchApp.fetch('https://api.line.me/v2/bot/user/'+uid+'/richmenu/'+rm,{method:'post',headers:{Authorization:'Bearer '+token},muteHttpExceptions:true});
-    }else{
-      if(rm)UrlFetchApp.fetch('https://api.line.me/v2/bot/user/'+uid+'/richmenu/'+rm,{method:'post',headers:{Authorization:'Bearer '+token},muteHttpExceptions:true});
-      else UrlFetchApp.fetch('https://api.line.me/v2/bot/user/'+uid+'/richmenu',{method:'delete',headers:{Authorization:'Bearer '+token},muteHttpExceptions:true});
-    }
-  }catch(_e){}
-}
-function s2Webhook(body){
-  try{
-    (body.events||[]).forEach(ev=>{
-      if(ev.type!=='message'||!ev.message||ev.message.type!=='text')return;
-      const uid=String((ev.source&&ev.source.userId)||'');if(!uid)return;
-      const text=String(ev.message.text||'').trim();
-      if(text!=='122')return;
-      // 122 只用來把 Rich Menu 切成老師版,並把 userId 記進老師選單名單(S2Mode),下次不用再輸入;跟任何功能權限無關。再傳 122 狀態不變。
-      const rows=_s2Read('mode');let row=-1,cur=false;
-      for(let i=0;i<rows.length;i++)if(String(rows[i].lineUserId)===uid){row=rows[i]._row;cur=String(rows[i].on)==='1';break;}
-      if(!cur){
-        if(row>0)_s2Update('mode',row,{on:1,updatedAt:_now()});
-        else _s2Append('mode',{lineUserId:uid,on:1,updatedAt:_now()});
+function RegisterFlow({profile,onDone,sid}){
+  const[lang,setLang]=useState('');
+  const t=SF_T[lang||'zh'];
+  const[store,setStore]=useState('');
+  const[personType,setPersonType]=useState(''); // manager/frontdesk/teacher/student(admin不開放自選,只能後台改)
+  const[subType,setSubType]=useState('');
+  const[name,setName]=useState('');
+  const[code,setCode]=useState('');
+  const[gender,setGender]=useState('');
+  const[shift,setShift]=useState('');
+  const[city,setCity]=useState('');const[dist,setDist]=useState('');
+  const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
+  const[checkBusy,setCheckBusy]=useState(false);const[checkMsg,setCheckMsg]=useState('');const[checkFound,setCheckFound]=useState(null); // null=還沒檢查過,true=查到,false=查無
+  const[pendingReqId,setPendingReqId]=useState(''); // 查無資料時,送出審核請求後拿到的審核代碼
+  const[pwdMode,setPwdMode]=useState(''); // ''=不用處理密碼(非老師身分)/verify=既有密碼要先登入/setup=設定新密碼(雙欄同時顯示)
+  const[pwdInput,setPwdInput]=useState('');const[pwdInput2,setPwdInput2]=useState('');const[pwdErr,setPwdErr]=useState('');const[pwdBusy,setPwdBusy]=useState(false);
+  const[pwdVerified,setPwdVerified]=useState(false);const[finalPwd,setFinalPwd]=useState(''); // 通過驗證/設定完成後的密碼(setup情境下submit時要用)
+  const[activeField,setActiveField]=useState(''); // 目前哪個PIN欄位開著鍵盤:code/pwd/pwd2
+  const toggleField=(f)=>setActiveField(a=>a===f?'':f);
+  const langDone=!!lang;
+  const step1Done=langDone&&!!store;
+  const canSubmit=(()=>{
+    if(!step1Done||!personType)return false;
+    if(personType==='manager')return subType&&(code.trim()||name.trim())&&gender&&shift&&city&&dist;
+    if(personType==='frontdesk')return code.trim()||name.trim();
+    if(personType==='student')return code.trim()||name.trim();
+    if(personType==='teacher')return code.trim()&&gender&&shift&&city&&dist&&pwdVerified;
+    return false;
+  })();
+  const doCheck=async()=>{
+    if(!code.trim())return;
+    setCheckBusy(true);setCheckMsg('');setPwdVerified(false);setPwdInput('');setPwdInput2('');setPwdErr('');setActiveField('');
+    try{
+      const r=await checkStaffCode(code.trim());
+      if(r&&r.ok&&r.found){
+        if(r.gender)setGender(r.gender);
+        if(r.shift)setShift(r.shift);
+        setCheckFound(true);
+        if(r.hasLockPwd){setPwdMode('verify');setCheckMsg('✓ 查到員工資料，請輸入你原本設定的密碼')}
+        else{setPwdMode('setup');setCheckMsg('✓ 查到員工資料，請設定4位數密碼')}
+      }else{setCheckFound(false);setPwdMode('setup');setCheckMsg('查無此編號，填完資料後將送交主管審核')}
+    }catch(_e){setCheckMsg('查詢失敗')}
+    setCheckBusy(false);
+  };
+  const doPwdVerify=async()=>{
+    if(pwdInput.length!==4)return;
+    setPwdBusy(true);setPwdErr('');
+    try{
+      const r=await gasLoginPwd(code.trim(),lockPwdCred(code.trim(),pwdInput));
+      if(r&&r.ok){setPwdVerified(true);setFinalPwd(pwdInput)}else{setPwdErr('密碼錯誤');setPwdInput('')}
+    }catch(e){setPwdErr(String(e))}
+    setPwdBusy(false);
+  };
+  // 設定新密碼:雙欄同時顯示可互相對照,點哪個欄位就對哪個輸入,不會卡住回不去
+  const pwd1Digit=(d)=>{if(pwdInput.length>=4)return;const next=pwdInput+d;setPwdInput(next);setPwdErr('');if(next.length>=4)setActiveField('')};
+  const pwd1Backspace=()=>setPwdInput(v=>v.slice(0,-1));
+  const pwd1Clear=()=>setPwdInput('');
+  const pwd2Digit=(d)=>{if(pwdInput2.length>=4)return;const next=pwdInput2+d;setPwdInput2(next);setPwdErr('');if(next.length>=4)setActiveField('')};
+  const pwd2Backspace=()=>setPwdInput2(v=>v.slice(0,-1));
+  const pwd2Clear=()=>setPwdInput2('');
+  const pwd1Ok=isValidPin(pwdInput);
+  const confirmPwdSetup=()=>{
+    if(!pwd1Ok){setPwdErr('密碼不可4碼相同或連續遞增/遞減');return}
+    if(pwdInput!==pwdInput2){setPwdErr('兩次輸入不一致');return}
+    setPwdVerified(true);setFinalPwd(pwdInput);setPwdErr('');
+  };
+  const submit=async()=>{
+    if(!canSubmit)return;
+    setBusy(true);setErr('');
+    const payload={lineUserId:profile.userId,displayName:profile.displayName,store,personType,subType,name:personType==='teacher'?code.trim():name.trim(),code:personType==='teacher'?'':code.trim(),lang,gender,shift,city,dist};
+    try{
+      if(personType==='teacher'&&checkFound===false){
+        // 查無此編號:不直接登記,改送交主管審核(密碼先存起來,之後這個人正式建檔時再套用)
+        const r=await sfRegisterRequest({...payload,pwdCred:lockPwdCred(code.trim(),finalPwd)});
+        if(r&&r.ok){setPendingReqId(r.reqId);setBusy(false);return}
+        setErr((r&&r.error)||'送出失敗');setBusy(false);return;
       }
-      _s2LinkMenu(uid,true);
-      _s2Reply(ev.replyToken,'已切換為老師選單 ✅');
-    });
-  }catch(_e){}
-  return {ok:true};
+      const r=await sfRegister(payload);
+      if(r&&r.ok){
+        // 老師身分且是第一次設定密碼(setup情境)的話,順便同步存回staff.json
+        if(personType==='teacher'&&checkFound===true&&pwdMode==='setup'){
+          try{await gasSetInitialPwd(code.trim(),lockPwdCred(code.trim(),finalPwd))}catch(_e){}
+        }
+        onDone();return; // 成功就不把busy設回false,按鈕保持灰色直到頁面跳轉,避免誤點兩次
+      }
+      setErr((r&&r.error)||'登記失敗');
+    }catch(e){setErr(String(e))}
+    setBusy(false);
+  };
+  if(pendingReqId)return(<PendingApprovalScreen reqId={pendingReqId} store={store} onApproved={onDone}/>);
+  return(<div className="min-h-screen flex items-center justify-center p-4">
+    <div className="w-full max-w-md bg-gray-900 rounded-2xl border border-white/[0.08] p-5 space-y-5">
+      <div className="text-center"><h1 className="text-lg font-bold text-gray-100">{t.appTitle}</h1><p className="text-xs text-gray-500 mt-1">{t.appSubtitle}</p></div>
+
+      <div><label className="text-sm text-gray-400 block mb-2">{SF_T.zh.chooseLang} / {SF_T.vi.chooseLang}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setLang('zh')} className={`py-3 rounded-xl text-sm font-semibold ${lang==='zh'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>中文</button><button onClick={()=>setLang('vi')} className={`py-3 rounded-xl text-sm font-semibold ${lang==='vi'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>Tiếng Việt</button></div></div>
+
+      {langDone&&(<div><label className="text-sm text-gray-400 block mb-2">{t.chooseStore}</label><div className="grid grid-cols-2 gap-2">{STORES.map(s=>(<button key={s} onClick={()=>setStore(s)} className={`py-3 rounded-xl text-sm font-semibold ${store===s?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{s}</button>))}</div></div>)}
+
+      {step1Done&&(<div><label className="text-sm text-gray-400 block mb-2">{t.choosePersonType}</label><div className="grid grid-cols-1 gap-2">
+        <button onClick={()=>setPersonType('manager')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='manager'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.typeManager}</button>
+        <button onClick={()=>setPersonType('frontdesk')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='frontdesk'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.typeFrontdesk}</button>
+        <button onClick={()=>setPersonType('teacher')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='teacher'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.typeTeacher}</button>
+        {store==='教學處'&&<button onClick={()=>setPersonType('student')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='student'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.typeStudent}</button>}
+      </div></div>)}
+
+      {personType==='manager'&&(<div className="space-y-3">
+        <div><label className="text-sm text-gray-400 block mb-2">{t.chooseSubType}</label><div className="grid grid-cols-2 gap-2">{t.subTypes.map((s,i)=>(<button key={s} onClick={()=>setSubType(SF_T.zh.subTypes[i])} className={`py-2.5 rounded-xl text-xs font-semibold ${subType===SF_T.zh.subTypes[i]?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{s}</button>))}</div></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.teacherCode}</label><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={t.teacherCodePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 text-center tracking-widest"/><p className="text-xs text-red-400 mt-1">{t.codeHintForNonTeacher}</p></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.customNameLabel}</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/><p className="text-xs text-gray-600 mt-1">{t.codeOrNameHint}</p></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.gender}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setGender('M')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='M'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderM}</button><button onClick={()=>setGender('F')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='F'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderF}</button></div></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.shift}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setShift('day')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='day'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.shiftDay}</button><button onClick={()=>setShift('night')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='night'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.shiftNight}</button></div></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.addr}</label><div className="grid grid-cols-2 gap-2">
+          <select value={city} onChange={e=>{setCity(e.target.value);setDist('')}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100"><option value="">{t.addrCity}</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select>
+          <select value={dist} onChange={e=>setDist(e.target.value)} disabled={!city} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100 disabled:opacity-40"><option value="">{t.addrDist}</option>{(TW_REGIONS&&TW_REGIONS[city]||[]).map(d=><option key={d} value={d}>{d}</option>)}</select>
+        </div></div>
+      </div>)}
+
+      {personType==='student'&&(<div className="space-y-3">
+        <div><label className="text-sm text-gray-400 block mb-2">{t.teacherCode}</label><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={t.teacherCodePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 text-center tracking-widest"/><p className="text-xs text-red-400 mt-1">{t.codeHintForNonTeacher}</p></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.customNameLabel}</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/><p className="text-xs text-gray-600 mt-1">{t.codeOrNameHint}</p></div>
+      </div>)}
+
+      {personType==='frontdesk'&&(<div className="space-y-3">
+        <div><label className="text-sm text-gray-400 block mb-2">{t.teacherCode}</label><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={t.teacherCodePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 text-center tracking-widest"/><p className="text-xs text-red-400 mt-1">{t.codeHintForNonTeacher}</p></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.customNameLabel}</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/><p className="text-xs text-gray-600 mt-1">{t.codeOrNameHint}</p></div>
+      </div>)}
+
+      {personType==='teacher'&&(<div className="space-y-3">
+        <div className="space-y-2">
+          <label className="text-sm text-gray-400 block text-center">{t.teacherCodePh}</label>
+          <div className="relative flex justify-center">
+            <MiniPinDotsClickable length={code.length} total={3} digits={code} active={activeField==='code'} onClick={()=>toggleField('code')} onClear={()=>{setCode('');setCheckFound(null);setCheckMsg('');setPwdMode('');setPwdVerified(false);setPwdInput('');setPwdInput2('');setPwdErr('')}}/>
+            {activeField==='code'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><MiniPinKeypad onDigit={d=>{if(code.length>=3)return;const next=code+d;setCode(next);setCheckFound(null);setCheckMsg('');setPwdMode('');setPwdVerified(false);setPwdInput('');setPwdInput2('');setPwdErr('');if(next.length>=3)setActiveField('')}} onBackspace={()=>{setCode(c=>c.slice(0,-1));setCheckFound(null);setCheckMsg('');setPwdMode('');setPwdVerified(false);setPwdInput('');setPwdInput2('');setPwdErr('')}}/></div>}
+          </div>
+          <button onClick={doCheck} disabled={checkBusy||!code.trim()} className="w-full py-2.5 rounded-xl bg-white/[0.08] text-gray-300 text-sm font-semibold disabled:opacity-50">{checkBusy?<Spinner size={14}/>:'檢查'}</button>
+          {checkMsg&&<p className={`text-xs text-center ${checkFound?'text-emerald-400':'text-amber-400'}`}>{checkMsg}</p>}
+        </div>
+        {pwdMode==='verify'&&!pwdVerified&&(<div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-3 space-y-2"><p className="text-xs text-gray-400 text-center">請輸入你原本設定的4位數密碼</p><div className="relative flex justify-center"><MiniPinDotsClickable length={pwdInput.length} total={4} active={activeField==='pwd'} onClick={()=>toggleField('pwd')} onClear={()=>{setPwdInput('');setPwdErr('')}}/>{activeField==='pwd'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><MiniPinKeypad onDigit={d=>{if(pwdInput.length>=4)return;const next=pwdInput+d;setPwdInput(next);setPwdErr('');if(next.length>=4)setActiveField('')}} onBackspace={()=>{setPwdInput(v=>v.slice(0,-1));setPwdErr('')}}/></div>}</div>{pwdErr&&<p className="text-xs text-red-400 text-center">{pwdErr}</p>}<button onClick={doPwdVerify} disabled={pwdBusy||pwdInput.length!==4} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 disabled:bg-white/[0.06] disabled:text-gray-600">{pwdBusy?<Spinner size={14}/>:'登入'}</button></div>)}
+        {pwdMode==='setup'&&!pwdVerified&&(<div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-3 space-y-3">
+          <div className="space-y-1.5"><p className="text-xs text-gray-400 text-center">設定4位數密碼（不可4碼相同或連續遞增/遞減）</p><div className="relative flex justify-center"><MiniPinDotsClickable length={pwdInput.length} total={4} active={activeField==='pwd'} onClick={()=>toggleField('pwd')} onClear={pwd1Clear}/>{activeField==='pwd'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><MiniPinKeypad onDigit={pwd1Digit} onBackspace={pwd1Backspace}/></div>}</div></div>
+          <div className="space-y-1.5"><p className="text-xs text-gray-400 text-center">請再輸入一次確認</p><div className="relative flex justify-center"><MiniPinDotsClickable length={pwdInput2.length} total={4} active={activeField==='pwd2'} onClick={()=>toggleField('pwd2')} onClear={pwd2Clear}/>{activeField==='pwd2'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><MiniPinKeypad onDigit={pwd2Digit} onBackspace={pwd2Backspace}/></div>}</div></div>
+          {pwdErr&&<p className="text-xs text-red-400 text-center">{pwdErr}</p>}
+          <button onClick={confirmPwdSetup} disabled={pwdInput.length!==4||pwdInput2.length!==4} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 disabled:bg-white/[0.06] disabled:text-gray-600">確認設定</button>
+        </div>)}
+        {pwdVerified&&<p className="text-xs text-emerald-400">✓ 密碼{pwdMode==='verify'?'驗證':'設定'}完成</p>}
+        {pwdVerified&&(<>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.gender}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setGender('M')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='M'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderM}</button><button onClick={()=>setGender('F')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='F'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderF}</button></div></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.shift}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setShift('day')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='day'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.shiftDay}</button><button onClick={()=>setShift('night')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='night'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.shiftNight}</button></div></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.addr}</label><div className="grid grid-cols-2 gap-2">
+          <select value={city} onChange={e=>{setCity(e.target.value);setDist('')}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100"><option value="">{t.addrCity}</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select>
+          <select value={dist} onChange={e=>setDist(e.target.value)} disabled={!city} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100 disabled:opacity-40"><option value="">{t.addrDist}</option>{(TW_REGIONS&&TW_REGIONS[city]||[]).map(d=><option key={d} value={d}>{d}</option>)}</select>
+        </div></div>
+        </>)}
+      </div>)}
+
+      {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
+      {personType&&<button onClick={submit} disabled={!canSubmit||busy} className={`w-full py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${canSubmit&&!busy?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{busy&&<Spinner/>}{busy?t.submitting:t.submitBtn}</button>}
+    </div>
+  </div>);
 }
+
+function ListPage({profile,userProfile,liffId}){
+  const t=SF_T[userProfile.lang||'zh'];
+  const isRealAdmin=userProfile.personType==='admin';
+  const[viewAsRole,setViewAsRole]=useState(''); // admin專用:模擬用其他身分瀏覽,純前端切換,不影響GAS上真正的身分
+  const effType=isRealAdmin&&viewAsRole?viewAsRole:userProfile.personType;
+  const isManagerLevel=effType==='manager'||effType==='admin';
+  const isAdmin=effType==='admin';
+  const canSeeAllStores=effType==='admin'||(effType==='manager'&&(userProfile.subType==='執行長'||userProfile.subType==='區經理'));
+  const[tab,setTab]=useState('survey'); // survey/users
+  const[list,setList]=useState(undefined);
+  const[showCreate,setShowCreate]=useState(false);
+  const[newTitle,setNewTitle]=useState('');const[createBusy,setCreateBusy]=useState(false);
+  const[queryOpenId,setQueryOpenId]=useState('');const[queryResult,setQueryResult]=useState(null);
+  const[history,setHistory]=useState(null);const[showHistory,setShowHistory]=useState(false);
+  const[users,setUsers]=useState(undefined);const[storeFilter,setStoreFilter]=useState('');
+  const[busyUser,setBusyUser]=useState('');
+  const load=()=>{
+    sfListSurveys(profile.userId).then(r=>{
+      if(r&&r.ok&&Array.isArray(r.list)){
+        setList(r.list.filter(s=>!s.endDate));
+        if(isAdmin)setHistory(r.list.filter(s=>s.endDate));
+      }else{setList([])}
+    }).catch(()=>setList([]));
+  };
+  const loadUsers=()=>{
+    sfListUsers(profile.userId).then(r=>{if(r&&r.ok)setUsers(r.list||[]);else setUsers([])}).catch(()=>setUsers([]));
+  };
+  useEffect(()=>{if(isManagerLevel){load();loadUsers()}},[]);
+  const doCreate=async()=>{
+    if(!newTitle.trim())return;
+    setCreateBusy(true);
+    try{const r=await sfCreateSurvey(newTitle.trim(),profile.userId);if(r&&r.ok){setShowCreate(false);setNewTitle('');load()}}catch(_e){}
+    setCreateBusy(false);
+  };
+  const[busyEnd,setBusyEnd]=useState('');
+  const doEnd=async(id)=>{setBusyEnd(id);try{await sfEndSurvey(id);load()}catch(_e){}setBusyEnd('')};
+  const[busyDelHist,setBusyDelHist]=useState('');
+  const doDeleteHistory=async(id)=>{setBusyDelHist(id);try{await sfDeleteSurvey(id,profile.userId);load()}catch(_e){}setBusyDelHist('')};
+  const doDeleteUser=async(targetId)=>{
+    setBusyUser(targetId);
+    try{await sfDeleteUser(profile.userId,targetId);loadUsers()}catch(_e){}
+    setBusyUser('');
+  };
+  const doBlockUser=async(targetId)=>{
+    setBusyUser(targetId);
+    try{await sfBlockUser(profile.userId,targetId);loadUsers()}catch(_e){}
+    setBusyUser('');
+  };
+  const dayOptions=(s)=>{
+    const start=new Date(s.createdAt||Date.now());start.setHours(0,0,0,0);
+    const now=new Date();now.setHours(0,0,0,0);
+    const days=Math.floor((now-start)/86400000)+1;
+    const opts=[];
+    for(let n=1;n<=Math.max(1,days);n++){
+      const d=new Date(start.getTime()+(n-1)*86400000);
+      const p=x=>String(x).padStart(2,'0');
+      opts.push({n:n,date:d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())});
+    }
+    return opts;
+  };
+  const doQuery=async(surveyId,date)=>{
+    setQueryOpenId(surveyId);setQueryResult(null);
+    if(!date)return;
+    const r=await sfDayStatus(surveyId,date,profile.userId);
+    if(r&&r.ok)setQueryResult(r);
+  };
+  const[histQueryOpenId,setHistQueryOpenId]=useState('');
+  const[histQueryResult,setHistQueryResult]=useState(null);
+  const[histQueryDay,setHistQueryDay]=useState({n:0,date:''});
+  const[copyDayMsg,setCopyDayMsg]=useState('');
+  const doHistQuery=async(surveyId,dayObj)=>{
+    setHistQueryOpenId(surveyId);setHistQueryResult(null);setHistQueryDay(dayObj);
+    const r=await sfDayStatus(surveyId,dayObj.date,profile.userId);
+    if(r&&r.ok)setHistQueryResult(r);
+  };
+  const copyDayText=()=>{
+    if(!histQueryResult)return;
+    const text='day '+histQueryDay.n+' :'+histQueryDay.date+'\n'+t.reportedCount+'：'+histQueryResult.did.length+'人 分別是：'+histQueryResult.did.map(r=>r.display).join('、')+'\n'+t.notReportedCount+'：'+histQueryResult.notDid.length+'人 分別是：'+histQueryResult.notDid.join('、');
+    try{navigator.clipboard.writeText(text).then(()=>{setCopyDayMsg(t.copiedMsg);setTimeout(()=>setCopyDayMsg(''),2000)}).catch(()=>{})}catch(_e){}
+  };
+  const statusLabel=(k)=>t['status'+k[0].toUpperCase()+k.slice(1)]||k;
+  const fmtTime=(tm)=>{try{const d=new Date(tm);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}catch(_e){return ''}};
+  const detailUrl=(id)=>'https://liff.line.me/'+liffId+'?sid='+id; // 用LIFF專屬網址格式,確保LINE登入導轉不會弄丟參數
+  const[busyPush,setBusyPush]=useState('');const[pushMsg,setPushMsg]=useState('');const[pushErr,setPushErr]=useState('');const[pushAddFriendUrl,setPushAddFriendUrl]=useState('');
+  const doPushFlex=async(id)=>{
+    setBusyPush(id);setPushErr('');setPushAddFriendUrl('');
+    try{
+      const r=await sfPushFlexToMe(id,profile.userId);
+      if(r&&r.ok){setPushMsg(id);setTimeout(()=>setPushMsg(''),2500)}
+      else{setPushErr(id+':'+((r&&r.error)||'推播失敗'));if(r&&r.addFriendUrl)setPushAddFriendUrl(r.addFriendUrl)}
+    }catch(e){setPushErr(id+':'+String(e))}
+    setBusyPush('');
+  };
+  const shareSurvey=(s)=>{
+    sfGetFlexContent(s.id,liffId).then(r=>{
+      if(!r||!r.ok)return;
+      if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){
+        // 不支援的環境(例如非LINE App內開啟)才退回純文字連結分享
+        location.href='https://line.me/R/share?text='+encodeURIComponent(s.title+'\n'+detailUrl(s.id));
+        return;
+      }
+      liff.shareTargetPicker([{type:'flex',altText:r.title,contents:r.flex}]).catch(()=>{});
+    }).catch(()=>{});
+  };
+  const openDetail=(id)=>{location.href=location.href.split('?')[0]+'?sid='+id};
+  const personTypeLabel=(u)=>u.personType==='manager'?(u.subType||t.typeManager):u.personType==='frontdesk'?t.typeFrontdesk:u.personType==='student'?t.typeStudent:u.personType==='admin'?t.typeTeacher:t.typeTeacher;
+  const displayNameOf=(u)=>{
+    if(u.personType==='teacher')return u.name;
+    const code=String(u.code||'').trim();const name=String(u.name||'').trim();
+    if(code&&name)return code+'號 '+name;
+    if(code)return code+'號';
+    if(name)return name;
+    return u.displayName||'';
+  };
+  const USER_TYPE_ORDER={manager:0,admin:0,frontdesk:1,student:2,teacher:3};
+  const displayUsers=useMemo(()=>(users||[]).filter(u=>!storeFilter||u.store===storeFilter).slice().sort((a,b)=>{
+    const oa=USER_TYPE_ORDER[a.personType]??9;const ob=USER_TYPE_ORDER[b.personType]??9;
+    if(oa!==ob)return oa-ob;
+    if(a.personType==='teacher'&&b.personType==='teacher'){
+      const na=parseInt(String(a.name).replace('-',''),10);const nb=parseInt(String(b.name).replace('-',''),10);
+      if(!isNaN(na)&&!isNaN(nb))return na-nb;
+    }
+    return String(displayNameOf(a)).localeCompare(String(displayNameOf(b)));
+  }),[users,storeFilter]);
+  const[myReports,setMyReports]=useState(undefined);
+  const[showProfileDetail,setShowProfileDetail]=useState(false);
+  const[localOverride,setLocalOverride]=useState({});
+  const effProfile=useMemo(()=>({...userProfile,...localOverride}),[userProfile,localOverride]);
+  const[editing,setEditing]=useState(false);
+  const[fCode,setFCode]=useState('');const[fName,setFName]=useState('');const[fCity,setFCity]=useState('');const[fDist,setFDist]=useState('');
+  const[saveBusy,setSaveBusy]=useState(false);const[savedMsg,setSavedMsg]=useState('');
+  const saveProfile=async()=>{
+    if(!fCode.trim()&&!fName.trim())return;
+    setSaveBusy(true);
+    try{
+      const r=await sfRegister({lineUserId:profile.userId,displayName:userProfile.displayName,store:userProfile.store,personType:userProfile.personType,subType:userProfile.subType,name:fName.trim(),code:fCode.trim(),lang:userProfile.lang,gender:userProfile.gender,shift:userProfile.shift,city:fCity,dist:fDist});
+      if(r&&r.ok){setLocalOverride({name:fName.trim(),code:fCode.trim(),city:fCity,dist:fDist});setSavedMsg(t.saved);setEditing(false);setTimeout(()=>setSavedMsg(''),2000)}
+    }catch(_e){}
+    setSaveBusy(false);
+  };
+  useEffect(()=>{if(!isManagerLevel)sfMyReportedSurveys(profile.userId).then(r=>{if(r&&r.ok)setMyReports(r.list||[])})},[]);
+
+  return(<div className="min-h-screen p-4 pb-10">
+    <div className="max-w-md mx-auto space-y-4">
+      <div className="flex items-center justify-between pt-2">
+        <h1 className="text-lg font-bold text-gray-100">{t.centerTitle}</h1>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {isRealAdmin&&<select value={viewAsRole} onChange={e=>setViewAsRole(e.target.value)} className="text-xs px-2 py-2 rounded-lg bg-white/[0.06] border border-white/[0.08] text-gray-300"><option value="">{t.switchRoleLabel}</option><option value="manager">{t.roleManager}</option><option value="frontdesk">{t.roleFrontdesk}</option><option value="teacher">{t.roleTeacher}</option></select>}
+          {isManagerLevel&&<button onClick={()=>setShowCreate(v=>!v)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold flex-shrink-0">{t.createNewBtn}</button>}
+        </div>
+      </div>
+
+      <div className="bg-white/[0.03] rounded-xl p-3 space-y-1.5">
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-gray-500">{t.myProfileTitle}</p>
+          {userProfile.personType==='manager'&&!editing&&<button onClick={()=>{setFCode(effProfile.code||'');setFName(effProfile.name||'');setFCity(effProfile.city||'');setFDist(effProfile.dist||'');setEditing(true)}} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-400 font-semibold">{t.editBtn}</button>}
+        </div>
+        {!editing?(<>
+          <p onClick={()=>setShowProfileDetail(v=>!v)} className="text-sm text-gray-300 cursor-pointer">{effProfile.store} · {effProfile.personType==='manager'?(effProfile.subType||t.typeManager):personTypeLabel(effProfile)} · {displayNameOf(effProfile)} <span className="text-gray-600">{showProfileDetail?'▲':'▼'}</span></p>
+          {showProfileDetail&&(effProfile.personType==='teacher'||effProfile.personType==='manager')&&<p className="text-sm text-gray-400">{effProfile.gender==='M'?t.genderM:effProfile.gender==='F'?t.genderF:''} {effProfile.shift==='day'?t.shiftDay:effProfile.shift==='night'?t.shiftNight:''} {effProfile.city}{effProfile.dist}</p>}
+        </>):(<div className="space-y-2 pt-1">
+          <input value={fCode} onChange={e=>setFCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={t.teacherCodePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100 text-center tracking-widest"/>
+          <input value={fName} onChange={e=>setFName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/>
+          <div className="grid grid-cols-2 gap-2">
+            <select value={fCity} onChange={e=>{setFCity(e.target.value);setFDist('')}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200"><option value="">{t.addrCity}</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select>
+            <select value={fDist} onChange={e=>setFDist(e.target.value)} disabled={!fCity} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200 disabled:opacity-40"><option value="">{t.addrDist}</option>{(TW_REGIONS&&TW_REGIONS[fCity]||[]).map(d=><option key={d} value={d}>{d}</option>)}</select>
+          </div>
+          {savedMsg&&<p className="text-xs text-emerald-500">✓ {savedMsg}</p>}
+          <div className="flex gap-2"><button onClick={()=>setEditing(false)} className="flex-1 py-2 rounded-lg bg-white/[0.06] text-gray-400 text-xs font-semibold">{t.cancelBtn}</button><button onClick={saveProfile} disabled={saveBusy||!fName.trim()} className="flex-1 py-2 rounded-lg bg-amber-600 text-white text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1">{saveBusy&&<Spinner size={11}/>}{t.saveBtn}</button></div>
+        </div>)}
+      </div>
+
+      {!isManagerLevel?(<div className="space-y-2">
+        <p className="text-xs text-gray-500">{t.myReportsSectionTitle}</p>
+        {myReports===undefined?<p className="text-xs text-gray-600 text-center py-3">{t.loading}</p>:myReports.length===0?<p className="text-xs text-gray-600 text-center py-3">{t.noMyReports}</p>:myReports.map(s=>(
+          <div key={s.id} onClick={()=>openDetail(s.id)} className="bg-white/[0.03] rounded-lg px-3 py-2.5 cursor-pointer flex items-center justify-between"><span className="text-sm text-gray-200">{s.title}</span>{s.endDate&&<span className="text-[10px] text-gray-500 flex-shrink-0">{t.ended}</span>}</div>
+        ))}
+      </div>):(<>
+        <div className="flex gap-2"><button onClick={()=>setTab('survey')} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${tab==='survey'?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-400'}`}>{t.surveyListTab}</button><button onClick={()=>setTab('users')} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${tab==='users'?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-400'}`}>{t.userListTab}</button></div>
+
+        {tab==='survey'&&(<>
+        {showCreate&&(<div className="bg-white/[0.03] border border-amber-500/20 rounded-xl p-3 space-y-2">
+          <label className="text-xs text-gray-500 block">{t.createTitleLabel}</label>
+          <input value={newTitle} onChange={e=>setNewTitle(e.target.value)} placeholder={t.createTitlePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-gray-100"/>
+          <button onClick={doCreate} disabled={createBusy||!newTitle.trim()} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{createBusy&&<Spinner/>}{t.createBtn}</button>
+        </div>)}
+
+        {list===undefined?<p className="text-sm text-gray-600 text-center py-8">{t.loading}</p>:list.length===0?<p className="text-sm text-gray-500 text-center py-8">{t.noSurveys}</p>:list.map(s=>(
+          <div key={s.id} className="bg-white/[0.03] rounded-xl p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p onClick={()=>openDetail(s.id)} className="text-sm text-gray-200 font-medium cursor-pointer flex-1">{s.title}</p>
+              <button onClick={()=>doPushFlex(s.id)} disabled={busyPush===s.id} className="text-xs px-2.5 py-1.5 rounded-lg bg-[#06C755] text-white font-semibold flex-shrink-0 disabled:opacity-50 flex items-center gap-1">{busyPush===s.id&&<Spinner size={11}/>}{pushMsg===s.id?t.pushedMsg:t.pushFlexBtn}</button>
+              <button onClick={()=>shareSurvey(s)} className="text-xs px-2.5 py-1.5 rounded-lg bg-white/[0.06] text-gray-300 font-semibold flex-shrink-0">{t.shareBtn}</button>
+            </div>
+            <div className="flex gap-2">
+              <select onChange={e=>doQuery(s.id,e.target.value)} defaultValue="" className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-gray-200"><option value="" disabled>{t.selectDay}</option>{dayOptions(s).map(o=>(<option key={o.n} value={o.date}>{'day'+o.n+': '+o.date}</option>))}</select>
+              <button onClick={()=>doEnd(s.id)} disabled={busyEnd===s.id} className="px-3 py-1.5 rounded-lg bg-red-600/20 text-red-400 text-xs font-semibold flex-shrink-0 disabled:opacity-50 flex items-center gap-1">{busyEnd===s.id&&<Spinner/>}{t.endBtn}</button>
+            </div>
+            {pushErr.startsWith(s.id+':')&&(<div className="space-y-1.5">
+              {pushAddFriendUrl?(<>
+                <p className="text-[11px] text-amber-400">推播失敗，可能是你還沒把安全回報 Bot 加為好友</p>
+                <a href={pushAddFriendUrl} target="_blank" rel="noreferrer" className="block w-full py-2 rounded-lg bg-[#06C755] text-white text-xs font-semibold text-center">➕ 一鍵加好友</a>
+              </>):null}
+              <p className="text-[10px] text-gray-600">{pushErr.slice(s.id.length+1)}</p>
+            </div>)}
+            {queryOpenId===s.id&&queryResult&&(<div className="space-y-1.5 pt-1"><p className="text-[11px] text-gray-500">{t.reportedCount} {queryResult.did.length}｜{t.notReportedCount} {queryResult.notDid.length}</p>{queryResult.did.map((r,i)=>(<div key={i} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-2.5 py-1.5"><span className="text-xs text-gray-300">{r.display} {statusLabel(r.status)}{r.otherText?('、'+r.otherText):''}</span><span className="text-[10px] text-gray-500 flex-shrink-0">{fmtTime(r.time)}</span></div>))}</div>)}
+          </div>
+        ))}
+
+        {isAdmin&&history&&history.length>0&&(<div className="space-y-2 pt-2 border-t border-white/[0.06]">
+          <button onClick={()=>setShowHistory(v=>!v)} className="text-xs text-gray-500">{t.historyTitle}（{history.length}）{showHistory?'▲':'▼'}</button>
+          {showHistory&&history.map(s=>(<div key={s.id} className="bg-white/[0.03] rounded-lg p-2.5 space-y-1.5">
+            <div className="flex items-center justify-between"><span className="text-xs text-gray-400">{s.title}（{t.ended}）</span><button onClick={()=>doDeleteHistory(s.id)} disabled={busyDelHist===s.id} className="text-[10px] px-2 py-1 rounded bg-red-600/20 text-red-400 font-bold flex-shrink-0 disabled:opacity-50 flex items-center gap-1">{busyDelHist===s.id&&<Spinner size={10}/>}✕</button></div>
+            <div className="flex gap-1.5"><select onChange={e=>{const o=JSON.parse(e.target.value);doHistQuery(s.id,o)}} defaultValue="" className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-[11px] text-gray-200"><option value="" disabled>{t.selectDay}</option>{dayOptions(s).map(o=>(<option key={o.n} value={JSON.stringify(o)}>{'day'+o.n+': '+o.date}</option>))}</select></div>
+            {histQueryOpenId===s.id&&histQueryResult&&(<div className="space-y-1.5 pt-1">
+              <p className="text-[11px] text-gray-500">{t.reportedCount} {histQueryResult.did.length}｜{t.notReportedCount} {histQueryResult.notDid.length}</p>
+              <button onClick={copyDayText} className="w-full py-1.5 rounded bg-amber-600/20 text-amber-400 text-[11px] font-semibold">{copyDayMsg||t.copyDayBtn}</button>
+            </div>)}
+          </div>))}
+        </div>)}
+        </>)}
+
+        {tab==='users'&&(<div className="space-y-2">
+          {canSeeAllStores&&<select value={storeFilter} onChange={e=>setStoreFilter(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200"><option value="">{t.storeFilterAll}</option>{STORES.map(s=><option key={s} value={s}>{s}</option>)}</select>}
+          {users===undefined?<p className="text-sm text-gray-600 text-center py-8">{t.loading}</p>:displayUsers.map(u=>(
+            <div key={u.lineUserId} className={`flex items-center justify-between bg-white/[0.03] rounded-lg px-3 py-2 ${u.blocked?'opacity-40':''}`}>
+              <span className="text-sm text-gray-200">{canSeeAllStores?'['+u.store+'] ':''}{personTypeLabel(u)} · {displayNameOf(u)}{u.blocked?'（'+t.blockedTag+'）':''}</span>
+              <div className="flex gap-1.5 flex-shrink-0">
+                <button onClick={()=>doDeleteUser(u.lineUserId)} disabled={busyUser===u.lineUserId} className="text-[10px] px-2 py-1 rounded bg-white/[0.08] text-gray-400 font-bold disabled:opacity-50 flex items-center gap-1">{busyUser===u.lineUserId?<Spinner size={10}/>:'✕'}</button>
+                <button onClick={()=>doBlockUser(u.lineUserId)} disabled={busyUser===u.lineUserId} className={`text-[10px] px-2 py-1 rounded font-bold disabled:opacity-50 flex items-center gap-1 ${u.blocked?'bg-emerald-600/20 text-emerald-400':'bg-red-600/20 text-red-400'}`}>{busyUser===u.lineUserId?<Spinner size={10}/>:'🚫'}</button>
+              </div>
+            </div>
+          ))}
+        </div>)}
+      </>)}
+    </div>
+  </div>);
+}
+
+function DetailPage({profile,userProfile,sid,liffId}){
+  const t=SF_T[userProfile.lang||'zh'];
+  const displayName=userProfile.personType==='teacher'?userProfile.name:(userProfile.name||userProfile.displayName);
+  const STATUS_OPTS=STATUS_KEYS.map(k=>[k,t['status'+k[0].toUpperCase()+k.slice(1)]]);
+  const PERSON_ORDER={manager:0,admin:0,frontdesk:1,teacher:2};
+  const[survey,setSurvey]=useState(undefined);
+  const[status,setStatus]=useState('');
+  const[otherText,setOtherText]=useState('');
+  const[reports,setReports]=useState(null);
+  const[sortMode,setSortMode]=useState('time'); // time/code/city/store
+  const[showOther,setShowOther]=useState(false);
+  const[noPermission,setNoPermission]=useState(false);
+  const loadReports=()=>sfTodayReports(sid,profile.userId).then(r=>{if(r&&r.ok)setReports(r.list||[])});
+  const loadSurvey=()=>{
+    sfGetSurvey(sid,profile.userId).then(r=>{
+      if(r&&r.ok){
+        if(r.noPermission){setNoPermission(true);setSurvey(null);return}
+        setSurvey(r.survey||null);
+      }else{setSurvey(null)}
+    }).catch(()=>setSurvey(null));
+    loadReports(); // 跟上面sfGetSurvey同時發送,不用等它先回來——這兩個request互不依賴,平行打才不會延遲疊加
+  };
+  useEffect(()=>{loadSurvey()},[]);
+  const[submitted,setSubmitted]=useState(false);
+  const[submitting,setSubmitting]=useState(false);
+  const submit=()=>{
+    if(!survey||(!status&&!otherText.trim()))return;
+    // 請求送出後GAS會在伺服器端繼續執行完成,就算使用者馬上關閉分頁也不影響資料寫入。
+    // 畫面上先跑1秒轉圈圈再顯示完成訊息,純粹是給使用者一個「有在處理」的感覺,不是真的在等GAS回應。
+    setSubmitting(true);
+    sfSubmitReport(survey.id,profile.userId,status,otherText.trim()).catch(()=>{});
+    setTimeout(()=>{setSubmitting(false);setSubmitted(true)},1000);
+  };
+  const statusLabel=(k)=>t['status'+k[0].toUpperCase()+k.slice(1)]||k;
+  const fmtTime=(tm)=>{try{const d=new Date(tm);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}catch(_e){return ''}};
+  const sortedReports=useMemo(()=>{
+    if(!reports)return null;
+    if(sortMode==='time')return [...reports].sort((a,b)=>new Date(b.time)-new Date(a.time));
+    if(sortMode==='store')return [...reports].sort((a,b)=>{
+      const sc=String(a.store||'').localeCompare(String(b.store||''));
+      if(sc!==0)return sc;
+      const oa=PERSON_ORDER[a.personType]??9;const ob=PERSON_ORDER[b.personType]??9;
+      return oa-ob;
+    });
+    if(sortMode==='city')return [...reports].sort((a,b)=>String(a.city||'').localeCompare(String(b.city||'')));
+    // code:依人員別分組,老師組內改用數字比較(不是字串比較,不然"122"會排到"5"前面)
+    return [...reports].sort((a,b)=>{
+      const oa=PERSON_ORDER[a.personType]??9;const ob=PERSON_ORDER[b.personType]??9;
+      if(oa!==ob)return oa-ob;
+      if(a.personType==='teacher'&&b.personType==='teacher'){
+        const na=parseInt(String(a.display).replace('-',''),10);const nb=parseInt(String(b.display).replace('-',''),10);
+        if(!isNaN(na)&&!isNaN(nb))return na-nb;
+      }
+      return String(a.display).localeCompare(String(b.display));
+    });
+  },[reports,sortMode]);
+  const canSeeAllStores=userProfile.personType==='admin'||(userProfile.personType==='manager'&&(userProfile.subType==='執行長'||userProfile.subType==='區經理'));
+  const isManagerLevel=userProfile.personType==='manager'||userProfile.personType==='admin';
+  const[shareBusy,setShareBusy]=useState(false);
+  const shareNotReported=async()=>{
+    if(!survey)return;
+    setShareBusy(true);
+    try{
+      const today=new Date().toISOString().slice(0,10);
+      const r=await sfDayStatus(survey.id,today,profile.userId);
+      if(r&&r.ok){
+        const msg=survey.title+'\n未回報人數 '+r.notDid.length+'人：'+r.notDid.join('、')+'\n請儘速至回報網頁進行回報';
+        if(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker')){
+          await liff.shareTargetPicker([{type:'text',text:msg}]);
+        }else{
+          location.href='https://line.me/R/share?text='+encodeURIComponent(msg);
+        }
+      }
+    }catch(_e){}
+    setShareBusy(false);
+  };
+  if(submitting)return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6"><div className="text-amber-500"><Spinner size={36}/></div><p className="text-base text-gray-400">送出中…</p></div>);
+  if(submitted){
+    const shareRecord=()=>{
+      const now=new Date();
+      const p=x=>String(x).padStart(2,'0');
+      const timeText=now.getFullYear()+'-'+p(now.getMonth()+1)+'-'+p(now.getDate())+' '+p(now.getHours())+':'+p(now.getMinutes());
+      const statusText=statusLabel(status)+(otherText?('、'+otherText):'');
+      const statusColor=status==='safe'?'#2ECC71':'#E67E22'; // 安全是綠色,其他狀況(積水/不舒服/其他)用橘色提醒
+      const flex={
+        type:'bubble',size:'giga',
+        header:{type:'box',layout:'vertical',backgroundColor:'#096acb',paddingAll:'md',contents:[
+          {type:'text',text:'🚨 '+(survey?survey.title:''),weight:'bold',color:'#FFFFFF',wrap:true}
+        ]},
+        body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',spacing:'md',contents:[
+          {type:'text',text:'回報時間：'+timeText+' - '+userProfile.store+' - '+displayName,color:'#555555',size:'sm',align:'start',wrap:true},
+          {type:'text',text:statusText,color:statusColor,size:'xxl',weight:'bold',align:'center',margin:'lg'},
+          {type:'button',action:{type:'uri',label:'天災安全回報平台',uri:'https://liff.line.me/'+liffId+'?sid='+sid},style:'link',height:'sm',color:'#eeeeff',margin:'none'}
+        ]}
+      };
+      if(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker')){
+        liff.shareTargetPicker([{type:'flex',altText:survey?survey.title:'安全回報',contents:flex}]).catch(()=>{});
+      }
+    };
+    return(<div className="min-h-screen flex flex-col items-center justify-center gap-3 p-6 text-center">
+      <p className="text-2xl">✅</p>
+      <p className="text-lg text-gray-100 font-bold">已收到你的回報</p>
+      <p className="text-sm text-gray-400">可關閉此頁面，謝謝</p>
+      <button onClick={shareRecord} className="mt-4 px-6 py-3 rounded-xl bg-[#06C755] text-white text-sm font-semibold">分享完成回報的紀錄</button>
+    </div>);
+  }
+  return(<div className="min-h-screen p-4 pb-10">
+    <div className="max-w-md mx-auto space-y-4">
+      <div className="flex items-center justify-between pt-2">
+        <p className="text-xs text-gray-500">{userProfile.store} · {displayName}</p>
+        <a href={location.href.split('?')[0]} className="text-xs px-3 py-1.5 rounded-lg bg-white/[0.06] text-gray-300 font-semibold flex-shrink-0">{t.backHomeBtn}</a>
+      </div>
+
+      {isManagerLevel&&survey&&!survey.endDate&&(<button onClick={shareNotReported} disabled={shareBusy} className="w-full py-2.5 rounded-xl bg-[#06C755] text-white text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">{shareBusy&&<Spinner/>}{t.notReportedShareBtn}</button>)}
+
+      {survey===undefined?<p className="text-base text-gray-600 text-center py-8">{t.loading}</p>:noPermission?(
+        <p className="text-base text-red-400 text-center py-8">{t.invalidParam}</p>
+      ):!survey?(
+        <p className="text-base text-gray-500 text-center py-8">{t.noActiveSurvey}</p>
+      ):(<>
+        {survey.endDate?(<div className="bg-white/[0.03] rounded-2xl p-5"><p className="text-2xl text-gray-200 text-center font-bold leading-snug">{survey.title}</p><p className="text-lg text-gray-400 text-center mt-2">（{t.thisSurveyEnded||t.ended}）</p></div>):(
+        <div className="bg-white/[0.03] rounded-2xl p-4 space-y-4">
+          <p className="text-2xl text-gray-100 font-bold leading-snug">{survey.title}</p>
+          <div className="grid grid-cols-2 gap-3">
+            {STATUS_OPTS.map(([k,l])=>(<button key={k} onClick={()=>{setStatus(k);setShowOther(false)}} className={`py-7 rounded-2xl text-lg font-bold leading-tight transition-all ${status===k?'bg-amber-600 text-white':'bg-white/[0.07] text-gray-200'}`}>{l}</button>))}
+            <button onClick={()=>{setShowOther(true);setStatus('')}} className={`py-7 rounded-2xl text-lg font-bold transition-all ${showOther?'bg-amber-600 text-white':'bg-white/[0.07] text-gray-200'}`}>{t.otherLabel}</button>
+          </div>
+          {showOther&&<input value={otherText} onChange={e=>setOtherText(e.target.value)} placeholder={t.otherPh} autoFocus className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-4 text-lg text-gray-100"/>}
+          <button onClick={submit} disabled={!status&&!otherText.trim()} className="w-full py-5 rounded-2xl bg-red-600 text-white text-xl font-bold disabled:opacity-50">{t.submitReportBtn}</button>
+        </div>)}
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between flex-wrap gap-2"><p className="text-sm text-gray-400 font-semibold">{(()=>{const d=new Date();return (d.getMonth()+1)+'/'+d.getDate()})()} {t.reportedList}</p><div className="flex gap-1.5 flex-wrap"><button onClick={()=>setSortMode('time')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='time'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByTime}</button>{isManagerLevel&&<button onClick={()=>setSortMode('code')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='code'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByCode}</button>}{isManagerLevel&&<button onClick={()=>setSortMode('city')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='city'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByCity}</button>}{canSeeAllStores&&<button onClick={()=>setSortMode('store')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='store'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByStore}</button>}</div></div>
+          {sortedReports===null?<p className="text-sm text-gray-600 text-center py-3">{t.loading}</p>:sortedReports.length===0?<p className="text-sm text-gray-600 text-center py-3">{t.noReports}</p>:sortedReports.map((r,i)=>(
+            <div key={i} className="bg-white/[0.04] rounded-xl px-4 py-3.5 border border-white/[0.05]"><div className="flex items-center justify-between gap-2"><span className="text-base text-gray-100 font-semibold">{canSeeAllStores&&r.store?('['+r.store+'] '):''}{r.display}{r.personType==='manager'&&r.subType?(' '+r.subType):''}</span><span className="text-xs text-gray-500 flex-shrink-0">{fmtTime(r.time)}</span></div><p className="text-sm text-gray-400 mt-0.5">{statusLabel(r.status)}{r.otherText?('、'+r.otherText):''}{isManagerLevel&&r.city?('　'+r.city+(r.dist||'')):''}</p></div>
+          ))}
+        </div>
+      </>)}
+    </div>
+  </div>);
+}
+
+function ShareFlow({sid,liffId}){
+  const[status,setStatus]=useState('loading'); // loading/picking/done/cancelled/error
+  const[err,setErr]=useState('');
+  useEffect(()=>{
+    sfGetFlexContent(sid,liffId).then(r=>{
+      if(!r||!r.ok){setStatus('error');setErr((r&&r.error)||'讀取失敗');return}
+      setStatus('picking');
+      if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setStatus('error');setErr('此環境不支援分享功能，請在LINE App內開啟');return}
+      liff.shareTargetPicker([{type:'flex',altText:r.title,contents:r.flex}]).then(res=>{
+        setStatus(res?'done':'cancelled');
+      }).catch(e=>{setStatus('error');setErr(String(e&&e.message||e))});
+    }).catch(e=>{setStatus('error');setErr(String(e))});
+  },[]);
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+    {status==='loading'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">準備分享內容…</p></>)}
+    {status==='picking'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">請選擇要分享的對象…</p></>)}
+    {status==='done'&&(<p className="text-base text-emerald-500 font-semibold">✓ 已分享</p>)}
+    {status==='cancelled'&&(<p className="text-sm text-gray-500">已取消分享</p>)}
+    {status==='error'&&(<p className="text-sm text-red-400">{err}</p>)}
+    {(status==='done'||status==='cancelled'||status==='error')&&<button onClick={()=>{try{liff.closeWindow()}catch(_e){location.href=location.href.split('?')[0]}}} className="px-6 py-3 rounded-xl bg-white/[0.06] text-gray-300 text-sm font-semibold">關閉</button>}
+  </div>);
+}
+
+// 通用的行為代碼Flex分享橋接:任何地方要傳代碼都導來這裡,帶title/body/link三個參數,統一組成Flex卡片分享
+// shareTargetPicker一定要透過 liff.line.me/{id} 這個網址正式啟動LIFF才能用,主程式/管理頁/公告頁都不是走這個網址,所以全部導來這裡代發
+// 備份專頁:index.html刻意不呼叫liff.init(保留離線記帳能力),備份的分享功能借這個正式LIFF端點處理
+function BackupViewPage({code,year}){
+  const[jsonStr,setJsonStr]=useState('');
+  const[range,setRange]=useState(null);
+  const[err,setErr]=useState('');
+  const[copied,setCopied]=useState(false);
+  const LINE_SHARE_LIMIT=4500; // LINE文字訊息分享實務上的安全長度,超過這個長度shareTargetPicker容易失敗,改引導用複製
+  useEffect(()=>{
+    try{
+      const MP=window.MP;
+      if(!code||!year){setErr('缺少編號或年份參數');return}
+      const r=MP.dataMonthRange(code,Number(year));
+      if(!r){setErr('這個年度查無資料');return}
+      setRange(r);
+      const obj=MP.makePersonalBackup(code,Number(year));
+      setJsonStr(JSON.stringify(obj));
+    }catch(e){setErr(String(e))}
+  },[]);
+  const doCopy=async()=>{try{await navigator.clipboard.writeText(jsonStr)}catch(_e){};setCopied(true);setTimeout(()=>setCopied(false),2000)};
+  const doShare=()=>{
+    liff.shareTargetPicker([{type:'text',text:jsonStr}]).catch(e=>alert('分享失敗，請改用複製按鈕：'+e));
+  };
+  const goBack=()=>{try{liff.closeWindow()}catch(_e){}};
+  if(err)return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center"><p className="text-sm text-red-400">{err}</p><button onClick={goBack} className="px-6 py-3 rounded-xl bg-amber-600 text-white text-sm font-bold">返回</button></div>);
+  if(!jsonStr)return(<div className="min-h-screen flex items-center justify-center"><Spinner size={28}/></div>);
+  const tooLarge=jsonStr.length>LINE_SHARE_LIMIT;
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+    <p className="text-lg font-bold text-gray-100">📦 資料備份</p>
+    <p className="text-xs text-gray-500">編號 {code}　{year}年　{range.first}~{range.last}月</p>
+    <p className="text-[11px] text-gray-600">內容長度約 {jsonStr.length} 字元</p>
+    {tooLarge&&<p className="text-xs text-amber-400 max-w-xs">內容較長，直接用LINE分享可能會失敗，建議改用「複製」貼到LINE Keep或記事本保存</p>}
+    <div className="flex gap-3">
+      <button onClick={doCopy} className="px-6 py-3 rounded-xl bg-white/[0.08] text-gray-200 text-sm font-bold">{copied?'✓ 已複製':'📋 複製備份內容'}</button>
+      <button onClick={doShare} disabled={tooLarge} className="px-6 py-3 rounded-xl bg-[#06C755] text-white text-sm font-bold disabled:opacity-40">傳送給自己/好友</button>
+    </div>
+    <button onClick={goBack} className="text-xs text-gray-500 underline mt-2">關閉</button>
+  </div>);
+}
+
+function TicketFlexShare({title,body,link}){
+  const[status,setStatus]=useState('loading'); // loading/picking/done/cancelled/error
+  const[err,setErr]=useState('');
+  const INDEX_URL='https://john7t.github.io/massage-pay/index.html';
+  useEffect(()=>{
+    if(!title||!link){setStatus('error');setErr('缺少參數');return}
+    setStatus('picking');
+    if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setStatus('error');setErr('此環境不支援分享功能，請在LINE App內開啟');return}
+    liff.shareTargetPicker([{type:'flex',altText:title,contents:{
+      type:'bubble',
+      body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
+        {type:'text',text:title,weight:'bold',size:'md',color:'#111111',wrap:true},
+        ...(body?[{type:'text',text:body,size:'sm',color:'#666666',wrap:true,margin:'md'}]:[])
+      ]},
+      footer:{type:'box',layout:'vertical',paddingAll:'lg',contents:[
+        {type:'button',style:'primary',color:'#d97706',height:'sm',action:{type:'uri',label:'前往確認',uri:link}}
+      ]}
+    }}]).then(res=>{setStatus(res?'done':'cancelled')}).catch(e=>{setStatus('error');setErr(String(e&&e.message||e))});
+  },[]);
+  const goBack=()=>{try{liff.closeWindow()}catch(_e){location.href=INDEX_URL}};
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+    {status==='loading'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">準備中…</p></>)}
+    {status==='picking'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">請選擇要分享的對象…</p></>)}
+    {status==='done'&&(<p className="text-base text-emerald-500 font-semibold">✓ 已分享</p>)}
+    {status==='cancelled'&&(<p className="text-sm text-gray-500">已取消分享</p>)}
+    {status==='error'&&(<p className="text-sm text-red-400">{err}</p>)}
+    {(status==='done'||status==='cancelled'||status==='error')&&<button onClick={goBack} className="px-6 py-3 rounded-xl bg-amber-600 text-white text-sm font-bold">返回</button>}
+  </div>);
+}
+
+function CardShareFlow({data}){
+  const[status,setStatus]=useState('loading');
+  const[err,setErr]=useState('');
+  const INDEX_URL='https://john7t.github.io/massage-pay/index.html';
+  useEffect(()=>{
+    let d=null;try{d=JSON.parse(data)}catch(_e){}
+    if(!d||!d.c){setStatus('error');setErr('缺少參數');return}
+    setStatus('picking');
+    if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setStatus('error');setErr('此環境不支援分享功能，請在LINE App內開啟');return}
+    const tel='tel:'+String(d.p||'').replace(/[^0-9+]/g,'');
+    const mapUri=/^https?:\/\//.test(d.m||'')?d.m:'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(d.a||'');
+    const appleUri=/^https?:\/\//.test(d.am||'')?d.am:'https://maps.apple.com/?q='+encodeURIComponent(d.a||'');
+    // 分享名片按鈕:收到的人點了開同一個LIFF頁,可再轉給別人(URI動作上限1000字,太長就不放)
+    // g=第幾次轉傳(App發出=0,每轉傳一層+1),寫log用
+    const gen=Number(d.g)||0;
+    const shareUri0='https://liff.line.me/'+LIFF_ID_HARDCODED+'?cardShare='+encodeURIComponent(JSON.stringify(Object.assign({},d,{g:gen+1})));
+    const shareUri=shareUri0.length<=1000?shareUri0:'';
+    // 按鈕文字:地址去掉郵遞區號/台北市/XX區;電話去掉02區碼(撥號仍用完整號碼)
+    const shortAddr=String(d.a||'').replace(/^\d*\s*(?:[臺台]北市)?(?:[\u4e00-\u9fa5]{2}區)?/,'')||String(d.a||'');
+    const _dg=String(d.p||'').replace(/\D/g,'');
+    const shortTel=(_dg.length===10&&_dg.indexOf('02')===0)?_dg.slice(2,6)+'-'+_dg.slice(6):String(d.p||'');
+    // 兩行式按鈕(box+action,文字不會被截斷):上行主文字,下行小字說明
+    const cell=(main,sub,uri)=>({type:'box',layout:'vertical',flex:1,paddingAll:'6px',justifyContent:'center',alignItems:'center',action:{type:'uri',label:(main||'名片').slice(0,20),uri:uri},contents:[
+      {type:'text',text:main||'-',size:'sm',weight:'bold',color:'#2563eb',align:'center'},
+      ...(sub?[{type:'text',text:sub,size:'xxs',color:'#6b7280',align:'center'}]:[])
+    ]});
+    const BM=d.bm||'雲心閣',BS=d.bs||'養生會館';
+    const GRAD={type:'linearGradient',angle:'135deg',startColor:'#bcd9f5',endColor:'#6d4aa8'};
+    // 所有頁頂部的「雲心閣」那一排:漸層底色+白字(24h紅標、tag小字可選)
+    const brandRow=(tag)=>({type:'box',layout:'horizontal',spacing:'sm',alignItems:'center',contents:[
+      {type:'text',text:BM,weight:'bold',size:'md',color:'#FFFFFF',flex:0,gravity:'center'},
+      {type:'text',text:BS,size:'xs',color:'#eeeeff',flex:0,gravity:'center'},
+      {type:'box',layout:'vertical',flex:0,backgroundColor:'#dc2626',cornerRadius:'sm',paddingTop:'2px',paddingBottom:'2px',paddingStart:'6px',paddingEnd:'6px',contents:[{type:'text',text:'24h',size:'xxs',weight:'bold',color:'#FFFFFF'}]},
+      ...(tag?[{type:'text',text:tag,size:'xxs',color:'#eeeeff',flex:0,gravity:'center'}]:[])
+    ]});
+    const brandHeader=(tag)=>({type:'box',layout:'vertical',paddingAll:'lg',background:GRAD,contents:[brandRow(tag)]});
+    const _n=new Date();const genDate=String(_n.getFullYear()).slice(2)+'/'+String(_n.getMonth()+1).padStart(2,'0')+'/'+String(_n.getDate()).padStart(2,'0'); // 產生Flex當下的日期,避免有人拿舊表來說事
+    const priceNote={type:'text',text:'本文於'+genDate+'產生，非即時更新，訂位時，務必確認費用',wrap:true,size:'xxs',color:'#9ca3af',align:'center',margin:'lg'};
+    // 第1頁:名片(上下用filler撐開,讓編號在中間;多頁時LINE會把各頁撐成同高)
+    const page1={type:'bubble',size:'mega',
+      header:brandHeader('老師個人名片'),
+      body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
+        {type:'filler'},
+        {type:'box',layout:'baseline',justifyContent:'center',spacing:'sm',contents:[
+          {type:'text',text:String(d.c),size:'5xl',weight:'bold',color:'#111827',flex:0},
+          {type:'text',text:'號老師',size:'sm',weight:'bold',color:'#6b7280',flex:0}
+        ]},
+        {type:'text',text:d.ws+' ~ '+d.we,size:'xs',align:'center',color:'#6b7280',margin:'md'},
+        {type:'filler'},
+        ...(d.n?[{type:'text',text:d.n,size:'xs',color:'#6b7280',align:'end',wrap:true,margin:'xl'}]:[])
+      ]},
+      footer:{type:'box',layout:'vertical',spacing:'xs',paddingAll:'md',contents:[
+        {type:'box',layout:'horizontal',spacing:'sm',contents:[cell(shortAddr,'Apple 地圖',appleUri),cell(shortAddr,'Google 地圖',mapUri)]},
+        {type:'box',layout:'horizontal',spacing:'sm',contents:[cell(shortTel,'訂位電話',tel),shareUri?cell('分享給朋友','',shareUri):{type:'filler'}]}
+      ]}};
+    // 第2頁:早鳥夜貓專案
+    const promoRule=(t)=>({type:'text',text:'◎ '+t,size:'xs',color:'#6b7280',wrap:true,margin:'xs'});
+    const page2={type:'bubble',size:'mega',
+      header:{type:'box',layout:'vertical',paddingAll:'lg',background:GRAD,contents:[
+        brandRow(),
+        {type:'text',text:'☀ 早鳥 · 夜貓 專案 ☾',size:'xl',weight:'bold',color:'#FFFFFF',margin:'md'},
+        {type:'text',text:'平日 凌晨12:00 ~ 中午12:00',size:'xs',color:'#FFFFFF',margin:'xs'}
+      ]},
+      body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
+        {type:'text',text:'腳底+身體按摩 120分鐘',size:'sm',weight:'bold',align:'center',color:'#111827'},
+        {type:'box',layout:'baseline',justifyContent:'center',spacing:'sm',margin:'sm',contents:[
+          {type:'text',text:'1,099',size:'4xl',weight:'bold',color:'#ea580c',flex:0},
+          {type:'text',text:'NT',size:'sm',weight:'bold',color:'#ea580c',flex:0}
+        ]},
+        {type:'box',layout:'vertical',margin:'lg',contents:[
+          promoRule('以實際進場時間為主'),promoRule('不與其他活動合併使用'),promoRule('腳底與身體限定同一位師傅'),
+          promoRule('店家保留活動修改、暫停及終止之權利'),promoRule('周五過12點後是周六，算假日'),promoRule('周日過12點後是周一，算平日')
+        ]},
+        {type:'filler'},
+        priceNote
+      ]}};
+    // 第3、4頁:價目表
+    const row=(n,sub,price,orig)=>({type:'box',layout:'horizontal',margin:'md',contents:[
+      {type:'box',layout:'vertical',flex:1,contents:[
+        {type:'text',text:n,size:'xs',weight:'bold',color:'#111827',wrap:true},
+        ...(sub?[{type:'text',text:sub,size:'xxs',color:'#9ca3af',wrap:true}]:[])
+      ]},
+      {type:'box',layout:'vertical',flex:0,contents:[
+        {type:'text',text:price,size:'sm',weight:'bold',color:'#b91c1c',align:'end'},
+        ...(orig?[{type:'text',text:'原價 '+orig,size:'xxs',color:'#9ca3af',align:'end',decoration:'line-through'}]:[])
+      ]}
+    ]});
+    const sep=()=>({type:'separator',margin:'md'});
+    const pricePage=(title,rows)=>({type:'bubble',size:'mega',
+      header:brandHeader('價目表'),
+      body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
+        {type:'text',text:title,size:'md',weight:'bold',color:'#111827'},
+        ...rows,
+        {type:'filler'},
+        priceNote
+      ]}});
+    const page3=pricePage('最划算套餐',[
+      row('腳底+身體按摩 120分鐘','含轉場時間・含精油泡腳及肩頸按摩','1,299','1,600'),
+      row('腳底+身體按摩 70分鐘','含轉場時間・含精油泡腳及肩頸按摩','850','1,100'),
+      sep(),
+      row('腳底按摩 40分鐘','','500','600'),row('腳底按摩 70分鐘','','850','1,100'),
+      row('身體按摩 35分鐘','','500','600'),row('身體按摩 70分鐘','','850','1,100')
+    ]);
+    const page4=pricePage('加節表',[
+      row('腳底+身體按摩 120分鐘','含轉場時間','1,299','1,600'),
+      row('腳底按摩 110分鐘','','1,299','1,600'),row('身體按摩 110分鐘','','1,299','1,600'),
+      sep(),
+      row('加節 30分鐘','','500'),row('加節 60分鐘','','850')
+    ]);
+    liff.shareTargetPicker([{type:'flex',altText:BM+BS+' '+d.c+'號老師名片',contents:{type:'carousel',contents:[page1,page2,page3,page4]}}]).then(res=>{
+      setStatus(res?'done':'cancelled');
+      // 有人完成分享就記一筆Log(單純記錄:不等回應、不驗證有沒有寫成功;失敗靜默)。code=名片老師編號,flow=cardShare:g{轉傳層數}(g0=老師本人發出,g1=朋友第一次轉傳,g2=再轉傳…)
+      if(res){try{gasCall('logFlowEnter',{code:String(d.c),flow:'cardShare:g'+gen,store:String(d.st||'')},8000)}catch(_e){}}
+    }).catch(e=>{setStatus('error');setErr(String(e&&e.message||e))});
+  },[]);
+  const goBack=()=>{try{liff.closeWindow()}catch(_e){location.href=INDEX_URL}};
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+    {(status==='loading'||status==='picking')&&(<><Spinner size={32}/><p className="text-sm text-gray-400">請選擇要分享的對象…</p></>)}
+    {status==='done'&&(<p className="text-base text-emerald-500 font-semibold">✓ 已分享</p>)}
+    {status==='cancelled'&&(<p className="text-sm text-gray-500">已取消分享</p>)}
+    {status==='error'&&(<p className="text-sm text-red-400">{err}</p>)}
+    {(status==='done'||status==='cancelled'||status==='error')&&<button onClick={goBack} className="px-6 py-3 rounded-xl bg-amber-600 text-white text-sm font-bold">返回</button>}
+  </div>);
+}
+
+function BreakShareFlow({kind,reqId}){
+  const[status,setStatus]=useState('loading'); // loading/picking/done/cancelled/error
+  const[err,setErr]=useState('');
+  const FD_LIFF_URL='https://john7t.github.io/massage-pay/frontdesk/index.html';
+  const INDEX_URL='https://john7t.github.io/massage-pay/index.html';
+  useEffect(()=>{
+    if(!kind||!reqId){setStatus('error');setErr('缺少參數');return}
+    setStatus('picking');
+    if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setStatus('error');setErr('此環境不支援分享功能，請在LINE App內開啟');return}
+    const uri=FD_LIFF_URL+'?breakConfirm='+kind+'&reqId='+reqId;
+    const label=kind==='green'?'老師開始休息(翻綠)':'老師結束休息(回牌)';
+    liff.shareTargetPicker([{type:'flex',altText:'休息確認通知',contents:{
+      type:'bubble',
+      body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
+        {type:'text',text:(kind==='green'?'🟢':'⚪')+' 休息確認通知',weight:'bold',size:'md',color:'#111111'},
+        {type:'text',text:label,size:'sm',color:'#666666',wrap:true,margin:'md'},
+        {type:'text',text:'代碼：'+reqId,size:'xs',color:'#999999',margin:'md'}
+      ]},
+      footer:{type:'box',layout:'vertical',paddingAll:'lg',contents:[
+        {type:'button',style:'primary',color:'#d97706',height:'sm',action:{type:'uri',label:'前往確認',uri:uri}}
+      ]}
+    }}]).then(res=>{setStatus(res?'done':'cancelled')}).catch(e=>{setStatus('error');setErr(String(e&&e.message||e))});
+  },[]);
+  const goBack=()=>{try{liff.closeWindow()}catch(_e){location.href=INDEX_URL}};
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+    {status==='loading'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">準備中…</p></>)}
+    {status==='picking'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">請選擇要分享的對象…</p></>)}
+    {status==='done'&&(<p className="text-base text-emerald-500 font-semibold">✓ 已分享</p>)}
+    {status==='cancelled'&&(<p className="text-sm text-gray-500">已取消分享</p>)}
+    {status==='error'&&(<p className="text-sm text-red-400">{err}</p>)}
+    {(status==='done'||status==='cancelled'||status==='error')&&<button onClick={goBack} className="px-6 py-3 rounded-xl bg-amber-600 text-white text-sm font-bold">返回</button>}
+  </div>);
+}
+
+function ApproveRegFlow({reqId,profile}){
+  const[phase,setPhase]=useState('checking'); // checking/denied/detail/done
+  const[detail,setDetail]=useState(null);
+  const[err,setErr]=useState('');
+  const[busy,setBusy]=useState(false);
+  const load=()=>{
+    setPhase('checking');
+    sfGetPendingDetail(profile.userId,reqId).then(r=>{
+      if(r&&r.ok){setDetail(r.detail);setPhase('detail')}
+      else{setErr((r&&r.error)||'查詢失敗');setPhase('denied')}
+    }).catch(e=>{setErr(String(e));setPhase('denied')});
+  };
+  useEffect(()=>{load()},[]);
+  const doApprove=async(approve)=>{
+    setBusy(true);
+    try{
+      const r=await sfApprovePendingRegistration(profile.userId,reqId,approve);
+      if(r&&r.ok){setPhase('done');setDetail(d=>({...d,status:approve?'approved':'rejected'}))}else{setErr((r&&r.error)||'操作失敗')}
+    }catch(e){setErr(String(e))}
+    setBusy(false);
+  };
+  const personTypeLabel=(pt)=>({manager:'主管',frontdesk:'櫃台',teacher:'老師',student:'教學處學生'}[pt]||pt);
+  const genderLabel=(g)=>g==='M'?'男':g==='F'?'女':'—';
+  const shiftLabel=(s)=>s==='day'?'早班':s==='night'?'晚班':'—';
+  if(phase==='checking')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><Spinner size={32}/><p className="text-sm text-gray-400">確認權限中…</p></div>);
+  if(phase==='denied')return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{err}</p></div>);
+  if(!detail)return null;
+  return(<div className="min-h-screen p-4">
+    <div className="max-w-sm mx-auto space-y-4">
+      <h1 className="text-lg font-bold text-gray-100 text-center pt-4">登記審核</h1>
+      <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-4 space-y-2 text-sm">
+        <div className="flex justify-between"><span className="text-gray-500">審核代碼</span><span className="text-gray-200 font-mono">{detail.reqId}</span></div>
+        <div className="flex justify-between"><span className="text-gray-500">店別</span><span className="text-gray-200">{detail.store}</span></div>
+        <div className="flex justify-between"><span className="text-gray-500">身分別</span><span className="text-gray-200">{personTypeLabel(detail.personType)}{detail.subType?('・'+detail.subType):''}</span></div>
+        <div className="flex justify-between"><span className="text-gray-500">編號/名稱</span><span className="text-gray-200">{detail.code||detail.name||'—'}</span></div>
+        {(detail.personType==='teacher'||detail.personType==='manager')&&(<>
+          <div className="flex justify-between"><span className="text-gray-500">性別</span><span className="text-gray-200">{genderLabel(detail.gender)}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">班別</span><span className="text-gray-200">{shiftLabel(detail.shift)}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">居住地</span><span className="text-gray-200">{detail.city}{detail.dist}</span></div>
+        </>)}
+        <div className="flex justify-between"><span className="text-gray-500">申請時間</span><span className="text-gray-200 text-xs">{detail.createdAt}</span></div>
+      </div>
+      {detail.status==='pending'?(
+        <div className="grid grid-cols-2 gap-3">
+          <button onClick={()=>doApprove(false)} disabled={busy} className="py-3 rounded-xl bg-red-500/15 border border-red-500/25 text-red-400 font-semibold disabled:opacity-50">拒絕</button>
+          <button onClick={()=>doApprove(true)} disabled={busy} className="py-3 rounded-xl bg-emerald-600 text-white font-bold disabled:opacity-50">核准</button>
+        </div>
+      ):(
+        <p className={`text-center text-sm font-semibold ${detail.status==='approved'?'text-emerald-400':'text-red-400'}`}>{detail.status==='approved'?'✓ 已核准':'已拒絕'}</p>
+      )}
+      {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
+      <button onClick={()=>{try{liff.closeWindow()}catch(_e){}}} className="w-full py-2.5 rounded-xl bg-white/[0.06] text-gray-400 text-sm font-semibold">關閉</button>
+    </div>
+  </div>);
+}
+
+function App(){
+  const[phase,setPhase]=useState('liffInit'); // liffInit/loading/register/main/error
+  const[profile,setProfile]=useState(null);
+  const[userProfile,setUserProfile]=useState(null);
+  const[liffErr,setLiffErr]=useState('');
+  const[blocked,setBlocked]=useState(false);
+  const[liffId,setLiffId]=useState('');
+  const sid=new URLSearchParams(location.search).get('sid')||''; // 網址帶?sid=SF0001時直接顯示該筆通報,沒帶就顯示目前進行中的列表頁
+  const action=new URLSearchParams(location.search).get('action')||''; // action=share時,Flex卡片上的分享按鈕點進來,直接跳shareTargetPicker
+  const approveReg=new URLSearchParams(location.search).get('approveReg')||''; // 待審核登記的審核代碼,FLEX按鈕點進來走這個,不用先走登記流程
+  const breakShare=new URLSearchParams(location.search).get('breakShare')||''; // green或white,翻綠計時器要借這裡發Flex(index.html不是走liff.line.me網址,不能直接用shareTargetPicker)
+  const breakReqId=new URLSearchParams(location.search).get('reqId')||'';
+  const flexTitle=new URLSearchParams(location.search).get('flexTitle')||''; // 通用行為代碼Flex分享,標題/內文/連結三個參數
+  const flexBody=new URLSearchParams(location.search).get('flexBody')||'';
+  const flexLink=new URLSearchParams(location.search).get('flexLink')||'';
+  const s2p=new URLSearchParams(location.search).get('s2')||''; // 安全回報2.0(safety2.js):s2=r/l/mine/new/share/mgr/apv
+  const cardShare=new URLSearchParams(location.search).get('cardShare')||''; // 老師名片Flex分享(index.html的名片彈窗借這裡發)
+  const backupView=new URLSearchParams(location.search).get('backupView')||''; // 備份專頁:index.html不呼叫liff.init(刻意保留離線記帳能力),備份的分享功能借這裡處理
+  const backupCode=new URLSearchParams(location.search).get('code')||'';
+  const backupYear=new URLSearchParams(location.search).get('year')||'';
+
+  useEffect(()=>{
+    const initLiff=(id)=>{
+      setLiffId(id);
+      return liff.init({liffId:id}).then(()=>{
+        if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return} // 明確帶目前完整網址(含?sid=...),避免LINE登入導轉過程弄丟參數
+        if(s2p){setPhase('s2');return} // 安全回報2.0:不走舊的登記/審核流程,身分由 GAS 用 accessToken 驗證
+        if(cardShare){setPhase('cardShare');return}
+        if(flexTitle&&flexLink){setPhase('ticketFlex');return} // 通用行為代碼分享,不用先查有沒有登記過,直接進分享流程
+        if(backupView){setPhase('backupView');return} // 備份專頁,不用先查有沒有登記過,直接進備份流程
+        if(approveReg){return liff.getProfile().then(p=>{setProfile(p);setPhase('approveReg')})} // 審核模式:不用先查有沒有登記過,直接進審核流程(裡面自己檢查主管權限)
+        if(breakShare){setPhase('breakShare');return} // 翻綠計時器分享,不用先查有沒有登記過,直接進分享流程
+        if(action==='share'){setPhase('share');return} // 分享模式不用先查有沒有登記過,直接進分享流程
+        return liff.getProfile().then(p=>{
+          setProfile(p);
+          setPhase('loading');
+          return sfGetUser(p.userId).then(r=>{
+            if(r&&r.ok&&r.blocked){setBlocked(true);setPhase('main');return}
+            if(r&&r.ok&&r.exists){setUserProfile(r.profile);setPhase('main')}
+            else{setPhase('register')}
+          });
+        });
+      });
+    };
+    if(LIFF_ID_HARDCODED){
+      initLiff(LIFF_ID_HARDCODED).catch(err=>{setLiffErr(String(err&&err.message||err));setPhase('error')});
+      return;
+    }
+    sfConfig().then(cfg=>{
+      const id=cfg&&cfg.ok?cfg.liffId:'';
+      if(!id){setLiffErr('尚未在GAS指令碼屬性設定LIFF_ID,請聯繫系統管理者');setPhase('error');return}
+      return initLiff(id);
+    }).catch(err=>{setLiffErr(String(err&&err.message||err));setPhase('error')});
+  },[]);
+
+  if(phase==='error')return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{liffErr}</p></div>);
+  if(phase==='liffInit'||phase==='loading')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><div className="text-amber-500"><Spinner size={40}/></div><p className="text-base text-gray-400">載入中…</p></div>);
+  if(phase==='share')return(<ShareFlow sid={sid} liffId={liffId}/>);
+  if(phase==='approveReg')return(<ApproveRegFlow reqId={approveReg} profile={profile}/>);
+  if(phase==='breakShare')return(<BreakShareFlow kind={breakShare} reqId={breakReqId}/>);
+  if(phase==='s2')return(<Safety2App liffId={liffId||LIFF_ID_HARDCODED}/>);
+  if(phase==='cardShare')return(<CardShareFlow data={cardShare}/>);
+  if(phase==='ticketFlex')return(<TicketFlexShare title={flexTitle} body={flexBody} link={flexLink}/>);
+  if(phase==='backupView')return(<BackupViewPage code={backupCode} year={backupYear}/>);
+  if(blocked)return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{SF_T.zh.accountBlocked} / {SF_T.vi.accountBlocked}</p></div>);
+  if(phase==='register')return(<RegisterFlow profile={profile} sid={sid} onDone={()=>{sfGetUser(profile.userId).then(r=>{if(r&&r.ok&&r.exists){
+    // 登記完成導回原本帶的sid頁面(不然使用者原本是要去回報某一項,卻被丟到看不到那項的首頁)
+    if(sid){location.href=location.href.split('?')[0]+'?sid='+sid;return}
+    setUserProfile(r.profile);setPhase('main');
+  }})}}/>);
+  return sid?(<DetailPage profile={profile} userProfile={userProfile} sid={sid} liffId={liffId}/>):(<ListPage profile={profile} userProfile={userProfile} liffId={liffId}/>);
+}
+
+class __EB extends React.Component{constructor(p){super(p);this.state={e:false}}static getDerivedStateFromError(){return{e:true}}componentDidCatch(err){try{window.__showFallback(3,{lineno:0,msg:(err&&err.message)||String(err)})}catch(e){}}render(){return this.state.e?null:this.props.children}}
+ReactDOM.createRoot(document.getElementById('root')).render(<__EB><App/></__EB>);
+})();
+</script>
+</body>
+</html>
