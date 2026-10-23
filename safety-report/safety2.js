@@ -43,7 +43,7 @@ const WRITE_CLEAR={s2Register:'*',s2CreateSurvey:['s2MySurveys'],s2DeleteSurvey:
   s2AdminHide:['s2MgrInfo','s2Me','s2MySurveys','s2GetList','s2GetSurvey']}; // 寫入成功後,清掉受影響的暫存
 function cuid(){try{const c=liff.getContext();return(c&&c.userId)||'';}catch(_e){return '';}}
 function ckey(action,params){return 's2c:'+cuid()+':'+action+':'+JSON.stringify(params||{});}
-function cget(k){try{const v=JSON.parse(localStorage.getItem(k)||'null');if(v&&Date.now()-v.t<CACHE_TTL)return v.d;}catch(_e){}return null;}
+function cget(k){try{const v=JSON.parse(localStorage.getItem(k)||'null');if(v&&Date.now()-v.t<CACHE_TTL)return Object.assign({},v.d,{_at:v.t});}catch(_e){}return null;} // _at=這份資料當初讀取的時間
 function cput(k,d){try{localStorage.setItem(k,JSON.stringify({t:Date.now(),d:d}));}catch(_e){}}
 function cclear(actions){
   try{const ks=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf('s2c:')===0)ks.push(k);}
@@ -58,7 +58,7 @@ async function api(action,params,force){
   if(cacheable&&!force){const c=cget(k);if(c)return c;}
   let tok='';try{tok=liff.getAccessToken()||'';}catch(_e){}
   const r=(await gasCallPost(action,Object.assign({},params||{},{accessToken:tok}),20000))||{ok:false,error:'連不上伺服器,請稍後再試'};
-  if(r.ok){ if(cacheable)cput(k,r); else if(WRITE_CLEAR[action])cclear(WRITE_CLEAR[action]); }
+  if(r.ok){ r._at=Date.now(); if(cacheable)cput(k,r); else if(WRITE_CLEAR[action])cclear(WRITE_CLEAR[action]); }
   return r;
 }
 function defaultLang(){try{return String(navigator.language||'').toLowerCase().indexOf('vi')===0?'vi':'zh';}catch(_e){return 'zh';}}
@@ -71,8 +71,24 @@ function fallbackCopy(txt){
 }
 const liffBase=()=>'https://liff.line.me/'+(window.__S2_LIFF_ID||'');
 
-const RefreshBtn=()=>(<button onClick={()=>{cclear('*');window.__s2nonce++;window.dispatchEvent(new Event('s2nav'));}} className="text-xs text-gray-400 border border-gray-700 rounded-full px-3 py-1">🔄 重新整理 / Làm mới</button>);
-const Box=({children})=>(<div className="min-h-screen px-4 py-5"><div className="max-w-md mx-auto space-y-4"><div className="flex justify-end"><RefreshBtn/></div>{children}</div></div>);
+// 資料時間(讓人看得出是舊資料)與重新整理:按了要等回應是使用者的選擇,等待時舊資料照常顯示、按鈕出現旋轉圖示
+function fmtAt(at,lang){
+  if(!at)return '';
+  const d=new Date(at);const p=n=>String(n).padStart(2,'0');
+  const ts=p(d.getMonth()+1)+'/'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+  const m=Math.floor((Date.now()-at)/60000);const vi=lang==='vi';
+  const rel=m<1?(vi?'vừa xong':'剛剛'):m<60?(m+(vi?' phút trước':' 分鐘前')):m<1440?(Math.floor(m/60)+(vi?' giờ trước':' 小時前')):(Math.floor(m/1440)+(vi?' ngày trước':' 天前'));
+  return (vi?'Dữ liệu lúc ':'資料時間 ')+ts+'（'+rel+'）';
+}
+const RefreshBar=({at,lang,onRefresh,refreshing,err})=>(<div>
+  <div className="flex items-center justify-between gap-2">
+    <span className="text-xs text-gray-500">{fmtAt(at,lang)}</span>
+    <button disabled={refreshing} onClick={()=>{if(onRefresh)onRefresh();else{cclear('*');window.__s2nonce++;window.dispatchEvent(new Event('s2nav'));}}} className="shrink-0 text-xs text-gray-300 border border-gray-700 rounded-full px-3 py-1 disabled:opacity-60">
+      {refreshing?(<span><Spinner size={12}/> {lang==='vi'?'Đang cập nhật…':'更新中…'}</span>):(lang==='vi'?'🔄 Làm mới':'🔄 重新整理')}</button></div>
+  {err&&<p className="text-xs text-red-400 text-right mt-1">{err}</p>}
+</div>);
+const Box=({children,at,lang,onRefresh,refreshing,err})=>(<div className="min-h-screen px-4 py-5"><div className="max-w-md mx-auto space-y-4"><RefreshBar at={at} lang={lang} onRefresh={onRefresh} refreshing={refreshing} err={err}/>{children}</div></div>);
+const barOf=(st,reload,lang)=>({at:st.data&&st.data._at,lang:lang,onRefresh:()=>{reload();},refreshing:!!(st.loading&&st.data),err:st.err});
 const Card=({children,className})=>(<div className={'rounded-2xl bg-gray-900 border border-gray-800 p-4 '+(className||'')}>{children}</div>);
 const Spinner=({size})=>(<svg className="animate-spin inline-block align-[-2px]" width={size||18} height={size||18} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>);
 const Loading=({text})=>(<Box><div className="flex flex-col items-center justify-center gap-3 pt-24 text-violet-300"><Spinner size={40}/><p className="text-sm text-gray-400">{text||'載入中…'}</p></div></Box>);
@@ -80,13 +96,13 @@ const Btn=({children,onClick,color,disabled,className,loading})=>(<button disabl
 const Chip=({on,children,onClick})=>(<button onClick={onClick} className={'px-4 py-2 rounded-full border text-sm '+(on?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-300')}>{children}</button>);
 const Msg=({text})=>(<Box><Card><p className="text-center text-gray-300 whitespace-pre-line">{text}</p></Card></Box>);
 
-function useLoad(action,params){ // 回傳[狀態,重新讀取(強制略過暫存)];有暫存時第一次畫就直接有資料
+function useLoad(action,params){ // 回傳[狀態,重新讀取(強制略過暫存)];有暫存時第一次畫就直接有資料;重新整理失敗時保留舊資料並標示 err
   const pk=JSON.stringify(params||{});
-  const[st,setSt]=useState(()=>{const c=peek(action,params);return c?{loading:false,data:c}:{loading:true,data:null};});
+  const[st,setSt]=useState(()=>{const c=peek(action,params);return c?{loading:false,data:c,err:''}:{loading:true,data:null,err:''};});
   const run=useCallback((force)=>{
-    if(!force){const c=peek(action,params);if(c){setSt({loading:false,data:c});return;}}
-    setSt(s=>({loading:true,data:s.data}));
-    api(action,params,!!force).then(d=>setSt({loading:false,data:d}));
+    if(!force){const c=peek(action,params);if(c){setSt({loading:false,data:c,err:''});return;}}
+    setSt(s=>({loading:true,data:s.data,err:''}));
+    api(action,params,!!force).then(d=>setSt(s=>(d&&d.ok)?{loading:false,data:d,err:''}:(s.data&&s.data.ok)?{loading:false,data:s.data,err:'更新失敗,畫面上仍是舊資料'}:{loading:false,data:d,err:''}));
   },[action,pk]);
   useEffect(()=>{run(false);},[run]);
   return[st,()=>run(true)];
@@ -154,7 +170,7 @@ function ReportInner({me,sid,editInfo}){
     if(r.ok){setPicking(false);reload();}else setErr(r.error||t.fail);
   };
   const stLabel=x=>x==='ok'?t.ok:x==='help'?t.help:t.other;
-  return(<Box>
+  return(<Box {...barOf(st,reload,lang)}>
     <Card>
       <p className="text-xs text-amber-400 font-bold">⚠️ {t.survey}</p>
       <h1 className="text-xl font-bold text-white mt-1">{s.title}</h1>
@@ -205,7 +221,7 @@ function ListInner({me,sid}){
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||t.fail}/>);
   const d=st.data;
   const doCopy=(g)=>{copyText(g.items.map(i=>i.label).join(' ')).then(ok=>{if(ok){setCopied(g.store);setTimeout(()=>setCopied(''),1800);}});};
-  return(<Box>
+  return(<Box {...barOf(st,reload,lang0)}>
     <Card><p className="text-xs text-amber-400 font-bold">⚠️ {t.survey}</p><h1 className="text-lg font-bold text-white mt-1">{d.survey.title}</h1></Card>
     {d.stores.map(g=>(<Card key={g.store}>
       <div className="flex items-center justify-between"><p className="font-bold text-white">{g.store}（{g.items.length}/{g.total}）</p>
@@ -215,7 +231,11 @@ function ListInner({me,sid}){
       </p>
     </Card>))}
     {d.restricted&&<p className="text-xs text-gray-500 text-center">{lang0==='vi'?'Chỉ hiển thị chi nhánh của bạn':'僅顯示你所屬店家'}:{d.myStore}</p>}
-    <Card className="flex items-center justify-between"><span className="text-xs text-gray-500">{t.dataAt}:{d.at}</span><button className="text-sm text-violet-400" disabled={st.loading} onClick={reload}>{st.loading&&<span className="mr-1"><Spinner size={14}/></span>}{st.loading?'…':t.refresh}</button></Card>
+    {d.detail&&(<Card className="space-y-3"><p className="font-bold text-white">未回報名單<span className="ml-2 text-xs font-normal text-gray-500">(已登記但尚未回報)</span></p>
+      {d.stores.map(g=>(<div key={g.store}><div className="flex items-center justify-between"><p className="text-sm text-gray-200">{g.store}（{(g.missing||[]).length}）</p>
+        {(g.missing||[]).length>0&&<button className="text-sm text-violet-400" onClick={()=>copyText((g.missing||[]).join(' ')).then(ok=>{if(ok){setCopied('m:'+g.store);setTimeout(()=>setCopied(''),1800);}})}>{copied==='m:'+g.store?t.copied:t.copy}</button>}</div>
+        <p className="mt-1 text-base leading-8 break-all text-gray-100">{(g.missing||[]).length===0?<span className="text-emerald-400 text-sm">都已回報 ✅</span>:(g.missing||[]).map((x,k)=>(<span key={k} className="mr-3">{x}</span>))}</p></div>))}
+      <Btn color="bg-blue-600 text-white" onClick={()=>go('s2=share&sid='+sid)}>分享提醒(可再單獨傳給沒回報的人)</Btn></Card>)}
     {d.detail&&(<div><button className="text-sm text-gray-400 underline" onClick={()=>setOpen(!open)}>{t.detail} {open?'▲':'▼'}</button>
       {open&&(<div className="mt-2 space-y-2">
         <div className="flex flex-wrap items-center gap-2"><span className="text-xs text-gray-500">排序</span>
@@ -246,7 +266,7 @@ function NewInner(){
   const[entryRes,setEntryRes]=useState('');const[hist,setHist]=useState(loadTitleHist());
   const shareEntry=async()=>{ // 暫時功能:Rich Menu 完成後移除
     try{if(!liff.isApiAvailable('shareTargetPicker')){setEntryRes('此環境不支援分享,請在 LINE 內開啟');return;}
-      const r=await liff.shareTargetPicker([{type:'flex',altText:'🚨 安全回報:發起新回報',contents:buildEntryFlex()}]);setEntryRes(r?'已分享 ✅':'已取消');}catch(e){setEntryRes('錯誤:'+String(e&&e.message||e));}
+      const r=await liff.shareTargetPicker([{type:'flex',altText:'🚨 安全回報:天災、緊急事件時,一鍵回報平安',contents:buildEntryFlex()}]);setEntryRes(r?'已分享 ✅':'已取消');}catch(e){setEntryRes('錯誤:'+String(e&&e.message||e));}
   };
   const create=async()=>{setBusy(true);setErr('');const r=await api('s2CreateSurvey',{title:title.trim(),endDate:end});setBusy(false);if(r.ok){saveTitleHist(title.trim());}if(r.ok)go('s2=share&sid='+r.id+'&fresh=1');else setErr(r.error||'失敗');};
   return(<Box>
@@ -289,7 +309,7 @@ function MineInner(){
     const g={};d.surveys.forEach(s=>{(g[s.creatorStore||'未分店']=g[s.creatorStore||'未分店']||[]).push(s);});
     body=Object.keys(g).map(k=>(<div key={k}><p className="text-sm font-bold text-violet-300 mb-2">{k}（{g[k].length}）</p><div className="space-y-3">{g[k].map(row)}</div></div>));
   }else body=<div className="space-y-3">{d.surveys.map(row)}</div>;
-  return(<Box>
+  return(<Box {...barOf(st,reload,'zh')}>
     <h1 className="text-lg font-bold text-white">📋 我發起的清單</h1>
     <Btn onClick={()=>go('s2=new')}>＋ 發起新回報</Btn>
     {d.surveys.length===0&&<Card><p className="text-center text-gray-500">目前沒有項目</p></Card>}
@@ -314,10 +334,20 @@ function buildFlex(s){
 // 暫時功能(使用者要求,Rich Menu 完成後移除):在「發起新回報」頁分享一張「發起入口」Flex,按鈕直接開 ?s2=new
 function buildEntryFlex(){
   const base='https://liff.line.me/'+window.__S2_LIFF_ID;
+  const pts=['不用再人工統計誰還沒回報。系統自動依店別列出已回報名單與人數。',
+    '以 LINE 帳號回報,一個帳號一筆,降低代簽、冒名的狀況。',
+    '發起後可分享到公司其他群組,各店都能一起回報;也能再單獨分享給遲遲沒回報的人,提醒他們補上。',
+    '回報狀態分「平安、需要協助、其他」,需要協助的編號會標紅,可以優先處理。',
+    '第一次回報填一次基本資料,之後點一下就完成。'];
+  const rows=pts.map((t,i)=>({type:'box',layout:'horizontal',spacing:'sm',contents:[
+    {type:'text',text:String(i+1)+'.',size:'sm',color:'#dc2626',weight:'bold',flex:0},
+    {type:'text',text:t,size:'sm',color:'#333333',wrap:true,flex:1}]}));
   return{type:'bubble',
     body:{type:'box',layout:'vertical',spacing:'md',paddingAll:'lg',contents:[
-      {type:'text',text:'🚨 安全回報',weight:'bold',size:'lg',color:'#dc2626'},
-      {type:'text',text:'點下方按鈕,發起新的安全回報',size:'sm',color:'#666666',wrap:true}]},
+      {type:'text',text:'🚨 安全回報',weight:'bold',size:'xl',color:'#dc2626'},
+      {type:'text',text:'天災、緊急事件時,一鍵回報平安',size:'sm',color:'#666666',wrap:true},
+      {type:'separator',margin:'md'},
+      {type:'box',layout:'vertical',spacing:'sm',margin:'md',contents:rows}]},
     footer:{type:'box',layout:'vertical',spacing:'sm',paddingAll:'lg',contents:[
       {type:'button',style:'primary',color:'#dc2626',height:'sm',action:{type:'uri',label:'發起新回報',uri:base+'?s2=new'}}]}};
 }
@@ -381,7 +411,7 @@ function MgrInner({me,needReg}){
       </Card></Box>);
   }
   const setLevel=(m,lv)=>act(()=>api('s2MgrSet',{targetId:m.lineUserId,level:lv}));
-  return(<Box>
+  return(<Box {...barOf(st,()=>{cclear(['s2Me']);reload();},'zh')}>
     <Card><h1 className="text-lg font-bold text-white">🛡️ 主管功能</h1><p className="text-sm text-gray-400 mt-1">你的職級：{d.level}　{d.all?'（可看所有店）':'（僅限本店）'}</p></Card>
     <Card className="space-y-3">
       <div className="flex items-center justify-between"><span className="text-gray-200">🔔 接收主管申請通知</span>
