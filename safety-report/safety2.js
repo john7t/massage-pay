@@ -41,7 +41,7 @@ const CACHE_TTL=12*3600e3; // 安全保險:最久 12 小時後即使沒按重新
 const CACHEABLE=['s2Me','s2GetSurvey','s2GetList','s2MySurveys','s2MgrInfo'];
 const WRITE_CLEAR={s2Register:'*',s2CreateSurvey:['s2MySurveys'],s2DeleteSurvey:['s2MySurveys','s2GetSurvey','s2GetList'],s2RestoreSurvey:['s2MySurveys','s2GetSurvey','s2GetList'],
   s2Report:['s2GetSurvey','s2GetList'],s2MgrApply:['s2Me','s2MgrInfo'],s2MgrApprove:['s2MgrInfo','s2Me','s2MySurveys'],s2MgrSet:['s2MgrInfo'],s2MgrNotify:['s2MgrInfo','s2Me'],
-  s2StaffSetLeft:['s2GetList'],s2OpenSet:['s2MgrInfo','s2GetList','s2GetSurvey'],
+  s2StaffSetLeft:['s2GetList'],s2WebAdminSet:['s2MgrInfo','s2Me'],s2OpenSet:['s2MgrInfo','s2GetList','s2GetSurvey'],
   s2AdminHide:['s2MgrInfo','s2Me','s2MySurveys','s2GetList','s2GetSurvey']}; // 寫入成功後,清掉受影響的暫存
 function cuid(){try{const c=liff.getContext();return(c&&c.userId)||'';}catch(_e){return '';}}
 function ckey(action,params){return 's2c:'+cuid()+':'+action+':'+JSON.stringify(params||{});}
@@ -386,11 +386,14 @@ function buildTutorialFlex(){
       step(2,'第一次使用：選擇身分（老師／櫃台）、店別、語系，按「下一步」'),
       step(3,'點選「平安」、「需要協助」或「其他」即完成')]},
     footer:{type:'box',layout:'vertical',paddingAll:'lg',contents:[{type:'text',text:'只需設定一次，之後會自動記住你',color:'#888888',size:'md',wrap:true}]}};
-  const sp=(t,big)=>big?{type:'span',text:t,weight:'bold',size:'3xl',color:'#fff176'}:{type:'span',text:t,size:'xxl',color:'#ffffff'};
   const p2={type:'bubble',size:'giga',
-    header:{type:'box',layout:'vertical',backgroundColor:'#e65100',paddingAll:'lg',contents:[{type:'text',wrap:true,contents:[sp('分享按鈕 '),sp('請勿',true),sp(' 點本 '),sp('大群',true)]}]},
-    body:{type:'box',layout:'vertical',justifyContent:'center',paddingAll:'xl',contents:[{type:'text',text:'店內大群為主管公佈訊息用',weight:'bold',size:'3xl',color:'#b34700',align:'center',wrap:true}]},
-    footer:{type:'box',layout:'vertical',paddingAll:'lg',contents:[{type:'text',text:'謝謝配合 🙏',color:'#888888',size:'lg',align:'center'}]}};
+    header:{type:'box',layout:'vertical',backgroundColor:'#e65100',paddingAll:'lg',contents:[{type:'text',text:'不會操作請找主管詢問',color:'#ffffff',weight:'bold',size:'3xl',wrap:true}]},
+    body:{type:'box',layout:'vertical',justifyContent:'center',spacing:'md',paddingAll:'xl',contents:[
+      {type:'text',text:'店內大群為',weight:'bold',size:'3xl',color:'#b34700',align:'center'},
+      {type:'text',text:'主管公佈訊息專用',weight:'bold',size:'3xl',color:'#b34700',align:'center',wrap:true},
+      {type:'text',text:'主管公佈訊息專用',weight:'bold',size:'3xl',color:'#b34700',align:'center',wrap:true},
+      {type:'text',text:'主管公佈訊息專用',weight:'bold',size:'3xl',color:'#b34700',align:'center',wrap:true}]},
+    footer:{type:'box',layout:'vertical',paddingAll:'lg',contents:[{type:'text',text:'說3次代表很重要　謝謝大家配合 🙏',color:'#888888',size:'md',align:'center'}]}};
   return{type:'carousel',contents:[p1,p2]};
 }
 function buildMgrInviteFlex(){
@@ -420,13 +423,20 @@ function StaffList(){
     if(!m.left&&!window.confirm('將「'+m.store+' '+m.code+'」設為離職？\n(資料保留，之後可恢復)'))return;
     setBusy(m.id);setErr('');const r=await api('s2StaffSetLeft',{targetId:m.id,left:!m.left});setBusy('');if(r.ok)reload();else setErr(r.error||'失敗');
   };
+  const webToggle=async(m)=>{
+    if(!window.confirm((m.web?'取消':'設定')+'「'+m.store+' '+m.code+'」（LINE：'+(m.name||'未取得')+'）為網頁管理者？'+(m.web?'':'\n網頁管理者權限等同管理者。')))return;
+    setBusy(m.id);setErr('');const r=await api('s2WebAdminSet',{targetId:m.id,on:!m.web});setBusy('');if(r.ok)reload();else setErr(r.error||'失敗');
+  };
   const groups=(d.stores||[]).map(sn=>({store:sn,items:d.staff.filter(x=>x.store===sn)})).filter(g=>g.items.length>0);
   return(<div className="space-y-3">
     {groups.length===0&&<p className="text-sm text-gray-500">目前沒有人員</p>}
     {groups.map(g=>(<div key={g.store}><p className="text-sm text-gray-300">{g.store}（在職 {g.items.filter(x=>!x.left).length}／共 {g.items.length}）</p>
       <div className="mt-1 divide-y divide-gray-800">{g.items.map(m=>(<div key={m.id} className="flex items-center justify-between py-2">
-        <span className={m.left?'text-gray-500 line-through':'text-gray-100'}>{m.code}{m.role==='counter'?'（櫃台）':''}{m.left?'　已離職':''}</span>
-        <button disabled={busy===m.id} className={'px-3 py-1 rounded-full text-sm '+(m.left?'bg-emerald-700 text-white':'bg-gray-700 text-gray-200')} onClick={()=>toggle(m)}>{m.left?'恢復在職':'設為離職'}</button></div>))}</div></div>))}
+        <div className="min-w-0"><p className={m.left?'text-gray-500 line-through':'text-gray-100'}>{m.code}{m.role==='counter'?'（櫃台）':''}{m.left?'　已離職':''}{m.web&&<span className="ml-2 text-xs text-violet-300 no-underline">網頁管理者</span>}</p>
+          <p className="text-xs text-gray-400 break-all">LINE：{m.name||'（未取得）'}</p></div>
+        <div className="flex flex-col gap-1 items-end flex-none ml-2">
+          <button disabled={busy===m.id} className={'px-3 py-1 rounded-full text-sm '+(m.left?'bg-emerald-700 text-white':'bg-gray-700 text-gray-200')} onClick={()=>toggle(m)}>{m.left?'恢復在職':'設為離職'}</button>
+          {d.realAdmin&&!m.left&&<button disabled={busy===m.id} className={'px-3 py-1 rounded-full text-xs border '+(m.web?'border-red-500 text-red-400':'border-violet-500 text-violet-300')} onClick={()=>webToggle(m)}>{m.web?'取消網頁管理者':'設為網頁管理者'}</button>}</div></div>))}</div></div>))}
     {err&&<p className="text-sm text-red-400">{err}</p>}
   </div>);
 }
