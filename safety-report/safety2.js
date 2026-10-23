@@ -196,6 +196,7 @@ function ReportInner({me,sid,editInfo}){
   </Box>);
 }
 
+const SHOW_ENTRY_SHARE=false; // 「發起新回報」頁的「分享『發起新回報』入口」按鈕(暫時功能):使用者要求先移除(隱藏不刪,要恢復改成 true)
 const SHOW_REMIND_SHARE=false; // 未回報名單下方的「分享提醒」按鈕:使用者要求先移除(隱藏不刪,要恢復改成 true)
 // 詳細列表:篩選(狀態)與排序(時間/編號/狀態)
 function detailRows(items,sortBy,asc,flt){
@@ -278,8 +279,8 @@ function NewInner(){
       <div><p className="text-sm text-gray-400 mb-1">截止日</p><input type="date" value={end} onChange={e=>setEnd(e.target.value)} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-white"/></div></Card>
     {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
     <Btn disabled={!title.trim()||!end} loading={busy} onClick={create}>建立並分享</Btn>
-    <Btn color="bg-gray-700 text-white" onClick={shareEntry}>分享「發起新回報」入口</Btn>
-    {entryRes&&<p className="text-center text-sm text-gray-400">{entryRes}</p>}
+    {SHOW_ENTRY_SHARE&&<Btn color="bg-gray-700 text-white" onClick={shareEntry}>分享「發起新回報」入口</Btn>}
+    {SHOW_ENTRY_SHARE&&entryRes&&<p className="text-center text-sm text-gray-400">{entryRes}</p>}
     <Btn color="bg-gray-800 text-gray-200" onClick={()=>go('s2=mine')}>我發起的清單</Btn>
   </Box>);
 }
