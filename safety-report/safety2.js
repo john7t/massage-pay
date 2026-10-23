@@ -158,7 +158,7 @@ function ReportInner({me,sid,editInfo}){
     <Card>
       <p className="text-xs text-amber-400 font-bold">⚠️ {t.survey}</p>
       <h1 className="text-xl font-bold text-white mt-1">{s.title}</h1>
-      <p className="text-sm text-gray-400 mt-2">{t.by}:{s.creatorStore} {s.creatorLabel}<br/>{t.end}:{s.endDate}</p>
+      <p className="text-sm text-gray-400 mt-2">{(s.creatorStore||s.creatorLabel)?<span>{t.by}:{s.creatorStore} {s.creatorLabel}<br/></span>:null}{t.end}:{s.endDate}</p>
     </Card>
     {s.closed&&<p className="text-center text-amber-400">{t.closed}</p>}
     {mine&&!picking&&(<Card className="text-center">
@@ -304,7 +304,7 @@ function buildFlex(s){
     body:{type:'box',layout:'vertical',spacing:'md',paddingAll:'lg',contents:[
       {type:'text',text:'⚠️ 安全回報 / Báo cáo an toàn',weight:'bold',size:'sm',color:'#f59e0b'},
       {type:'text',text:s.title,weight:'bold',size:'lg',wrap:true,color:'#111111'},
-      {type:'text',text:'發起人:'+(s.creatorStore+' '+s.creatorLabel).trim()+'\n截止:'+s.endDate,size:'sm',color:'#888888',wrap:true},
+      {type:'text',text:'截止:'+s.endDate,size:'sm',color:'#888888',wrap:true}, // 發起人姓名/店別不放進 Flex(一般成員不可見)
       {type:'text',text:'請點下方按鈕回報,或分享給其他同仁\nBấm nút bên dưới để báo cáo hoặc chia sẻ',size:'xs',color:'#888888',wrap:true}]},
     footer:{type:'box',layout:'vertical',spacing:'sm',paddingAll:'lg',contents:[
       {type:'button',style:'primary',color:'#dc2626',height:'sm',action:{type:'uri',label:'我要回報 / Báo cáo',uri:base+'?s2=r&sid='+s.id}},
