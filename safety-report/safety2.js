@@ -282,8 +282,9 @@ function loadTitleHist(){try{const v=JSON.parse(localStorage.getItem(HIST_KEY)||
 function saveTitleHist(t){try{const v=[t].concat(loadTitleHist().filter(x=>x!==t)).slice(0,8);localStorage.setItem(HIST_KEY,JSON.stringify(v));}catch(_e){}}
 function clearTitleHist(){try{localStorage.removeItem(HIST_KEY);}catch(_e){}}
 function NewInner({share}){
-  const def=new Date(Date.now()+2*86400e3);const pad=n=>String(n).padStart(2,'0');
-  const[title,setTitle]=useState('');const[end,setEnd]=useState(def.getFullYear()+'-'+pad(def.getMonth()+1)+'-'+pad(def.getDate()));
+  const def=new Date(); // 每日回報:日期固定為今天,不可改
+  const pad=n=>String(n).padStart(2,'0');
+  const[title,setTitle]=useState('');const[end]=useState(def.getFullYear()+'-'+pad(def.getMonth()+1)+'-'+pad(def.getDate()));
   const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
   const[entryRes,setEntryRes]=useState('');const[hist,setHist]=useState(loadTitleHist());
   const shareEntry=async()=>{ // 暫時功能:Rich Menu 完成後移除
@@ -296,7 +297,8 @@ function NewInner({share}){
       <div><p className="text-sm text-gray-400 mb-1">標題(最多40字)</p><input value={title} onChange={e=>setTitle(e.target.value)} maxLength={40} placeholder="例如:10/24 颱風 安全回報" className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-white"/>
         {hist.length>0&&(<div className="mt-2"><div className="flex items-center justify-between"><span className="text-xs text-gray-500">曾輸入過(點一下帶入)</span><button className="text-xs text-gray-500 underline" onClick={()=>{clearTitleHist();setHist([]);}}>清除</button></div>
           <div className="flex flex-wrap gap-2 mt-1">{hist.map(h=>(<button key={h} onClick={()=>setTitle(h)} className="px-3 py-1 rounded-full border border-gray-600 text-xs text-gray-300">{h}</button>))}</div></div>)}</div>
-      <div><p className="text-sm text-gray-400 mb-1">截止日</p><input type="date" value={end} onChange={e=>setEnd(e.target.value)} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-white"/></div></Card>
+      <div><p className="text-sm text-gray-400 mb-1">日期（今日，不可更改）</p><p className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-gray-200">{end}</p></div>
+      <p className="text-xs text-gray-500">備註：本回報頁為每日回報，故只能設一天到期。</p></Card>
     {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
     <Btn disabled={!title.trim()||!end} loading={busy} onClick={create}>{share?'建立並分享':'建立'}</Btn>
     {SHOW_ENTRY_SHARE&&<Btn color="bg-gray-700 text-white" onClick={shareEntry}>分享「發起新回報」入口</Btn>}
