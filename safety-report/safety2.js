@@ -203,6 +203,7 @@ function ReportInner({me,sid,editInfo}){
 // false 時:建立後不導向分享頁、清單不顯示「分享」、分享頁顯示暫停訊息。
 // 分享只開放給主管,入口都在主管功能頁(?s2=mgr):建立並分享(?s2=mnew)、分享既有回報(?s2=mine&pick=1)、分享回報教學。送出的 Flex 一律不含分享按鈕。
 const SHOW_ENTRY_SHARE=false; // 「發起新回報」頁的「分享『發起新回報』入口」按鈕(暫時功能):使用者要求先移除(隱藏不刪,要恢復改成 true)
+const SHOW_WEBADMIN_BTN=false; // 人員管理的「設為網頁管理者」按鈕:使用者要求先移除(隱藏不刪,後端 s2WebAdminSet 保留;要恢復改成 true)
 const SHOW_REMIND_SHARE=false; // 未回報名單下方的「分享提醒」按鈕:使用者要求先移除(隱藏不刪,要恢復改成 true)
 // 詳細列表:篩選(狀態)與排序(時間/編號/狀態)
 function detailRows(items,sortBy,asc,flt){
@@ -318,16 +319,16 @@ function MineInner(){
   if(st.loading&&!st.data)return(<Loading/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
   const d=st.data;
-  const del=async(s)=>{if(!window.confirm('確定要刪除「'+s.title+'」嗎?(資料會保留,只是從清單隱藏)'))return;setBusy(s.id);const r=await api('s2DeleteSurvey',{id:s.id});setBusy('');if(r.ok)reload();else alert(r.error||'失敗');};
-  const restore=async(s)=>{setBusy(s.id);const r=await api('s2RestoreSurvey',{id:s.id});setBusy('');if(r.ok)reload();else alert(r.error||'失敗');};
+  const del=async(s)=>{if(!window.confirm('確定要刪除「'+s.title+'」嗎?(資料會保留,只是從清單隱藏)'))return;setBusy(s.id);const r=await api('s2DeleteSurvey',{id:s.id});if(r.ok){reload();setTimeout(()=>setBusy(''),5000);}else{setBusy('');alert(r.error||'失敗');}}; // 點了立刻變灰＋轉圈,成功後保持到清單更新(最久5秒)
+  const restore=async(s)=>{setBusy(s.id);const r=await api('s2RestoreSurvey',{id:s.id});if(r.ok){reload();setTimeout(()=>setBusy(''),5000);}else{setBusy('');alert(r.error||'失敗');}};
   const row=(s)=>(<Card key={s.id} className={s.hidden?'opacity-60':''}>
     <p className="font-bold text-white">{s.title}{s.hidden&&<span className="ml-2 text-xs text-red-400">已刪除</span>}{s.closed&&!s.hidden&&<span className="ml-2 text-xs text-gray-500">已截止</span>}</p>
     <p className="text-xs text-gray-400 mt-1">{s.creatorStore} {s.creatorLabel}　截止 {s.endDate}　已回報 {s.count} 人{s.help>0&&<span className="text-red-400">（需協助 {s.help}）</span>}</p>
     <div className={'grid gap-2 mt-3 '+(pick?'grid-cols-3':'grid-cols-2')}>
       <button className="rounded-lg bg-violet-600 text-white text-sm py-2" onClick={()=>go('s2=l&sid='+s.id)}>查看名單</button>
       {pick&&<button disabled={s.hidden} className="rounded-lg bg-blue-600 text-white text-sm py-2 disabled:opacity-30" onClick={()=>go('s2=share&sid='+s.id)}>分享</button>}
-      {s.hidden?(d.canRestore?<button disabled={busy===s.id} className="rounded-lg border border-emerald-500 text-emerald-400 text-sm py-2" onClick={()=>restore(s)}>還原</button>:<span/>)
-        :(s.canDelete?<button disabled={busy===s.id} className="rounded-lg border border-red-500 text-red-400 text-sm py-2" onClick={()=>del(s)}>刪除</button>:<span/>)}
+      {s.hidden?(d.canRestore?<button disabled={!!busy} className={'rounded-lg border text-sm py-2 '+(busy===s.id?'border-gray-600 text-gray-500 opacity-60':'border-emerald-500 text-emerald-400 disabled:opacity-40')} onClick={()=>restore(s)}>{busy===s.id?<Spinner size={16}/>:'還原'}</button>:<span/>)
+        :(s.canDelete?<button disabled={!!busy} className={'rounded-lg border text-sm py-2 '+(busy===s.id?'border-gray-600 text-gray-500 opacity-60':'border-red-500 text-red-400 disabled:opacity-40')} onClick={()=>del(s)}>{busy===s.id?<Spinner size={16}/>:'刪除'}</button>:<span/>)}
     </div></Card>);
   let body;
   if(d.groupByStore){
@@ -376,6 +377,15 @@ function buildEntryFlex(){
       {type:'button',style:'primary',color:'#dc2626',height:'sm',action:{type:'uri',label:'發起新回報',uri:base+'?s2=new'}}]}};
 }
 // ───────── 回報教學 Flex(2頁,主管功能頁分享;沒有任何按鈕) ─────────
+// 「大群公告專用」字卡(回報教學第2頁、老師不要在大群回文 共用)
+function noBigGroupBubble(title){
+  const line=(t)=>({type:'text',text:t,weight:'bold',size:'3xl',color:'#b34700',align:'center',wrap:true});
+  return{type:'bubble',size:'giga',
+    header:{type:'box',layout:'vertical',backgroundColor:'#e65100',paddingAll:'lg',contents:[{type:'text',text:title,color:'#ffffff',weight:'bold',size:'3xl',wrap:true}]},
+    body:{type:'box',layout:'vertical',justifyContent:'center',spacing:'md',paddingAll:'xl',contents:[line('店內大群為'),line('主管公佈訊息專用'),line('主管公佈訊息專用'),line('主管公佈訊息專用')]},
+    footer:{type:'box',layout:'vertical',paddingAll:'lg',contents:[{type:'text',text:'說3次代表很重要　謝謝大家配合 🙏',color:'#888888',size:'md',align:'center'}]}};
+}
+function buildNoReplyFlex(){return noBigGroupBubble('老師不要在大群回文');}
 function buildTutorialFlex(){
   const step=(n,txt,extra,color)=>({type:'box',layout:'horizontal',spacing:'md',contents:[
     {type:'box',layout:'vertical',width:'32px',height:'32px',cornerRadius:'16px',backgroundColor:color||'#1e88e5',justifyContent:'center',alignItems:'center',flex:0,contents:[{type:'text',text:String(n),color:'#ffffff',weight:'bold',size:'md',align:'center'}]},
@@ -388,14 +398,7 @@ function buildTutorialFlex(){
       step(2,'第一次使用：選擇身分（老師／櫃台）、店別、語系，按「下一步」'),
       step(3,'點選「平安」、「需要協助」或「其他」即完成')]},
     footer:{type:'box',layout:'vertical',paddingAll:'lg',contents:[{type:'text',text:'只需設定一次，之後會自動記住你',color:'#888888',size:'md',wrap:true}]}};
-  const p2={type:'bubble',size:'giga',
-    header:{type:'box',layout:'vertical',backgroundColor:'#e65100',paddingAll:'lg',contents:[{type:'text',text:'不會操作請找主管詢問',color:'#ffffff',weight:'bold',size:'3xl',wrap:true}]},
-    body:{type:'box',layout:'vertical',justifyContent:'center',spacing:'md',paddingAll:'xl',contents:[
-      {type:'text',text:'店內大群為',weight:'bold',size:'3xl',color:'#b34700',align:'center'},
-      {type:'text',text:'主管公佈訊息專用',weight:'bold',size:'3xl',color:'#b34700',align:'center',wrap:true},
-      {type:'text',text:'主管公佈訊息專用',weight:'bold',size:'3xl',color:'#b34700',align:'center',wrap:true},
-      {type:'text',text:'主管公佈訊息專用',weight:'bold',size:'3xl',color:'#b34700',align:'center',wrap:true}]},
-    footer:{type:'box',layout:'vertical',paddingAll:'lg',contents:[{type:'text',text:'說3次代表很重要　謝謝大家配合 🙏',color:'#888888',size:'md',align:'center'}]}};
+  const p2=noBigGroupBubble('不會操作請找主管詢問');
   return{type:'carousel',contents:[p1,p2]};
 }
 function buildMgrInviteFlex(){
@@ -422,7 +425,7 @@ function StaffList(){
   if(!st.data||!st.data.ok)return(<p className="text-sm text-red-400">{(st.data&&st.data.error)||'失敗'}</p>);
   const d=st.data;
   const toggle=async(m)=>{
-    if(!m.left&&!window.confirm('將「'+m.store+' '+m.code+'」設為離職？\n(資料保留，之後可恢復)'))return;
+    if(!m.left&&!window.confirm('將「'+m.store+' '+m.code+'」移除？\n(資料保留，不再計入名單與分母，之後可恢復)'))return;
     setBusy(m.id);setErr('');const r=await api('s2StaffSetLeft',{targetId:m.id,left:!m.left});setBusy('');if(r.ok)reload();else setErr(r.error||'失敗');
   };
   const webToggle=async(m)=>{
@@ -434,17 +437,17 @@ function StaffList(){
     {groups.length===0&&<p className="text-sm text-gray-500">目前沒有人員</p>}
     {groups.map(g=>(<div key={g.store}><p className="text-sm text-gray-300">{g.store}（在職 {g.items.filter(x=>!x.left).length}／共 {g.items.length}）</p>
       <div className="mt-1 divide-y divide-gray-800">{g.items.map(m=>(<div key={m.id} className="flex items-center justify-between py-2">
-        <div className="min-w-0"><p className={m.left?'text-gray-500 line-through':'text-gray-100'}>{m.code}{m.role==='counter'?'（櫃台）':''}{m.left?'　已離職':''}{m.web&&<span className="ml-2 text-xs text-violet-300 no-underline">網頁管理者</span>}</p>
+        <div className="min-w-0"><p className={m.left?'text-gray-500 line-through':'text-gray-100'}>{m.code}{m.role==='counter'?'（櫃台）':''}{m.left?'　已移除':''}{m.web&&<span className="ml-2 text-xs text-violet-300 no-underline">網頁管理者</span>}</p>
           <p className="text-xs text-gray-400 break-all">LINE：{m.name||'（未取得）'}</p></div>
         <div className="flex flex-col gap-1 items-end flex-none ml-2">
-          <button disabled={busy===m.id} className={'px-3 py-1 rounded-full text-sm '+(m.left?'bg-emerald-700 text-white':'bg-gray-700 text-gray-200')} onClick={()=>toggle(m)}>{m.left?'恢復在職':'設為離職'}</button>
-          {d.realAdmin&&!m.left&&<button disabled={busy===m.id} className={'px-3 py-1 rounded-full text-xs border '+(m.web?'border-red-500 text-red-400':'border-violet-500 text-violet-300')} onClick={()=>webToggle(m)}>{m.web?'取消網頁管理者':'設為網頁管理者'}</button>}</div></div>))}</div></div>))}
+          <button disabled={busy===m.id} className={'px-3 py-1 rounded-full text-sm '+(m.left?'bg-emerald-700 text-white':'bg-gray-700 text-gray-200')} onClick={()=>toggle(m)}>{m.left?'恢復':'移除'}</button>
+          {SHOW_WEBADMIN_BTN&&d.realAdmin&&!m.left&&<button disabled={busy===m.id} className={'px-3 py-1 rounded-full text-xs border '+(m.web?'border-red-500 text-red-400':'border-violet-500 text-violet-300')} onClick={()=>webToggle(m)}>{m.web?'取消網頁管理者':'設為網頁管理者'}</button>}</div></div>))}</div></div>))}
     {err&&<p className="text-sm text-red-400">{err}</p>}
   </div>);
 }
 function StaffCard(){
   const[open,setOpen]=useState(false);
-  return(<Card className="space-y-3"><button className="w-full flex items-center justify-between text-left" onClick={()=>setOpen(!open)}><span className="font-bold text-white">👥 人員管理（設離職）</span><span className="text-gray-400">{open?'▲':'▼'}</span></button>
+  return(<Card className="space-y-3"><button className="w-full flex items-center justify-between text-left" onClick={()=>setOpen(!open)}><span className="font-bold text-white">👥 人員管理（移除）</span><span className="text-gray-400">{open?'▲':'▼'}</span></button>
     {open&&<StaffList/>}</Card>);
 }
 
@@ -514,6 +517,7 @@ function MgrInner({me,needReg}){
       <Btn onClick={()=>go('s2=mnew')}>＋ 建立新回報並分享</Btn>
       <Btn color="bg-gray-800 text-white border border-gray-600" onClick={()=>go('s2=mine&pick=1')}>本店回報調查（查看名單／分享）</Btn>
       <ShareFlexBtn label="📖 分享「回報教學」給好友" altText="如何做安全回報(教學)" build={buildTutorialFlex}/>
+      <ShareFlexBtn label="🚫 分享「老師不要在大群回文」字卡" altText="老師不要在大群回文" build={buildNoReplyFlex}/>
       <ShareFlexBtn label="🛡️ 分享「主管功能」邀請" altText="主管功能" build={buildMgrInviteFlex}/>
       <p className="text-xs text-gray-500">Flex 傳到群組後無法收回，請確認標題與對象再分享。</p></Card>
     <StaffCard/>
@@ -522,8 +526,8 @@ function MgrInner({me,needReg}){
         <button disabled={busy} className={'px-4 py-1 rounded-full text-sm '+(x[2]?'bg-emerald-600 text-white':'bg-gray-700 text-gray-300')} onClick={()=>act(()=>api('s2OpenSet',{which:x[0],on:!x[2]}))}>{x[2]?'公開':'僅主管'}</button></div>))}
       <p className="text-xs text-gray-500">「僅主管」＝只有發起人、本店主管、區經理以上與管理者能看。</p></Card>)}
     <Card className="space-y-3">
-      <div className="flex items-center justify-between"><span className="text-gray-200">🔔 接收主管申請通知</span>
-        <button disabled={busy} className={'px-4 py-1 rounded-full text-sm '+(d.notify?'bg-emerald-600 text-white':'bg-gray-700 text-gray-300')} onClick={()=>act(()=>api('s2MgrNotify',{on:!d.notify}))}>{d.notify?'開':'關'}</button></div>
+      {d.level!=='櫃台組長'&&(<div className="flex items-center justify-between"><span className="text-gray-200">🔔 接收主管申請通知</span>
+        <button disabled={busy} className={'px-4 py-1 rounded-full text-sm '+(d.notify?'bg-emerald-600 text-white':'bg-gray-700 text-gray-300')} onClick={()=>act(()=>api('s2MgrNotify',{on:!d.notify}))}>{d.notify?'開':'關'}</button></div>)}
       {d.admin&&(<div className="flex items-center justify-between"><span className="text-gray-200">👁 已刪除項目對我也隱藏</span>
         <button disabled={busy} className={'px-4 py-1 rounded-full text-sm '+(d.hideAdmin?'bg-emerald-600 text-white':'bg-gray-700 text-gray-300')} onClick={()=>act(()=>api('s2AdminHide',{on:!d.hideAdmin}))}>{d.hideAdmin?'開':'關'}</button></div>)}
     </Card>
@@ -531,9 +535,10 @@ function MgrInner({me,needReg}){
       {d.pending.map(p=>(<div key={p.reqId} className="border-t border-gray-800 pt-2"><p className="text-gray-200">{p.store} {p.label}　申請：{p.level}</p>
         <div className="grid grid-cols-2 gap-2 mt-2"><Btn disabled={busy} color="bg-emerald-600 text-white" onClick={()=>act(()=>api('s2MgrApprove',{rid:p.reqId,approve:true}))}>核准</Btn><Btn disabled={busy} color="bg-gray-700 text-white" onClick={()=>act(()=>api('s2MgrApprove',{rid:p.reqId,approve:false}))}>拒絕</Btn></div></div>))}</Card>)}
     <Card className="space-y-3"><p className="font-bold text-white">主管名單（調整職級）</p>
+      <p className="text-xs text-gray-500">只能調整「職級比自己低」的人；同級或更高職級僅供查看。</p>
       {d.mgrs.length===0&&<p className="text-gray-500 text-sm">目前沒有主管</p>}
       {d.mgrs.map(m=>(<div key={m.lineUserId} className="border-t border-gray-800 pt-2"><p className="text-gray-200">{m.store} {m.label}　<span className="text-violet-300">{m.level}</span></p>
-        {m.canEdit&&(<div className="flex flex-wrap gap-2 mt-2">{d.levels.filter(l=>l!=='網頁管理者'||d.realAdmin).map(l=>(<Chip key={l} on={m.level===l} onClick={()=>m.level!==l&&setLevel(m,l)}>{l}</Chip>))}<button className="px-3 py-2 rounded-full border border-red-500 text-red-400 text-sm" onClick={()=>window.confirm('取消「'+m.label+'」的主管職？')&&setLevel(m,'')}>取消主管</button></div>)}</div>))}
+        {m.canEdit&&(<div className="flex flex-wrap gap-2 mt-2">{d.levels.filter(l=>(d.settable||[]).indexOf(l)>=0).map(l=>(<Chip key={l} on={m.level===l} onClick={()=>m.level!==l&&setLevel(m,l)}>{l}</Chip>))}<button className="px-3 py-2 rounded-full border border-red-500 text-red-400 text-sm" onClick={()=>window.confirm('取消「'+m.label+'」的主管職？')&&setLevel(m,'')}>取消主管</button></div>)}</div>))}
     </Card>
     {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
     <Btn color="bg-gray-800 text-gray-200" onClick={()=>go('s2=mine')}>我發起的清單</Btn>
