@@ -64,7 +64,9 @@ const liffBase=()=>'https://liff.line.me/'+(window.__S2_LIFF_ID||'');
 const RefreshBtn=()=>(<button onClick={()=>{cclear('*');location.reload();}} className="text-xs text-gray-400 border border-gray-700 rounded-full px-3 py-1">🔄 重新整理 / Làm mới</button>);
 const Box=({children})=>(<div className="min-h-screen px-4 py-5"><div className="max-w-md mx-auto space-y-4"><div className="flex justify-end"><RefreshBtn/></div>{children}</div></div>);
 const Card=({children,className})=>(<div className={'rounded-2xl bg-gray-900 border border-gray-800 p-4 '+(className||'')}>{children}</div>);
-const Btn=({children,onClick,color,disabled,className})=>(<button disabled={disabled} onClick={onClick} className={'w-full rounded-xl py-3 font-bold text-base disabled:opacity-40 '+(color||'bg-violet-600 text-white')+' '+(className||'')}>{children}</button>);
+const Spinner=({size})=>(<svg className="animate-spin inline-block align-[-2px]" width={size||18} height={size||18} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>);
+const Loading=({text})=>(<Box><div className="flex flex-col items-center justify-center gap-3 pt-24 text-violet-300"><Spinner size={40}/><p className="text-sm text-gray-400">{text||'載入中…'}</p></div></Box>);
+const Btn=({children,onClick,color,disabled,className,loading})=>(<button disabled={disabled||loading} onClick={onClick} className={'w-full rounded-xl py-3 font-bold text-base disabled:opacity-40 '+(color||'bg-violet-600 text-white')+' '+(className||'')}>{loading&&<span className="mr-2"><Spinner/></span>}{children}</button>);
 const Chip=({on,children,onClick})=>(<button onClick={onClick} className={'px-4 py-2 rounded-full border text-sm '+(on?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-300')}>{children}</button>);
 const Msg=({text})=>(<Box><Card><p className="text-center text-gray-300 whitespace-pre-line">{text}</p></Card></Box>);
 
@@ -104,7 +106,7 @@ function RegisterForm({user,onDone,showLangFirst}){
           className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-lg text-white"/></div>)}
     </Card>
     {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
-    <Btn disabled={!ready||busy} onClick={submit}>{busy?t.saving:t.next}</Btn>
+    <Btn disabled={!ready} loading={busy} onClick={submit}>{busy?t.saving:t.next}</Btn>
   </Box>);
 }
 
@@ -112,7 +114,7 @@ function RegisterForm({user,onDone,showLangFirst}){
 function NeedUser({render}){
   const[st,reload]=useLoad((f)=>api('s2Me',{},f),[]);
   const[user,setUser]=useState(undefined);const[editing,setEditing]=useState(false);
-  if(st.loading&&!st.data)return(<Msg text="載入中… / Đang tải…"/>);
+  if(st.loading&&!st.data)return(<Loading text="載入中… / Đang tải…"/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
   const me=st.data;const u=user===undefined?me.user:user;
   if(!u||editing)return(<RegisterForm user={u} onDone={x=>{setUser(x);setEditing(false);}}/>);
@@ -127,7 +129,7 @@ function ReportInner({me,sid,editInfo}){
   const lang=me.user.lang;const t=TT[lang];
   const[st,reload]=useLoad((f)=>api('s2GetSurvey',{id:sid},f),[sid]);
   const[other,setOther]=useState('');const[busy,setBusy]=useState(false);const[err,setErr]=useState('');const[picking,setPicking]=useState(false);
-  if(st.loading&&!st.data)return(<Msg text={t.loading}/>);
+  if(st.loading&&!st.data)return(<Loading text={t.loading}/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||t.fail}/>);
   const s=st.data.survey;const mine=st.data.mine;
   const send=async(status,txt)=>{
@@ -151,8 +153,8 @@ function ReportInner({me,sid,editInfo}){
     </Card>)}
     {(!mine||picking)&&!s.closed&&(<Card className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
-        <Btn disabled={busy} color="bg-emerald-600 text-white" onClick={()=>send('ok')}>{t.ok}</Btn>
-        <Btn disabled={busy} color="bg-red-600 text-white" onClick={()=>send('help')}>{t.help}</Btn>
+        <Btn loading={busy} color="bg-emerald-600 text-white" onClick={()=>send('ok')}>{t.ok}</Btn>
+        <Btn loading={busy} color="bg-red-600 text-white" onClick={()=>send('help')}>{t.help}</Btn>
       </div>
       <input value={other} onChange={e=>setOther(e.target.value)} maxLength={200} placeholder={t.otherHint} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-white"/>
       <Btn disabled={busy||!other.trim()} color="bg-gray-700 text-white" onClick={()=>send('other',other.trim())}>{t.other} · {t.send}</Btn>
@@ -163,6 +165,19 @@ function ReportInner({me,sid,editInfo}){
   </Box>);
 }
 
+// 詳細列表:篩選(狀態)與排序(時間/編號/狀態)
+function detailRows(items,sortBy,asc,flt){
+  const rows=items.filter(i=>flt==='all'||i.status===flt);
+  const rank={help:0,other:1,ok:2};
+  rows.sort((a,b)=>{
+    let c=0;
+    if(sortBy==='time')c=String(a.time).localeCompare(String(b.time));
+    else if(sortBy==='code'){const x=parseFloat(a.label),y=parseFloat(b.label);c=(isNaN(x)||isNaN(y))?String(a.label).localeCompare(String(b.label)):x-y;}
+    else c=(rank[a.status]-rank[b.status])||(String(b.time).localeCompare(String(a.time)));
+    return asc?c:-c;
+  });
+  return rows;
+}
 // ───────── 名單頁(依店別分組) ─────────
 function ListPage({sid}){
   return(<NeedUser render={(me,editInfo)=><ListInner me={me} sid={sid}/>}/>);
@@ -170,8 +185,8 @@ function ListPage({sid}){
 function ListInner({me,sid}){
   const t=TT[me.user.lang];const lang0=me.user.lang;
   const[st,reload]=useLoad((f)=>api('s2GetList',{id:sid},f),[sid]);
-  const[copied,setCopied]=useState('');const[open,setOpen]=useState(false);
-  if(st.loading&&!st.data)return(<Msg text={t.loading}/>);
+  const[copied,setCopied]=useState('');const[open,setOpen]=useState(false);const[sortBy,setSortBy]=useState('time');const[asc,setAsc]=useState(false);const[flt,setFlt]=useState('all');
+  if(st.loading&&!st.data)return(<Loading text={t.loading}/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||t.fail}/>);
   const d=st.data;
   const doCopy=(g)=>{copyText(g.items.map(i=>i.label).join(' ')).then(ok=>{if(ok){setCopied(g.store);setTimeout(()=>setCopied(''),1800);}});};
@@ -185,10 +200,17 @@ function ListInner({me,sid}){
       </p>
     </Card>))}
     {d.restricted&&<p className="text-xs text-gray-500 text-center">{lang0==='vi'?'Chỉ hiển thị chi nhánh của bạn':'僅顯示你所屬店家'}:{d.myStore}</p>}
-    <Card className="flex items-center justify-between"><span className="text-xs text-gray-500">{t.dataAt}:{d.at}</span><button className="text-sm text-violet-400" onClick={reload}>{t.refresh}</button></Card>
+    <Card className="flex items-center justify-between"><span className="text-xs text-gray-500">{t.dataAt}:{d.at}</span><button className="text-sm text-violet-400" disabled={st.loading} onClick={reload}>{st.loading&&<span className="mr-1"><Spinner size={14}/></span>}{st.loading?'…':t.refresh}</button></Card>
     {d.detail&&(<div><button className="text-sm text-gray-400 underline" onClick={()=>setOpen(!open)}>{t.detail} {open?'▲':'▼'}</button>
-      {open&&(<div className="mt-2 space-y-2">{d.stores.map(g=>g.items.length>0&&(<Card key={g.store}><p className="font-bold text-white text-sm mb-1">{g.store}</p>
-        {g.items.map((i,k)=>(<p key={k} className="text-xs text-gray-300 leading-6">{i.label}　{i.status==='ok'?'平安':i.status==='help'?'需要協助':'其他'}{i.otherText?'：'+i.otherText:''}　<span className="text-gray-500">{String(i.time).slice(5,16)}</span></p>))}</Card>))}</div>)}</div>)}
+      {open&&(<div className="mt-2 space-y-2">
+        <div className="flex flex-wrap items-center gap-2"><span className="text-xs text-gray-500">排序</span>
+          {[['time','時間'],['code','編號'],['status','狀態']].map(x=>(<Chip key={x[0]} on={sortBy===x[0]} onClick={()=>{if(sortBy===x[0])setAsc(!asc);else{setSortBy(x[0]);setAsc(x[0]!=='time');}}}>{x[1]}{sortBy===x[0]?(asc?' ↑':' ↓'):''}</Chip>))}</div>
+        <div className="flex flex-wrap items-center gap-2"><span className="text-xs text-gray-500">篩選</span>
+          {[['all','全部'],['ok','平安'],['help','需要協助'],['other','其他']].map(x=>(<Chip key={x[0]} on={flt===x[0]} onClick={()=>setFlt(x[0])}>{x[1]}</Chip>))}</div>
+        {d.stores.map(g=>{const rows=detailRows(g.items,sortBy,asc,flt);return rows.length>0&&(<Card key={g.store}><p className="font-bold text-white text-sm mb-1">{g.store}（{rows.length}）</p>
+          {rows.map((i,k)=>(<p key={k} className="text-xs leading-6 text-gray-300"><span className={i.status==='help'?'text-red-400 font-bold':i.status==='other'?'text-amber-300':'text-gray-100'}>{i.label}　{i.status==='ok'?'平安':i.status==='help'?'需要協助':'其他'}</span>{i.otherText?'：'+i.otherText:''}　<span className="text-gray-500">{String(i.time).slice(5,16)}</span></p>))}</Card>);})}
+        {d.stores.every(g=>detailRows(g.items,sortBy,asc,flt).length===0)&&<p className="text-sm text-gray-500 text-center">沒有符合的項目</p>}
+      </div>)}</div>)}
     <Btn color="bg-gray-800 text-gray-200" onClick={()=>go('s2=r&sid='+sid)}>← {t.back}</Btn>
   </Box>);
 }
@@ -197,22 +219,29 @@ function ListInner({me,sid}){
 function NewPage(){
   return(<NeedUser render={()=><NewInner/>}/>);
 }
+// 標題輸入歷史(只存在本機,最多 8 筆,新的排前面)
+const HIST_KEY='s2:titleHist';
+function loadTitleHist(){try{const v=JSON.parse(localStorage.getItem(HIST_KEY)||'[]');return Array.isArray(v)?v.filter(x=>typeof x==='string').slice(0,8):[];}catch(_e){return [];}}
+function saveTitleHist(t){try{const v=[t].concat(loadTitleHist().filter(x=>x!==t)).slice(0,8);localStorage.setItem(HIST_KEY,JSON.stringify(v));}catch(_e){}}
+function clearTitleHist(){try{localStorage.removeItem(HIST_KEY);}catch(_e){}}
 function NewInner(){
   const def=new Date(Date.now()+2*86400e3);const pad=n=>String(n).padStart(2,'0');
   const[title,setTitle]=useState('');const[end,setEnd]=useState(def.getFullYear()+'-'+pad(def.getMonth()+1)+'-'+pad(def.getDate()));
   const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
-  const[entryRes,setEntryRes]=useState('');
+  const[entryRes,setEntryRes]=useState('');const[hist,setHist]=useState(loadTitleHist());
   const shareEntry=async()=>{ // 暫時功能:Rich Menu 完成後移除
     try{if(!liff.isApiAvailable('shareTargetPicker')){setEntryRes('此環境不支援分享,請在 LINE 內開啟');return;}
       const r=await liff.shareTargetPicker([{type:'flex',altText:'🚨 安全回報:發起新回報',contents:buildEntryFlex()}]);setEntryRes(r?'已分享 ✅':'已取消');}catch(e){setEntryRes('錯誤:'+String(e&&e.message||e));}
   };
-  const create=async()=>{setBusy(true);setErr('');const r=await api('s2CreateSurvey',{title:title.trim(),endDate:end});setBusy(false);if(r.ok)go('s2=share&sid='+r.id+'&fresh=1');else setErr(r.error||'失敗');};
+  const create=async()=>{setBusy(true);setErr('');const r=await api('s2CreateSurvey',{title:title.trim(),endDate:end});setBusy(false);if(r.ok){saveTitleHist(title.trim());}if(r.ok)go('s2=share&sid='+r.id+'&fresh=1');else setErr(r.error||'失敗');};
   return(<Box>
     <Card className="space-y-3"><h1 className="text-lg font-bold text-white">📝 發起新回報</h1>
-      <div><p className="text-sm text-gray-400 mb-1">標題(最多40字)</p><input value={title} onChange={e=>setTitle(e.target.value)} maxLength={40} placeholder="例如:10/24 颱風 安全回報" className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-white"/></div>
+      <div><p className="text-sm text-gray-400 mb-1">標題(最多40字)</p><input value={title} onChange={e=>setTitle(e.target.value)} maxLength={40} placeholder="例如:10/24 颱風 安全回報" className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-white"/>
+        {hist.length>0&&(<div className="mt-2"><div className="flex items-center justify-between"><span className="text-xs text-gray-500">曾輸入過(點一下帶入)</span><button className="text-xs text-gray-500 underline" onClick={()=>{clearTitleHist();setHist([]);}}>清除</button></div>
+          <div className="flex flex-wrap gap-2 mt-1">{hist.map(h=>(<button key={h} onClick={()=>setTitle(h)} className="px-3 py-1 rounded-full border border-gray-600 text-xs text-gray-300">{h}</button>))}</div></div>)}</div>
       <div><p className="text-sm text-gray-400 mb-1">截止日</p><input type="date" value={end} onChange={e=>setEnd(e.target.value)} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-white"/></div></Card>
     {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
-    <Btn disabled={busy||!title.trim()||!end} onClick={create}>建立並分享</Btn>
+    <Btn disabled={!title.trim()||!end} loading={busy} onClick={create}>建立並分享</Btn>
     <Btn color="bg-gray-700 text-white" onClick={shareEntry}>分享「發起新回報」入口</Btn>
     {entryRes&&<p className="text-center text-sm text-gray-400">{entryRes}</p>}
     <Btn color="bg-gray-800 text-gray-200" onClick={()=>go('s2=mine')}>我發起的清單</Btn>
@@ -226,7 +255,7 @@ function MinePage(){
 function MineInner(){
   const[st,reload]=useLoad((f)=>api('s2MySurveys',{},f),[]);
   const[busy,setBusy]=useState('');
-  if(st.loading&&!st.data)return(<Msg text="載入中…"/>);
+  if(st.loading&&!st.data)return(<Loading/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
   const d=st.data;
   const del=async(s)=>{if(!window.confirm('確定要刪除「'+s.title+'」嗎?(資料會保留,只是從清單隱藏)'))return;setBusy(s.id);const r=await api('s2DeleteSurvey',{id:s.id});setBusy('');if(r.ok)reload();else alert(r.error||'失敗');};
@@ -290,7 +319,7 @@ function ShareInner({sid,fresh}){
       setRes(r?'ok':'cancel');
     }catch(e){setRes('錯誤:'+String(e&&e.message||e));}
   };
-  if(st.loading&&!st.data)return(<Msg text="載入中…"/>);
+  if(st.loading&&!st.data)return(<Loading/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
   const s=st.data.survey;
   return(<Box>
@@ -312,7 +341,7 @@ function MgrPage(){
 function NeedUserOptional({render}){
   const[st]=useLoad((f)=>api('s2Me',{},f),[]);
   const[user,setUser]=useState(undefined);
-  if(st.loading&&!st.data)return(<Msg text="載入中…"/>);
+  if(st.loading&&!st.data)return(<Loading/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
   const me=Object.assign({},st.data,{user:user===undefined?st.data.user:user});
   return render(me,()=>setUser(null));
@@ -320,7 +349,7 @@ function NeedUserOptional({render}){
 function MgrInner({me,needReg}){
   const[st,reload]=useLoad((f)=>api('s2MgrInfo',{},f),[]);
   const[step,setStep]=useState(me.pending?'sent':'ask');const[busy,setBusy]=useState(false);const[err,setErr]=useState('');const[reg,setReg]=useState(false);
-  if(st.loading&&!st.data)return(<Msg text="載入中…"/>);
+  if(st.loading&&!st.data)return(<Loading/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
   const d=st.data;
   const act=async(fn)=>{setBusy(true);setErr('');const r=await fn();setBusy(false);if(r.ok)reload();else setErr(r.error||'失敗');return r;};
@@ -362,7 +391,7 @@ function MgrInner({me,needReg}){
 function ApvPage({rid}){
   const[st,reload]=useLoad((f)=>api('s2MgrInfo',{},f),[]);
   const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');
-  if(st.loading&&!st.data)return(<Msg text="載入中…"/>);
+  if(st.loading&&!st.data)return(<Loading/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
   const p=(st.data.pending||[]).find(x=>x.reqId===rid);
   if(msg)return(<Msg text={msg}/>);
