@@ -1,469 +1,1164 @@
-/* safety2.js — 安全回報 2.0 前端(v1.13-001):以 LINE userId 為主,去公司化重寫
-   由 safety-report.html 在 liff.init 完成後,依網址參數 s2 載入:
-     ?s2=r&sid=XXXX   回報頁(首次先填基本資料→下一步→才出現回報按鈕)
-     ?s2=l&sid=XXXX   回報名單(依店別分組,可複製、重新整理)
-     ?s2=mine         我發起的清單(查看名單/分享/刪除)
-     ?s2=new          發起新回報
-     ?s2=share&sid=   分享 Flex(shareTargetPicker)
-     ?s2=mgr          主管功能(申請、通知設定、調整主管)
-     ?s2=apv&rid=     核准/拒絕主管申請(從通知 Flex 進來)
-   後端:gas-safety2.gs(動作名稱 s2xxx,全部帶 liff.getAccessToken() 由 GAS 驗證身分)。
-   注意:本檔以 <script type="text/babel"> 載入,輸出 window.Safety2App,避免跟 safety-report.html 內的名稱衝突。 */
-(function(){
-const{useState,useEffect,useCallback}=React;
-const{gasCallPost}=window.MP||{};
-
-// ───────── 多語(回報人流程有中/越;發起人與主管頁僅中文) ─────────
-const TT={
-  zh:{lang:'語系',role:'你的角色',teacher:'老師',counter:'櫃台',store:'店別',code:'老師編號',name:'自訂名稱',codeHint:'請輸入你的老師編號',nameHint:'請輸入你的名稱(例如:小美)',next:'下一步',saving:'儲存中…',
-      survey:'安全回報',by:'發起人',end:'截止',closed:'這筆回報已截止',ok:'我平安',help:'需要協助',other:'其他',otherHint:'請說明你的狀況',send:'送出',sent:'已回報',sentAt:'回報時間',change:'修改回報',
-      list:'回報名單',editInfo:'修改基本資料',loading:'載入中…',copy:'點此複製',copied:'已複製',refresh:'重新整理',dataAt:'資料時間',noOne:'尚無人回報',needHelp:'需要協助',
-      tapToChange:'你已回報,可再點選修改',back:'返回',fail:'失敗',detail:'詳細'},
-  vi:{lang:'Ngôn ngữ',role:'Vai trò',teacher:'KTV',counter:'Lễ tân',store:'Chi nhánh',code:'Số KTV',name:'Tên của bạn',codeHint:'Nhập số KTV của bạn',nameHint:'Nhập tên của bạn (ví dụ: Mai)',next:'Tiếp theo',saving:'Đang lưu…',
-      survey:'Báo cáo an toàn',by:'Người tạo',end:'Hạn chót',closed:'Báo cáo này đã hết hạn',ok:'Tôi an toàn',help:'Cần hỗ trợ',other:'Khác',otherHint:'Hãy mô tả tình trạng của bạn',send:'Gửi',sent:'Đã báo cáo',sentAt:'Thời gian',change:'Sửa báo cáo',
-      list:'Danh sách báo cáo',editInfo:'Sửa thông tin cơ bản',loading:'Đang tải…',copy:'Sao chép',copied:'Đã sao chép',refresh:'Làm mới',dataAt:'Thời gian dữ liệu',noOne:'Chưa có ai báo cáo',needHelp:'Cần hỗ trợ',
-      tapToChange:'Bạn đã báo cáo, có thể sửa lại',back:'Quay lại',fail:'Thất bại',detail:'Chi tiết'}
-};
-const STORES=['龍山寺店','東門店','古亭店','公館店'];
-
-// ───────── 工具 ─────────
-const qs=new URLSearchParams(location.search);
-// 頁面切換:不重新開啟整個網頁(省掉 Babel 編譯與 LIFF 初始化),只換網址參數並通知 Safety2App 重畫
-window.__s2nonce=window.__s2nonce||0;
-function go(q){
-  try{history.pushState(null,'',location.pathname+'?'+q);}catch(_e){location.href=location.pathname+'?'+q;return;}
-  try{window.scrollTo(0,0);}catch(_e){}
-  window.dispatchEvent(new Event('s2nav'));
-}
-// ───────── 本機暫存:讀過一次就存 localStorage,切換頁面不重讀 GAS;點「🔄 重新整理」才清掉重讀 ─────────
-const CACHE_TTL=12*3600e3; // 安全保險:最久 12 小時後即使沒按重新整理也會重讀
-const CACHEABLE=['s2Me','s2GetSurvey','s2GetList','s2MySurveys','s2MgrInfo'];
-const WRITE_CLEAR={s2Register:'*',s2CreateSurvey:['s2MySurveys'],s2DeleteSurvey:['s2MySurveys','s2GetSurvey','s2GetList'],s2RestoreSurvey:['s2MySurveys','s2GetSurvey','s2GetList'],
-  s2Report:['s2GetSurvey','s2GetList'],s2MgrApply:['s2Me','s2MgrInfo'],s2MgrApprove:['s2MgrInfo','s2Me','s2MySurveys'],s2MgrSet:['s2MgrInfo'],s2MgrNotify:['s2MgrInfo','s2Me'],
-  s2AdminHide:['s2MgrInfo','s2Me','s2MySurveys','s2GetList','s2GetSurvey']}; // 寫入成功後,清掉受影響的暫存
-function cuid(){try{const c=liff.getContext();return(c&&c.userId)||'';}catch(_e){return '';}}
-function ckey(action,params){return 's2c:'+cuid()+':'+action+':'+JSON.stringify(params||{});}
-function cget(k){try{const v=JSON.parse(localStorage.getItem(k)||'null');if(v&&Date.now()-v.t<CACHE_TTL)return Object.assign({},v.d,{_at:v.t});}catch(_e){}return null;} // _at=這份資料當初讀取的時間
-function cput(k,d){try{localStorage.setItem(k,JSON.stringify({t:Date.now(),d:d}));}catch(_e){}}
-function cclear(actions){
-  try{const ks=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf('s2c:')===0)ks.push(k);}
-    ks.forEach(k=>{if(actions==='*'||actions.some(a=>k.indexOf(':'+a+':')>=0))localStorage.removeItem(k);});}catch(_e){}
-}
-function peek(action,params){ // 同步取暫存(沒有就 null),讓有暫存的頁面第一次畫就直接有內容,不閃「載入中」
-  if(CACHEABLE.indexOf(action)<0)return null;
-  return cget(ckey(action,params));
-}
-async function api(action,params,force){
-  const cacheable=CACHEABLE.indexOf(action)>=0;const k=cacheable?ckey(action,params):'';
-  if(cacheable&&!force){const c=cget(k);if(c)return c;}
-  let tok='';try{tok=liff.getAccessToken()||'';}catch(_e){}
-  const r=(await gasCallPost(action,Object.assign({},params||{},{accessToken:tok}),20000))||{ok:false,error:'連不上伺服器,請稍後再試'};
-  if(r.ok){ r._at=Date.now(); if(cacheable)cput(k,r); else if(WRITE_CLEAR[action])cclear(WRITE_CLEAR[action]); }
-  return r;
-}
-function defaultLang(){try{return String(navigator.language||'').toLowerCase().indexOf('vi')===0?'vi':'zh';}catch(_e){return 'zh';}}
-function copyText(txt){
-  try{if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(txt).then(()=>true).catch(()=>fallbackCopy(txt));}catch(_e){}
-  return Promise.resolve(fallbackCopy(txt));
-}
-function fallbackCopy(txt){
-  try{const ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();const ok=document.execCommand('copy');document.body.removeChild(ta);return !!ok;}catch(_e){return false;}
-}
-const liffBase=()=>'https://liff.line.me/'+(window.__S2_LIFF_ID||'');
-
-// 資料時間(讓人看得出是舊資料)與重新整理:按了要等回應是使用者的選擇,等待時舊資料照常顯示、按鈕出現旋轉圖示
-function fmtAt(at,lang){
-  if(!at)return '';
-  const d=new Date(at);const p=n=>String(n).padStart(2,'0');
-  const ts=p(d.getMonth()+1)+'/'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
-  const m=Math.floor((Date.now()-at)/60000);const vi=lang==='vi';
-  const rel=m<1?(vi?'vừa xong':'剛剛'):m<60?(m+(vi?' phút trước':' 分鐘前')):m<1440?(Math.floor(m/60)+(vi?' giờ trước':' 小時前')):(Math.floor(m/1440)+(vi?' ngày trước':' 天前'));
-  return (vi?'Dữ liệu lúc ':'資料時間 ')+ts+'（'+rel+'）';
-}
-const RefreshBar=({at,lang,onRefresh,refreshing,err})=>(<div>
-  <div className="flex items-center justify-between gap-2">
-    <span className="text-xs text-gray-500">{fmtAt(at,lang)}</span>
-    <button disabled={refreshing} onClick={()=>{if(onRefresh)onRefresh();else{cclear('*');window.__s2nonce++;window.dispatchEvent(new Event('s2nav'));}}} className="shrink-0 text-xs text-gray-300 border border-gray-700 rounded-full px-3 py-1 disabled:opacity-60">
-      {refreshing?(<span><Spinner size={12}/> {lang==='vi'?'Đang cập nhật…':'更新中…'}</span>):(lang==='vi'?'🔄 Làm mới':'🔄 重新整理')}</button></div>
-  {err&&<p className="text-xs text-red-400 text-right mt-1">{err}</p>}
-</div>);
-const Box=({children,at,lang,onRefresh,refreshing,err})=>(<div className="min-h-screen px-4 py-5"><div className="max-w-md mx-auto space-y-4"><RefreshBar at={at} lang={lang} onRefresh={onRefresh} refreshing={refreshing} err={err}/>{children}</div></div>);
-const barOf=(st,reload,lang)=>({at:st.data&&st.data._at,lang:lang,onRefresh:()=>{reload();},refreshing:!!(st.loading&&st.data),err:st.err});
-const Card=({children,className})=>(<div className={'rounded-2xl bg-gray-900 border border-gray-800 p-4 '+(className||'')}>{children}</div>);
-const Spinner=({size})=>(<svg className="animate-spin inline-block align-[-2px]" width={size||18} height={size||18} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>);
-const Loading=({text})=>(<Box><div className="flex flex-col items-center justify-center gap-3 pt-24 text-violet-300"><Spinner size={40}/><p className="text-sm text-gray-400">{text||'載入中…'}</p></div></Box>);
-const Btn=({children,onClick,color,disabled,className,loading})=>(<button disabled={disabled||loading} onClick={onClick} className={'w-full rounded-xl py-3 font-bold text-base disabled:opacity-40 '+(color||'bg-violet-600 text-white')+' '+(className||'')}>{loading&&<span className="mr-2"><Spinner/></span>}{children}</button>);
-const Chip=({on,children,onClick})=>(<button onClick={onClick} className={'px-4 py-2 rounded-full border text-sm '+(on?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-300')}>{children}</button>);
-const Msg=({text})=>(<Box><Card><p className="text-center text-gray-300 whitespace-pre-line">{text}</p></Card></Box>);
-
-function useLoad(action,params){ // 回傳[狀態,重新讀取(強制略過暫存)];有暫存時第一次畫就直接有資料;重新整理失敗時保留舊資料並標示 err
-  const pk=JSON.stringify(params||{});
-  const[st,setSt]=useState(()=>{const c=peek(action,params);return c?{loading:false,data:c,err:''}:{loading:true,data:null,err:''};});
-  const run=useCallback((force)=>{
-    if(!force){const c=peek(action,params);if(c){setSt({loading:false,data:c,err:''});return;}}
-    setSt(s=>({loading:true,data:s.data,err:''}));
-    api(action,params,!!force).then(d=>setSt(s=>(d&&d.ok)?{loading:false,data:d,err:''}:(s.data&&s.data.ok)?{loading:false,data:s.data,err:'更新失敗,畫面上仍是舊資料'}:{loading:false,data:d,err:''}));
-  },[action,pk]);
-  useEffect(()=>{run(false);},[run]);
-  return[st,()=>run(true)];
-}
-
-// ───────── 基本資料(首次):角色/店別/語系/編號或名稱 → 下一步 ─────────
-function RegisterForm({user,onDone,showLangFirst}){
-  const[lang,setLang]=useState(user?user.lang:defaultLang());
-  const[role,setRole]=useState(user?user.role:'');
-  const[store,setStore]=useState(user?user.store:'');
-  const[code,setCode]=useState(user?user.code:'');
-  const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
-  const t=TT[lang];
-  const ready=role&&store&&code.trim();
-  const submit=async()=>{
-    setBusy(true);setErr('');
-    let name='';try{const p=await liff.getProfile();name=p.displayName||'';}catch(_e){}
-    const r=await api('s2Register',{role,store,lang,code:code.trim(),displayName:name});
-    setBusy(false);
-    if(r.ok)onDone(r.user);else setErr(r.error||t.fail);
-  };
-  return(<Box>
-    <Card>
-      <p className="text-sm text-gray-400 mb-2">{TT.zh.lang} / {TT.vi.lang}</p>
-      <div className="flex gap-2"><Chip on={lang==='zh'} onClick={()=>setLang('zh')}>中文</Chip><Chip on={lang==='vi'} onClick={()=>setLang('vi')}>Tiếng Việt</Chip></div>
-    </Card>
-    <Card className="space-y-3">
-      <div><p className="text-sm text-gray-400 mb-2">{t.role}</p><div className="flex gap-2"><Chip on={role==='teacher'} onClick={()=>setRole('teacher')}>{t.teacher}</Chip><Chip on={role==='counter'} onClick={()=>setRole('counter')}>{t.counter}</Chip></div></div>
-      <div><p className="text-sm text-gray-400 mb-2">{t.store}</p><div className="flex flex-wrap gap-2">{STORES.map(s=>(<Chip key={s} on={store===s} onClick={()=>setStore(s)}>{s}</Chip>))}</div></div>
-      {role&&(<div><p className="text-sm text-gray-400 mb-2">{role==='teacher'?t.code:t.name}</p>
-        <input value={code} onChange={e=>setCode(e.target.value)} maxLength={role==='teacher'?6:20} inputMode={role==='teacher'?'numeric':'text'} placeholder={role==='teacher'?t.codeHint:t.nameHint}
-          className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-lg text-white"/></div>)}
-    </Card>
-    {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
-    <Btn disabled={!ready} loading={busy} onClick={submit}>{busy?t.saving:t.next}</Btn>
-  </Box>);
-}
-
-// 需要已登記身分的頁面共用:沒登記就先顯示基本資料表單,填完「下一步」再進入內容
-function NeedUser({render}){
-  const[st,reload]=useLoad('s2Me',{});
-  const[user,setUser]=useState(undefined);const[editing,setEditing]=useState(false);
-  if(st.loading&&!st.data)return(<Loading text="載入中… / Đang tải…"/>);
-  if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
-  const me=st.data;const u=user===undefined?me.user:user;
-  if(!u||editing)return(<RegisterForm user={u} onDone={x=>{setUser(x);setEditing(false);}}/>);
-  return render(Object.assign({},me,{user:u}),()=>setEditing(true),reload);
-}
-
-// ───────── 回報頁 ─────────
-function ReportPage({sid}){
-  return(<NeedUser render={(me,editInfo)=><ReportInner me={me} sid={sid} editInfo={editInfo}/>}/>);
-}
-function ReportInner({me,sid,editInfo}){
-  const lang=me.user.lang;const t=TT[lang];
-  const[st,reload]=useLoad('s2GetSurvey',{id:sid});
-  const[other,setOther]=useState('');const[busy,setBusy]=useState(false);const[err,setErr]=useState('');const[picking,setPicking]=useState(false);
-  if(st.loading&&!st.data)return(<Loading text={t.loading}/>);
-  if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||t.fail}/>);
-  const s=st.data.survey;const mine=st.data.mine;
-  const send=async(status,txt)=>{
-    setBusy(true);setErr('');
-    const r=await api('s2Report',{id:sid,status:status,otherText:txt||''});
-    setBusy(false);
-    if(r.ok){setPicking(false);reload();}else setErr(r.error||t.fail);
-  };
-  const stLabel=x=>x==='ok'?t.ok:x==='help'?t.help:t.other;
-  return(<Box {...barOf(st,reload,lang)}>
-    <Card>
-      <p className="text-xs text-amber-400 font-bold">⚠️ {t.survey}</p>
-      <h1 className="text-xl font-bold text-white mt-1">{s.title}</h1>
-      <p className="text-sm text-gray-400 mt-2">{(s.creatorStore||s.creatorLabel)?<span>{t.by}:{s.creatorStore} {s.creatorLabel}<br/></span>:null}{t.end}:{s.endDate}</p>
-    </Card>
-    {s.closed&&<p className="text-center text-amber-400">{t.closed}</p>}
-    {mine&&!picking&&(<Card className="text-center">
-      <p className="text-lg font-bold text-emerald-400">✅ {t.sent}:{stLabel(mine.status)}{mine.status==='other'&&mine.otherText?'('+mine.otherText+')':''}</p>
-      <p className="text-xs text-gray-500 mt-1">{t.sentAt} {mine.time}</p>
-      {!s.closed&&<button className="text-sm text-violet-400 mt-3 underline" onClick={()=>setPicking(true)}>{t.change}</button>}
-    </Card>)}
-    {(!mine||picking)&&!s.closed&&(<Card className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
-        <Btn loading={busy} color="bg-emerald-600 text-white" onClick={()=>send('ok')}>{t.ok}</Btn>
-        <Btn loading={busy} color="bg-red-600 text-white" onClick={()=>send('help')}>{t.help}</Btn>
-      </div>
-      <input value={other} onChange={e=>setOther(e.target.value)} maxLength={200} placeholder={t.otherHint} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-white"/>
-      <Btn disabled={busy||!other.trim()} color="bg-gray-700 text-white" onClick={()=>send('other',other.trim())}>{t.other} · {t.send}</Btn>
-      {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
-    </Card>)}
-    <Btn color="bg-gray-800 text-gray-200" onClick={()=>go('s2=l&sid='+sid)}>📋 {t.list}</Btn>
-    <button className="w-full text-center text-sm text-gray-500 underline" onClick={editInfo}>{t.editInfo}</button>
-  </Box>);
-}
-
-// 詳細列表:篩選(狀態)與排序(時間/編號/狀態)
-function detailRows(items,sortBy,asc,flt){
-  const rows=items.filter(i=>flt==='all'||i.status===flt);
-  const rank={help:0,other:1,ok:2};
-  rows.sort((a,b)=>{
-    let c=0;
-    if(sortBy==='time')c=String(a.time).localeCompare(String(b.time));
-    else if(sortBy==='code'){const x=parseFloat(a.label),y=parseFloat(b.label);c=(isNaN(x)||isNaN(y))?String(a.label).localeCompare(String(b.label)):x-y;}
-    else c=(rank[a.status]-rank[b.status])||(String(b.time).localeCompare(String(a.time)));
-    return asc?c:-c;
-  });
-  return rows;
-}
-// ───────── 名單頁(依店別分組) ─────────
-function ListPage({sid}){
-  return(<NeedUser render={(me,editInfo)=><ListInner me={me} sid={sid}/>}/>);
-}
-function ListInner({me,sid}){
-  const t=TT[me.user.lang];const lang0=me.user.lang;
-  const[st,reload]=useLoad('s2GetList',{id:sid});
-  const[copied,setCopied]=useState('');const[open,setOpen]=useState(false);const[sortBy,setSortBy]=useState('time');const[asc,setAsc]=useState(false);const[flt,setFlt]=useState('all');
-  if(st.loading&&!st.data)return(<Loading text={t.loading}/>);
-  if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||t.fail}/>);
-  const d=st.data;
-  const doCopy=(g)=>{copyText(g.items.map(i=>i.label).join(' ')).then(ok=>{if(ok){setCopied(g.store);setTimeout(()=>setCopied(''),1800);}});};
-  return(<Box {...barOf(st,reload,lang0)}>
-    <Card><p className="text-xs text-amber-400 font-bold">⚠️ {t.survey}</p><h1 className="text-lg font-bold text-white mt-1">{d.survey.title}</h1></Card>
-    {d.stores.map(g=>(<Card key={g.store}>
-      <div className="flex items-center justify-between"><p className="font-bold text-white">{g.store}（{g.items.length}/{g.total}）</p>
-        {g.items.length>0&&<button className="text-sm text-violet-400" onClick={()=>doCopy(g)}>{copied===g.store?t.copied:t.copy}</button>}</div>
-      <p className="mt-2 text-base leading-8 break-all">
-        {g.items.length===0?<span className="text-gray-500">{t.noOne}</span>:g.items.map((i,k)=>(<span key={k} className={'mr-3 '+(i.status==='help'?'text-red-400 font-bold':i.status==='other'?'text-amber-300':'text-gray-100')}>{i.label}{i.status==='help'?'⚠':''}</span>))}
-      </p>
-    </Card>))}
-    {d.restricted&&<p className="text-xs text-gray-500 text-center">{lang0==='vi'?'Chỉ hiển thị chi nhánh của bạn':'僅顯示你所屬店家'}:{d.myStore}</p>}
-    {d.detail&&(<Card className="space-y-3"><p className="font-bold text-white">未回報名單<span className="ml-2 text-xs font-normal text-gray-500">(已登記但尚未回報)</span></p>
-      {d.stores.map(g=>(<div key={g.store}><div className="flex items-center justify-between"><p className="text-sm text-gray-200">{g.store}（{(g.missing||[]).length}）</p>
-        {(g.missing||[]).length>0&&<button className="text-sm text-violet-400" onClick={()=>copyText((g.missing||[]).join(' ')).then(ok=>{if(ok){setCopied('m:'+g.store);setTimeout(()=>setCopied(''),1800);}})}>{copied==='m:'+g.store?t.copied:t.copy}</button>}</div>
-        <p className="mt-1 text-base leading-8 break-all text-gray-100">{(g.missing||[]).length===0?<span className="text-emerald-400 text-sm">都已回報 ✅</span>:(g.missing||[]).map((x,k)=>(<span key={k} className="mr-3">{x}</span>))}</p></div>))}
-      <Btn color="bg-blue-600 text-white" onClick={()=>go('s2=share&sid='+sid)}>分享提醒(可再單獨傳給沒回報的人)</Btn></Card>)}
-    {d.detail&&(<div><button className="text-sm text-gray-400 underline" onClick={()=>setOpen(!open)}>{t.detail} {open?'▲':'▼'}</button>
-      {open&&(<div className="mt-2 space-y-2">
-        <div className="flex flex-wrap items-center gap-2"><span className="text-xs text-gray-500">排序</span>
-          {[['time','時間'],['code','編號'],['status','狀態']].map(x=>(<Chip key={x[0]} on={sortBy===x[0]} onClick={()=>{if(sortBy===x[0])setAsc(!asc);else{setSortBy(x[0]);setAsc(x[0]!=='time');}}}>{x[1]}{sortBy===x[0]?(asc?' ↑':' ↓'):''}</Chip>))}</div>
-        <div className="flex flex-wrap items-center gap-2"><span className="text-xs text-gray-500">篩選</span>
-          {[['all','全部'],['ok','平安'],['help','需要協助'],['other','其他']].map(x=>(<Chip key={x[0]} on={flt===x[0]} onClick={()=>setFlt(x[0])}>{x[1]}</Chip>))}</div>
-        {d.stores.map(g=>{const rows=detailRows(g.items,sortBy,asc,flt);return rows.length>0&&(<Card key={g.store}><p className="font-bold text-white text-sm mb-1">{g.store}（{rows.length}）</p>
-          {rows.map((i,k)=>(<p key={k} className="text-xs leading-6 text-gray-300"><span className={i.status==='help'?'text-red-400 font-bold':i.status==='other'?'text-amber-300':'text-gray-100'}>{i.label}　{i.status==='ok'?'平安':i.status==='help'?'需要協助':'其他'}</span>{i.otherText?'：'+i.otherText:''}　<span className="text-gray-500">{String(i.time).slice(5,16)}</span></p>))}</Card>);})}
-        {d.stores.every(g=>detailRows(g.items,sortBy,asc,flt).length===0)&&<p className="text-sm text-gray-500 text-center">沒有符合的項目</p>}
-      </div>)}</div>)}
-    <Btn color="bg-gray-800 text-gray-200" onClick={()=>go('s2=r&sid='+sid)}>← {t.back}</Btn>
-  </Box>);
-}
-
-// ───────── 發起人:新增 ─────────
-function NewPage(){
-  return(<NeedUser render={()=><NewInner/>}/>);
-}
-// 標題輸入歷史(只存在本機,最多 8 筆,新的排前面)
-const HIST_KEY='s2:titleHist';
-function loadTitleHist(){try{const v=JSON.parse(localStorage.getItem(HIST_KEY)||'[]');return Array.isArray(v)?v.filter(x=>typeof x==='string').slice(0,8):[];}catch(_e){return [];}}
-function saveTitleHist(t){try{const v=[t].concat(loadTitleHist().filter(x=>x!==t)).slice(0,8);localStorage.setItem(HIST_KEY,JSON.stringify(v));}catch(_e){}}
-function clearTitleHist(){try{localStorage.removeItem(HIST_KEY);}catch(_e){}}
-function NewInner(){
-  const def=new Date(Date.now()+2*86400e3);const pad=n=>String(n).padStart(2,'0');
-  const[title,setTitle]=useState('');const[end,setEnd]=useState(def.getFullYear()+'-'+pad(def.getMonth()+1)+'-'+pad(def.getDate()));
-  const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
-  const[entryRes,setEntryRes]=useState('');const[hist,setHist]=useState(loadTitleHist());
-  const shareEntry=async()=>{ // 暫時功能:Rich Menu 完成後移除
-    try{if(!liff.isApiAvailable('shareTargetPicker')){setEntryRes('此環境不支援分享,請在 LINE 內開啟');return;}
-      const r=await liff.shareTargetPicker([{type:'flex',altText:'🚨 安全回報:天災、緊急事件時,一鍵回報平安',contents:buildEntryFlex()}]);setEntryRes(r?'已分享 ✅':'已取消');}catch(e){setEntryRes('錯誤:'+String(e&&e.message||e));}
-  };
-  const create=async()=>{setBusy(true);setErr('');const r=await api('s2CreateSurvey',{title:title.trim(),endDate:end});setBusy(false);if(r.ok){saveTitleHist(title.trim());}if(r.ok)go('s2=share&sid='+r.id+'&fresh=1');else setErr(r.error||'失敗');};
-  return(<Box>
-    <Card className="space-y-3"><h1 className="text-lg font-bold text-white">📝 發起新回報</h1>
-      <div><p className="text-sm text-gray-400 mb-1">標題(最多40字)</p><input value={title} onChange={e=>setTitle(e.target.value)} maxLength={40} placeholder="例如:10/24 颱風 安全回報" className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-white"/>
-        {hist.length>0&&(<div className="mt-2"><div className="flex items-center justify-between"><span className="text-xs text-gray-500">曾輸入過(點一下帶入)</span><button className="text-xs text-gray-500 underline" onClick={()=>{clearTitleHist();setHist([]);}}>清除</button></div>
-          <div className="flex flex-wrap gap-2 mt-1">{hist.map(h=>(<button key={h} onClick={()=>setTitle(h)} className="px-3 py-1 rounded-full border border-gray-600 text-xs text-gray-300">{h}</button>))}</div></div>)}</div>
-      <div><p className="text-sm text-gray-400 mb-1">截止日</p><input type="date" value={end} onChange={e=>setEnd(e.target.value)} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-white"/></div></Card>
-    {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
-    <Btn disabled={!title.trim()||!end} loading={busy} onClick={create}>建立並分享</Btn>
-    <Btn color="bg-gray-700 text-white" onClick={shareEntry}>分享「發起新回報」入口</Btn>
-    {entryRes&&<p className="text-center text-sm text-gray-400">{entryRes}</p>}
-    <Btn color="bg-gray-800 text-gray-200" onClick={()=>go('s2=mine')}>我發起的清單</Btn>
-  </Box>);
-}
-
-// ───────── 發起人:我發起的清單 ─────────
-function MinePage(){
-  return(<NeedUser render={()=><MineInner/>}/>);
-}
-function MineInner(){
-  const[st,reload]=useLoad('s2MySurveys',{});
-  const[busy,setBusy]=useState('');
-  if(st.loading&&!st.data)return(<Loading/>);
-  if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
-  const d=st.data;
-  const del=async(s)=>{if(!window.confirm('確定要刪除「'+s.title+'」嗎?(資料會保留,只是從清單隱藏)'))return;setBusy(s.id);const r=await api('s2DeleteSurvey',{id:s.id});setBusy('');if(r.ok)reload();else alert(r.error||'失敗');};
-  const restore=async(s)=>{setBusy(s.id);const r=await api('s2RestoreSurvey',{id:s.id});setBusy('');if(r.ok)reload();else alert(r.error||'失敗');};
-  const row=(s)=>(<Card key={s.id} className={s.hidden?'opacity-60':''}>
-    <p className="font-bold text-white">{s.title}{s.hidden&&<span className="ml-2 text-xs text-red-400">已刪除</span>}{s.closed&&!s.hidden&&<span className="ml-2 text-xs text-gray-500">已截止</span>}</p>
-    <p className="text-xs text-gray-400 mt-1">{s.creatorStore} {s.creatorLabel}　截止 {s.endDate}　已回報 {s.count} 人{s.help>0&&<span className="text-red-400">（需協助 {s.help}）</span>}</p>
-    <div className="grid grid-cols-3 gap-2 mt-3">
-      <button className="rounded-lg bg-violet-600 text-white text-sm py-2" onClick={()=>go('s2=l&sid='+s.id)}>查看名單</button>
-      <button disabled={s.hidden} className="rounded-lg bg-blue-600 text-white text-sm py-2 disabled:opacity-30" onClick={()=>go('s2=share&sid='+s.id)}>分享</button>
-      {s.hidden?(d.canRestore?<button disabled={busy===s.id} className="rounded-lg border border-emerald-500 text-emerald-400 text-sm py-2" onClick={()=>restore(s)}>還原</button>:<span/>)
-        :(s.canDelete?<button disabled={busy===s.id} className="rounded-lg border border-red-500 text-red-400 text-sm py-2" onClick={()=>del(s)}>刪除</button>:<span/>)}
-    </div></Card>);
-  let body;
-  if(d.groupByStore){
-    const g={};d.surveys.forEach(s=>{(g[s.creatorStore||'未分店']=g[s.creatorStore||'未分店']||[]).push(s);});
-    body=Object.keys(g).map(k=>(<div key={k}><p className="text-sm font-bold text-violet-300 mb-2">{k}（{g[k].length}）</p><div className="space-y-3">{g[k].map(row)}</div></div>));
-  }else body=<div className="space-y-3">{d.surveys.map(row)}</div>;
-  return(<Box {...barOf(st,reload,'zh')}>
-    <h1 className="text-lg font-bold text-white">📋 我發起的清單</h1>
-    <Btn onClick={()=>go('s2=new')}>＋ 發起新回報</Btn>
-    {d.surveys.length===0&&<Card><p className="text-center text-gray-500">目前沒有項目</p></Card>}
-    {body}
-  </Box>);
-}
-
-// ───────── 分享 Flex ─────────
-function buildFlex(s){
-  const base='https://liff.line.me/'+window.__S2_LIFF_ID;
-  return{type:'bubble',
-    body:{type:'box',layout:'vertical',spacing:'md',paddingAll:'lg',contents:[
-      {type:'text',text:'⚠️ 安全回報 / Báo cáo an toàn',weight:'bold',size:'sm',color:'#f59e0b'},
-      {type:'text',text:s.title,weight:'bold',size:'lg',wrap:true,color:'#111111'},
-      {type:'text',text:'截止:'+s.endDate,size:'sm',color:'#888888',wrap:true}, // 發起人姓名/店別不放進 Flex(一般成員不可見)
-      {type:'text',text:'請點下方按鈕回報,或分享給其他同仁\nBấm nút bên dưới để báo cáo hoặc chia sẻ',size:'xs',color:'#888888',wrap:true}]},
-    footer:{type:'box',layout:'vertical',spacing:'sm',paddingAll:'lg',contents:[
-      {type:'button',style:'primary',color:'#dc2626',height:'sm',action:{type:'uri',label:'我要回報 / Báo cáo',uri:base+'?s2=r&sid='+s.id}},
-      {type:'button',style:'secondary',height:'sm',action:{type:'uri',label:'回報名單 / Danh sách',uri:base+'?s2=l&sid='+s.id}},
-      {type:'button',style:'secondary',height:'sm',action:{type:'uri',label:'分享 / Chia sẻ',uri:base+'?s2=share&sid='+s.id}}]}};
-}
-// 暫時功能(使用者要求,Rich Menu 完成後移除):在「發起新回報」頁分享一張「發起入口」Flex,按鈕直接開 ?s2=new
-function buildEntryFlex(){
-  const base='https://liff.line.me/'+window.__S2_LIFF_ID;
-  const pts=['不用再人工統計誰還沒回報。系統自動依店別列出已回報名單與人數。',
-    '以 LINE 帳號回報,一個帳號一筆,降低代簽、冒名的狀況。',
-    '發起後可分享到公司其他群組,各店都能一起回報;也能再單獨分享給遲遲沒回報的人,提醒他們補上。',
-    '回報狀態分「平安、需要協助、其他」,需要協助的編號會標紅,可以優先處理。',
-    '第一次回報填一次基本資料,之後點一下就完成。'];
-  const rows=pts.map((t,i)=>({type:'box',layout:'horizontal',spacing:'sm',contents:[
-    {type:'text',text:String(i+1)+'.',size:'sm',color:'#dc2626',weight:'bold',flex:0},
-    {type:'text',text:t,size:'sm',color:'#333333',wrap:true,flex:1}]}));
-  return{type:'bubble',
-    body:{type:'box',layout:'vertical',spacing:'md',paddingAll:'lg',contents:[
-      {type:'text',text:'🚨 安全回報',weight:'bold',size:'xl',color:'#dc2626'},
-      {type:'text',text:'天災、緊急事件時,一鍵回報平安',size:'sm',color:'#666666',wrap:true},
-      {type:'separator',margin:'md'},
-      {type:'box',layout:'vertical',spacing:'sm',margin:'md',contents:rows}]},
-    footer:{type:'box',layout:'vertical',spacing:'sm',paddingAll:'lg',contents:[
-      {type:'button',style:'primary',color:'#dc2626',height:'sm',action:{type:'uri',label:'發起新回報',uri:base+'?s2=new'}}]}};
-}
-function SharePage({sid,fresh}){
-  return(<NeedUser render={()=><ShareInner sid={sid} fresh={fresh}/>}/>);
-}
-function ShareInner({sid,fresh}){
-  const[st]=useLoad('s2GetSurvey',{id:sid});
-  const[res,setRes]=useState('');
-  const pick=async(s)=>{
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+<title>安全回報 v1.13-013</title>
+<meta property="og:title" content="天然災害每日安全回報中心">
+<meta property="og:description" content="請點擊連結進行安全回報">
+<meta property="og:type" content="website">
+<script>
+  // ══════════ 全域錯誤攔截(白畫面診斷用,比照專案裡其他頁面的做法) ══════════
+  var PAGE="safety",PCODE="02";
+  var __fbL={zh:{title:"網站更新中",info:function(p,v,c){return p+" 網頁 v"+v+" 更新中　代碼 "+c},keep:"你所輸入的舊資料仍保存在你的手機暫存檔中。",warn:"資料只存在本機，不會上傳雲端。"}};
+  window.__fbLang='zh';
+  window.__fbApply=function(){var L=__fbL.zh;var t=document.getElementById('__fbtitle');if(t)t.textContent=L.title;var k=document.getElementById('__fbkeep');if(k)k.textContent=L.keep;var w=document.getElementById('__fbwarn');if(w)w.textContent=L.warn;if(window.__fbData){var info=document.getElementById("__fbinfo");if(info)info.textContent=L.info(window.__fbData.page,window.__fbData.ver,window.__fbData.code);try{var md=document.getElementById("__fbmsg");if(md&&window.__fbData.msg){md.textContent=window.__fbData.msg;md.style.display="block";}}catch(_e){}}};
+  window.__showFallback=function(src,detail){
+    if(window.__shownFallback)return;window.__shownFallback=true;
     try{
-      if(!liff.isApiAvailable('shareTargetPicker')){setRes('此環境不支援分享,請在 LINE 內開啟');return;}
-      const r=await liff.shareTargetPicker([{type:'flex',altText:'⚠️ 安全回報:'+s.title,contents:buildFlex(s)}]);
-      setRes(r?'ok':'cancel');
-    }catch(e){setRes('錯誤:'+String(e&&e.message||e));}
+      var ver=(document.title.match(/v?(\d+\.\d+[-.]\d+)/)||[])[1]||"?";
+      var line=(detail&&detail.lineno)?detail.lineno:0;
+      var ecode=PCODE+String(src).padStart(2,"0")+String(line%10000).padStart(4,"0");
+      window.__fbData={page:PAGE,ver:ver,code:ecode,msg:(detail&&detail.msg)||''};
+      var el=document.getElementById("__fallback");
+      if(el){window.__fbApply();el.style.display="flex";}
+    }catch(_e){}
   };
-  if(st.loading&&!st.data)return(<Loading/>);
-  if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
-  const s=st.data.survey;
-  return(<Box>
-    <Card><p className="text-xs text-amber-400 font-bold">{fresh?'✅ 已建立':'分享'}</p><h1 className="text-lg font-bold text-white mt-1">{s.title}</h1><p className="text-sm text-gray-400 mt-1">截止 {s.endDate}</p></Card>
-    <Btn onClick={()=>pick(s)}>選擇好友或群組分享</Btn>
-    {res==='ok'&&<p className="text-center text-emerald-400">已分享 ✅</p>}
-    {res==='cancel'&&<p className="text-center text-gray-400">已取消</p>}
-    {res&&res!=='ok'&&res!=='cancel'&&<p className="text-center text-red-400 text-sm">{res}</p>}
-    <Btn color="bg-gray-800 text-gray-200" onClick={()=>go('s2=l&sid='+sid)}>查看名單</Btn>
-    <Btn color="bg-gray-800 text-gray-200" onClick={()=>go('s2=mine')}>我發起的清單</Btn>
-  </Box>);
-}
+  window.addEventListener("error",function(e){window.__showFallback(1,{lineno:e.lineno,msg:(e.message||'')+(e.filename?(' @'+e.filename.split('/').pop()+':'+e.lineno+':'+e.colno):'')});},true);
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>body{background:#0a0a0f;color:#e5e7eb;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}#root{min-height:100vh}</style>
+</head>
+<body>
+<div id="root"></div>
 
-// ───────── 主管功能 ─────────
-function MgrPage(){
-  return(<NeedUserOptional render={(me,needReg)=><MgrInner me={me} needReg={needReg}/>}/>);
-}
-// 主管頁:已是主管/管理者不用登記;不是主管且沒登記要先登記(申請需要店別與編號)
-function NeedUserOptional({render}){
-  const[st]=useLoad('s2Me',{});
-  const[user,setUser]=useState(undefined);
-  if(st.loading&&!st.data)return(<Loading/>);
-  if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
-  const me=Object.assign({},st.data,{user:user===undefined?st.data.user:user});
-  return render(me,()=>setUser(null));
-}
-function MgrInner({me,needReg}){
-  const[st,reload]=useLoad('s2MgrInfo',{});
-  const[step,setStep]=useState(me.pending?'sent':'ask');const[busy,setBusy]=useState(false);const[err,setErr]=useState('');const[reg,setReg]=useState(false);
-  if(st.loading&&!st.data)return(<Loading/>);
-  if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
-  const d=st.data;
-  const act=async(fn)=>{setBusy(true);setErr('');const r=await fn();setBusy(false);if(r.ok)reload();else setErr(r.error||'失敗');return r;};
-  if(!d.isMgr){
-    if(reg||(!me.user&&step==='level'))return(<RegisterForm user={me.user} onDone={()=>{cclear('*');window.__s2nonce++;window.dispatchEvent(new Event('s2nav'));}}/>);
-    return(<Box>
-      <Card className="space-y-3"><h1 className="text-lg font-bold text-white">🛡️ 主管功能</h1>
-        {step==='ask'&&(<div><p className="text-gray-300">你目前尚未設定為主管，是否要送出設定申請？</p>
-          <div className="grid grid-cols-2 gap-3 mt-3"><Btn onClick={()=>{if(!me.user)setReg(true);else setStep('level');}}>是</Btn><Btn color="bg-gray-700 text-white" onClick={()=>go('s2=mine')}>否</Btn></div></div>)}
-        {step==='level'&&(<div><p className="text-gray-300 mb-3">請選擇你的主管職級：</p>
-          <div className="space-y-2">{(me.levels||[]).map(l=>(<Btn key={l} disabled={busy} color="bg-gray-800 text-white border border-gray-600" onClick={async()=>{const r=await act(()=>api('s2MgrApply',{level:l}));if(r.ok)setStep('sent');}}>{l}</Btn>))}</div></div>)}
-        {step==='sent'&&<p className="text-emerald-400">已送出申請{me.pending?'（'+me.pending.level+'）':''}，核准後會通知你。</p>}
-        {err&&<p className="text-sm text-red-400">{err}</p>}
-      </Card></Box>);
+<!-- 白畫面救援畫面(語法/執行錯誤時顯示) -->
+<div id="__fallback" style="display:none;position:fixed;inset:0;z-index:99999;background:#0a0a0f;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;font-family:-apple-system,sans-serif">
+  <div style="width:64px;height:64px;border-radius:50%;border:3px solid #d97706;display:flex;align-items:center;justify-content:center;margin-bottom:24px">🔧</div>
+  <h1 id="__fbtitle" style="font-size:22px;font-weight:500;color:#f3f4f6;margin:0 0 1rem;line-height:1.3">網站更新中</h1>
+  <p id="__fbinfo" style="font-size:12px;color:#6b7280;margin:0 0 2rem;font-family:monospace"></p>
+  <div id="__fbmsg" style="display:none;margin:-1rem 0 2rem;padding:10px 12px;background:#1e1b1b;border:1px solid #7f1d1d;border-radius:8px;font-family:monospace;font-size:11px;color:#fca5a5;max-width:90%;word-break:break-all;white-space:pre-wrap"></div>
+  <div style="max-width:320px;padding:16px;background:#111114;border-radius:12px;border:1px solid #27272a">
+    <p id="__fbkeep" style="font-size:13px;color:#9ca3af;margin:0 0 8px;line-height:1.5"></p>
+    <p id="__fbwarn" style="font-size:12px;color:#f59e0b;margin:0">⚠️ <span id="__fbwarn2"></span></p>
+  </div>
+</div>
+
+<script src="../common.js"></script>
+<script type="text/babel" src="./safety2.js?v=1.13-001"></script>
+<script type="text/babel">
+(function(){
+const{useState,useEffect,useMemo}=React;
+const{gasCall,gasCallPost,getGasUrl,setGasUrl,TW_REGIONS,LANG_SCHOOLS,isValidPin,lockPwdCred,gasSetInitialPwd,gasLoginPwd}=window.MP||{};
+
+const STORES=['龍山寺店','東門店','古亭店','公館店','本部','教學處'];
+const CITY_PRIORITY=['桃園市','新北市','臺北市','宜蘭縣'];
+const CITY_OPTIONS=[...CITY_PRIORITY,...Object.keys(TW_REGIONS||{}).filter(c=>!CITY_PRIORITY.includes(c))];
+
+// 這個頁面獨立於主系統,自己帶一份輕量翻譯字典(語系選擇是進頁面第一步,選了之後全程套用)
+const SF_T={
+  zh:{
+    appTitle:'安全回報登記',appSubtitle:'第一次使用請先完成人員登記',
+    chooseLang:'選擇語系',chooseStore:'選擇店別',choosePersonType:'選擇人員別',
+    typeManager:'主管',typeFrontdesk:'櫃台',typeTeacher:'老師',typeStudent:'教學處學生',
+    chooseSubType:'選擇主管別',subTypes:['執行長','區經理','經理','副理','實習副理','櫃台組長'],
+    customNameLabel:'自訂名稱',customNamePh:'請輸入自訂名稱(或直接輸入編號)',
+    teacherCode:'老師編號',teacherCodePh:'編號',gender:'性別',genderM:'男',genderF:'女',
+    codeHintForNonTeacher:'這欄填的是老師編號，如果你同時有老師的身分就可以填上，編號跟名稱建議擇一填寫',
+    codeOrNameHint:'編號跟名稱可以擇一填寫，都填的話兩個都會顯示',
+    shift:'班別',shiftDay:'早班',shiftNight:'晚班',
+    addr:'居住地區',addrCity:'縣市',addrDist:'鄉鎮市區',
+    submitBtn:'完成登記',submitting:'處理中…',
+    statusSafe:'我很安全',statusFlooded:'道路積水封路',statusSick:'人不舒服',
+    otherLabel:'其他',otherPh:'自行填寫狀況',submitReportBtn:'送出回報',submitting2:'…',
+    createNewBtn:'發起新的',createTitleLabel:'發起通報標題',createTitlePh:'例如：0710強颱安全回報',createBtn:'發起',
+    selectDay:'選擇天數',endBtn:'結束通報',reportedCount:'已回報',notReportedCount:'未回報',
+    reportedList:'已回報人員',noReports:'尚無人回報',loading:'載入中…',noActiveSurvey:'目前沒有進行中的通報',
+    historyTitle:'歷史通報(可刪除)',ended:'已結束',
+    centerTitle:'天然災害每日安全回報中心',sortByTime:'時間',sortByCode:'編號',sortByCity:'居住地',sortByStore:'店名',shareBtn:'分享',
+    pushFlexBtn:'推播到我的LINE',pushedMsg:'✓ 已推播',
+    backHomeBtn:'回主頁',
+    listQueryBtn:'查詢',backToList:'← 列表',noSurveys:'目前沒有進行中的通報',
+    myProfileTitle:'我的資料',editBtn:'編輯',saveBtn:'更新',cancelBtn:'取消',saved:'已更新',
+    myReportsSectionTitle:'我回報過的項目',noMyReports:'目前沒有回報過的項目',thisSurveyEnded:'本項安全回報已結束',
+    surveyListTab:'通報列表',userListTab:'人員列表',
+    deleteUserConfirm:'確定要刪除這個人的登記資料嗎？刪除後他可以重新登記。',
+    blockBtn:'封鎖',unblockBtn:'解除封鎖',blockedTag:'已封鎖',
+    invalidParam:'參數錯誤',accountBlocked:'此帳號已被封鎖,無法使用本服務',
+    storeFilterAll:'全部店別',
+    copyDayBtn:'複製當天回報名單',copiedMsg:'已複製',
+    notReportedShareBtn:'未回報人員',
+    switchRoleLabel:'切換角色',roleManager:'主管',roleFrontdesk:'櫃台',roleTeacher:'老師',
+  },
+  vi:{
+    appTitle:'Đăng ký báo cáo an toàn',appSubtitle:'Lần đầu sử dụng vui lòng hoàn tất đăng ký',
+    chooseLang:'Chọn ngôn ngữ',chooseStore:'Chọn cửa hàng',choosePersonType:'Chọn loại nhân sự',
+    typeManager:'Quản lý',typeFrontdesk:'Lễ tân',typeTeacher:'Nhân viên kỹ thuật',typeStudent:'Học viên phòng đào tạo',
+    chooseSubType:'Chọn cấp bậc quản lý',subTypes:['Giám đốc điều hành','Quản lý khu vực','Quản lý','Phó quản lý','Phó quản lý thực tập','Tổ trưởng lễ tân'],
+    customNameLabel:'Tên tùy chỉnh',customNamePh:'Nhập tên tùy chỉnh (hoặc nhập mã số)',
+    teacherCode:'Mã nhân viên',teacherCodePh:'Mã số',gender:'Giới tính',genderM:'Nam',genderF:'Nữ',
+    codeHintForNonTeacher:'Mục này là mã nhân viên kỹ thuật, nếu bạn cũng có thân phận nhân viên kỹ thuật thì có thể điền vào, nên chọn 1 trong 2 (mã số hoặc tên)',
+    codeOrNameHint:'Có thể chỉ điền 1 trong 2 (mã số hoặc tên), nếu điền cả 2 thì cả 2 đều hiển thị',
+    shift:'Ca làm',shiftDay:'Ca sáng',shiftNight:'Ca tối',
+    addr:'Khu vực sinh sống',addrCity:'Tỉnh/Thành',addrDist:'Quận/Huyện',
+    submitBtn:'Hoàn tất đăng ký',submitting:'Đang xử lý…',
+    statusSafe:'Tôi an toàn',statusFlooded:'Đường ngập/tắc',statusSick:'Không khỏe',
+    otherLabel:'Khác',otherPh:'Tự điền tình trạng',submitReportBtn:'Gửi báo cáo',submitting2:'…',
+    createNewBtn:'Phát động mới',createTitleLabel:'Tiêu đề thông báo',createTitlePh:'VD: Báo cáo an toàn bão 0710',createBtn:'Phát động',
+    selectDay:'Chọn ngày thứ mấy',endBtn:'Kết thúc',reportedCount:'Đã báo cáo',notReportedCount:'Chưa báo cáo',
+    reportedList:'Người đã báo cáo',noReports:'Chưa có ai báo cáo',loading:'Đang tải…',noActiveSurvey:'Hiện không có thông báo nào',
+    historyTitle:'Lịch sử (có thể xóa)',ended:'Đã kết thúc',
+    centerTitle:'Trung tâm báo cáo an toàn thiên tai hàng ngày',sortByTime:'Thời gian',sortByCode:'Mã số',sortByCity:'Nơi ở',sortByStore:'Cửa hàng',shareBtn:'Chia sẻ',
+    pushFlexBtn:'Gửi đến LINE của tôi',pushedMsg:'✓ Đã gửi',
+    backHomeBtn:'Về trang chính',
+    listQueryBtn:'Tra cứu',backToList:'← Danh sách',noSurveys:'Hiện không có thông báo nào',
+    myProfileTitle:'Thông tin của tôi',editBtn:'Sửa',saveBtn:'Cập nhật',cancelBtn:'Hủy',saved:'Đã cập nhật',
+    myReportsSectionTitle:'Các mục tôi đã báo cáo',noMyReports:'Chưa có mục nào',thisSurveyEnded:'Báo cáo an toàn này đã kết thúc',
+    surveyListTab:'Danh sách thông báo',userListTab:'Danh sách nhân sự',
+    deleteUserConfirm:'Xác nhận xóa đăng ký của người này? Sau khi xóa họ có thể đăng ký lại.',
+    blockBtn:'Khóa',unblockBtn:'Mở khóa',blockedTag:'Đã khóa',
+    invalidParam:'Tham số không hợp lệ',accountBlocked:'Tài khoản này đã bị khóa, không thể sử dụng dịch vụ',
+    storeFilterAll:'Tất cả cửa hàng',
+    copyDayBtn:'Sao chép DS báo cáo ngày này',copiedMsg:'Đã sao chép',
+    notReportedShareBtn:'Người chưa báo cáo',
+    switchRoleLabel:'Chuyển vai trò',roleManager:'Quản lý',roleFrontdesk:'Lễ tân',roleTeacher:'Nhân viên',
   }
-  const setLevel=(m,lv)=>act(()=>api('s2MgrSet',{targetId:m.lineUserId,level:lv}));
-  return(<Box {...barOf(st,()=>{cclear(['s2Me']);reload();},'zh')}>
-    <Card><h1 className="text-lg font-bold text-white">🛡️ 主管功能</h1><p className="text-sm text-gray-400 mt-1">你的職級：{d.level}　{d.all?'（可看所有店）':'（僅限本店）'}</p></Card>
-    <Card className="space-y-3">
-      <div className="flex items-center justify-between"><span className="text-gray-200">🔔 接收主管申請通知</span>
-        <button disabled={busy} className={'px-4 py-1 rounded-full text-sm '+(d.notify?'bg-emerald-600 text-white':'bg-gray-700 text-gray-300')} onClick={()=>act(()=>api('s2MgrNotify',{on:!d.notify}))}>{d.notify?'開':'關'}</button></div>
-      {d.admin&&(<div className="flex items-center justify-between"><span className="text-gray-200">👁 已刪除項目對我也隱藏</span>
-        <button disabled={busy} className={'px-4 py-1 rounded-full text-sm '+(d.hideAdmin?'bg-emerald-600 text-white':'bg-gray-700 text-gray-300')} onClick={()=>act(()=>api('s2AdminHide',{on:!d.hideAdmin}))}>{d.hideAdmin?'開':'關'}</button></div>)}
-    </Card>
-    {d.pending.length>0&&(<Card className="space-y-3"><p className="font-bold text-white">待審核申請</p>
-      {d.pending.map(p=>(<div key={p.reqId} className="border-t border-gray-800 pt-2"><p className="text-gray-200">{p.store} {p.label}　申請：{p.level}</p>
-        <div className="grid grid-cols-2 gap-2 mt-2"><Btn disabled={busy} color="bg-emerald-600 text-white" onClick={()=>act(()=>api('s2MgrApprove',{rid:p.reqId,approve:true}))}>核准</Btn><Btn disabled={busy} color="bg-gray-700 text-white" onClick={()=>act(()=>api('s2MgrApprove',{rid:p.reqId,approve:false}))}>拒絕</Btn></div></div>))}</Card>)}
-    <Card className="space-y-3"><p className="font-bold text-white">主管名單（調整職級）</p>
-      {d.mgrs.length===0&&<p className="text-gray-500 text-sm">目前沒有主管</p>}
-      {d.mgrs.map(m=>(<div key={m.lineUserId} className="border-t border-gray-800 pt-2"><p className="text-gray-200">{m.store} {m.label}　<span className="text-violet-300">{m.level}</span></p>
-        {m.canEdit&&(<div className="flex flex-wrap gap-2 mt-2">{d.levels.map(l=>(<Chip key={l} on={m.level===l} onClick={()=>m.level!==l&&setLevel(m,l)}>{l}</Chip>))}<button className="px-3 py-2 rounded-full border border-red-500 text-red-400 text-sm" onClick={()=>window.confirm('取消「'+m.label+'」的主管職？')&&setLevel(m,'')}>取消主管</button></div>)}</div>))}
-    </Card>
-    {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
-    <Btn color="bg-gray-800 text-gray-200" onClick={()=>go('s2=mine')}>我發起的清單</Btn>
-  </Box>);
+};
+const STATUS_KEYS=['safe','flooded','sick'];
+// 測速用:如果這裡填了LIFF ID,會直接跳過問GAS要LIFF_ID那一次來回(省一段網路延遲)。
+// 留空的話會照原本方式去問GAS的指令碼屬性(多一次來回,但LIFF ID要改的話不用重新部署前端)。
+const LIFF_ID_HARDCODED='2010673151-kemVP4Pi';
+const Spinner=({size})=>(<svg className="animate-spin" width={size||14} height={size||14} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>);
+function MiniPinDots({length,total,digits}){
+  return(<div className="flex gap-2.5 justify-center py-1">{Array.from({length:total}).map((_,i)=>{
+    const filled=length>i;const ch=digits&&digits[i];
+    return(<div key={i} className={`flex items-center justify-center rounded-full border-2 ${ch?'w-7 h-7 text-sm font-bold':'w-3.5 h-3.5'} ${filled?'bg-amber-500 border-amber-500 text-white':'border-white/[0.25]'}`}>{ch||''}</div>);
+  })}</div>);
+}
+function MiniPinKeypad({onDigit,onBackspace}){
+  const BtnCls="w-11 h-12 rounded-lg bg-white/[0.08] text-gray-100 text-base font-semibold active:bg-white/[0.15] flex items-center justify-center flex-shrink-0";
+  return(<div className="grid grid-cols-3 gap-5 justify-items-center max-w-[260px] mx-auto">
+    {['1','2','3','4','5','6','7','8','9'].map(k=>(<button key={k} type="button" onClick={()=>onDigit(k)} className={BtnCls}>{k}</button>))}
+    <div/>
+    <button type="button" onClick={()=>onDigit('0')} className={BtnCls}>0</button>
+    <button type="button" onClick={onBackspace} className={BtnCls+" text-gray-400"}>⌫</button>
+  </div>);
+}
+function MiniPinDotsClickable({length,total,digits,active,onClick,onClear}){
+  return(<div className="flex items-center justify-center gap-2">
+    <button type="button" onClick={onClick} className={`flex gap-2.5 p-1.5 rounded-xl ${active?'bg-white/[0.06] ring-1 ring-amber-500/40':''}`}>
+      {Array.from({length:total}).map((_,i)=>{
+        const filled=length>i;const ch=digits&&digits[i];
+        return(<div key={i} className={`flex items-center justify-center rounded-full border-2 ${ch?'w-7 h-7 text-sm font-bold':'w-3.5 h-3.5'} ${filled?'bg-amber-500 border-amber-500 text-white':'border-white/[0.25]'}`}>{ch||''}</div>);
+      })}
+    </button>
+    {length>0&&<button type="button" onClick={onClear} className="w-6 h-6 rounded-full bg-white/[0.06] text-gray-500 text-xs flex items-center justify-center flex-shrink-0">✕</button>}
+  </div>);
+}
+// 主管的自訂名稱如果純數字(例如管理者直接輸入編號當識別碼),自動補上「號」讀起來才順(例如「5」顯示成「5號」);如果是打真的名字就照原樣顯示
+const fmtManagerName=(name)=>/^\d+$/.test(String(name||''))?(name+'號'):name;
+
+async function sfConfig(){const r=await gasCall('sfConfig',{},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfGetUser(lineUserId){const r=await gasCall('sfGetUser',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfRegister(data){const r=await gasCallPost('sfRegister',data,15000);return r||{ok:false,error:'GAS無回應'};}
+async function sfCreateSurvey(title,lineUserId){const r=await gasCallPost('sfCreateSurvey',{title,lineUserId},15000);return r||{ok:false,error:'GAS無回應'};}
+async function sfPushFlexToMe(id,lineUserId){const r=await gasCallPost('sfPushFlexToMe',{id,lineUserId},15000);return r||{ok:false,error:'GAS無回應'};}
+async function sfGetFlexContent(id,liffId){const r=await gasCall('sfGetFlexContent',{id,liffId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfEndSurvey(id){const r=await gasCallPost('sfEndSurvey',{id},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfDeleteSurvey(id,lineUserId){const r=await gasCallPost('sfDeleteSurvey',{id,lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfListSurveys(lineUserId){const r=await gasCall('sfListSurveys',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfGetSurvey(id,lineUserId){const r=await gasCall('sfGetSurvey',{id,lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfListUsers(lineUserId){const r=await gasCall('sfListUsers',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfRegisterRequest(data){const r=await gasCallPost('sfRegisterRequest',data,15000);return r||{ok:false,error:'GAS無回應'};}
+async function sfCheckPendingStatus(reqId){const r=await gasCall('sfCheckPendingStatus',{reqId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfGetPendingDetail(lineUserId,reqId){const r=await gasCall('sfGetPendingDetail',{lineUserId,reqId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfApprovePendingRegistration(lineUserId,reqId,approve){const r=await gasCallPost('sfApprovePendingRegistration',{lineUserId,reqId,approve},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfDeleteUser(lineUserId,targetLineUserId){const r=await gasCallPost('sfDeleteUser',{lineUserId,targetLineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfBlockUser(lineUserId,targetLineUserId){const r=await gasCallPost('sfBlockUser',{lineUserId,targetLineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfMyReportedSurveys(lineUserId){const r=await gasCall('sfMyReportedSurveys',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfSubmitReport(surveyId,lineUserId,status,otherText){const r=await gasCallPost('sfSubmitReport',{surveyId,lineUserId,status,otherText},15000);return r||{ok:false,error:'GAS無回應'};}
+async function sfTodayReports(surveyId,lineUserId){const r=await gasCall('sfTodayReports',{surveyId,lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function sfDayStatus(surveyId,date,lineUserId){const r=await gasCall('sfDayStatus',{surveyId,date,lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
+async function checkStaffCode(code){const r=await gasCall('checkStaffCode',{code},10000);return r||{ok:false,error:'GAS無回應'};}
+
+function PendingApprovalScreen({reqId,store,onApproved}){
+  const[shareStatus,setShareStatus]=useState(''); // ''/sharing/done/cancelled/error
+  const[checkStatus,setCheckStatus]=useState(''); // ''/checking/pending/approved/rejected
+  const doShare=async()=>{
+    setShareStatus('sharing');
+    try{
+      if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setShareStatus('error');return}
+      const uri='https://john7t.github.io/massage-pay/auth.html#req='+reqId;
+      const res=await liff.shareTargetPicker([{type:'flex',altText:'審核通知',contents:{
+        type:'bubble',
+        body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
+          {type:'text',text:'📝 人員登記審核通知',weight:'bold',size:'md',color:'#111111'},
+          {type:'text',text:'請主管協助審核此筆登記申請',size:'sm',color:'#666666',wrap:true,margin:'md'},
+          {type:'text',text:'審核代碼：'+reqId,size:'xs',color:'#999999',margin:'md'}
+        ]},
+        footer:{type:'box',layout:'vertical',paddingAll:'lg',contents:[
+          {type:'button',style:'primary',color:'#d97706',height:'sm',action:{type:'uri',label:'前往審核',uri:uri}}
+        ]}
+      }}]);
+      setShareStatus(res?'done':'cancelled');
+    }catch(_e){setShareStatus('error')}
+  };
+  const doCheck=async()=>{
+    setCheckStatus('checking');
+    try{
+      const r=await sfCheckPendingStatus(reqId);
+      if(r&&r.ok)setCheckStatus(r.status);else setCheckStatus('')
+    }catch(_e){setCheckStatus('')}
+  };
+  if(checkStatus==='approved')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center"><p className="text-base text-emerald-500 font-semibold">✓ 已核准！</p><button onClick={onApproved} className="px-6 py-3 rounded-xl bg-amber-600 text-white text-sm font-bold">開始使用</button></div>);
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-5 p-6 text-center">
+    <div className="w-16 h-16 rounded-full bg-amber-500/15 flex items-center justify-center text-2xl">⏳</div>
+    <div><p className="text-base text-gray-100 font-semibold">查無此編號的員工資料</p><p className="text-sm text-gray-400 mt-1">已建立審核申請，請將下方通知分享給主管審核</p></div>
+    <div className="bg-white/[0.04] rounded-xl px-4 py-2.5"><p className="text-xs text-gray-500">審核代碼</p><p className="text-lg text-amber-400 font-bold font-mono">{reqId}</p></div>
+    <div className="w-full max-w-xs space-y-2.5">
+      <button onClick={doShare} disabled={shareStatus==='sharing'} className="w-full py-3 rounded-xl bg-[#06C755] text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{shareStatus==='sharing'?<Spinner size={14}/>:<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.5 2 2 5.6 2 10c0 3.9 3.6 7.2 8.4 7.9.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1.1 1 .6 1.1-.5 6.2-3.7 8.5-6.3C22.1 12.6 22 11.3 22 10c0-4.4-4.5-8-10-8z"/></svg>}分享給主管審核</button>
+      {shareStatus==='done'&&<p className="text-xs text-emerald-400">✓ 已分享</p>}
+      {shareStatus==='cancelled'&&<p className="text-xs text-gray-500">已取消分享</p>}
+      {shareStatus==='error'&&<p className="text-xs text-red-400">分享失敗，請確認在LINE App內開啟</p>}
+      <button onClick={doCheck} disabled={checkStatus==='checking'} className="w-full py-3 rounded-xl bg-white/[0.06] border border-white/[0.1] text-gray-300 text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">{checkStatus==='checking'&&<Spinner size={14}/>}檢查核准情形</button>
+      <a href="https://lin.ee/58Dsob3" target="_blank" rel="noopener" className="w-full py-3 rounded-xl bg-[#06C755] text-white text-sm font-bold flex items-center justify-center gap-2"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.5 2 2 5.6 2 10c0 3.9 3.6 7.2 8.4 7.9.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1.1 1 .6 1.1-.5 6.2-3.7 8.5-6.3C22.1 12.6 22 11.3 22 10c0-4.4-4.5-8-10-8z"/></svg>加入 LINE 官方帳號</a>
+      {checkStatus==='pending'&&<p className="text-xs text-gray-500">尚未核准，請耐心等候</p>}
+      {checkStatus==='rejected'&&<p className="text-xs text-red-400">很抱歉，這筆申請已被拒絕</p>}
+    </div>
+  </div>);
 }
 
-// 從通知 Flex 進來的審核頁
-function ApvPage({rid}){
-  const[st,reload]=useLoad('s2MgrInfo',{});
-  const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');
-  if(st.loading&&!st.data)return(<Loading/>);
-  if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
-  const p=(st.data.pending||[]).find(x=>x.reqId===rid);
-  if(msg)return(<Msg text={msg}/>);
-  if(!p)return(<Msg text={'找不到這筆申請\n(可能已處理，或你沒有核准權限)'}/>);
-  const decide=async(a)=>{setBusy(true);const r=await api('s2MgrApprove',{rid:rid,approve:a});setBusy(false);setMsg(r.ok?(a?'已核准 ✅':'已拒絕'):(r.error||'失敗'));};
-  return(<Box><Card><p className="text-xs text-violet-300 font-bold">🛡️ 主管設定申請</p><h1 className="text-lg font-bold text-white mt-1">{p.store} {p.label}</h1><p className="text-gray-300 mt-1">申請職級：{p.level}</p><p className="text-xs text-gray-500 mt-1">{p.requestedAt}</p></Card>
-    <div className="grid grid-cols-2 gap-3"><Btn disabled={busy} color="bg-emerald-600 text-white" onClick={()=>decide(true)}>核准</Btn><Btn disabled={busy} color="bg-gray-700 text-white" onClick={()=>decide(false)}>拒絕</Btn></div></Box>);
+function RegisterFlow({profile,onDone,sid}){
+  const[lang,setLang]=useState('');
+  const t=SF_T[lang||'zh'];
+  const[store,setStore]=useState('');
+  const[personType,setPersonType]=useState(''); // manager/frontdesk/teacher/student(admin不開放自選,只能後台改)
+  const[subType,setSubType]=useState('');
+  const[name,setName]=useState('');
+  const[code,setCode]=useState('');
+  const[gender,setGender]=useState('');
+  const[shift,setShift]=useState('');
+  const[city,setCity]=useState('');const[dist,setDist]=useState('');
+  const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
+  const[checkBusy,setCheckBusy]=useState(false);const[checkMsg,setCheckMsg]=useState('');const[checkFound,setCheckFound]=useState(null); // null=還沒檢查過,true=查到,false=查無
+  const[pendingReqId,setPendingReqId]=useState(''); // 查無資料時,送出審核請求後拿到的審核代碼
+  const[pwdMode,setPwdMode]=useState(''); // ''=不用處理密碼(非老師身分)/verify=既有密碼要先登入/setup=設定新密碼(雙欄同時顯示)
+  const[pwdInput,setPwdInput]=useState('');const[pwdInput2,setPwdInput2]=useState('');const[pwdErr,setPwdErr]=useState('');const[pwdBusy,setPwdBusy]=useState(false);
+  const[pwdVerified,setPwdVerified]=useState(false);const[finalPwd,setFinalPwd]=useState(''); // 通過驗證/設定完成後的密碼(setup情境下submit時要用)
+  const[activeField,setActiveField]=useState(''); // 目前哪個PIN欄位開著鍵盤:code/pwd/pwd2
+  const toggleField=(f)=>setActiveField(a=>a===f?'':f);
+  const langDone=!!lang;
+  const step1Done=langDone&&!!store;
+  const canSubmit=(()=>{
+    if(!step1Done||!personType)return false;
+    if(personType==='manager')return subType&&(code.trim()||name.trim())&&gender&&shift&&city&&dist;
+    if(personType==='frontdesk')return code.trim()||name.trim();
+    if(personType==='student')return code.trim()||name.trim();
+    if(personType==='teacher')return code.trim()&&gender&&shift&&city&&dist&&pwdVerified;
+    return false;
+  })();
+  const doCheck=async()=>{
+    if(!code.trim())return;
+    setCheckBusy(true);setCheckMsg('');setPwdVerified(false);setPwdInput('');setPwdInput2('');setPwdErr('');setActiveField('');
+    try{
+      const r=await checkStaffCode(code.trim());
+      if(r&&r.ok&&r.found){
+        if(r.gender)setGender(r.gender);
+        if(r.shift)setShift(r.shift);
+        setCheckFound(true);
+        if(r.hasLockPwd){setPwdMode('verify');setCheckMsg('✓ 查到員工資料，請輸入你原本設定的密碼')}
+        else{setPwdMode('setup');setCheckMsg('✓ 查到員工資料，請設定4位數密碼')}
+      }else{setCheckFound(false);setPwdMode('setup');setCheckMsg('查無此編號，填完資料後將送交主管審核')}
+    }catch(_e){setCheckMsg('查詢失敗')}
+    setCheckBusy(false);
+  };
+  const doPwdVerify=async()=>{
+    if(pwdInput.length!==4)return;
+    setPwdBusy(true);setPwdErr('');
+    try{
+      const r=await gasLoginPwd(code.trim(),lockPwdCred(code.trim(),pwdInput));
+      if(r&&r.ok){setPwdVerified(true);setFinalPwd(pwdInput)}else{setPwdErr('密碼錯誤');setPwdInput('')}
+    }catch(e){setPwdErr(String(e))}
+    setPwdBusy(false);
+  };
+  // 設定新密碼:雙欄同時顯示可互相對照,點哪個欄位就對哪個輸入,不會卡住回不去
+  const pwd1Digit=(d)=>{if(pwdInput.length>=4)return;const next=pwdInput+d;setPwdInput(next);setPwdErr('');if(next.length>=4)setActiveField('')};
+  const pwd1Backspace=()=>setPwdInput(v=>v.slice(0,-1));
+  const pwd1Clear=()=>setPwdInput('');
+  const pwd2Digit=(d)=>{if(pwdInput2.length>=4)return;const next=pwdInput2+d;setPwdInput2(next);setPwdErr('');if(next.length>=4)setActiveField('')};
+  const pwd2Backspace=()=>setPwdInput2(v=>v.slice(0,-1));
+  const pwd2Clear=()=>setPwdInput2('');
+  const pwd1Ok=isValidPin(pwdInput);
+  const confirmPwdSetup=()=>{
+    if(!pwd1Ok){setPwdErr('密碼不可4碼相同或連續遞增/遞減');return}
+    if(pwdInput!==pwdInput2){setPwdErr('兩次輸入不一致');return}
+    setPwdVerified(true);setFinalPwd(pwdInput);setPwdErr('');
+  };
+  const submit=async()=>{
+    if(!canSubmit)return;
+    setBusy(true);setErr('');
+    const payload={lineUserId:profile.userId,displayName:profile.displayName,store,personType,subType,name:personType==='teacher'?code.trim():name.trim(),code:personType==='teacher'?'':code.trim(),lang,gender,shift,city,dist};
+    try{
+      if(personType==='teacher'&&checkFound===false){
+        // 查無此編號:不直接登記,改送交主管審核(密碼先存起來,之後這個人正式建檔時再套用)
+        const r=await sfRegisterRequest({...payload,pwdCred:lockPwdCred(code.trim(),finalPwd)});
+        if(r&&r.ok){setPendingReqId(r.reqId);setBusy(false);return}
+        setErr((r&&r.error)||'送出失敗');setBusy(false);return;
+      }
+      const r=await sfRegister(payload);
+      if(r&&r.ok){
+        // 老師身分且是第一次設定密碼(setup情境)的話,順便同步存回staff.json
+        if(personType==='teacher'&&checkFound===true&&pwdMode==='setup'){
+          try{await gasSetInitialPwd(code.trim(),lockPwdCred(code.trim(),finalPwd))}catch(_e){}
+        }
+        onDone();return; // 成功就不把busy設回false,按鈕保持灰色直到頁面跳轉,避免誤點兩次
+      }
+      setErr((r&&r.error)||'登記失敗');
+    }catch(e){setErr(String(e))}
+    setBusy(false);
+  };
+  if(pendingReqId)return(<PendingApprovalScreen reqId={pendingReqId} store={store} onApproved={onDone}/>);
+  return(<div className="min-h-screen flex items-center justify-center p-4">
+    <div className="w-full max-w-md bg-gray-900 rounded-2xl border border-white/[0.08] p-5 space-y-5">
+      <div className="text-center"><h1 className="text-lg font-bold text-gray-100">{t.appTitle}</h1><p className="text-xs text-gray-500 mt-1">{t.appSubtitle}</p></div>
+
+      <div><label className="text-sm text-gray-400 block mb-2">{SF_T.zh.chooseLang} / {SF_T.vi.chooseLang}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setLang('zh')} className={`py-3 rounded-xl text-sm font-semibold ${lang==='zh'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>中文</button><button onClick={()=>setLang('vi')} className={`py-3 rounded-xl text-sm font-semibold ${lang==='vi'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>Tiếng Việt</button></div></div>
+
+      {langDone&&(<div><label className="text-sm text-gray-400 block mb-2">{t.chooseStore}</label><div className="grid grid-cols-2 gap-2">{STORES.map(s=>(<button key={s} onClick={()=>setStore(s)} className={`py-3 rounded-xl text-sm font-semibold ${store===s?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{s}</button>))}</div></div>)}
+
+      {step1Done&&(<div><label className="text-sm text-gray-400 block mb-2">{t.choosePersonType}</label><div className="grid grid-cols-1 gap-2">
+        <button onClick={()=>setPersonType('manager')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='manager'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.typeManager}</button>
+        <button onClick={()=>setPersonType('frontdesk')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='frontdesk'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.typeFrontdesk}</button>
+        <button onClick={()=>setPersonType('teacher')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='teacher'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.typeTeacher}</button>
+        {store==='教學處'&&<button onClick={()=>setPersonType('student')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='student'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.typeStudent}</button>}
+      </div></div>)}
+
+      {personType==='manager'&&(<div className="space-y-3">
+        <div><label className="text-sm text-gray-400 block mb-2">{t.chooseSubType}</label><div className="grid grid-cols-2 gap-2">{t.subTypes.map((s,i)=>(<button key={s} onClick={()=>setSubType(SF_T.zh.subTypes[i])} className={`py-2.5 rounded-xl text-xs font-semibold ${subType===SF_T.zh.subTypes[i]?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{s}</button>))}</div></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.teacherCode}</label><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={t.teacherCodePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 text-center tracking-widest"/><p className="text-xs text-red-400 mt-1">{t.codeHintForNonTeacher}</p></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.customNameLabel}</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/><p className="text-xs text-gray-600 mt-1">{t.codeOrNameHint}</p></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.gender}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setGender('M')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='M'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderM}</button><button onClick={()=>setGender('F')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='F'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderF}</button></div></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.shift}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setShift('day')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='day'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.shiftDay}</button><button onClick={()=>setShift('night')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='night'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.shiftNight}</button></div></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.addr}</label><div className="grid grid-cols-2 gap-2">
+          <select value={city} onChange={e=>{setCity(e.target.value);setDist('')}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100"><option value="">{t.addrCity}</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select>
+          <select value={dist} onChange={e=>setDist(e.target.value)} disabled={!city} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100 disabled:opacity-40"><option value="">{t.addrDist}</option>{(TW_REGIONS&&TW_REGIONS[city]||[]).map(d=><option key={d} value={d}>{d}</option>)}</select>
+        </div></div>
+      </div>)}
+
+      {personType==='student'&&(<div className="space-y-3">
+        <div><label className="text-sm text-gray-400 block mb-2">{t.teacherCode}</label><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={t.teacherCodePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 text-center tracking-widest"/><p className="text-xs text-red-400 mt-1">{t.codeHintForNonTeacher}</p></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.customNameLabel}</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/><p className="text-xs text-gray-600 mt-1">{t.codeOrNameHint}</p></div>
+      </div>)}
+
+      {personType==='frontdesk'&&(<div className="space-y-3">
+        <div><label className="text-sm text-gray-400 block mb-2">{t.teacherCode}</label><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={t.teacherCodePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 text-center tracking-widest"/><p className="text-xs text-red-400 mt-1">{t.codeHintForNonTeacher}</p></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.customNameLabel}</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/><p className="text-xs text-gray-600 mt-1">{t.codeOrNameHint}</p></div>
+      </div>)}
+
+      {personType==='teacher'&&(<div className="space-y-3">
+        <div className="space-y-2">
+          <label className="text-sm text-gray-400 block text-center">{t.teacherCodePh}</label>
+          <div className="relative flex justify-center">
+            <MiniPinDotsClickable length={code.length} total={3} digits={code} active={activeField==='code'} onClick={()=>toggleField('code')} onClear={()=>{setCode('');setCheckFound(null);setCheckMsg('');setPwdMode('');setPwdVerified(false);setPwdInput('');setPwdInput2('');setPwdErr('')}}/>
+            {activeField==='code'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><MiniPinKeypad onDigit={d=>{if(code.length>=3)return;const next=code+d;setCode(next);setCheckFound(null);setCheckMsg('');setPwdMode('');setPwdVerified(false);setPwdInput('');setPwdInput2('');setPwdErr('');if(next.length>=3)setActiveField('')}} onBackspace={()=>{setCode(c=>c.slice(0,-1));setCheckFound(null);setCheckMsg('');setPwdMode('');setPwdVerified(false);setPwdInput('');setPwdInput2('');setPwdErr('')}}/></div>}
+          </div>
+          <button onClick={doCheck} disabled={checkBusy||!code.trim()} className="w-full py-2.5 rounded-xl bg-white/[0.08] text-gray-300 text-sm font-semibold disabled:opacity-50">{checkBusy?<Spinner size={14}/>:'檢查'}</button>
+          {checkMsg&&<p className={`text-xs text-center ${checkFound?'text-emerald-400':'text-amber-400'}`}>{checkMsg}</p>}
+        </div>
+        {pwdMode==='verify'&&!pwdVerified&&(<div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-3 space-y-2"><p className="text-xs text-gray-400 text-center">請輸入你原本設定的4位數密碼</p><div className="relative flex justify-center"><MiniPinDotsClickable length={pwdInput.length} total={4} active={activeField==='pwd'} onClick={()=>toggleField('pwd')} onClear={()=>{setPwdInput('');setPwdErr('')}}/>{activeField==='pwd'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><MiniPinKeypad onDigit={d=>{if(pwdInput.length>=4)return;const next=pwdInput+d;setPwdInput(next);setPwdErr('');if(next.length>=4)setActiveField('')}} onBackspace={()=>{setPwdInput(v=>v.slice(0,-1));setPwdErr('')}}/></div>}</div>{pwdErr&&<p className="text-xs text-red-400 text-center">{pwdErr}</p>}<button onClick={doPwdVerify} disabled={pwdBusy||pwdInput.length!==4} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 disabled:bg-white/[0.06] disabled:text-gray-600">{pwdBusy?<Spinner size={14}/>:'登入'}</button></div>)}
+        {pwdMode==='setup'&&!pwdVerified&&(<div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-3 space-y-3">
+          <div className="space-y-1.5"><p className="text-xs text-gray-400 text-center">設定4位數密碼（不可4碼相同或連續遞增/遞減）</p><div className="relative flex justify-center"><MiniPinDotsClickable length={pwdInput.length} total={4} active={activeField==='pwd'} onClick={()=>toggleField('pwd')} onClear={pwd1Clear}/>{activeField==='pwd'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><MiniPinKeypad onDigit={pwd1Digit} onBackspace={pwd1Backspace}/></div>}</div></div>
+          <div className="space-y-1.5"><p className="text-xs text-gray-400 text-center">請再輸入一次確認</p><div className="relative flex justify-center"><MiniPinDotsClickable length={pwdInput2.length} total={4} active={activeField==='pwd2'} onClick={()=>toggleField('pwd2')} onClear={pwd2Clear}/>{activeField==='pwd2'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><MiniPinKeypad onDigit={pwd2Digit} onBackspace={pwd2Backspace}/></div>}</div></div>
+          {pwdErr&&<p className="text-xs text-red-400 text-center">{pwdErr}</p>}
+          <button onClick={confirmPwdSetup} disabled={pwdInput.length!==4||pwdInput2.length!==4} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 disabled:bg-white/[0.06] disabled:text-gray-600">確認設定</button>
+        </div>)}
+        {pwdVerified&&<p className="text-xs text-emerald-400">✓ 密碼{pwdMode==='verify'?'驗證':'設定'}完成</p>}
+        {pwdVerified&&(<>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.gender}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setGender('M')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='M'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderM}</button><button onClick={()=>setGender('F')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='F'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderF}</button></div></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.shift}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setShift('day')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='day'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.shiftDay}</button><button onClick={()=>setShift('night')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='night'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.shiftNight}</button></div></div>
+        <div><label className="text-sm text-gray-400 block mb-2">{t.addr}</label><div className="grid grid-cols-2 gap-2">
+          <select value={city} onChange={e=>{setCity(e.target.value);setDist('')}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100"><option value="">{t.addrCity}</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select>
+          <select value={dist} onChange={e=>setDist(e.target.value)} disabled={!city} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100 disabled:opacity-40"><option value="">{t.addrDist}</option>{(TW_REGIONS&&TW_REGIONS[city]||[]).map(d=><option key={d} value={d}>{d}</option>)}</select>
+        </div></div>
+        </>)}
+      </div>)}
+
+      {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
+      {personType&&<button onClick={submit} disabled={!canSubmit||busy} className={`w-full py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${canSubmit&&!busy?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{busy&&<Spinner/>}{busy?t.submitting:t.submitBtn}</button>}
+    </div>
+  </div>);
 }
 
-// ───────── 入口 ─────────
-function Safety2App({liffId}){
-  window.__S2_LIFF_ID=liffId||window.__S2_LIFF_ID||'';
-  const[,setN]=useState(0);
-  useEffect(()=>{const h=()=>setN(n=>n+1);window.addEventListener('s2nav',h);window.addEventListener('popstate',h);return()=>{window.removeEventListener('s2nav',h);window.removeEventListener('popstate',h);};},[]);
-  return(<React.Fragment key={location.search+'|'+window.__s2nonce}><Safety2Routes/></React.Fragment>);
+function ListPage({profile,userProfile,liffId}){
+  const t=SF_T[userProfile.lang||'zh'];
+  const isRealAdmin=userProfile.personType==='admin';
+  const[viewAsRole,setViewAsRole]=useState(''); // admin專用:模擬用其他身分瀏覽,純前端切換,不影響GAS上真正的身分
+  const effType=isRealAdmin&&viewAsRole?viewAsRole:userProfile.personType;
+  const isManagerLevel=effType==='manager'||effType==='admin';
+  const isAdmin=effType==='admin';
+  const canSeeAllStores=effType==='admin'||(effType==='manager'&&(userProfile.subType==='執行長'||userProfile.subType==='區經理'));
+  const[tab,setTab]=useState('survey'); // survey/users
+  const[list,setList]=useState(undefined);
+  const[showCreate,setShowCreate]=useState(false);
+  const[newTitle,setNewTitle]=useState('');const[createBusy,setCreateBusy]=useState(false);
+  const[queryOpenId,setQueryOpenId]=useState('');const[queryResult,setQueryResult]=useState(null);
+  const[history,setHistory]=useState(null);const[showHistory,setShowHistory]=useState(false);
+  const[users,setUsers]=useState(undefined);const[storeFilter,setStoreFilter]=useState('');
+  const[busyUser,setBusyUser]=useState('');
+  const load=()=>{
+    sfListSurveys(profile.userId).then(r=>{
+      if(r&&r.ok&&Array.isArray(r.list)){
+        setList(r.list.filter(s=>!s.endDate));
+        if(isAdmin)setHistory(r.list.filter(s=>s.endDate));
+      }else{setList([])}
+    }).catch(()=>setList([]));
+  };
+  const loadUsers=()=>{
+    sfListUsers(profile.userId).then(r=>{if(r&&r.ok)setUsers(r.list||[]);else setUsers([])}).catch(()=>setUsers([]));
+  };
+  useEffect(()=>{if(isManagerLevel){load();loadUsers()}},[]);
+  const doCreate=async()=>{
+    if(!newTitle.trim())return;
+    setCreateBusy(true);
+    try{const r=await sfCreateSurvey(newTitle.trim(),profile.userId);if(r&&r.ok){setShowCreate(false);setNewTitle('');load()}}catch(_e){}
+    setCreateBusy(false);
+  };
+  const[busyEnd,setBusyEnd]=useState('');
+  const doEnd=async(id)=>{setBusyEnd(id);try{await sfEndSurvey(id);load()}catch(_e){}setBusyEnd('')};
+  const[busyDelHist,setBusyDelHist]=useState('');
+  const doDeleteHistory=async(id)=>{setBusyDelHist(id);try{await sfDeleteSurvey(id,profile.userId);load()}catch(_e){}setBusyDelHist('')};
+  const doDeleteUser=async(targetId)=>{
+    setBusyUser(targetId);
+    try{await sfDeleteUser(profile.userId,targetId);loadUsers()}catch(_e){}
+    setBusyUser('');
+  };
+  const doBlockUser=async(targetId)=>{
+    setBusyUser(targetId);
+    try{await sfBlockUser(profile.userId,targetId);loadUsers()}catch(_e){}
+    setBusyUser('');
+  };
+  const dayOptions=(s)=>{
+    const start=new Date(s.createdAt||Date.now());start.setHours(0,0,0,0);
+    const now=new Date();now.setHours(0,0,0,0);
+    const days=Math.floor((now-start)/86400000)+1;
+    const opts=[];
+    for(let n=1;n<=Math.max(1,days);n++){
+      const d=new Date(start.getTime()+(n-1)*86400000);
+      const p=x=>String(x).padStart(2,'0');
+      opts.push({n:n,date:d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())});
+    }
+    return opts;
+  };
+  const doQuery=async(surveyId,date)=>{
+    setQueryOpenId(surveyId);setQueryResult(null);
+    if(!date)return;
+    const r=await sfDayStatus(surveyId,date,profile.userId);
+    if(r&&r.ok)setQueryResult(r);
+  };
+  const[histQueryOpenId,setHistQueryOpenId]=useState('');
+  const[histQueryResult,setHistQueryResult]=useState(null);
+  const[histQueryDay,setHistQueryDay]=useState({n:0,date:''});
+  const[copyDayMsg,setCopyDayMsg]=useState('');
+  const doHistQuery=async(surveyId,dayObj)=>{
+    setHistQueryOpenId(surveyId);setHistQueryResult(null);setHistQueryDay(dayObj);
+    const r=await sfDayStatus(surveyId,dayObj.date,profile.userId);
+    if(r&&r.ok)setHistQueryResult(r);
+  };
+  const copyDayText=()=>{
+    if(!histQueryResult)return;
+    const text='day '+histQueryDay.n+' :'+histQueryDay.date+'\n'+t.reportedCount+'：'+histQueryResult.did.length+'人 分別是：'+histQueryResult.did.map(r=>r.display).join('、')+'\n'+t.notReportedCount+'：'+histQueryResult.notDid.length+'人 分別是：'+histQueryResult.notDid.join('、');
+    try{navigator.clipboard.writeText(text).then(()=>{setCopyDayMsg(t.copiedMsg);setTimeout(()=>setCopyDayMsg(''),2000)}).catch(()=>{})}catch(_e){}
+  };
+  const statusLabel=(k)=>t['status'+k[0].toUpperCase()+k.slice(1)]||k;
+  const fmtTime=(tm)=>{try{const d=new Date(tm);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}catch(_e){return ''}};
+  const detailUrl=(id)=>'https://liff.line.me/'+liffId+'?sid='+id; // 用LIFF專屬網址格式,確保LINE登入導轉不會弄丟參數
+  const[busyPush,setBusyPush]=useState('');const[pushMsg,setPushMsg]=useState('');const[pushErr,setPushErr]=useState('');const[pushAddFriendUrl,setPushAddFriendUrl]=useState('');
+  const doPushFlex=async(id)=>{
+    setBusyPush(id);setPushErr('');setPushAddFriendUrl('');
+    try{
+      const r=await sfPushFlexToMe(id,profile.userId);
+      if(r&&r.ok){setPushMsg(id);setTimeout(()=>setPushMsg(''),2500)}
+      else{setPushErr(id+':'+((r&&r.error)||'推播失敗'));if(r&&r.addFriendUrl)setPushAddFriendUrl(r.addFriendUrl)}
+    }catch(e){setPushErr(id+':'+String(e))}
+    setBusyPush('');
+  };
+  const shareSurvey=(s)=>{
+    sfGetFlexContent(s.id,liffId).then(r=>{
+      if(!r||!r.ok)return;
+      if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){
+        // 不支援的環境(例如非LINE App內開啟)才退回純文字連結分享
+        location.href='https://line.me/R/share?text='+encodeURIComponent(s.title+'\n'+detailUrl(s.id));
+        return;
+      }
+      liff.shareTargetPicker([{type:'flex',altText:r.title,contents:r.flex}]).catch(()=>{});
+    }).catch(()=>{});
+  };
+  const openDetail=(id)=>{location.href=location.href.split('?')[0]+'?sid='+id};
+  const personTypeLabel=(u)=>u.personType==='manager'?(u.subType||t.typeManager):u.personType==='frontdesk'?t.typeFrontdesk:u.personType==='student'?t.typeStudent:u.personType==='admin'?t.typeTeacher:t.typeTeacher;
+  const displayNameOf=(u)=>{
+    if(u.personType==='teacher')return u.name;
+    const code=String(u.code||'').trim();const name=String(u.name||'').trim();
+    if(code&&name)return code+'號 '+name;
+    if(code)return code+'號';
+    if(name)return name;
+    return u.displayName||'';
+  };
+  const USER_TYPE_ORDER={manager:0,admin:0,frontdesk:1,student:2,teacher:3};
+  const displayUsers=useMemo(()=>(users||[]).filter(u=>!storeFilter||u.store===storeFilter).slice().sort((a,b)=>{
+    const oa=USER_TYPE_ORDER[a.personType]??9;const ob=USER_TYPE_ORDER[b.personType]??9;
+    if(oa!==ob)return oa-ob;
+    if(a.personType==='teacher'&&b.personType==='teacher'){
+      const na=parseInt(String(a.name).replace('-',''),10);const nb=parseInt(String(b.name).replace('-',''),10);
+      if(!isNaN(na)&&!isNaN(nb))return na-nb;
+    }
+    return String(displayNameOf(a)).localeCompare(String(displayNameOf(b)));
+  }),[users,storeFilter]);
+  const[myReports,setMyReports]=useState(undefined);
+  const[showProfileDetail,setShowProfileDetail]=useState(false);
+  const[localOverride,setLocalOverride]=useState({});
+  const effProfile=useMemo(()=>({...userProfile,...localOverride}),[userProfile,localOverride]);
+  const[editing,setEditing]=useState(false);
+  const[fCode,setFCode]=useState('');const[fName,setFName]=useState('');const[fCity,setFCity]=useState('');const[fDist,setFDist]=useState('');
+  const[saveBusy,setSaveBusy]=useState(false);const[savedMsg,setSavedMsg]=useState('');
+  const saveProfile=async()=>{
+    if(!fCode.trim()&&!fName.trim())return;
+    setSaveBusy(true);
+    try{
+      const r=await sfRegister({lineUserId:profile.userId,displayName:userProfile.displayName,store:userProfile.store,personType:userProfile.personType,subType:userProfile.subType,name:fName.trim(),code:fCode.trim(),lang:userProfile.lang,gender:userProfile.gender,shift:userProfile.shift,city:fCity,dist:fDist});
+      if(r&&r.ok){setLocalOverride({name:fName.trim(),code:fCode.trim(),city:fCity,dist:fDist});setSavedMsg(t.saved);setEditing(false);setTimeout(()=>setSavedMsg(''),2000)}
+    }catch(_e){}
+    setSaveBusy(false);
+  };
+  useEffect(()=>{if(!isManagerLevel)sfMyReportedSurveys(profile.userId).then(r=>{if(r&&r.ok)setMyReports(r.list||[])})},[]);
+
+  return(<div className="min-h-screen p-4 pb-10">
+    <div className="max-w-md mx-auto space-y-4">
+      <div className="flex items-center justify-between pt-2">
+        <h1 className="text-lg font-bold text-gray-100">{t.centerTitle}</h1>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {isRealAdmin&&<select value={viewAsRole} onChange={e=>setViewAsRole(e.target.value)} className="text-xs px-2 py-2 rounded-lg bg-white/[0.06] border border-white/[0.08] text-gray-300"><option value="">{t.switchRoleLabel}</option><option value="manager">{t.roleManager}</option><option value="frontdesk">{t.roleFrontdesk}</option><option value="teacher">{t.roleTeacher}</option></select>}
+          {isManagerLevel&&<button onClick={()=>setShowCreate(v=>!v)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold flex-shrink-0">{t.createNewBtn}</button>}
+        </div>
+      </div>
+
+      <div className="bg-white/[0.03] rounded-xl p-3 space-y-1.5">
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-gray-500">{t.myProfileTitle}</p>
+          {userProfile.personType==='manager'&&!editing&&<button onClick={()=>{setFCode(effProfile.code||'');setFName(effProfile.name||'');setFCity(effProfile.city||'');setFDist(effProfile.dist||'');setEditing(true)}} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-400 font-semibold">{t.editBtn}</button>}
+        </div>
+        {!editing?(<>
+          <p onClick={()=>setShowProfileDetail(v=>!v)} className="text-sm text-gray-300 cursor-pointer">{effProfile.store} · {effProfile.personType==='manager'?(effProfile.subType||t.typeManager):personTypeLabel(effProfile)} · {displayNameOf(effProfile)} <span className="text-gray-600">{showProfileDetail?'▲':'▼'}</span></p>
+          {showProfileDetail&&(effProfile.personType==='teacher'||effProfile.personType==='manager')&&<p className="text-sm text-gray-400">{effProfile.gender==='M'?t.genderM:effProfile.gender==='F'?t.genderF:''} {effProfile.shift==='day'?t.shiftDay:effProfile.shift==='night'?t.shiftNight:''} {effProfile.city}{effProfile.dist}</p>}
+        </>):(<div className="space-y-2 pt-1">
+          <input value={fCode} onChange={e=>setFCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={t.teacherCodePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100 text-center tracking-widest"/>
+          <input value={fName} onChange={e=>setFName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/>
+          <div className="grid grid-cols-2 gap-2">
+            <select value={fCity} onChange={e=>{setFCity(e.target.value);setFDist('')}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200"><option value="">{t.addrCity}</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select>
+            <select value={fDist} onChange={e=>setFDist(e.target.value)} disabled={!fCity} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200 disabled:opacity-40"><option value="">{t.addrDist}</option>{(TW_REGIONS&&TW_REGIONS[fCity]||[]).map(d=><option key={d} value={d}>{d}</option>)}</select>
+          </div>
+          {savedMsg&&<p className="text-xs text-emerald-500">✓ {savedMsg}</p>}
+          <div className="flex gap-2"><button onClick={()=>setEditing(false)} className="flex-1 py-2 rounded-lg bg-white/[0.06] text-gray-400 text-xs font-semibold">{t.cancelBtn}</button><button onClick={saveProfile} disabled={saveBusy||!fName.trim()} className="flex-1 py-2 rounded-lg bg-amber-600 text-white text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1">{saveBusy&&<Spinner size={11}/>}{t.saveBtn}</button></div>
+        </div>)}
+      </div>
+
+      {!isManagerLevel?(<div className="space-y-2">
+        <p className="text-xs text-gray-500">{t.myReportsSectionTitle}</p>
+        {myReports===undefined?<p className="text-xs text-gray-600 text-center py-3">{t.loading}</p>:myReports.length===0?<p className="text-xs text-gray-600 text-center py-3">{t.noMyReports}</p>:myReports.map(s=>(
+          <div key={s.id} onClick={()=>openDetail(s.id)} className="bg-white/[0.03] rounded-lg px-3 py-2.5 cursor-pointer flex items-center justify-between"><span className="text-sm text-gray-200">{s.title}</span>{s.endDate&&<span className="text-[10px] text-gray-500 flex-shrink-0">{t.ended}</span>}</div>
+        ))}
+      </div>):(<>
+        <div className="flex gap-2"><button onClick={()=>setTab('survey')} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${tab==='survey'?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-400'}`}>{t.surveyListTab}</button><button onClick={()=>setTab('users')} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${tab==='users'?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-400'}`}>{t.userListTab}</button></div>
+
+        {tab==='survey'&&(<>
+        {showCreate&&(<div className="bg-white/[0.03] border border-amber-500/20 rounded-xl p-3 space-y-2">
+          <label className="text-xs text-gray-500 block">{t.createTitleLabel}</label>
+          <input value={newTitle} onChange={e=>setNewTitle(e.target.value)} placeholder={t.createTitlePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-gray-100"/>
+          <button onClick={doCreate} disabled={createBusy||!newTitle.trim()} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{createBusy&&<Spinner/>}{t.createBtn}</button>
+        </div>)}
+
+        {list===undefined?<p className="text-sm text-gray-600 text-center py-8">{t.loading}</p>:list.length===0?<p className="text-sm text-gray-500 text-center py-8">{t.noSurveys}</p>:list.map(s=>(
+          <div key={s.id} className="bg-white/[0.03] rounded-xl p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p onClick={()=>openDetail(s.id)} className="text-sm text-gray-200 font-medium cursor-pointer flex-1">{s.title}</p>
+              <button onClick={()=>doPushFlex(s.id)} disabled={busyPush===s.id} className="text-xs px-2.5 py-1.5 rounded-lg bg-[#06C755] text-white font-semibold flex-shrink-0 disabled:opacity-50 flex items-center gap-1">{busyPush===s.id&&<Spinner size={11}/>}{pushMsg===s.id?t.pushedMsg:t.pushFlexBtn}</button>
+              <button onClick={()=>shareSurvey(s)} className="text-xs px-2.5 py-1.5 rounded-lg bg-white/[0.06] text-gray-300 font-semibold flex-shrink-0">{t.shareBtn}</button>
+            </div>
+            <div className="flex gap-2">
+              <select onChange={e=>doQuery(s.id,e.target.value)} defaultValue="" className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-gray-200"><option value="" disabled>{t.selectDay}</option>{dayOptions(s).map(o=>(<option key={o.n} value={o.date}>{'day'+o.n+': '+o.date}</option>))}</select>
+              <button onClick={()=>doEnd(s.id)} disabled={busyEnd===s.id} className="px-3 py-1.5 rounded-lg bg-red-600/20 text-red-400 text-xs font-semibold flex-shrink-0 disabled:opacity-50 flex items-center gap-1">{busyEnd===s.id&&<Spinner/>}{t.endBtn}</button>
+            </div>
+            {pushErr.startsWith(s.id+':')&&(<div className="space-y-1.5">
+              {pushAddFriendUrl?(<>
+                <p className="text-[11px] text-amber-400">推播失敗，可能是你還沒把安全回報 Bot 加為好友</p>
+                <a href={pushAddFriendUrl} target="_blank" rel="noreferrer" className="block w-full py-2 rounded-lg bg-[#06C755] text-white text-xs font-semibold text-center">➕ 一鍵加好友</a>
+              </>):null}
+              <p className="text-[10px] text-gray-600">{pushErr.slice(s.id.length+1)}</p>
+            </div>)}
+            {queryOpenId===s.id&&queryResult&&(<div className="space-y-1.5 pt-1"><p className="text-[11px] text-gray-500">{t.reportedCount} {queryResult.did.length}｜{t.notReportedCount} {queryResult.notDid.length}</p>{queryResult.did.map((r,i)=>(<div key={i} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-2.5 py-1.5"><span className="text-xs text-gray-300">{r.display} {statusLabel(r.status)}{r.otherText?('、'+r.otherText):''}</span><span className="text-[10px] text-gray-500 flex-shrink-0">{fmtTime(r.time)}</span></div>))}</div>)}
+          </div>
+        ))}
+
+        {isAdmin&&history&&history.length>0&&(<div className="space-y-2 pt-2 border-t border-white/[0.06]">
+          <button onClick={()=>setShowHistory(v=>!v)} className="text-xs text-gray-500">{t.historyTitle}（{history.length}）{showHistory?'▲':'▼'}</button>
+          {showHistory&&history.map(s=>(<div key={s.id} className="bg-white/[0.03] rounded-lg p-2.5 space-y-1.5">
+            <div className="flex items-center justify-between"><span className="text-xs text-gray-400">{s.title}（{t.ended}）</span><button onClick={()=>doDeleteHistory(s.id)} disabled={busyDelHist===s.id} className="text-[10px] px-2 py-1 rounded bg-red-600/20 text-red-400 font-bold flex-shrink-0 disabled:opacity-50 flex items-center gap-1">{busyDelHist===s.id&&<Spinner size={10}/>}✕</button></div>
+            <div className="flex gap-1.5"><select onChange={e=>{const o=JSON.parse(e.target.value);doHistQuery(s.id,o)}} defaultValue="" className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-[11px] text-gray-200"><option value="" disabled>{t.selectDay}</option>{dayOptions(s).map(o=>(<option key={o.n} value={JSON.stringify(o)}>{'day'+o.n+': '+o.date}</option>))}</select></div>
+            {histQueryOpenId===s.id&&histQueryResult&&(<div className="space-y-1.5 pt-1">
+              <p className="text-[11px] text-gray-500">{t.reportedCount} {histQueryResult.did.length}｜{t.notReportedCount} {histQueryResult.notDid.length}</p>
+              <button onClick={copyDayText} className="w-full py-1.5 rounded bg-amber-600/20 text-amber-400 text-[11px] font-semibold">{copyDayMsg||t.copyDayBtn}</button>
+            </div>)}
+          </div>))}
+        </div>)}
+        </>)}
+
+        {tab==='users'&&(<div className="space-y-2">
+          {canSeeAllStores&&<select value={storeFilter} onChange={e=>setStoreFilter(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200"><option value="">{t.storeFilterAll}</option>{STORES.map(s=><option key={s} value={s}>{s}</option>)}</select>}
+          {users===undefined?<p className="text-sm text-gray-600 text-center py-8">{t.loading}</p>:displayUsers.map(u=>(
+            <div key={u.lineUserId} className={`flex items-center justify-between bg-white/[0.03] rounded-lg px-3 py-2 ${u.blocked?'opacity-40':''}`}>
+              <span className="text-sm text-gray-200">{canSeeAllStores?'['+u.store+'] ':''}{personTypeLabel(u)} · {displayNameOf(u)}{u.blocked?'（'+t.blockedTag+'）':''}</span>
+              <div className="flex gap-1.5 flex-shrink-0">
+                <button onClick={()=>doDeleteUser(u.lineUserId)} disabled={busyUser===u.lineUserId} className="text-[10px] px-2 py-1 rounded bg-white/[0.08] text-gray-400 font-bold disabled:opacity-50 flex items-center gap-1">{busyUser===u.lineUserId?<Spinner size={10}/>:'✕'}</button>
+                <button onClick={()=>doBlockUser(u.lineUserId)} disabled={busyUser===u.lineUserId} className={`text-[10px] px-2 py-1 rounded font-bold disabled:opacity-50 flex items-center gap-1 ${u.blocked?'bg-emerald-600/20 text-emerald-400':'bg-red-600/20 text-red-400'}`}>{busyUser===u.lineUserId?<Spinner size={10}/>:'🚫'}</button>
+              </div>
+            </div>
+          ))}
+        </div>)}
+      </>)}
+    </div>
+  </div>);
 }
-function Safety2Routes(){
-  const q=new URLSearchParams(location.search);
-  const p=q.get('s2')||'';const sid=q.get('sid')||'';
-  if(p==='r')return sid?<ReportPage sid={sid}/>:<Msg text="缺少回報代碼"/>;
-  if(p==='l')return sid?<ListPage sid={sid}/>:<Msg text="缺少回報代碼"/>;
-  if(p==='new')return <NewPage/>;
-  if(p==='mine')return <MinePage/>;
-  if(p==='share')return sid?<SharePage sid={sid} fresh={q.get('fresh')==='1'}/>:<Msg text="缺少回報代碼"/>;
-  if(p==='mgr')return <MgrPage/>;
-  if(p==='apv')return <ApvPage rid={q.get('rid')||''}/>;
-  return <Msg text="不支援的頁面"/>;
+
+function DetailPage({profile,userProfile,sid,liffId}){
+  const t=SF_T[userProfile.lang||'zh'];
+  const displayName=userProfile.personType==='teacher'?userProfile.name:(userProfile.name||userProfile.displayName);
+  const STATUS_OPTS=STATUS_KEYS.map(k=>[k,t['status'+k[0].toUpperCase()+k.slice(1)]]);
+  const PERSON_ORDER={manager:0,admin:0,frontdesk:1,teacher:2};
+  const[survey,setSurvey]=useState(undefined);
+  const[status,setStatus]=useState('');
+  const[otherText,setOtherText]=useState('');
+  const[reports,setReports]=useState(null);
+  const[sortMode,setSortMode]=useState('time'); // time/code/city/store
+  const[showOther,setShowOther]=useState(false);
+  const[noPermission,setNoPermission]=useState(false);
+  const loadReports=()=>sfTodayReports(sid,profile.userId).then(r=>{if(r&&r.ok)setReports(r.list||[])});
+  const loadSurvey=()=>{
+    sfGetSurvey(sid,profile.userId).then(r=>{
+      if(r&&r.ok){
+        if(r.noPermission){setNoPermission(true);setSurvey(null);return}
+        setSurvey(r.survey||null);
+      }else{setSurvey(null)}
+    }).catch(()=>setSurvey(null));
+    loadReports(); // 跟上面sfGetSurvey同時發送,不用等它先回來——這兩個request互不依賴,平行打才不會延遲疊加
+  };
+  useEffect(()=>{loadSurvey()},[]);
+  const[submitted,setSubmitted]=useState(false);
+  const[submitting,setSubmitting]=useState(false);
+  const submit=()=>{
+    if(!survey||(!status&&!otherText.trim()))return;
+    // 請求送出後GAS會在伺服器端繼續執行完成,就算使用者馬上關閉分頁也不影響資料寫入。
+    // 畫面上先跑1秒轉圈圈再顯示完成訊息,純粹是給使用者一個「有在處理」的感覺,不是真的在等GAS回應。
+    setSubmitting(true);
+    sfSubmitReport(survey.id,profile.userId,status,otherText.trim()).catch(()=>{});
+    setTimeout(()=>{setSubmitting(false);setSubmitted(true)},1000);
+  };
+  const statusLabel=(k)=>t['status'+k[0].toUpperCase()+k.slice(1)]||k;
+  const fmtTime=(tm)=>{try{const d=new Date(tm);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}catch(_e){return ''}};
+  const sortedReports=useMemo(()=>{
+    if(!reports)return null;
+    if(sortMode==='time')return [...reports].sort((a,b)=>new Date(b.time)-new Date(a.time));
+    if(sortMode==='store')return [...reports].sort((a,b)=>{
+      const sc=String(a.store||'').localeCompare(String(b.store||''));
+      if(sc!==0)return sc;
+      const oa=PERSON_ORDER[a.personType]??9;const ob=PERSON_ORDER[b.personType]??9;
+      return oa-ob;
+    });
+    if(sortMode==='city')return [...reports].sort((a,b)=>String(a.city||'').localeCompare(String(b.city||'')));
+    // code:依人員別分組,老師組內改用數字比較(不是字串比較,不然"122"會排到"5"前面)
+    return [...reports].sort((a,b)=>{
+      const oa=PERSON_ORDER[a.personType]??9;const ob=PERSON_ORDER[b.personType]??9;
+      if(oa!==ob)return oa-ob;
+      if(a.personType==='teacher'&&b.personType==='teacher'){
+        const na=parseInt(String(a.display).replace('-',''),10);const nb=parseInt(String(b.display).replace('-',''),10);
+        if(!isNaN(na)&&!isNaN(nb))return na-nb;
+      }
+      return String(a.display).localeCompare(String(b.display));
+    });
+  },[reports,sortMode]);
+  const canSeeAllStores=userProfile.personType==='admin'||(userProfile.personType==='manager'&&(userProfile.subType==='執行長'||userProfile.subType==='區經理'));
+  const isManagerLevel=userProfile.personType==='manager'||userProfile.personType==='admin';
+  const[shareBusy,setShareBusy]=useState(false);
+  const shareNotReported=async()=>{
+    if(!survey)return;
+    setShareBusy(true);
+    try{
+      const today=new Date().toISOString().slice(0,10);
+      const r=await sfDayStatus(survey.id,today,profile.userId);
+      if(r&&r.ok){
+        const msg=survey.title+'\n未回報人數 '+r.notDid.length+'人：'+r.notDid.join('、')+'\n請儘速至回報網頁進行回報';
+        if(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker')){
+          await liff.shareTargetPicker([{type:'text',text:msg}]);
+        }else{
+          location.href='https://line.me/R/share?text='+encodeURIComponent(msg);
+        }
+      }
+    }catch(_e){}
+    setShareBusy(false);
+  };
+  if(submitting)return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6"><div className="text-amber-500"><Spinner size={36}/></div><p className="text-base text-gray-400">送出中…</p></div>);
+  if(submitted){
+    const shareRecord=()=>{
+      const now=new Date();
+      const p=x=>String(x).padStart(2,'0');
+      const timeText=now.getFullYear()+'-'+p(now.getMonth()+1)+'-'+p(now.getDate())+' '+p(now.getHours())+':'+p(now.getMinutes());
+      const statusText=statusLabel(status)+(otherText?('、'+otherText):'');
+      const statusColor=status==='safe'?'#2ECC71':'#E67E22'; // 安全是綠色,其他狀況(積水/不舒服/其他)用橘色提醒
+      const flex={
+        type:'bubble',size:'giga',
+        header:{type:'box',layout:'vertical',backgroundColor:'#096acb',paddingAll:'md',contents:[
+          {type:'text',text:'🚨 '+(survey?survey.title:''),weight:'bold',color:'#FFFFFF',wrap:true}
+        ]},
+        body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',spacing:'md',contents:[
+          {type:'text',text:'回報時間：'+timeText+' - '+userProfile.store+' - '+displayName,color:'#555555',size:'sm',align:'start',wrap:true},
+          {type:'text',text:statusText,color:statusColor,size:'xxl',weight:'bold',align:'center',margin:'lg'},
+          {type:'button',action:{type:'uri',label:'天災安全回報平台',uri:'https://liff.line.me/'+liffId+'?sid='+sid},style:'link',height:'sm',color:'#eeeeff',margin:'none'}
+        ]}
+      };
+      if(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker')){
+        liff.shareTargetPicker([{type:'flex',altText:survey?survey.title:'安全回報',contents:flex}]).catch(()=>{});
+      }
+    };
+    return(<div className="min-h-screen flex flex-col items-center justify-center gap-3 p-6 text-center">
+      <p className="text-2xl">✅</p>
+      <p className="text-lg text-gray-100 font-bold">已收到你的回報</p>
+      <p className="text-sm text-gray-400">可關閉此頁面，謝謝</p>
+      <button onClick={shareRecord} className="mt-4 px-6 py-3 rounded-xl bg-[#06C755] text-white text-sm font-semibold">分享完成回報的紀錄</button>
+    </div>);
+  }
+  return(<div className="min-h-screen p-4 pb-10">
+    <div className="max-w-md mx-auto space-y-4">
+      <div className="flex items-center justify-between pt-2">
+        <p className="text-xs text-gray-500">{userProfile.store} · {displayName}</p>
+        <a href={location.href.split('?')[0]} className="text-xs px-3 py-1.5 rounded-lg bg-white/[0.06] text-gray-300 font-semibold flex-shrink-0">{t.backHomeBtn}</a>
+      </div>
+
+      {isManagerLevel&&survey&&!survey.endDate&&(<button onClick={shareNotReported} disabled={shareBusy} className="w-full py-2.5 rounded-xl bg-[#06C755] text-white text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">{shareBusy&&<Spinner/>}{t.notReportedShareBtn}</button>)}
+
+      {survey===undefined?<p className="text-base text-gray-600 text-center py-8">{t.loading}</p>:noPermission?(
+        <p className="text-base text-red-400 text-center py-8">{t.invalidParam}</p>
+      ):!survey?(
+        <p className="text-base text-gray-500 text-center py-8">{t.noActiveSurvey}</p>
+      ):(<>
+        {survey.endDate?(<div className="bg-white/[0.03] rounded-2xl p-5"><p className="text-2xl text-gray-200 text-center font-bold leading-snug">{survey.title}</p><p className="text-lg text-gray-400 text-center mt-2">（{t.thisSurveyEnded||t.ended}）</p></div>):(
+        <div className="bg-white/[0.03] rounded-2xl p-4 space-y-4">
+          <p className="text-2xl text-gray-100 font-bold leading-snug">{survey.title}</p>
+          <div className="grid grid-cols-2 gap-3">
+            {STATUS_OPTS.map(([k,l])=>(<button key={k} onClick={()=>{setStatus(k);setShowOther(false)}} className={`py-7 rounded-2xl text-lg font-bold leading-tight transition-all ${status===k?'bg-amber-600 text-white':'bg-white/[0.07] text-gray-200'}`}>{l}</button>))}
+            <button onClick={()=>{setShowOther(true);setStatus('')}} className={`py-7 rounded-2xl text-lg font-bold transition-all ${showOther?'bg-amber-600 text-white':'bg-white/[0.07] text-gray-200'}`}>{t.otherLabel}</button>
+          </div>
+          {showOther&&<input value={otherText} onChange={e=>setOtherText(e.target.value)} placeholder={t.otherPh} autoFocus className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-4 text-lg text-gray-100"/>}
+          <button onClick={submit} disabled={!status&&!otherText.trim()} className="w-full py-5 rounded-2xl bg-red-600 text-white text-xl font-bold disabled:opacity-50">{t.submitReportBtn}</button>
+        </div>)}
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between flex-wrap gap-2"><p className="text-sm text-gray-400 font-semibold">{(()=>{const d=new Date();return (d.getMonth()+1)+'/'+d.getDate()})()} {t.reportedList}</p><div className="flex gap-1.5 flex-wrap"><button onClick={()=>setSortMode('time')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='time'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByTime}</button>{isManagerLevel&&<button onClick={()=>setSortMode('code')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='code'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByCode}</button>}{isManagerLevel&&<button onClick={()=>setSortMode('city')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='city'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByCity}</button>}{canSeeAllStores&&<button onClick={()=>setSortMode('store')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='store'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByStore}</button>}</div></div>
+          {sortedReports===null?<p className="text-sm text-gray-600 text-center py-3">{t.loading}</p>:sortedReports.length===0?<p className="text-sm text-gray-600 text-center py-3">{t.noReports}</p>:sortedReports.map((r,i)=>(
+            <div key={i} className="bg-white/[0.04] rounded-xl px-4 py-3.5 border border-white/[0.05]"><div className="flex items-center justify-between gap-2"><span className="text-base text-gray-100 font-semibold">{canSeeAllStores&&r.store?('['+r.store+'] '):''}{r.display}{r.personType==='manager'&&r.subType?(' '+r.subType):''}</span><span className="text-xs text-gray-500 flex-shrink-0">{fmtTime(r.time)}</span></div><p className="text-sm text-gray-400 mt-0.5">{statusLabel(r.status)}{r.otherText?('、'+r.otherText):''}{isManagerLevel&&r.city?('　'+r.city+(r.dist||'')):''}</p></div>
+          ))}
+        </div>
+      </>)}
+    </div>
+  </div>);
 }
-window.Safety2App=Safety2App;
+
+function ShareFlow({sid,liffId}){
+  const[status,setStatus]=useState('loading'); // loading/picking/done/cancelled/error
+  const[err,setErr]=useState('');
+  useEffect(()=>{
+    sfGetFlexContent(sid,liffId).then(r=>{
+      if(!r||!r.ok){setStatus('error');setErr((r&&r.error)||'讀取失敗');return}
+      setStatus('picking');
+      if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setStatus('error');setErr('此環境不支援分享功能，請在LINE App內開啟');return}
+      liff.shareTargetPicker([{type:'flex',altText:r.title,contents:r.flex}]).then(res=>{
+        setStatus(res?'done':'cancelled');
+      }).catch(e=>{setStatus('error');setErr(String(e&&e.message||e))});
+    }).catch(e=>{setStatus('error');setErr(String(e))});
+  },[]);
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+    {status==='loading'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">準備分享內容…</p></>)}
+    {status==='picking'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">請選擇要分享的對象…</p></>)}
+    {status==='done'&&(<p className="text-base text-emerald-500 font-semibold">✓ 已分享</p>)}
+    {status==='cancelled'&&(<p className="text-sm text-gray-500">已取消分享</p>)}
+    {status==='error'&&(<p className="text-sm text-red-400">{err}</p>)}
+    {(status==='done'||status==='cancelled'||status==='error')&&<button onClick={()=>{try{liff.closeWindow()}catch(_e){location.href=location.href.split('?')[0]}}} className="px-6 py-3 rounded-xl bg-white/[0.06] text-gray-300 text-sm font-semibold">關閉</button>}
+  </div>);
+}
+
+// 通用的行為代碼Flex分享橋接:任何地方要傳代碼都導來這裡,帶title/body/link三個參數,統一組成Flex卡片分享
+// shareTargetPicker一定要透過 liff.line.me/{id} 這個網址正式啟動LIFF才能用,主程式/管理頁/公告頁都不是走這個網址,所以全部導來這裡代發
+// 備份專頁:index.html刻意不呼叫liff.init(保留離線記帳能力),備份的分享功能借這個正式LIFF端點處理
+function BackupViewPage({code,year}){
+  const[jsonStr,setJsonStr]=useState('');
+  const[range,setRange]=useState(null);
+  const[err,setErr]=useState('');
+  const[copied,setCopied]=useState(false);
+  const LINE_SHARE_LIMIT=4500; // LINE文字訊息分享實務上的安全長度,超過這個長度shareTargetPicker容易失敗,改引導用複製
+  useEffect(()=>{
+    try{
+      const MP=window.MP;
+      if(!code||!year){setErr('缺少編號或年份參數');return}
+      const r=MP.dataMonthRange(code,Number(year));
+      if(!r){setErr('這個年度查無資料');return}
+      setRange(r);
+      const obj=MP.makePersonalBackup(code,Number(year));
+      setJsonStr(JSON.stringify(obj));
+    }catch(e){setErr(String(e))}
+  },[]);
+  const doCopy=async()=>{try{await navigator.clipboard.writeText(jsonStr)}catch(_e){};setCopied(true);setTimeout(()=>setCopied(false),2000)};
+  const doShare=()=>{
+    liff.shareTargetPicker([{type:'text',text:jsonStr}]).catch(e=>alert('分享失敗，請改用複製按鈕：'+e));
+  };
+  const goBack=()=>{try{liff.closeWindow()}catch(_e){}};
+  if(err)return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center"><p className="text-sm text-red-400">{err}</p><button onClick={goBack} className="px-6 py-3 rounded-xl bg-amber-600 text-white text-sm font-bold">返回</button></div>);
+  if(!jsonStr)return(<div className="min-h-screen flex items-center justify-center"><Spinner size={28}/></div>);
+  const tooLarge=jsonStr.length>LINE_SHARE_LIMIT;
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+    <p className="text-lg font-bold text-gray-100">📦 資料備份</p>
+    <p className="text-xs text-gray-500">編號 {code}　{year}年　{range.first}~{range.last}月</p>
+    <p className="text-[11px] text-gray-600">內容長度約 {jsonStr.length} 字元</p>
+    {tooLarge&&<p className="text-xs text-amber-400 max-w-xs">內容較長，直接用LINE分享可能會失敗，建議改用「複製」貼到LINE Keep或記事本保存</p>}
+    <div className="flex gap-3">
+      <button onClick={doCopy} className="px-6 py-3 rounded-xl bg-white/[0.08] text-gray-200 text-sm font-bold">{copied?'✓ 已複製':'📋 複製備份內容'}</button>
+      <button onClick={doShare} disabled={tooLarge} className="px-6 py-3 rounded-xl bg-[#06C755] text-white text-sm font-bold disabled:opacity-40">傳送給自己/好友</button>
+    </div>
+    <button onClick={goBack} className="text-xs text-gray-500 underline mt-2">關閉</button>
+  </div>);
+}
+
+function TicketFlexShare({title,body,link}){
+  const[status,setStatus]=useState('loading'); // loading/picking/done/cancelled/error
+  const[err,setErr]=useState('');
+  const INDEX_URL='https://john7t.github.io/massage-pay/index.html';
+  useEffect(()=>{
+    if(!title||!link){setStatus('error');setErr('缺少參數');return}
+    setStatus('picking');
+    if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setStatus('error');setErr('此環境不支援分享功能，請在LINE App內開啟');return}
+    liff.shareTargetPicker([{type:'flex',altText:title,contents:{
+      type:'bubble',
+      body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
+        {type:'text',text:title,weight:'bold',size:'md',color:'#111111',wrap:true},
+        ...(body?[{type:'text',text:body,size:'sm',color:'#666666',wrap:true,margin:'md'}]:[])
+      ]},
+      footer:{type:'box',layout:'vertical',paddingAll:'lg',contents:[
+        {type:'button',style:'primary',color:'#d97706',height:'sm',action:{type:'uri',label:'前往確認',uri:link}}
+      ]}
+    }}]).then(res=>{setStatus(res?'done':'cancelled')}).catch(e=>{setStatus('error');setErr(String(e&&e.message||e))});
+  },[]);
+  const goBack=()=>{try{liff.closeWindow()}catch(_e){location.href=INDEX_URL}};
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+    {status==='loading'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">準備中…</p></>)}
+    {status==='picking'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">請選擇要分享的對象…</p></>)}
+    {status==='done'&&(<p className="text-base text-emerald-500 font-semibold">✓ 已分享</p>)}
+    {status==='cancelled'&&(<p className="text-sm text-gray-500">已取消分享</p>)}
+    {status==='error'&&(<p className="text-sm text-red-400">{err}</p>)}
+    {(status==='done'||status==='cancelled'||status==='error')&&<button onClick={goBack} className="px-6 py-3 rounded-xl bg-amber-600 text-white text-sm font-bold">返回</button>}
+  </div>);
+}
+
+function CardShareFlow({data}){
+  const[status,setStatus]=useState('loading');
+  const[err,setErr]=useState('');
+  const INDEX_URL='https://john7t.github.io/massage-pay/index.html';
+  useEffect(()=>{
+    let d=null;try{d=JSON.parse(data)}catch(_e){}
+    if(!d||!d.c){setStatus('error');setErr('缺少參數');return}
+    setStatus('picking');
+    if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setStatus('error');setErr('此環境不支援分享功能，請在LINE App內開啟');return}
+    const tel='tel:'+String(d.p||'').replace(/[^0-9+]/g,'');
+    const mapUri=/^https?:\/\//.test(d.m||'')?d.m:'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(d.a||'');
+    const appleUri=/^https?:\/\//.test(d.am||'')?d.am:'https://maps.apple.com/?q='+encodeURIComponent(d.a||'');
+    // 分享名片按鈕:收到的人點了開同一個LIFF頁,可再轉給別人(URI動作上限1000字,太長就不放)
+    // g=第幾次轉傳(App發出=0,每轉傳一層+1),寫log用
+    const gen=Number(d.g)||0;
+    const shareUri0='https://liff.line.me/'+LIFF_ID_HARDCODED+'?cardShare='+encodeURIComponent(JSON.stringify(Object.assign({},d,{g:gen+1})));
+    const shareUri=shareUri0.length<=1000?shareUri0:'';
+    // 按鈕文字:地址去掉郵遞區號/台北市/XX區;電話去掉02區碼(撥號仍用完整號碼)
+    const shortAddr=String(d.a||'').replace(/^\d*\s*(?:[臺台]北市)?(?:[\u4e00-\u9fa5]{2}區)?/,'')||String(d.a||'');
+    const _dg=String(d.p||'').replace(/\D/g,'');
+    const shortTel=(_dg.length===10&&_dg.indexOf('02')===0)?_dg.slice(2,6)+'-'+_dg.slice(6):String(d.p||'');
+    // 兩行式按鈕(box+action,文字不會被截斷):上行主文字,下行小字說明
+    const cell=(main,sub,uri)=>({type:'box',layout:'vertical',flex:1,paddingAll:'6px',justifyContent:'center',alignItems:'center',action:{type:'uri',label:(main||'名片').slice(0,20),uri:uri},contents:[
+      {type:'text',text:main||'-',size:'sm',weight:'bold',color:'#2563eb',align:'center'},
+      ...(sub?[{type:'text',text:sub,size:'xxs',color:'#6b7280',align:'center'}]:[])
+    ]});
+    const BM=d.bm||'雲心閣',BS=d.bs||'養生會館';
+    const GRAD={type:'linearGradient',angle:'135deg',startColor:'#bcd9f5',endColor:'#6d4aa8'};
+    // 所有頁頂部的「雲心閣」那一排:漸層底色+白字(24h紅標、tag小字可選)
+    const brandRow=(tag)=>({type:'box',layout:'horizontal',spacing:'sm',alignItems:'center',contents:[
+      {type:'text',text:BM,weight:'bold',size:'md',color:'#FFFFFF',flex:0,gravity:'center'},
+      {type:'text',text:BS,size:'xs',color:'#eeeeff',flex:0,gravity:'center'},
+      {type:'box',layout:'vertical',flex:0,backgroundColor:'#dc2626',cornerRadius:'sm',paddingTop:'2px',paddingBottom:'2px',paddingStart:'6px',paddingEnd:'6px',contents:[{type:'text',text:'24h',size:'xxs',weight:'bold',color:'#FFFFFF'}]},
+      ...(tag?[{type:'text',text:tag,size:'xxs',color:'#eeeeff',flex:0,gravity:'center'}]:[])
+    ]});
+    const brandHeader=(tag)=>({type:'box',layout:'vertical',paddingAll:'lg',background:GRAD,contents:[brandRow(tag)]});
+    const _n=new Date();const genDate=String(_n.getFullYear()).slice(2)+'/'+String(_n.getMonth()+1).padStart(2,'0')+'/'+String(_n.getDate()).padStart(2,'0'); // 產生Flex當下的日期,避免有人拿舊表來說事
+    const priceNote={type:'text',text:'本文於'+genDate+'產生，非即時更新，訂位時，務必確認費用',wrap:true,size:'xxs',color:'#9ca3af',align:'center',margin:'lg'};
+    // 第1頁:名片(上下用filler撐開,讓編號在中間;多頁時LINE會把各頁撐成同高)
+    const page1={type:'bubble',size:'mega',
+      header:brandHeader('老師個人名片'),
+      body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
+        {type:'filler'},
+        {type:'box',layout:'baseline',justifyContent:'center',spacing:'sm',contents:[
+          {type:'text',text:String(d.c),size:'5xl',weight:'bold',color:'#111827',flex:0},
+          {type:'text',text:'號老師',size:'sm',weight:'bold',color:'#6b7280',flex:0}
+        ]},
+        {type:'text',text:d.ws+' ~ '+d.we,size:'xs',align:'center',color:'#6b7280',margin:'md'},
+        {type:'filler'},
+        ...(d.n?[{type:'text',text:d.n,size:'xs',color:'#6b7280',align:'end',wrap:true,margin:'xl'}]:[])
+      ]},
+      footer:{type:'box',layout:'vertical',spacing:'xs',paddingAll:'md',contents:[
+        {type:'box',layout:'horizontal',spacing:'sm',contents:[cell(shortAddr,'Apple 地圖',appleUri),cell(shortAddr,'Google 地圖',mapUri)]},
+        {type:'box',layout:'horizontal',spacing:'sm',contents:[cell(shortTel,'訂位電話',tel),shareUri?cell('分享給朋友','',shareUri):{type:'filler'}]}
+      ]}};
+    // 第2頁:早鳥夜貓專案
+    const promoRule=(t)=>({type:'text',text:'◎ '+t,size:'xs',color:'#6b7280',wrap:true,margin:'xs'});
+    const page2={type:'bubble',size:'mega',
+      header:{type:'box',layout:'vertical',paddingAll:'lg',background:GRAD,contents:[
+        brandRow(),
+        {type:'text',text:'☀ 早鳥 · 夜貓 專案 ☾',size:'xl',weight:'bold',color:'#FFFFFF',margin:'md'},
+        {type:'text',text:'平日 凌晨12:00 ~ 中午12:00',size:'xs',color:'#FFFFFF',margin:'xs'}
+      ]},
+      body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
+        {type:'text',text:'腳底+身體按摩 120分鐘',size:'sm',weight:'bold',align:'center',color:'#111827'},
+        {type:'box',layout:'baseline',justifyContent:'center',spacing:'sm',margin:'sm',contents:[
+          {type:'text',text:'1,099',size:'4xl',weight:'bold',color:'#ea580c',flex:0},
+          {type:'text',text:'NT',size:'sm',weight:'bold',color:'#ea580c',flex:0}
+        ]},
+        {type:'box',layout:'vertical',margin:'lg',contents:[
+          promoRule('以實際進場時間為主'),promoRule('不與其他活動合併使用'),promoRule('腳底與身體限定同一位師傅'),
+          promoRule('店家保留活動修改、暫停及終止之權利'),promoRule('周五過12點後是周六，算假日'),promoRule('周日過12點後是周一，算平日')
+        ]},
+        {type:'filler'},
+        priceNote
+      ]}};
+    // 第3、4頁:價目表
+    const row=(n,sub,price,orig)=>({type:'box',layout:'horizontal',margin:'md',contents:[
+      {type:'box',layout:'vertical',flex:1,contents:[
+        {type:'text',text:n,size:'xs',weight:'bold',color:'#111827',wrap:true},
+        ...(sub?[{type:'text',text:sub,size:'xxs',color:'#9ca3af',wrap:true}]:[])
+      ]},
+      {type:'box',layout:'vertical',flex:0,contents:[
+        {type:'text',text:price,size:'sm',weight:'bold',color:'#b91c1c',align:'end'},
+        ...(orig?[{type:'text',text:'原價 '+orig,size:'xxs',color:'#9ca3af',align:'end',decoration:'line-through'}]:[])
+      ]}
+    ]});
+    const sep=()=>({type:'separator',margin:'md'});
+    const pricePage=(title,rows)=>({type:'bubble',size:'mega',
+      header:brandHeader('價目表'),
+      body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
+        {type:'text',text:title,size:'md',weight:'bold',color:'#111827'},
+        ...rows,
+        {type:'filler'},
+        priceNote
+      ]}});
+    const page3=pricePage('最划算套餐',[
+      row('腳底+身體按摩 120分鐘','含轉場時間・含精油泡腳及肩頸按摩','1,299','1,600'),
+      row('腳底+身體按摩 70分鐘','含轉場時間・含精油泡腳及肩頸按摩','850','1,100'),
+      sep(),
+      row('腳底按摩 40分鐘','','500','600'),row('腳底按摩 70分鐘','','850','1,100'),
+      row('身體按摩 35分鐘','','500','600'),row('身體按摩 70分鐘','','850','1,100')
+    ]);
+    const page4=pricePage('加節表',[
+      row('腳底+身體按摩 120分鐘','含轉場時間','1,299','1,600'),
+      row('腳底按摩 110分鐘','','1,299','1,600'),row('身體按摩 110分鐘','','1,299','1,600'),
+      sep(),
+      row('加節 30分鐘','','500'),row('加節 60分鐘','','850')
+    ]);
+    liff.shareTargetPicker([{type:'flex',altText:BM+BS+' '+d.c+'號老師名片',contents:{type:'carousel',contents:[page1,page2,page3,page4]}}]).then(res=>{
+      setStatus(res?'done':'cancelled');
+      // 有人完成分享就記一筆Log(單純記錄:不等回應、不驗證有沒有寫成功;失敗靜默)。code=名片老師編號,flow=cardShare:g{轉傳層數}(g0=老師本人發出,g1=朋友第一次轉傳,g2=再轉傳…)
+      if(res){try{gasCall('logFlowEnter',{code:String(d.c),flow:'cardShare:g'+gen,store:String(d.st||'')},8000)}catch(_e){}}
+    }).catch(e=>{setStatus('error');setErr(String(e&&e.message||e))});
+  },[]);
+  const goBack=()=>{try{liff.closeWindow()}catch(_e){location.href=INDEX_URL}};
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+    {(status==='loading'||status==='picking')&&(<><Spinner size={32}/><p className="text-sm text-gray-400">請選擇要分享的對象…</p></>)}
+    {status==='done'&&(<p className="text-base text-emerald-500 font-semibold">✓ 已分享</p>)}
+    {status==='cancelled'&&(<p className="text-sm text-gray-500">已取消分享</p>)}
+    {status==='error'&&(<p className="text-sm text-red-400">{err}</p>)}
+    {(status==='done'||status==='cancelled'||status==='error')&&<button onClick={goBack} className="px-6 py-3 rounded-xl bg-amber-600 text-white text-sm font-bold">返回</button>}
+  </div>);
+}
+
+function BreakShareFlow({kind,reqId}){
+  const[status,setStatus]=useState('loading'); // loading/picking/done/cancelled/error
+  const[err,setErr]=useState('');
+  const FD_LIFF_URL='https://john7t.github.io/massage-pay/frontdesk/index.html';
+  const INDEX_URL='https://john7t.github.io/massage-pay/index.html';
+  useEffect(()=>{
+    if(!kind||!reqId){setStatus('error');setErr('缺少參數');return}
+    setStatus('picking');
+    if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setStatus('error');setErr('此環境不支援分享功能，請在LINE App內開啟');return}
+    const uri=FD_LIFF_URL+'?breakConfirm='+kind+'&reqId='+reqId;
+    const label=kind==='green'?'老師開始休息(翻綠)':'老師結束休息(回牌)';
+    liff.shareTargetPicker([{type:'flex',altText:'休息確認通知',contents:{
+      type:'bubble',
+      body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
+        {type:'text',text:(kind==='green'?'🟢':'⚪')+' 休息確認通知',weight:'bold',size:'md',color:'#111111'},
+        {type:'text',text:label,size:'sm',color:'#666666',wrap:true,margin:'md'},
+        {type:'text',text:'代碼：'+reqId,size:'xs',color:'#999999',margin:'md'}
+      ]},
+      footer:{type:'box',layout:'vertical',paddingAll:'lg',contents:[
+        {type:'button',style:'primary',color:'#d97706',height:'sm',action:{type:'uri',label:'前往確認',uri:uri}}
+      ]}
+    }}]).then(res=>{setStatus(res?'done':'cancelled')}).catch(e=>{setStatus('error');setErr(String(e&&e.message||e))});
+  },[]);
+  const goBack=()=>{try{liff.closeWindow()}catch(_e){location.href=INDEX_URL}};
+  return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+    {status==='loading'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">準備中…</p></>)}
+    {status==='picking'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">請選擇要分享的對象…</p></>)}
+    {status==='done'&&(<p className="text-base text-emerald-500 font-semibold">✓ 已分享</p>)}
+    {status==='cancelled'&&(<p className="text-sm text-gray-500">已取消分享</p>)}
+    {status==='error'&&(<p className="text-sm text-red-400">{err}</p>)}
+    {(status==='done'||status==='cancelled'||status==='error')&&<button onClick={goBack} className="px-6 py-3 rounded-xl bg-amber-600 text-white text-sm font-bold">返回</button>}
+  </div>);
+}
+
+function ApproveRegFlow({reqId,profile}){
+  const[phase,setPhase]=useState('checking'); // checking/denied/detail/done
+  const[detail,setDetail]=useState(null);
+  const[err,setErr]=useState('');
+  const[busy,setBusy]=useState(false);
+  const load=()=>{
+    setPhase('checking');
+    sfGetPendingDetail(profile.userId,reqId).then(r=>{
+      if(r&&r.ok){setDetail(r.detail);setPhase('detail')}
+      else{setErr((r&&r.error)||'查詢失敗');setPhase('denied')}
+    }).catch(e=>{setErr(String(e));setPhase('denied')});
+  };
+  useEffect(()=>{load()},[]);
+  const doApprove=async(approve)=>{
+    setBusy(true);
+    try{
+      const r=await sfApprovePendingRegistration(profile.userId,reqId,approve);
+      if(r&&r.ok){setPhase('done');setDetail(d=>({...d,status:approve?'approved':'rejected'}))}else{setErr((r&&r.error)||'操作失敗')}
+    }catch(e){setErr(String(e))}
+    setBusy(false);
+  };
+  const personTypeLabel=(pt)=>({manager:'主管',frontdesk:'櫃台',teacher:'老師',student:'教學處學生'}[pt]||pt);
+  const genderLabel=(g)=>g==='M'?'男':g==='F'?'女':'—';
+  const shiftLabel=(s)=>s==='day'?'早班':s==='night'?'晚班':'—';
+  if(phase==='checking')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><Spinner size={32}/><p className="text-sm text-gray-400">確認權限中…</p></div>);
+  if(phase==='denied')return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{err}</p></div>);
+  if(!detail)return null;
+  return(<div className="min-h-screen p-4">
+    <div className="max-w-sm mx-auto space-y-4">
+      <h1 className="text-lg font-bold text-gray-100 text-center pt-4">登記審核</h1>
+      <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-4 space-y-2 text-sm">
+        <div className="flex justify-between"><span className="text-gray-500">審核代碼</span><span className="text-gray-200 font-mono">{detail.reqId}</span></div>
+        <div className="flex justify-between"><span className="text-gray-500">店別</span><span className="text-gray-200">{detail.store}</span></div>
+        <div className="flex justify-between"><span className="text-gray-500">身分別</span><span className="text-gray-200">{personTypeLabel(detail.personType)}{detail.subType?('・'+detail.subType):''}</span></div>
+        <div className="flex justify-between"><span className="text-gray-500">編號/名稱</span><span className="text-gray-200">{detail.code||detail.name||'—'}</span></div>
+        {(detail.personType==='teacher'||detail.personType==='manager')&&(<>
+          <div className="flex justify-between"><span className="text-gray-500">性別</span><span className="text-gray-200">{genderLabel(detail.gender)}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">班別</span><span className="text-gray-200">{shiftLabel(detail.shift)}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">居住地</span><span className="text-gray-200">{detail.city}{detail.dist}</span></div>
+        </>)}
+        <div className="flex justify-between"><span className="text-gray-500">申請時間</span><span className="text-gray-200 text-xs">{detail.createdAt}</span></div>
+      </div>
+      {detail.status==='pending'?(
+        <div className="grid grid-cols-2 gap-3">
+          <button onClick={()=>doApprove(false)} disabled={busy} className="py-3 rounded-xl bg-red-500/15 border border-red-500/25 text-red-400 font-semibold disabled:opacity-50">拒絕</button>
+          <button onClick={()=>doApprove(true)} disabled={busy} className="py-3 rounded-xl bg-emerald-600 text-white font-bold disabled:opacity-50">核准</button>
+        </div>
+      ):(
+        <p className={`text-center text-sm font-semibold ${detail.status==='approved'?'text-emerald-400':'text-red-400'}`}>{detail.status==='approved'?'✓ 已核准':'已拒絕'}</p>
+      )}
+      {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
+      <button onClick={()=>{try{liff.closeWindow()}catch(_e){}}} className="w-full py-2.5 rounded-xl bg-white/[0.06] text-gray-400 text-sm font-semibold">關閉</button>
+    </div>
+  </div>);
+}
+
+function App(){
+  const[phase,setPhase]=useState('liffInit'); // liffInit/loading/register/main/error
+  const[profile,setProfile]=useState(null);
+  const[userProfile,setUserProfile]=useState(null);
+  const[liffErr,setLiffErr]=useState('');
+  const[blocked,setBlocked]=useState(false);
+  const[liffId,setLiffId]=useState('');
+  const sid=new URLSearchParams(location.search).get('sid')||''; // 網址帶?sid=SF0001時直接顯示該筆通報,沒帶就顯示目前進行中的列表頁
+  const action=new URLSearchParams(location.search).get('action')||''; // action=share時,Flex卡片上的分享按鈕點進來,直接跳shareTargetPicker
+  const approveReg=new URLSearchParams(location.search).get('approveReg')||''; // 待審核登記的審核代碼,FLEX按鈕點進來走這個,不用先走登記流程
+  const breakShare=new URLSearchParams(location.search).get('breakShare')||''; // green或white,翻綠計時器要借這裡發Flex(index.html不是走liff.line.me網址,不能直接用shareTargetPicker)
+  const breakReqId=new URLSearchParams(location.search).get('reqId')||'';
+  const flexTitle=new URLSearchParams(location.search).get('flexTitle')||''; // 通用行為代碼Flex分享,標題/內文/連結三個參數
+  const flexBody=new URLSearchParams(location.search).get('flexBody')||'';
+  const flexLink=new URLSearchParams(location.search).get('flexLink')||'';
+  const s2p=new URLSearchParams(location.search).get('s2')||''; // 安全回報2.0(safety2.js):s2=r/l/mine/new/share/mgr/apv
+  const cardShare=new URLSearchParams(location.search).get('cardShare')||''; // 老師名片Flex分享(index.html的名片彈窗借這裡發)
+  const backupView=new URLSearchParams(location.search).get('backupView')||''; // 備份專頁:index.html不呼叫liff.init(刻意保留離線記帳能力),備份的分享功能借這裡處理
+  const backupCode=new URLSearchParams(location.search).get('code')||'';
+  const backupYear=new URLSearchParams(location.search).get('year')||'';
+
+  useEffect(()=>{
+    const initLiff=(id)=>{
+      setLiffId(id);
+      return liff.init({liffId:id}).then(()=>{
+        if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return} // 明確帶目前完整網址(含?sid=...),避免LINE登入導轉過程弄丟參數
+        if(s2p){setPhase('s2');return} // 安全回報2.0:不走舊的登記/審核流程,身分由 GAS 用 accessToken 驗證
+        if(cardShare){setPhase('cardShare');return}
+        if(flexTitle&&flexLink){setPhase('ticketFlex');return} // 通用行為代碼分享,不用先查有沒有登記過,直接進分享流程
+        if(backupView){setPhase('backupView');return} // 備份專頁,不用先查有沒有登記過,直接進備份流程
+        if(approveReg){return liff.getProfile().then(p=>{setProfile(p);setPhase('approveReg')})} // 審核模式:不用先查有沒有登記過,直接進審核流程(裡面自己檢查主管權限)
+        if(breakShare){setPhase('breakShare');return} // 翻綠計時器分享,不用先查有沒有登記過,直接進分享流程
+        if(action==='share'){setPhase('share');return} // 分享模式不用先查有沒有登記過,直接進分享流程
+        return liff.getProfile().then(p=>{
+          setProfile(p);
+          setPhase('loading');
+          return sfGetUser(p.userId).then(r=>{
+            if(r&&r.ok&&r.blocked){setBlocked(true);setPhase('main');return}
+            if(r&&r.ok&&r.exists){setUserProfile(r.profile);setPhase('main')}
+            else{setPhase('register')}
+          });
+        });
+      });
+    };
+    if(LIFF_ID_HARDCODED){
+      initLiff(LIFF_ID_HARDCODED).catch(err=>{setLiffErr(String(err&&err.message||err));setPhase('error')});
+      return;
+    }
+    sfConfig().then(cfg=>{
+      const id=cfg&&cfg.ok?cfg.liffId:'';
+      if(!id){setLiffErr('尚未在GAS指令碼屬性設定LIFF_ID,請聯繫系統管理者');setPhase('error');return}
+      return initLiff(id);
+    }).catch(err=>{setLiffErr(String(err&&err.message||err));setPhase('error')});
+  },[]);
+
+  if(phase==='error')return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{liffErr}</p></div>);
+  if(phase==='liffInit'||phase==='loading')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><div className="text-amber-500"><Spinner size={40}/></div><p className="text-base text-gray-400">載入中…</p></div>);
+  if(phase==='share')return(<ShareFlow sid={sid} liffId={liffId}/>);
+  if(phase==='approveReg')return(<ApproveRegFlow reqId={approveReg} profile={profile}/>);
+  if(phase==='breakShare')return(<BreakShareFlow kind={breakShare} reqId={breakReqId}/>);
+  if(phase==='s2')return(<Safety2App liffId={liffId||LIFF_ID_HARDCODED}/>);
+  if(phase==='cardShare')return(<CardShareFlow data={cardShare}/>);
+  if(phase==='ticketFlex')return(<TicketFlexShare title={flexTitle} body={flexBody} link={flexLink}/>);
+  if(phase==='backupView')return(<BackupViewPage code={backupCode} year={backupYear}/>);
+  if(blocked)return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{SF_T.zh.accountBlocked} / {SF_T.vi.accountBlocked}</p></div>);
+  if(phase==='register')return(<RegisterFlow profile={profile} sid={sid} onDone={()=>{sfGetUser(profile.userId).then(r=>{if(r&&r.ok&&r.exists){
+    // 登記完成導回原本帶的sid頁面(不然使用者原本是要去回報某一項,卻被丟到看不到那項的首頁)
+    if(sid){location.href=location.href.split('?')[0]+'?sid='+sid;return}
+    setUserProfile(r.profile);setPhase('main');
+  }})}}/>);
+  return sid?(<DetailPage profile={profile} userProfile={userProfile} sid={sid} liffId={liffId}/>):(<ListPage profile={profile} userProfile={userProfile} liffId={liffId}/>);
+}
+
+class __EB extends React.Component{constructor(p){super(p);this.state={e:false}}static getDerivedStateFromError(){return{e:true}}componentDidCatch(err){try{window.__showFallback(3,{lineno:0,msg:(err&&err.message)||String(err)})}catch(e){}}render(){return this.state.e?null:this.props.children}}
+ReactDOM.createRoot(document.getElementById('root')).render(<__EB><App/></__EB>);
 })();
+</script>
+</body>
+</html>
