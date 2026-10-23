@@ -196,6 +196,9 @@ function ReportInner({me,sid,editInfo}){
   </Box>);
 }
 
+// 分享機制總開關:Flex 一旦傳出去無法收回,使用者要求先停止「建立新回報後分享」的整套機制(隱藏不刪,要恢復改成 true)。
+// false 時:建立後不導向分享頁、清單不顯示「分享」、分享頁顯示暫停訊息。
+const SHARE_ENABLED=false;
 const SHOW_ENTRY_SHARE=false; // 「發起新回報」頁的「分享『發起新回報』入口」按鈕(暫時功能):使用者要求先移除(隱藏不刪,要恢復改成 true)
 const SHOW_REMIND_SHARE=false; // 未回報名單下方的「分享提醒」按鈕:使用者要求先移除(隱藏不刪,要恢復改成 true)
 // 詳細列表:篩選(狀態)與排序(時間/編號/狀態)
@@ -270,7 +273,7 @@ function NewInner(){
     try{if(!liff.isApiAvailable('shareTargetPicker')){setEntryRes('此環境不支援分享,請在 LINE 內開啟');return;}
       const r=await liff.shareTargetPicker([{type:'flex',altText:'🚨 安全回報:天災、緊急事件時,一鍵回報平安',contents:buildEntryFlex()}]);setEntryRes(r?'已分享 ✅':'已取消');}catch(e){setEntryRes('錯誤:'+String(e&&e.message||e));}
   };
-  const create=async()=>{setBusy(true);setErr('');const r=await api('s2CreateSurvey',{title:title.trim(),endDate:end});setBusy(false);if(r.ok){saveTitleHist(title.trim());}if(r.ok)go('s2=share&sid='+r.id+'&fresh=1');else setErr(r.error||'失敗');};
+  const create=async()=>{setBusy(true);setErr('');const r=await api('s2CreateSurvey',{title:title.trim(),endDate:end});setBusy(false);if(r.ok){saveTitleHist(title.trim());}if(r.ok)go(SHARE_ENABLED?'s2=share&sid='+r.id+'&fresh=1':'s2=mine');else setErr(r.error||'失敗');};
   return(<Box>
     <Card className="space-y-3"><h1 className="text-lg font-bold text-white">📝 發起新回報</h1>
       <div><p className="text-sm text-gray-400 mb-1">標題(最多40字)</p><input value={title} onChange={e=>setTitle(e.target.value)} maxLength={40} placeholder="例如:10/24 颱風 安全回報" className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-white"/>
@@ -278,7 +281,7 @@ function NewInner(){
           <div className="flex flex-wrap gap-2 mt-1">{hist.map(h=>(<button key={h} onClick={()=>setTitle(h)} className="px-3 py-1 rounded-full border border-gray-600 text-xs text-gray-300">{h}</button>))}</div></div>)}</div>
       <div><p className="text-sm text-gray-400 mb-1">截止日</p><input type="date" value={end} onChange={e=>setEnd(e.target.value)} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-white"/></div></Card>
     {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
-    <Btn disabled={!title.trim()||!end} loading={busy} onClick={create}>建立並分享</Btn>
+    <Btn disabled={!title.trim()||!end} loading={busy} onClick={create}>{SHARE_ENABLED?'建立並分享':'建立'}</Btn>
     {SHOW_ENTRY_SHARE&&<Btn color="bg-gray-700 text-white" onClick={shareEntry}>分享「發起新回報」入口</Btn>}
     {SHOW_ENTRY_SHARE&&entryRes&&<p className="text-center text-sm text-gray-400">{entryRes}</p>}
     <Btn color="bg-gray-800 text-gray-200" onClick={()=>go('s2=mine')}>我發起的清單</Btn>
@@ -300,9 +303,9 @@ function MineInner(){
   const row=(s)=>(<Card key={s.id} className={s.hidden?'opacity-60':''}>
     <p className="font-bold text-white">{s.title}{s.hidden&&<span className="ml-2 text-xs text-red-400">已刪除</span>}{s.closed&&!s.hidden&&<span className="ml-2 text-xs text-gray-500">已截止</span>}</p>
     <p className="text-xs text-gray-400 mt-1">{s.creatorStore} {s.creatorLabel}　截止 {s.endDate}　已回報 {s.count} 人{s.help>0&&<span className="text-red-400">（需協助 {s.help}）</span>}</p>
-    <div className="grid grid-cols-3 gap-2 mt-3">
+    <div className={'grid gap-2 mt-3 '+(SHARE_ENABLED?'grid-cols-3':'grid-cols-2')}>
       <button className="rounded-lg bg-violet-600 text-white text-sm py-2" onClick={()=>go('s2=l&sid='+s.id)}>查看名單</button>
-      <button disabled={s.hidden} className="rounded-lg bg-blue-600 text-white text-sm py-2 disabled:opacity-30" onClick={()=>go('s2=share&sid='+s.id)}>分享</button>
+      {SHARE_ENABLED&&<button disabled={s.hidden} className="rounded-lg bg-blue-600 text-white text-sm py-2 disabled:opacity-30" onClick={()=>go('s2=share&sid='+s.id)}>分享</button>}
       {s.hidden?(d.canRestore?<button disabled={busy===s.id} className="rounded-lg border border-emerald-500 text-emerald-400 text-sm py-2" onClick={()=>restore(s)}>還原</button>:<span/>)
         :(s.canDelete?<button disabled={busy===s.id} className="rounded-lg border border-red-500 text-red-400 text-sm py-2" onClick={()=>del(s)}>刪除</button>:<span/>)}
     </div></Card>);
@@ -354,6 +357,7 @@ function buildEntryFlex(){
       {type:'button',style:'primary',color:'#dc2626',height:'sm',action:{type:'uri',label:'發起新回報',uri:base+'?s2=new'}}]}};
 }
 function SharePage({sid,fresh}){
+  if(!SHARE_ENABLED)return(<Msg text={'分享功能暫時停用'}/>);
   return(<NeedUser render={()=><ShareInner sid={sid} fresh={fresh}/>}/>);
 }
 function ShareInner({sid,fresh}){
