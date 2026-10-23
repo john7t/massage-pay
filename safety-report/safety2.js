@@ -196,6 +196,7 @@ function ReportInner({me,sid,editInfo}){
   </Box>);
 }
 
+const SHOW_REMIND_SHARE=false; // 未回報名單下方的「分享提醒」按鈕:使用者要求先移除(隱藏不刪,要恢復改成 true)
 // 詳細列表:篩選(狀態)與排序(時間/編號/狀態)
 function detailRows(items,sortBy,asc,flt){
   const rows=items.filter(i=>flt==='all'||i.status===flt);
@@ -235,7 +236,7 @@ function ListInner({me,sid}){
       {d.stores.map(g=>(<div key={g.store}><div className="flex items-center justify-between"><p className="text-sm text-gray-200">{g.store}（{(g.missing||[]).length}）</p>
         {(g.missing||[]).length>0&&<button className="text-sm text-violet-400" onClick={()=>copyText((g.missing||[]).join(' ')).then(ok=>{if(ok){setCopied('m:'+g.store);setTimeout(()=>setCopied(''),1800);}})}>{copied==='m:'+g.store?t.copied:t.copy}</button>}</div>
         <p className="mt-1 text-base leading-8 break-all text-gray-100">{(g.missing||[]).length===0?<span className="text-emerald-400 text-sm">都已回報 ✅</span>:(g.missing||[]).map((x,k)=>(<span key={k} className="mr-3">{x}</span>))}</p></div>))}
-      <Btn color="bg-blue-600 text-white" onClick={()=>go('s2=share&sid='+sid)}>分享提醒(可再單獨傳給沒回報的人)</Btn></Card>)}
+      {SHOW_REMIND_SHARE&&<Btn color="bg-blue-600 text-white" onClick={()=>go('s2=share&sid='+sid)}>分享提醒(可再單獨傳給沒回報的人)</Btn>}</Card>)}
     {d.detail&&(<div><button className="text-sm text-gray-400 underline" onClick={()=>setOpen(!open)}>{t.detail} {open?'▲':'▼'}</button>
       {open&&(<div className="mt-2 space-y-2">
         <div className="flex flex-wrap items-center gap-2"><span className="text-xs text-gray-500">排序</span>
