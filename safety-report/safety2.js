@@ -266,8 +266,18 @@ function ListInner({me,sid}){
 
 // ───────── 發起人:新增 ─────────
 function NewPage({share}){
-  if(share)return(<MgrGate render={()=><NeedUser render={()=><NewInner share={true}/>}/>}/>);
-  return(<NeedUser render={()=><NewInner/>}/>);
+  // 目前限主管才能發起(舊 Flex 還在群組流傳);後端 s2CreateSurvey 也擋,放寬時改 GAS 屬性 S2_CREATE_MGR_ONLY=0
+  const inner=()=>(share?<NeedUser render={()=><NewInner share={true}/>}/>:<NeedUser render={()=><NewInner/>}/>);
+  return(<NeedUserOptional render={(me)=>me.canCreate===false
+    ?<NoCreate/>
+    :(share?<MgrGate render={inner}/>:inner())}/>);
+}
+function NoCreate(){
+  return(<Box><Card className="space-y-3"><h1 className="text-lg font-bold text-white">📝 發起新回報</h1>
+    <p className="text-amber-300 font-bold">目前限制主管才能發起新回報</p>
+    <p className="text-sm text-gray-400">如需發起，請洽主管。若你剛通過主管申請，請按下方重新整理。</p></Card>
+    <Btn color="bg-gray-800 text-white border border-gray-600" onClick={()=>{cclear('*');window.__s2nonce++;window.dispatchEvent(new Event('s2nav'));}}>🔄 重新整理</Btn>
+    <Btn color="bg-gray-800 text-gray-200" onClick={()=>go('s2=mine')}>我發起的清單</Btn></Box>);
 }
 // 只有主管/管理者能進的頁面(分享相關)
 function MgrGate({render}){
