@@ -150,7 +150,7 @@ function ListPage({sid}){
   return(<NeedUser render={(me,editInfo)=><ListInner me={me} sid={sid}/>}/>);
 }
 function ListInner({me,sid}){
-  const t=TT[me.user.lang];
+  const t=TT[me.user.lang];const lang0=me.user.lang;
   const[st,reload]=useLoad(()=>api('s2GetList',{id:sid}),[sid]);
   const[copied,setCopied]=useState('');const[open,setOpen]=useState(false);
   if(st.loading&&!st.data)return(<Msg text={t.loading}/>);
@@ -166,6 +166,7 @@ function ListInner({me,sid}){
         {g.items.length===0?<span className="text-gray-500">{t.noOne}</span>:g.items.map((i,k)=>(<span key={k} className={'mr-3 '+(i.status==='help'?'text-red-400 font-bold':i.status==='other'?'text-amber-300':'text-gray-100')}>{i.label}{i.status==='help'?'⚠':''}</span>))}
       </p>
     </Card>))}
+    {d.restricted&&<p className="text-xs text-gray-500 text-center">{lang0==='vi'?'Chỉ hiển thị chi nhánh của bạn':'僅顯示你所屬店家'}:{d.myStore}</p>}
     <Card className="flex items-center justify-between"><span className="text-xs text-gray-500">{t.dataAt}:{d.at}</span><button className="text-sm text-violet-400" onClick={reload}>{t.refresh}</button></Card>
     {d.detail&&(<div><button className="text-sm text-gray-400 underline" onClick={()=>setOpen(!open)}>{t.detail} {open?'▲':'▼'}</button>
       {open&&(<div className="mt-2 space-y-2">{d.stores.map(g=>g.items.length>0&&(<Card key={g.store}><p className="font-bold text-white text-sm mb-1">{g.store}</p>
