@@ -28,7 +28,13 @@ const STORES=['龍山寺店','東門店','古亭店','公館店'];
 
 // ───────── 工具 ─────────
 const qs=new URLSearchParams(location.search);
-const go=(q)=>{location.href=location.pathname+'?'+q;};
+// 頁面切換:不重新開啟整個網頁(省掉 Babel 編譯與 LIFF 初始化),只換網址參數並通知 Safety2App 重畫
+window.__s2nonce=window.__s2nonce||0;
+function go(q){
+  try{history.pushState(null,'',location.pathname+'?'+q);}catch(_e){location.href=location.pathname+'?'+q;return;}
+  try{window.scrollTo(0,0);}catch(_e){}
+  window.dispatchEvent(new Event('s2nav'));
+}
 // ───────── 本機暫存:讀過一次就存 localStorage,切換頁面不重讀 GAS;點「🔄 重新整理」才清掉重讀 ─────────
 const CACHE_TTL=12*3600e3; // 安全保險:最久 12 小時後即使沒按重新整理也會重讀
 const CACHEABLE=['s2Me','s2GetSurvey','s2GetList','s2MySurveys','s2MgrInfo'];
@@ -42,6 +48,10 @@ function cput(k,d){try{localStorage.setItem(k,JSON.stringify({t:Date.now(),d:d})
 function cclear(actions){
   try{const ks=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf('s2c:')===0)ks.push(k);}
     ks.forEach(k=>{if(actions==='*'||actions.some(a=>k.indexOf(':'+a+':')>=0))localStorage.removeItem(k);});}catch(_e){}
+}
+function peek(action,params){ // 同步取暫存(沒有就 null),讓有暫存的頁面第一次畫就直接有內容,不閃「載入中」
+  if(CACHEABLE.indexOf(action)<0)return null;
+  return cget(ckey(action,params));
 }
 async function api(action,params,force){
   const cacheable=CACHEABLE.indexOf(action)>=0;const k=cacheable?ckey(action,params):'';
@@ -61,7 +71,7 @@ function fallbackCopy(txt){
 }
 const liffBase=()=>'https://liff.line.me/'+(window.__S2_LIFF_ID||'');
 
-const RefreshBtn=()=>(<button onClick={()=>{cclear('*');location.reload();}} className="text-xs text-gray-400 border border-gray-700 rounded-full px-3 py-1">🔄 重新整理 / Làm mới</button>);
+const RefreshBtn=()=>(<button onClick={()=>{cclear('*');window.__s2nonce++;window.dispatchEvent(new Event('s2nav'));}} className="text-xs text-gray-400 border border-gray-700 rounded-full px-3 py-1">🔄 重新整理 / Làm mới</button>);
 const Box=({children})=>(<div className="min-h-screen px-4 py-5"><div className="max-w-md mx-auto space-y-4"><div className="flex justify-end"><RefreshBtn/></div>{children}</div></div>);
 const Card=({children,className})=>(<div className={'rounded-2xl bg-gray-900 border border-gray-800 p-4 '+(className||'')}>{children}</div>);
 const Spinner=({size})=>(<svg className="animate-spin inline-block align-[-2px]" width={size||18} height={size||18} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>);
@@ -70,9 +80,14 @@ const Btn=({children,onClick,color,disabled,className,loading})=>(<button disabl
 const Chip=({on,children,onClick})=>(<button onClick={onClick} className={'px-4 py-2 rounded-full border text-sm '+(on?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-300')}>{children}</button>);
 const Msg=({text})=>(<Box><Card><p className="text-center text-gray-300 whitespace-pre-line">{text}</p></Card></Box>);
 
-function useLoad(fn,deps){ // fn(force);回傳[狀態,重新讀取(強制略過暫存)]
-  const[st,setSt]=useState({loading:true,data:null});
-  const run=useCallback((force)=>{setSt(s=>({loading:true,data:s.data}));fn(!!force).then(d=>setSt({loading:false,data:d}));},deps||[]);
+function useLoad(action,params){ // 回傳[狀態,重新讀取(強制略過暫存)];有暫存時第一次畫就直接有資料
+  const pk=JSON.stringify(params||{});
+  const[st,setSt]=useState(()=>{const c=peek(action,params);return c?{loading:false,data:c}:{loading:true,data:null};});
+  const run=useCallback((force)=>{
+    if(!force){const c=peek(action,params);if(c){setSt({loading:false,data:c});return;}}
+    setSt(s=>({loading:true,data:s.data}));
+    api(action,params,!!force).then(d=>setSt({loading:false,data:d}));
+  },[action,pk]);
   useEffect(()=>{run(false);},[run]);
   return[st,()=>run(true)];
 }
@@ -112,7 +127,7 @@ function RegisterForm({user,onDone,showLangFirst}){
 
 // 需要已登記身分的頁面共用:沒登記就先顯示基本資料表單,填完「下一步」再進入內容
 function NeedUser({render}){
-  const[st,reload]=useLoad((f)=>api('s2Me',{},f),[]);
+  const[st,reload]=useLoad('s2Me',{});
   const[user,setUser]=useState(undefined);const[editing,setEditing]=useState(false);
   if(st.loading&&!st.data)return(<Loading text="載入中… / Đang tải…"/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
@@ -127,7 +142,7 @@ function ReportPage({sid}){
 }
 function ReportInner({me,sid,editInfo}){
   const lang=me.user.lang;const t=TT[lang];
-  const[st,reload]=useLoad((f)=>api('s2GetSurvey',{id:sid},f),[sid]);
+  const[st,reload]=useLoad('s2GetSurvey',{id:sid});
   const[other,setOther]=useState('');const[busy,setBusy]=useState(false);const[err,setErr]=useState('');const[picking,setPicking]=useState(false);
   if(st.loading&&!st.data)return(<Loading text={t.loading}/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||t.fail}/>);
@@ -184,7 +199,7 @@ function ListPage({sid}){
 }
 function ListInner({me,sid}){
   const t=TT[me.user.lang];const lang0=me.user.lang;
-  const[st,reload]=useLoad((f)=>api('s2GetList',{id:sid},f),[sid]);
+  const[st,reload]=useLoad('s2GetList',{id:sid});
   const[copied,setCopied]=useState('');const[open,setOpen]=useState(false);const[sortBy,setSortBy]=useState('time');const[asc,setAsc]=useState(false);const[flt,setFlt]=useState('all');
   if(st.loading&&!st.data)return(<Loading text={t.loading}/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||t.fail}/>);
@@ -253,7 +268,7 @@ function MinePage(){
   return(<NeedUser render={()=><MineInner/>}/>);
 }
 function MineInner(){
-  const[st,reload]=useLoad((f)=>api('s2MySurveys',{},f),[]);
+  const[st,reload]=useLoad('s2MySurveys',{});
   const[busy,setBusy]=useState('');
   if(st.loading&&!st.data)return(<Loading/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
@@ -310,7 +325,7 @@ function SharePage({sid,fresh}){
   return(<NeedUser render={()=><ShareInner sid={sid} fresh={fresh}/>}/>);
 }
 function ShareInner({sid,fresh}){
-  const[st]=useLoad((f)=>api('s2GetSurvey',{id:sid},f),[sid]);
+  const[st]=useLoad('s2GetSurvey',{id:sid});
   const[res,setRes]=useState('');
   const pick=async(s)=>{
     try{
@@ -339,7 +354,7 @@ function MgrPage(){
 }
 // 主管頁:已是主管/管理者不用登記;不是主管且沒登記要先登記(申請需要店別與編號)
 function NeedUserOptional({render}){
-  const[st]=useLoad((f)=>api('s2Me',{},f),[]);
+  const[st]=useLoad('s2Me',{});
   const[user,setUser]=useState(undefined);
   if(st.loading&&!st.data)return(<Loading/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
@@ -347,14 +362,14 @@ function NeedUserOptional({render}){
   return render(me,()=>setUser(null));
 }
 function MgrInner({me,needReg}){
-  const[st,reload]=useLoad((f)=>api('s2MgrInfo',{},f),[]);
+  const[st,reload]=useLoad('s2MgrInfo',{});
   const[step,setStep]=useState(me.pending?'sent':'ask');const[busy,setBusy]=useState(false);const[err,setErr]=useState('');const[reg,setReg]=useState(false);
   if(st.loading&&!st.data)return(<Loading/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
   const d=st.data;
   const act=async(fn)=>{setBusy(true);setErr('');const r=await fn();setBusy(false);if(r.ok)reload();else setErr(r.error||'失敗');return r;};
   if(!d.isMgr){
-    if(reg||(!me.user&&step==='level'))return(<RegisterForm user={me.user} onDone={()=>{location.reload();}}/>);
+    if(reg||(!me.user&&step==='level'))return(<RegisterForm user={me.user} onDone={()=>{cclear('*');window.__s2nonce++;window.dispatchEvent(new Event('s2nav'));}}/>);
     return(<Box>
       <Card className="space-y-3"><h1 className="text-lg font-bold text-white">🛡️ 主管功能</h1>
         {step==='ask'&&(<div><p className="text-gray-300">你目前尚未設定為主管，是否要送出設定申請？</p>
@@ -389,7 +404,7 @@ function MgrInner({me,needReg}){
 
 // 從通知 Flex 進來的審核頁
 function ApvPage({rid}){
-  const[st,reload]=useLoad((f)=>api('s2MgrInfo',{},f),[]);
+  const[st,reload]=useLoad('s2MgrInfo',{});
   const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');
   if(st.loading&&!st.data)return(<Loading/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
@@ -404,6 +419,11 @@ function ApvPage({rid}){
 // ───────── 入口 ─────────
 function Safety2App({liffId}){
   window.__S2_LIFF_ID=liffId||window.__S2_LIFF_ID||'';
+  const[,setN]=useState(0);
+  useEffect(()=>{const h=()=>setN(n=>n+1);window.addEventListener('s2nav',h);window.addEventListener('popstate',h);return()=>{window.removeEventListener('s2nav',h);window.removeEventListener('popstate',h);};},[]);
+  return(<React.Fragment key={location.search+'|'+window.__s2nonce}><Safety2Routes/></React.Fragment>);
+}
+function Safety2Routes(){
   const q=new URLSearchParams(location.search);
   const p=q.get('s2')||'';const sid=q.get('sid')||'';
   if(p==='r')return sid?<ReportPage sid={sid}/>:<Msg text="缺少回報代碼"/>;
