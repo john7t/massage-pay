@@ -453,11 +453,24 @@ function buildTutorialFlex(){
 }
 function buildMgrInviteFlex(){
   const base='https://liff.line.me/'+window.__S2_LIFF_ID;
+  // 版型沿用「發起入口」卡(buildEntryFlex,已停用不刪),按鈕改開主管功能頁;文字加上「發起與分享只能在主管頁進行」
+  const pts=['不用再人工統計誰還沒回報。系統自動依店別列出已回報名單與人數。',
+    '以 LINE 帳號回報,一個帳號一筆,降低代簽、冒名的狀況。',
+    '回報狀態分「平安、需要協助、其他」,需要協助的編號會標紅,可以優先處理。',
+    '第一次回報填一次基本資料,之後點一下就完成。',
+    '目前「發起新回報」以及「分享回報」,只能在主管功能頁進行。',
+    '主管、組長、副理請點下方按鈕,申請設定主管職級,即可發起、分享安全回報並查看本店人員。'];
+  const rows=pts.map((t,i)=>({type:'box',layout:'horizontal',spacing:'sm',contents:[
+    {type:'text',text:String(i+1)+'.',size:'sm',color:'#6d4aa8',weight:'bold',flex:0},
+    {type:'text',text:t,size:'sm',color:'#333333',wrap:true,flex:1,weight:i===4?'bold':'regular'}]}));
   return{type:'bubble',
     body:{type:'box',layout:'vertical',spacing:'md',paddingAll:'lg',contents:[
-      {type:'text',text:'🛡️ 主管功能',weight:'bold',size:'xl',color:'#6d4aa8'},
-      {type:'text',text:'主管、組長、副理請點下方按鈕，申請設定主管職級，即可管理安全回報、查看本店人員。',wrap:true,size:'md',color:'#222222'}]},
-    footer:{type:'box',layout:'vertical',paddingAll:'lg',contents:[{type:'button',style:'primary',color:'#6d4aa8',height:'sm',action:{type:'uri',label:'開啟主管功能',uri:base+'?s2=mgr'}}]}};
+      {type:'text',text:'🚨 安全回報',weight:'bold',size:'xl',color:'#dc2626'},
+      {type:'text',text:'天災、緊急事件時,一鍵回報平安',size:'sm',color:'#666666',wrap:true},
+      {type:'separator',margin:'md'},
+      {type:'box',layout:'vertical',spacing:'sm',margin:'md',contents:rows}]},
+    footer:{type:'box',layout:'vertical',spacing:'sm',paddingAll:'lg',contents:[
+      {type:'button',style:'primary',color:'#6d4aa8',height:'sm',action:{type:'uri',label:'開啟主管功能',uri:base+'?s2=mgr'}}]}};
 }
 function ShareFlexBtn({label,altText,build}){
   const[res,setRes]=useState('');
