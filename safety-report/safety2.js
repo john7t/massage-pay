@@ -157,8 +157,8 @@ function NeedUser({render}){
   return render(Object.assign({},me,{user:u}),()=>setEditing(true),reload);
 }
 
-TT.zh.recOk='你回報安全已記錄';TT.zh.recOther='你的回報已記錄';TT.zh.recording='記錄中…';
-TT.vi.recOk='Đã ghi nhận bạn an toàn';TT.vi.recOther='Đã ghi nhận báo cáo của bạn';TT.vi.recording='Đang ghi nhận…';
+TT.zh.recOk='你回報安全已記錄';TT.zh.recHelp='你回報需要協助已記錄,主管會盡快處理';TT.zh.recOther='你的回報已記錄';TT.zh.recording='記錄中…';
+TT.vi.recOk='Đã ghi nhận bạn an toàn';TT.vi.recHelp='Đã ghi nhận bạn cần hỗ trợ, quản lý sẽ xử lý sớm';TT.vi.recOther='Đã ghi nhận báo cáo của bạn';TT.vi.recording='Đang ghi nhận…';
 // ───────── 回報頁 ─────────
 function ReportPage({sid}){
   // 開頁只打一次 GAS(s2Open = s2Me + s2GetSurvey),結果寫進暫存,後面的 NeedUser / ReportInner 直接吃暫存;兩份都已有暫存就不打
@@ -181,18 +181,18 @@ function ReportPage({sid}){
 function ReportInner({me,sid,editInfo}){
   const lang=me.user.lang;const t=TT[lang];
   const[st,reload]=useLoad('s2GetSurvey',{id:sid});
-  const[other,setOther]=useState('');const[busy,setBusy]=useState(false);const[err,setErr]=useState('');const[picking,setPicking]=useState(false);
+  const[other,setOther]=useState('');const[busy,setBusy]=useState(false);const[err,setErr]=useState('');const[picking,setPicking]=useState(new URLSearchParams(location.search).get('act')==='edit');
   // Flex 樣式2:按鈕帶 act=ok(直接記錄平安)/act=other(只顯示文字輸入)。未註冊者先註冊,註冊完 ReportInner 才掛載,才會自動送出
   const act=new URLSearchParams(location.search).get('act')||'';
   const clearAct=()=>{try{history.replaceState(null,'',location.pathname+'?s2=r&sid='+sid);}catch(_e){}};
-  const autoRef=useRef(false);const[auto,setAuto]=useState(act==='ok'?'wait':'');const[rec,setRec]=useState('');
+  const autoRef=useRef(false);const[auto,setAuto]=useState((act==='ok'||act==='help')?'wait':'');const[rec,setRec]=useState('');
   useEffect(()=>{
-    if(act!=='ok'||autoRef.current)return;
+    if((act!=='ok'&&act!=='help')||autoRef.current)return;
     const d=st.data;if(!d||!d.ok)return;
     if(me.user&&me.user.left){autoRef.current=true;setAuto('');return;}
     autoRef.current=true;
-    if(d.survey.closed||d.mine){setAuto('');clearAct();return;}
-    api('s2Report',{id:sid,status:'ok',otherText:''}).then(r=>{if(r.ok){setRec('ok');reload();}else setErr(r.error||t.fail);setAuto('');clearAct();});
+    if(d.survey.closed||(d.mine&&d.mine.status===act)){setAuto('');clearAct();return;} // 已回報且狀態相同就不重送;狀態不同(例如先平安、又按需要幫忙)則更新
+    api('s2Report',{id:sid,status:act,otherText:''}).then(r=>{if(r.ok){setRec(act);reload();}else setErr(r.error||t.fail);setAuto('');clearAct();});
   },[st.data]);
   if(me.user&&me.user.left)return(<Msg text={lang==='vi'?'Bạn đã được đặt là nghỉ việc, không thể báo cáo. Vui lòng liên hệ quản lý.':'你已被設為離職，無法回報。如有疑問請洽主管。'}/>);
   if(st.loading&&!st.data)return(<Loading text={t.loading}/>);
@@ -202,7 +202,7 @@ function ReportInner({me,sid,editInfo}){
     setBusy(true);setErr('');
     const r=await api('s2Report',{id:sid,status:status,otherText:txt||''});
     setBusy(false);
-    if(r.ok){setPicking(false);setRec(status==='ok'?'ok':'other');clearAct();reload();}else setErr(r.error||t.fail);
+    if(r.ok){setPicking(false);setRec(status);clearAct();reload();}else setErr(r.error||t.fail);
   };
   const stLabel=x=>x==='ok'?t.ok:x==='help'?t.help:t.other;
   if(auto==='wait')return(<Loading text={t.recording}/>);
@@ -214,7 +214,7 @@ function ReportInner({me,sid,editInfo}){
     </Card>
     {s.closed&&<p className="text-center text-amber-400">{t.closed}</p>}
     {rec&&!picking&&(<Card className="text-center">
-      <p className="text-lg font-bold text-emerald-400">✅ {rec==='ok'?t.recOk:t.recOther}</p>
+      <p className="text-lg font-bold text-emerald-400">✅ {rec==='ok'?t.recOk:rec==='help'?t.recHelp:t.recOther}</p>
       {!s.closed&&<button className="text-sm text-violet-400 mt-3 underline" onClick={()=>setPicking(true)}>{t.change}</button>}
     </Card>)}
     {mine&&!rec&&!picking&&(<Card className="text-center">
@@ -401,8 +401,13 @@ function buildFlex(s,style){
       {type:'text',text:style===2?'請直接點下方按鈕回報\nBấm nút bên dưới để báo cáo':'請點下方按鈕回報\nBấm nút bên dưới để báo cáo',size:'xs',color:'#888888',wrap:true}]},
     footer:{type:'box',layout:'vertical',spacing:'sm',paddingAll:'lg',contents:(style===2?[
       // 樣式2:shareTargetPicker 送出的訊息只允許 URI 動作(LINE 規定,不能 postback),所以按鈕直接開 LIFF 並帶 act,開啟後自動記錄
-      {type:'button',style:'primary',color:'#16a34a',height:'sm',action:{type:'uri',label:'✅ 我平安 / Tôi an toàn',uri:base+'?s2=r&sid='+s.id+'&act=ok'}},
-      {type:'button',style:'secondary',height:'sm',action:{type:'uri',label:'✍️ 其他（自行輸入）/ Khác',uri:base+'?s2=r&sid='+s.id+'&act=other'}}]:[
+      // 2列2欄:我很安全(ok,自動記錄)、需要幫忙(help,自動記錄)/ 其他(自行輸入)、修改回報(開頁直接進修改畫面)
+      {type:'box',layout:'horizontal',spacing:'sm',contents:[
+        {type:'button',style:'primary',color:'#16a34a',height:'sm',flex:1,action:{type:'uri',label:'我很安全',uri:base+'?s2=r&sid='+s.id+'&act=ok'}},
+        {type:'button',style:'primary',color:'#dc2626',height:'sm',flex:1,action:{type:'uri',label:'需要幫忙',uri:base+'?s2=r&sid='+s.id+'&act=help'}}]},
+      {type:'box',layout:'horizontal',spacing:'sm',contents:[
+        {type:'button',style:'secondary',height:'sm',flex:1,action:{type:'uri',label:'其他',uri:base+'?s2=r&sid='+s.id+'&act=other'}},
+        {type:'button',style:'secondary',height:'sm',flex:1,action:{type:'uri',label:'修改回報',uri:base+'?s2=r&sid='+s.id+'&act=edit'}}]}]:[
       {type:'button',style:'primary',color:'#dc2626',height:'sm',action:{type:'uri',label:'我要回報 / Báo cáo',uri:base+'?s2=r&sid='+s.id}}]).concat([
       {type:'button',style:'secondary',height:'sm',action:{type:'uri',label:'回報名單 / Danh sách',uri:base+'?s2=l&sid='+s.id}}])}};
 }
