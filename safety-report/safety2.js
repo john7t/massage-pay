@@ -401,13 +401,11 @@ function buildFlex(s,style){
       {type:'text',text:style===2?'請直接點下方按鈕回報\nBấm nút bên dưới để báo cáo':'請點下方按鈕回報\nBấm nút bên dưới để báo cáo',size:'xs',color:'#888888',wrap:true}]},
     footer:{type:'box',layout:'vertical',spacing:'sm',paddingAll:'lg',contents:(style===2?[
       // 樣式2:shareTargetPicker 送出的訊息只允許 URI 動作(LINE 規定,不能 postback),所以按鈕直接開 LIFF 並帶 act,開啟後自動記錄
-      // 2列2欄:我很安全(ok,自動記錄)、需要幫忙(help,自動記錄)/ 其他(自行輸入)、修改回報(開頁直接進修改畫面)
-      {type:'box',layout:'horizontal',spacing:'sm',contents:[
-        {type:'button',style:'primary',color:'#16a34a',height:'sm',flex:1,action:{type:'uri',label:'我很安全',uri:base+'?s2=r&sid='+s.id+'&act=ok'}},
-        {type:'button',style:'primary',color:'#dc2626',height:'sm',flex:1,action:{type:'uri',label:'需要幫忙',uri:base+'?s2=r&sid='+s.id+'&act=help'}}]},
-      {type:'box',layout:'horizontal',spacing:'sm',contents:[
-        {type:'button',style:'secondary',height:'sm',flex:1,action:{type:'uri',label:'其他',uri:base+'?s2=r&sid='+s.id+'&act=other'}},
-        {type:'button',style:'secondary',height:'sm',flex:1,action:{type:'uri',label:'修改回報',uri:base+'?s2=r&sid='+s.id+'&act=edit'}}]}]:[
+      // 4 顆按鈕各佔一列,中越雙語:我很安全(ok,自動記錄)、需要幫忙(help,自動記錄)、其他(自行輸入)、修改回報(開頁直接進修改畫面)
+      {type:'button',style:'primary',color:'#16a34a',height:'sm',action:{type:'uri',label:'✅ 我很安全 / Tôi an toàn',uri:base+'?s2=r&sid='+s.id+'&act=ok'}},
+      {type:'button',style:'primary',color:'#dc2626',height:'sm',action:{type:'uri',label:'🆘 需要幫忙 / Cần hỗ trợ',uri:base+'?s2=r&sid='+s.id+'&act=help'}},
+      {type:'button',style:'secondary',height:'sm',action:{type:'uri',label:'✍️ 其他（自行輸入）/ Khác',uri:base+'?s2=r&sid='+s.id+'&act=other'}},
+      {type:'button',style:'secondary',height:'sm',action:{type:'uri',label:'修改回報 / Sửa báo cáo',uri:base+'?s2=r&sid='+s.id+'&act=edit'}}]:[
       {type:'button',style:'primary',color:'#dc2626',height:'sm',action:{type:'uri',label:'我要回報 / Báo cáo',uri:base+'?s2=r&sid='+s.id}}]).concat([
       {type:'button',style:'secondary',height:'sm',action:{type:'uri',label:'回報名單 / Danh sách',uri:base+'?s2=l&sid='+s.id}}])}};
 }
