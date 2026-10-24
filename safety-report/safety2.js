@@ -7,11 +7,14 @@
      ?s2=mnew         建立新回報並分享(僅主管,從主管功能頁進入)
      ?s2=share&sid=   分享 Flex(shareTargetPicker,僅主管)
      ?s2=mgr          主管功能(申請、通知設定、調整主管)
+     ?s2=my           我的安全回報記錄(我回報過的:日期、主題、內容、時間;唯讀)
+     ?s2=today        (保留未用)目前未截止的回報清單,可點進去回報
+     ?s2=staff        人員清單(LINE名稱、移除;僅主管)
      ?s2=apv&rid=     核准/拒絕主管申請(從通知 Flex 進來)
    後端:gas-safety2.gs(動作名稱 s2xxx,全部帶 liff.getAccessToken() 由 GAS 驗證身分)。
    注意:本檔以 <script type="text/babel"> 載入,輸出 window.Safety2App,避免跟 safety-report.html 內的名稱衝突。 */
 (function(){
-const{useState,useEffect,useCallback}=React;
+const{useState,useEffect,useCallback,useRef}=React;
 const{gasCallPost}=window.MP||{};
 
 // ───────── 多語(回報人流程有中/越;發起人與主管頁僅中文) ─────────
@@ -38,9 +41,9 @@ function go(q){
 }
 // ───────── 本機暫存:讀過一次就存 localStorage,切換頁面不重讀 GAS;點「🔄 重新整理」才清掉重讀 ─────────
 const CACHE_TTL=12*3600e3; // 安全保險:最久 12 小時後即使沒按重新整理也會重讀
-const CACHEABLE=['s2Me','s2GetSurvey','s2GetList','s2MySurveys','s2MgrInfo'];
-const WRITE_CLEAR={s2Register:'*',s2CreateSurvey:['s2MySurveys'],s2DeleteSurvey:['s2MySurveys','s2GetSurvey','s2GetList'],s2RestoreSurvey:['s2MySurveys','s2GetSurvey','s2GetList'],
-  s2Report:['s2GetSurvey','s2GetList'],s2MgrApply:['s2Me','s2MgrInfo'],s2MgrApprove:['s2MgrInfo','s2Me','s2MySurveys'],s2MgrSet:['s2MgrInfo'],s2MgrNotify:['s2MgrInfo','s2Me'],
+const CACHEABLE=['s2Me','s2GetSurvey','s2GetList','s2MySurveys','s2MgrInfo','s2TodaySurveys','s2MyReports'];
+const WRITE_CLEAR={s2Register:'*',s2CreateSurvey:['s2MySurveys','s2TodaySurveys'],s2DeleteSurvey:['s2MySurveys','s2GetSurvey','s2GetList','s2TodaySurveys','s2MyReports'],s2RestoreSurvey:['s2MySurveys','s2GetSurvey','s2GetList'],
+  s2Report:['s2GetSurvey','s2GetList','s2TodaySurveys','s2MyReports'],s2MgrApply:['s2Me','s2MgrInfo'],s2MgrApprove:['s2MgrInfo','s2Me','s2MySurveys'],s2MgrSet:['s2MgrInfo'],s2MgrNotify:['s2MgrInfo','s2Me'],
   s2StaffSetLeft:['s2GetList'],s2WebAdminSet:['s2MgrInfo','s2Me'],s2OpenSet:['s2MgrInfo','s2GetList','s2GetSurvey'],
   s2AdminHide:['s2MgrInfo','s2Me','s2MySurveys','s2GetList','s2GetSurvey']}; // 寫入成功後,清掉受影響的暫存
 function cuid(){try{const c=liff.getContext();return(c&&c.userId)||'';}catch(_e){return '';}}
@@ -154,14 +157,43 @@ function NeedUser({render}){
   return render(Object.assign({},me,{user:u}),()=>setEditing(true),reload);
 }
 
+TT.zh.recOk='你回報安全已記錄';TT.zh.recOther='你的回報已記錄';TT.zh.recording='記錄中…';
+TT.vi.recOk='Đã ghi nhận bạn an toàn';TT.vi.recOther='Đã ghi nhận báo cáo của bạn';TT.vi.recording='Đang ghi nhận…';
 // ───────── 回報頁 ─────────
 function ReportPage({sid}){
+  // 開頁只打一次 GAS(s2Open = s2Me + s2GetSurvey),結果寫進暫存,後面的 NeedUser / ReportInner 直接吃暫存;兩份都已有暫存就不打
+  const need=()=>!(peek('s2Me',{})&&peek('s2GetSurvey',{id:sid}));
+  const[ready,setReady]=useState(()=>!need());
+  useEffect(()=>{
+    if(ready)return;let dead=false;
+    api('s2Open',{id:sid}).then(r=>{
+      if(r&&r.ok){
+        if(r.me&&r.me.ok){r.me._at=Date.now();cput(ckey('s2Me',{}),r.me);}
+        if(r.sv&&r.sv.ok){r.sv._at=Date.now();cput(ckey('s2GetSurvey',{id:sid}),r.sv);}
+      }
+      if(!dead)setReady(true); // 失敗也往下走:後面各自會再讀一次並顯示錯誤
+    });
+    return()=>{dead=true;};
+  },[sid]);
+  if(!ready)return(<Loading/>);
   return(<NeedUser render={(me,editInfo)=><ReportInner me={me} sid={sid} editInfo={editInfo}/>}/>);
 }
 function ReportInner({me,sid,editInfo}){
   const lang=me.user.lang;const t=TT[lang];
   const[st,reload]=useLoad('s2GetSurvey',{id:sid});
   const[other,setOther]=useState('');const[busy,setBusy]=useState(false);const[err,setErr]=useState('');const[picking,setPicking]=useState(false);
+  // Flex 樣式2:按鈕帶 act=ok(直接記錄平安)/act=other(只顯示文字輸入)。未註冊者先註冊,註冊完 ReportInner 才掛載,才會自動送出
+  const act=new URLSearchParams(location.search).get('act')||'';
+  const clearAct=()=>{try{history.replaceState(null,'',location.pathname+'?s2=r&sid='+sid);}catch(_e){}};
+  const autoRef=useRef(false);const[auto,setAuto]=useState(act==='ok'?'wait':'');const[rec,setRec]=useState('');
+  useEffect(()=>{
+    if(act!=='ok'||autoRef.current)return;
+    const d=st.data;if(!d||!d.ok)return;
+    if(me.user&&me.user.left){autoRef.current=true;setAuto('');return;}
+    autoRef.current=true;
+    if(d.survey.closed||d.mine){setAuto('');clearAct();return;}
+    api('s2Report',{id:sid,status:'ok',otherText:''}).then(r=>{if(r.ok){setRec('ok');reload();}else setErr(r.error||t.fail);setAuto('');clearAct();});
+  },[st.data]);
   if(me.user&&me.user.left)return(<Msg text={lang==='vi'?'Bạn đã được đặt là nghỉ việc, không thể báo cáo. Vui lòng liên hệ quản lý.':'你已被設為離職，無法回報。如有疑問請洽主管。'}/>);
   if(st.loading&&!st.data)return(<Loading text={t.loading}/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||t.fail}/>);
@@ -170,26 +202,31 @@ function ReportInner({me,sid,editInfo}){
     setBusy(true);setErr('');
     const r=await api('s2Report',{id:sid,status:status,otherText:txt||''});
     setBusy(false);
-    if(r.ok){setPicking(false);reload();}else setErr(r.error||t.fail);
+    if(r.ok){setPicking(false);setRec(status==='ok'?'ok':'other');clearAct();reload();}else setErr(r.error||t.fail);
   };
   const stLabel=x=>x==='ok'?t.ok:x==='help'?t.help:t.other;
+  if(auto==='wait')return(<Loading text={t.recording}/>);
   return(<Box {...barOf(st,reload,lang)}>
     <Card>
       <p className="text-xs text-amber-400 font-bold">⚠️ {t.survey}</p>
-      <h1 className="text-xl font-bold text-white mt-1">{s.title}</h1>
+      <h1 className="text-xl font-bold text-white mt-1">{s.title}{s.dateLabel?' '+s.dateLabel:''}</h1>
       <p className="text-sm text-gray-400 mt-2">{(s.creatorStore||s.creatorLabel)?<span>{t.by}:{s.creatorStore} {s.creatorLabel}<br/></span>:null}{t.end}:{s.endDate}</p>
     </Card>
     {s.closed&&<p className="text-center text-amber-400">{t.closed}</p>}
-    {mine&&!picking&&(<Card className="text-center">
+    {rec&&!picking&&(<Card className="text-center">
+      <p className="text-lg font-bold text-emerald-400">✅ {rec==='ok'?t.recOk:t.recOther}</p>
+      {!s.closed&&<button className="text-sm text-violet-400 mt-3 underline" onClick={()=>setPicking(true)}>{t.change}</button>}
+    </Card>)}
+    {mine&&!rec&&!picking&&(<Card className="text-center">
       <p className="text-lg font-bold text-emerald-400">✅ {t.sent}:{stLabel(mine.status)}{mine.status==='other'&&mine.otherText?'('+mine.otherText+')':''}</p>
       <p className="text-xs text-gray-500 mt-1">{t.sentAt} {mine.time}</p>
       {!s.closed&&<button className="text-sm text-violet-400 mt-3 underline" onClick={()=>setPicking(true)}>{t.change}</button>}
     </Card>)}
-    {(!mine||picking)&&!s.closed&&(<Card className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
+    {(!mine||picking)&&!rec&&!s.closed&&(<Card className="space-y-3">
+      {act!=='other'&&<div className="grid grid-cols-2 gap-3">
         <Btn loading={busy} color="bg-emerald-600 text-white" onClick={()=>send('ok')}>{t.ok}</Btn>
         <Btn loading={busy} color="bg-red-600 text-white" onClick={()=>send('help')}>{t.help}</Btn>
-      </div>
+      </div>}
       <input value={other} onChange={e=>setOther(e.target.value)} maxLength={200} placeholder={t.otherHint} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-white"/>
       <Btn disabled={busy||!other.trim()} color="bg-gray-700 text-white" onClick={()=>send('other',other.trim())}>{t.other} · {t.send}</Btn>
       {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
@@ -354,17 +391,20 @@ function MineInner(){
 }
 
 // ───────── 分享 Flex ─────────
-function buildFlex(s){
+function buildFlex(s,style){
   const base='https://liff.line.me/'+window.__S2_LIFF_ID;
   return{type:'bubble',
     body:{type:'box',layout:'vertical',spacing:'md',paddingAll:'lg',contents:[
       {type:'text',text:'⚠️ 安全回報 / Báo cáo an toàn',weight:'bold',size:'sm',color:'#f59e0b'},
-      {type:'text',text:s.title,weight:'bold',size:'lg',wrap:true,color:'#111111'},
+      {type:'text',text:s.title+(s.dateLabel?' '+s.dateLabel:''),weight:'bold',size:'lg',wrap:true,color:'#111111'},
       {type:'text',text:'截止:'+s.endDate,size:'sm',color:'#888888',wrap:true}, // 發起人姓名/店別不放進 Flex(一般成員不可見)
-      {type:'text',text:'請點下方按鈕回報\nBấm nút bên dưới để báo cáo',size:'xs',color:'#888888',wrap:true}]},
-    footer:{type:'box',layout:'vertical',spacing:'sm',paddingAll:'lg',contents:[
-      {type:'button',style:'primary',color:'#dc2626',height:'sm',action:{type:'uri',label:'我要回報 / Báo cáo',uri:base+'?s2=r&sid='+s.id}},
-      {type:'button',style:'secondary',height:'sm',action:{type:'uri',label:'回報名單 / Danh sách',uri:base+'?s2=l&sid='+s.id}}]}};
+      {type:'text',text:style===2?'請直接點下方按鈕回報\nBấm nút bên dưới để báo cáo':'請點下方按鈕回報\nBấm nút bên dưới để báo cáo',size:'xs',color:'#888888',wrap:true}]},
+    footer:{type:'box',layout:'vertical',spacing:'sm',paddingAll:'lg',contents:(style===2?[
+      // 樣式2:shareTargetPicker 送出的訊息只允許 URI 動作(LINE 規定,不能 postback),所以按鈕直接開 LIFF 並帶 act,開啟後自動記錄
+      {type:'button',style:'primary',color:'#16a34a',height:'sm',action:{type:'uri',label:'✅ 我平安 / Tôi an toàn',uri:base+'?s2=r&sid='+s.id+'&act=ok'}},
+      {type:'button',style:'secondary',height:'sm',action:{type:'uri',label:'✍️ 其他（自行輸入）/ Khác',uri:base+'?s2=r&sid='+s.id+'&act=other'}}]:[
+      {type:'button',style:'primary',color:'#dc2626',height:'sm',action:{type:'uri',label:'我要回報 / Báo cáo',uri:base+'?s2=r&sid='+s.id}}]).concat([
+      {type:'button',style:'secondary',height:'sm',action:{type:'uri',label:'回報名單 / Danh sách',uri:base+'?s2=l&sid='+s.id}}])}};
 }
 // 暫時功能(使用者要求,Rich Menu 完成後移除):在「發起新回報」頁分享一張「發起入口」Flex,按鈕直接開 ?s2=new
 function buildEntryFlex(){
@@ -467,10 +507,10 @@ function SharePage({sid,fresh}){
 function ShareInner({sid,fresh}){
   const[st]=useLoad('s2GetSurvey',{id:sid});
   const[res,setRes]=useState('');
-  const pick=async(s)=>{
+  const pick=async(s,style)=>{
     try{
       if(!liff.isApiAvailable('shareTargetPicker')){setRes('此環境不支援分享,請在 LINE 內開啟');return;}
-      const r=await liff.shareTargetPicker([{type:'flex',altText:'⚠️ 安全回報:'+s.title,contents:buildFlex(s)}]);
+      const r=await liff.shareTargetPicker([{type:'flex',altText:'⚠️ 安全回報:'+s.title+(s.dateLabel?' '+s.dateLabel:''),contents:buildFlex(s,style)}]);
       setRes(r?'ok':'cancel');
     }catch(e){setRes('錯誤:'+String(e&&e.message||e));}
   };
@@ -479,13 +519,66 @@ function ShareInner({sid,fresh}){
   const s=st.data.survey;
   return(<Box>
     <Card><p className="text-xs text-amber-400 font-bold">{fresh?'✅ 已建立':'分享'}</p><h1 className="text-lg font-bold text-white mt-1">{s.title}</h1><p className="text-sm text-gray-400 mt-1">截止 {s.endDate}</p></Card>
-    <Btn onClick={()=>pick(s)}>選擇好友或群組分享</Btn>
+    <Btn onClick={()=>pick(s,2)}>分享（樣式2：群組內直接按「我平安／其他」）</Btn>
+    <Btn color="bg-gray-700 text-white" onClick={()=>pick(s,1)}>分享（樣式1：「我要回報」進頁面再選）</Btn>
     {res==='ok'&&<p className="text-center text-emerald-400">已分享 ✅</p>}
     {res==='cancel'&&<p className="text-center text-gray-400">已取消</p>}
     {res&&res!=='ok'&&res!=='cancel'&&<p className="text-center text-red-400 text-sm">{res}</p>}
     <Btn color="bg-gray-800 text-gray-200" onClick={()=>go('s2=l&sid='+sid)}>查看名單</Btn>
     <Btn color="bg-gray-800 text-gray-200" onClick={()=>go('s2=mine')}>我發起的清單</Btn>
   </Box>);
+}
+
+// ───────── 我的回報(一般成員):列出目前未截止的回報,點進去就能回報 ─────────
+const TD={zh:{title:'我的回報',none:'目前沒有需要回報的項目',end:'截止',done:'已回報',todo:'尚未回報',go:'前往回報',change:'修改回報',list:'回報名單',ok:'平安',help:'需要協助',other:'其他',loading:'載入中…'},
+  vi:{title:'Báo cáo của tôi',none:'Hiện không có mục cần báo cáo',end:'Hạn chót',done:'Đã báo cáo',todo:'Chưa báo cáo',go:'Báo cáo ngay',change:'Sửa báo cáo',list:'Danh sách',ok:'An toàn',help:'Cần hỗ trợ',other:'Khác',loading:'Đang tải…'}};
+function TodayPage(){
+  return(<NeedUser render={(me)=><TodayInner me={me}/>}/>);
+}
+function TodayInner({me}){
+  const lang=(me.user&&me.user.lang)||'zh';const t=TD[lang]||TD.zh;
+  const[st,reload]=useLoad('s2TodaySurveys',{});
+  if(me.user&&me.user.left)return(<Msg text={lang==='vi'?'Bạn đã được đặt là nghỉ việc, không thể báo cáo.':'你已被設為離職，無法回報。如有疑問請洽主管。'}/>);
+  if(st.loading&&!st.data)return(<Loading text={t.loading}/>);
+  if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
+  const d=st.data;
+  return(<Box {...barOf(st,reload,lang)}>
+    <h1 className="text-lg font-bold text-white">🙋 {t.title}</h1>
+    {d.surveys.length===0&&<Card><p className="text-center text-gray-500">{t.none}</p></Card>}
+    {d.surveys.map(x=>(<Card key={x.id} className="space-y-2">
+      <p className="font-bold text-white">{x.title}</p>
+      <p className="text-xs text-gray-400">{t.end} {x.endDate}</p>
+      <p className={'text-sm '+(x.mine?(x.mine.status==='help'?'text-red-400':x.mine.status==='other'?'text-amber-400':'text-emerald-400'):'text-gray-400')}>{x.mine?(t.done+'：'+(x.mine.status==='ok'?t.ok:x.mine.status==='help'?t.help:t.other)):t.todo}</p>
+      <div className="grid grid-cols-2 gap-2">
+        <Btn onClick={()=>go('s2=r&sid='+x.id)}>{x.mine?t.change:t.go}</Btn>
+        <Btn color="bg-gray-800 text-gray-200" onClick={()=>go('s2=l&sid='+x.id)}>{t.list}</Btn></div></Card>))}
+  </Box>);
+}
+// ───────── 我的安全回報記錄(唯讀):日期、主題、回報內容、回報時間;已刪除/隱藏的不顯示 ─────────
+const TM={zh:{title:'我的安全回報記錄',none:'目前沒有回報記錄',ok:'平安',help:'需要協助',other:'其他',time:'回報時間',loading:'載入中…'},
+  vi:{title:'Lịch sử báo cáo an toàn của tôi',none:'Chưa có lịch sử báo cáo',ok:'An toàn',help:'Cần hỗ trợ',other:'Khác',time:'Thời gian báo cáo',loading:'Đang tải…'}};
+function MyReportsPage(){
+  return(<NeedUser render={(me)=><MyReportsInner me={me}/>}/>);
+}
+function MyReportsInner({me}){
+  const lang=(me.user&&me.user.lang)||'zh';const t=TM[lang]||TM.zh;
+  const[st,reload]=useLoad('s2MyReports',{});
+  if(st.loading&&!st.data)return(<Loading text={t.loading}/>);
+  if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
+  const d=st.data;
+  return(<Box {...barOf(st,reload,lang)}>
+    <h1 className="text-lg font-bold text-white">🗒️ {t.title}</h1>
+    {d.reports.length===0&&<Card><p className="text-center text-gray-500">{t.none}</p></Card>}
+    {d.reports.map((x,k)=>(<Card key={x.id+'|'+k} className="space-y-1">
+      <p className="text-xs text-gray-400">{x.date}</p>
+      <p className="font-bold text-white">{x.title}</p>
+      <p className={x.status==='help'?'text-red-400 font-bold':x.status==='other'?'text-amber-400':'text-emerald-400'}>{x.status==='ok'?t.ok:x.status==='help'?t.help:t.other+(x.otherText?'：'+x.otherText:'')}</p>
+      <p className="text-xs text-gray-500">{t.time}　{x.time}</p></Card>))}
+  </Box>);
+}
+// ───────── 人員清單(僅主管):LINE 名稱、移除 ─────────
+function StaffPage(){
+  return(<MgrGate render={()=><Box><Card className="space-y-3"><h1 className="text-lg font-bold text-white">👥 人員清單</h1><StaffList/></Card></Box>}/>);
 }
 
 // ───────── 主管功能 ─────────
@@ -503,11 +596,14 @@ function NeedUserOptional({render}){
 }
 function MgrInner({me,needReg}){
   const[st,reload]=useLoad('s2MgrInfo',{});
-  const[step,setStep]=useState(me.pending?'sent':'ask');const[busy,setBusy]=useState(false);const[err,setErr]=useState('');const[reg,setReg]=useState(false);
+  const LP='s2-mgr-pending';
+  const lpGet=()=>{try{const v=JSON.parse(localStorage.getItem(LP)||'null');if(v&&Date.now()-v.t<3*86400e3)return v;}catch(_e){}return null;};
+  const[step,setStep]=useState((me.pending||lpGet())?'sent':'ask');const[busy,setBusy]=useState(false);const[err,setErr]=useState('');const[reg,setReg]=useState(false);
   if(st.loading&&!st.data)return(<Loading/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
   const d=st.data;
   const act=async(fn)=>{setBusy(true);setErr('');const r=await fn();setBusy(false);if(r.ok)reload();else setErr(r.error||'失敗');return r;};
+  if(d.isMgr){try{localStorage.removeItem(LP);}catch(_e){}}
   if(!d.isMgr){
     if(reg||(!me.user&&step==='level'))return(<RegisterForm user={me.user} onDone={()=>{cclear('*');window.__s2nonce++;window.dispatchEvent(new Event('s2nav'));}}/>);
     return(<Box>
@@ -515,8 +611,8 @@ function MgrInner({me,needReg}){
         {step==='ask'&&(<div><p className="text-gray-300">你目前尚未設定為主管，是否要送出設定申請？</p>
           <div className="grid grid-cols-2 gap-3 mt-3"><Btn onClick={()=>{if(!me.user)setReg(true);else setStep('level');}}>是</Btn><Btn color="bg-gray-700 text-white" onClick={()=>go('s2=mine')}>否</Btn></div></div>)}
         {step==='level'&&(<div><p className="text-gray-300 mb-3">請選擇你的主管職級：</p>
-          <div className="space-y-2">{(me.levels||[]).map(l=>(<Btn key={l} disabled={busy} color="bg-gray-800 text-white border border-gray-600" onClick={async()=>{const r=await act(()=>api('s2MgrApply',{level:l}));if(r.ok)setStep('sent');}}>{l}</Btn>))}</div></div>)}
-        {step==='sent'&&<p className="text-emerald-400">已送出申請{me.pending?'（'+me.pending.level+'）':''}，核准後會通知你。</p>}
+          <div className="space-y-2">{(me.levels||[]).map(l=>(<Btn key={l} disabled={busy} color="bg-gray-800 text-white border border-gray-600" onClick={async()=>{const r=await act(()=>api('s2MgrApply',{level:l}));if(r.ok){try{localStorage.setItem(LP,JSON.stringify({t:Date.now(),level:l}));}catch(_e){}setStep('sent');}}}>{l}</Btn>))}</div></div>)}
+        {step==='sent'&&(<div className="space-y-2"><p className="text-emerald-400">已送出申請{(me.pending||lpGet())?'（'+(me.pending||lpGet()).level+'）':''}，核准後會通知你。</p><button className="text-xs text-gray-400 underline" onClick={()=>{try{localStorage.removeItem(LP);}catch(_e){}setStep('level');}}>重新申請其他職級</button></div>)}
         {err&&<p className="text-sm text-red-400">{err}</p>}
       </Card></Box>);
   }
@@ -525,7 +621,7 @@ function MgrInner({me,needReg}){
     <Card><h1 className="text-lg font-bold text-white">🛡️ 主管功能</h1><p className="text-sm text-gray-400 mt-1">你的職級：{d.level}　{d.all?'（可看所有店）':'（僅限本店）'}</p></Card>
     <Card className="space-y-3"><p className="font-bold text-white">📤 分享（僅主管）</p>
       <Btn onClick={()=>go('s2=mnew')}>＋ 建立新回報並分享</Btn>
-      <Btn color="bg-gray-800 text-white border border-gray-600" onClick={()=>go('s2=mine&pick=1')}>本店回報調查（查看名單／分享）</Btn>
+      <Btn color="bg-gray-800 text-white border border-gray-600" onClick={()=>go('s2=mine&pick=1')}>目前的安全回報調查（查看名單／分享）</Btn>
       <ShareFlexBtn label="📖 分享「回報教學」給好友" altText="如何做安全回報(教學)" build={buildTutorialFlex}/>
       <ShareFlexBtn label="🚫 分享「老師不要在大群回文」字卡" altText="老師不要在大群回文" build={buildNoReplyFlex}/>
       <ShareFlexBtn label="🛡️ 分享「主管功能」邀請" altText="主管功能" build={buildMgrInviteFlex}/>
@@ -586,6 +682,9 @@ function Safety2Routes(){
   if(p==='mine')return <MinePage/>;
   if(p==='share')return sid?<SharePage sid={sid} fresh={q.get('fresh')==='1'}/>:<Msg text="缺少回報代碼"/>;
   if(p==='mgr')return <MgrPage/>;
+  if(p==='today')return <TodayPage/>;
+  if(p==='my')return <MyReportsPage/>;
+  if(p==='staff')return <StaffPage/>;
   if(p==='apv')return <ApvPage rid={q.get('rid')||''}/>;
   return <Msg text="不支援的頁面"/>;
 }
