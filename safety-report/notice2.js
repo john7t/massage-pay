@@ -2,7 +2,7 @@
    由 safety-report.html 載入(在 safety2.js 之後),依網址參數 n2 顯示:
      ?n2=l            公告列表(預設)        ?n2=v&nid=…   公告內容(同時記為已讀)
      ?n2=new          發布公告(主管)        ?n2=edit&nid=… 編輯公告(可管理者)
-     ?n2=r&nid=…      已讀情況               ?n2=set       設定(管理者)
+     ?n2=r&nid=…      已讀情況               ?n2=set       設定(我的基本資料;主管另有公告設定)
    人員、權限、暫存、註冊表單全部沿用安全回報 2.0(window.S2Core,由 safety2.js 匯出),與主程式、舊公告完全無關。
    後端:gas-notice2.gs.txt(n2List / n2Get / n2Save / n2Hide / n2Pin / n2Readers / n2Settings / n2SettingsSet / n2Analyze / n2AudienceCount)。 */
 (function(){
@@ -54,13 +54,13 @@ const tagsOf=(n,lang)=>(lang==='vi'&&n.tagsVi&&n.tagsVi.length===n.tags.length)?
 function Notice2Routes(){
   const q=new URLSearchParams(location.search);
   const p=q.get('n2')||'l';const nid=q.get('nid')||'';
-  return(<NeedUser render={(me)=><SyncGate route={p}>{(()=>{
+  return(<NeedUser render={(me,editInfo)=><SyncGate route={p}>{(()=>{
     if(p==='done')return nid?<DonePage me={me} nid={nid}/>:<Msg text="缺少公告代碼"/>;
     if(p==='v')return nid?<ViewPage me={me} nid={nid}/>:<Msg text="缺少公告代碼"/>;
     if(p==='new')return <NewGate me={me}/>;
     if(p==='edit')return nid?<EditPage me={me} nid={nid}/>:<Msg text="缺少公告代碼"/>;
     if(p==='r')return nid?<ReadersPage me={me} nid={nid}/>:<Msg text="缺少公告代碼"/>;
-    if(p==='set')return <SettingsPage/>;
+    if(p==='set')return <SettingsPage me={me} editInfo={editInfo}/>;
     return <ListPage me={me}/>;
   })()}</SyncGate>}/>);
 }
@@ -95,7 +95,7 @@ function ListPage({me}){
       </Card></button>);
   return(<Box {...barOf(st,reload,lang)}>
     <div className="flex items-center justify-between"><h1 className="text-lg font-bold text-white">📢 {t.title}{d.unread>0&&<span className="ml-2 text-xs bg-red-600 text-white rounded-full px-2 py-0.5">{d.unread}</span>}</h1>
-      {d.isAdmin&&<button className="text-xs text-gray-400 border border-gray-700 rounded-full px-3 py-1" onClick={()=>go('n2=set')}>⚙ 設定</button>}</div>
+      <button className="text-xs text-gray-400 border border-gray-700 rounded-full px-3 py-1" onClick={()=>go('n2=set')}>⚙ {lang==='vi'?'Cài đặt':'設定'}</button></div>
     {d.canPost&&<Btn onClick={()=>go('n2=new')}>＋ 發布公告</Btn>}
     <div className="flex gap-2"><input value={qIn} onChange={e=>setQIn(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')search();}} placeholder={t.search} className="flex-1 min-w-0 rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white text-sm"/>
       <button className="rounded-xl bg-gray-700 text-white text-sm px-4" onClick={search}>{t.go}</button></div>
@@ -452,7 +452,7 @@ function ReadersPage({me,nid}){
 }
 
 // ───────── 設定(管理者) ─────────
-function QuotaCard(){
+function QuotaCard({canSet}){
   const[q,setQ]=useState(null);const[lim,setLim]=useState('');const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');
   const load=async()=>{const r=await api('n2Quota',{});setQ(r);if(r.ok)setLim(r.override?String(r.override):'');};
   useEffect(()=>{load();},[]);
@@ -470,37 +470,50 @@ function QuotaCard(){
       <p className="text-xs text-gray-400">本月公告推播紀錄（共 {q.logged||0} 則）</p>
       {(q.byUser||[]).length===0?<p className="text-sm text-gray-500">本月尚未推播</p>:(q.byUser||[]).map((u,i)=>(<p key={i} className="text-sm text-gray-200">{u.label}　發送 {u.times} 次，共 {u.msgs} 則</p>))}
     </div>
-    <div className="border-t border-gray-800 pt-2">
+    {canSet&&<div className="border-t border-gray-800 pt-2">
       <p className="text-xs text-gray-400 mb-1">額度上限（改用付費方案時填寫；留空＝使用 LINE 回報的免費額度{q.autoLimit!=null?'：'+q.autoLimit:''}）</p>
       <div className="flex gap-2"><input value={lim} onChange={e=>setLim(e.target.value.replace(/\D/g,''))} inputMode="numeric" placeholder={q.autoLimit!=null?String(q.autoLimit):'例如 200'} className="flex-1 rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/>
       <button disabled={busy} onClick={save} className="px-4 rounded-xl bg-violet-600 text-white text-sm">儲存</button></div>
       {msg&&<p className="text-xs text-emerald-400 mt-1">{msg}</p>}
-    </div>
+    </div>}
   </Card>);
 }
-function SettingsPage(){
+function SettingsPage({me,editInfo}){
+  const u=(me&&me.user)||{};const lang=u.lang==='vi'?'vi':'zh';const vi=lang==='vi';
   const[st,reload]=useLoad('n2Settings',{});
   const[busy,setBusy]=useState('');const[err,setErr]=useState('');
   if(st.loading&&!st.data)return(<Loading/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
-  if(!st.data.canSet)return(<Msg text="只有管理者可以修改設定"/>);
-  const cfg=st.data.cfg;
+  const d=st.data;const cfg=d.cfg;
   const set=async(key,val)=>{setBusy(key);setErr('');const r=await api('n2SettingsSet',{key:key,value:val});setBusy('');if(r.ok)reload();else setErr(r.error||'失敗');};
   const row=(key,label,hint)=>(<div className="flex items-start justify-between gap-3 py-2 border-t border-gray-800 first:border-0"><div><p className="text-white text-sm">{label}</p><p className="text-xs text-gray-500 mt-1">{hint}</p></div>
-    <button disabled={!!busy} onClick={()=>set(key,!cfg[key])} className={'shrink-0 w-12 h-7 rounded-full flex items-center px-0.5 '+(cfg[key]?'bg-emerald-600 justify-end':'bg-gray-700 justify-start')+(busy===key?' opacity-50':'')}><span className="w-6 h-6 rounded-full bg-white"/></button></div>);
-  return(<Box {...barOf(st,reload,'zh')}>
-    <button className="text-sm text-violet-300" onClick={()=>go('n2=l')}>← 返回列表</button>
-    <h1 className="text-lg font-bold text-white">⚙ 公告設定</h1>
-    <Card>
-      {row('push','發布時可推播給個人','開啟後,發布公告時可勾選「推播給對象」(LINE 一人一則,會消耗官方帳號訊息額度)。預設關閉。')}
-      {row('testMode','測試公告模式','開啟後,發布頁會出現「測試公告」勾選(預設勾選):公告只有發布者自己看得到、自動加「測試」標籤,並自動推播給發布者本人(只有 1 則訊息)。測試完取消勾選即可轉為正式公告。預設關閉。')}
-      {row('readersOpen','一般成員可看已讀名單','開啟後,成員可看公告的已讀/未讀名單(僅限自己店)。預設關閉,只有主管看得到。')}
+    <button disabled={!!busy||!d.canSet} onClick={()=>set(key,!cfg[key])} className={'shrink-0 w-12 h-7 rounded-full flex items-center px-0.5 '+(cfg[key]?'bg-emerald-600 justify-end':'bg-gray-700 justify-start')+(busy===key||!d.canSet?' opacity-50':'')}><span className="w-6 h-6 rounded-full bg-white"/></button></div>);
+  const info=[[vi?'Vai trò':'角色',u.role==='teacher'?(vi?'KTV':'老師'):(vi?'Lễ tân':'櫃台')],[vi?'Chi nhánh':'店別',u.store||'—'],
+    [u.role==='teacher'?(vi?'Số KTV':'老師編號'):(vi?'Tên':'自訂名稱'),u.code||'—']];
+  if(u.role==='teacher')info.push([vi?'Ca làm':'班別',u.shift==='early'?(vi?'Ca sáng':'早班'):u.shift==='late'?(vi?'Ca tối':'晚班'):(vi?'Chưa chọn':'未填')]);
+  info.push([vi?'Ngôn ngữ':'語系',vi?'Tiếng Việt':'中文']);
+  return(<Box {...barOf(st,reload,lang)}>
+    <button className="text-sm text-violet-300" onClick={()=>go('n2=l')}>← {vi?'Quay lại':'返回列表'}</button>
+    <h1 className="text-lg font-bold text-white">⚙ {vi?'Cài đặt':'設定'}</h1>
+    <Card className="space-y-2">
+      <p className="text-white text-sm font-bold">👤 {vi?'Thông tin cơ bản của tôi':'我的基本資料'}</p>
+      {info.map((x,i)=>(<div key={i} className="flex justify-between text-sm"><span className="text-gray-400">{x[0]}</span><span className="text-gray-100">{x[1]}</span></div>))}
+      <Btn color="bg-gray-700 text-white" onClick={()=>{if(editInfo)editInfo();}}>✏️ {vi?'Sửa thông tin cơ bản':'修改基本資料'}</Btn>
     </Card>
-    <Card className="space-y-2"><p className="text-white text-sm font-bold">📤 介紹公告系統</p>
-      <p className="text-xs text-gray-500">分享一張介紹卡到群組：列出使用公告系統的好處，下方「測試公告系統」按鈕會帶對方進入發新公告頁（還不是主管會先引導去申請）。</p>
-      <Btn color="bg-blue-600 text-white" onClick={async()=>{try{if(!liff.isApiAvailable('shareTargetPicker')){setErr('此環境不支援分享,請在 LINE 內開啟');return;}
-        const r=await liff.shareTargetPicker([{type:'flex',altText:'📢 使用公告系統的好處',contents:buildIntroFlex()}]);setErr(r?'':'已取消');}catch(e){setErr('錯誤:'+String(e&&e.message||e));}}}>分享「使用公告系統」</Btn></Card>
-    <QuotaCard/>
+    {d.isMgr&&(<div className="space-y-4">
+      <p className="text-sm text-violet-300 font-bold">🛡️ 主管功能（公告）</p>
+      <Card>
+        {!d.canSet&&<p className="text-xs text-gray-500 mb-1">以下開關只有網頁管理者可以修改。</p>}
+        {row('push','發布時可推播給個人','開啟後,發布公告時可勾選「推播給對象」(LINE 一人一則,會消耗官方帳號訊息額度)。預設關閉。')}
+        {row('testMode','測試公告模式','開啟後,發布頁會出現「測試公告」勾選(預設勾選):公告只有發布者自己看得到、自動加「測試」標籤,並自動推播給發布者本人(只有 1 則訊息)。測試完取消勾選即可轉為正式公告。預設關閉。')}
+        {row('readersOpen','一般成員可看已讀名單','開啟後,成員可看公告的已讀/未讀名單(僅限自己店)。預設關閉,只有主管看得到。')}
+      </Card>
+      <Card className="space-y-2"><p className="text-white text-sm font-bold">📤 介紹公告系統</p>
+        <p className="text-xs text-gray-500">分享一張介紹卡到群組：列出使用公告系統的好處，下方「測試公告系統」按鈕會帶對方進入發新公告頁（還不是主管會先引導去申請）。</p>
+        <Btn color="bg-blue-600 text-white" onClick={async()=>{try{if(!liff.isApiAvailable('shareTargetPicker')){setErr('此環境不支援分享,請在 LINE 內開啟');return;}
+          const r=await liff.shareTargetPicker([{type:'flex',altText:'📢 使用公告系統的好處',contents:buildIntroFlex()}]);setErr(r?'':'已取消');}catch(e){setErr('錯誤:'+String(e&&e.message||e));}}}>分享「使用公告系統」</Btn></Card>
+      <QuotaCard canSet={!!d.canSet}/>
+    </div>)}
     {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
   </Box>);
 }
