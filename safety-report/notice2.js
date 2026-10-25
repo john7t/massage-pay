@@ -54,7 +54,7 @@ function ListPage({me}){
   if(tag)list=list.filter(n=>n.tags.indexOf(tag)>=0);
   if(onlyUnread)list=list.filter(n=>n.status==='published'&&!n.read&&!n.expired);
   const flag=(n)=>{const f=[];
-    if(n.status==='draft')f.push(['草稿','text-amber-400']);if(n.status==='hidden')f.push(['已隱藏','text-red-400']);if(n.expired&&n.status==='published')f.push(['已過期','text-gray-500']);return f;};
+    if(n.status==='draft')f.push(['草稿','text-amber-400']);if(n.status==='hidden')f.push(['已隱藏','text-red-400']);if(n.test)f.push(['🧪 測試','text-sky-400']);if(n.expired&&n.status==='published')f.push(['已過期','text-gray-500']);return f;};
   return(<Box {...barOf(st,reload,lang)}>
     <div className="flex items-center justify-between"><h1 className="text-lg font-bold text-white">📢 {t.title}{d.unread>0&&<span className="ml-2 text-xs bg-red-600 text-white rounded-full px-2 py-0.5">{d.unread}</span>}</h1>
       {d.isAdmin&&<button className="text-xs text-gray-400 border border-gray-700 rounded-full px-3 py-1" onClick={()=>go('n2=set')}>⚙ 設定</button>}</div>
@@ -141,7 +141,7 @@ function EditPage({me,nid}){
   const[titleVi,setTitleVi]=useState('');const[bodyVi,setBodyVi]=useState('');
   const[tagsTxt,setTagsTxt]=useState('');const[tagsViTxt,setTagsViTxt]=useState('');const[cat,setCat]=useState('');
   const[stores,setStores]=useState([]);const[roles,setRoles]=useState([]);const[pinned,setPinned]=useState(false);const[endDate,setEndDate]=useState('');
-  const[push,setPush]=useState(false);const[cnt,setCnt]=useState(null);
+  const[push,setPush]=useState(false);const[cnt,setCnt]=useState(null);const[isTest,setIsTest]=useState(null); // isTest:null=還沒決定(新公告依設定預設)
   const[busy,setBusy]=useState('');const[err,setErr]=useState('');const[aiMsg,setAiMsg]=useState('');
   useEffect(()=>{
     if(!nid)return;let dead=false;
@@ -149,17 +149,19 @@ function EditPage({me,nid}){
       if(dead)return;
       if(!r.ok){setG(false);setErr(r.error||'失敗');return;}
       const n=r.notice;setG(n);setTitle(n.title);setBody(n.body);setTitleVi(n.titleVi);setBodyVi(n.bodyVi);
-      setTagsTxt(n.tags.join(' '));setTagsViTxt(n.tagsVi.join(' '));setCat(n.cat);setStores(n.stores);setRoles(n.roles);setPinned(n.pinned);setEndDate(n.endDate);
+      setTagsTxt(n.tags.join(' '));setTagsViTxt(n.tagsVi.join(' '));setCat(n.cat);setStores(n.stores);setRoles(n.roles);setPinned(n.pinned);setEndDate(n.endDate);setIsTest(!!n.test);
     });return()=>{dead=true;};
   },[nid]);
   const d=st.data&&st.data.ok?st.data:null;
   const cfg=d?d.cfg:{};
+  const testOn=isTest===null?!!cfg.testMode:isTest; // 測試模式開著時,新公告預設勾選「測試公告」
+  const showTest=!!cfg.testMode||(!!g&&!!g.test);
   const stKey=stores.join(',');const roKey=roles.join(',');
   useEffect(()=>{
-    if(!push||nid){setCnt(null);return;}let dead=false;
+    if(!push||nid||testOn){setCnt(null);return;}let dead=false;
     api('n2AudienceCount',{stores:d&&!d.all?[d.myStore]:stores,roles:roles}).then(r=>{if(!dead)setCnt(r.ok?r.count:null);});
     return()=>{dead=true;};
-  },[push,stKey,roKey]);
+  },[push,stKey,roKey,testOn]);
   if(st.loading&&!st.data)return(<Loading/>);
   if(!d)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
   if(!d.canPost)return(<Msg text="只有主管可以發布公告"/>);
@@ -179,10 +181,10 @@ function EditPage({me,nid}){
   const save=async(status)=>{
     setErr('');
     if(!title.trim()||!body.trim()){setErr('標題與內容必填');return;}
-    if(status==='published'&&!nid&&push&&cfg.push){if(!window.confirm('發布後會推播給 '+(cnt==null?'對象':cnt+' 位')+'同事,確定發布嗎?'))return;}
+    if(status==='published'&&!nid&&!testOn&&push&&cfg.push){if(!window.confirm('發布後會推播給 '+(cnt==null?'對象':cnt+' 位')+'同事,確定發布嗎?'))return;}
     setBusy(status);
     const r=await api('n2Save',{id:nid||undefined,title:title.trim(),body:body.trim(),titleVi:titleVi,bodyVi:bodyVi,tags:tagsTxt,tagsVi:tagsViTxt,cat:cat,
-      stores:d.all?stores:[d.myStore],roles:roles,pinned:pinned,endDate:endDate,status:status,push:push&&!nid});
+      stores:d.all?stores:[d.myStore],roles:roles,pinned:pinned,endDate:endDate,status:status,push:push&&!nid&&!testOn,test:testOn&&showTest});
     setBusy('');
     if(!r.ok){setErr(r.error||'失敗');return;}
     go('n2=v&nid='+r.id);
@@ -217,7 +219,8 @@ function EditPage({me,nid}){
         <div className="flex gap-2">{['teacher','counter'].map(r=>(<button key={r} className={'px-3 py-1.5 rounded-full border text-sm '+(roles.indexOf(r)>=0?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-300')} onClick={()=>toggle(roles,setRoles,r)}>{ROLE_LABEL[r]}</button>))}</div></div>
       <label className="flex items-center gap-2 text-sm text-gray-300"><input type="checkbox" checked={pinned} onChange={e=>setPinned(e.target.checked)}/>置頂</label>
       <div><p className="text-sm text-gray-300 mb-1">到期日 <span className="text-xs text-gray-500">(選填,到期後成員看不到)</span></p><input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} className="rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/></div>
-      {!nid&&cfg.push&&(<label className="flex items-center gap-2 text-sm text-amber-300"><input type="checkbox" checked={push} onChange={e=>setPush(e.target.checked)}/>發布時推播給對象{push&&cnt!=null?'（共 '+cnt+' 人,會消耗 LINE 訊息額度）':''}</label>)}
+      {showTest&&(<label className="flex items-start gap-2 text-sm text-sky-300"><input type="checkbox" className="mt-1" checked={testOn} onChange={e=>setIsTest(e.target.checked)}/><span>🧪 測試公告：只有我看得到，會加上「測試」標籤，發布後自動推播給我自己一人。{nid&&g&&g.test&&!testOn?' (取消勾選＝轉為正式公告,對象看得到)':''}</span></label>)}
+      {!nid&&cfg.push&&!testOn&&(<label className="flex items-center gap-2 text-sm text-amber-300"><input type="checkbox" checked={push} onChange={e=>setPush(e.target.checked)}/>發布時推播給對象{push&&cnt!=null?'（共 '+cnt+' 人,會消耗 LINE 訊息額度）':''}</label>)}
     </Card>
     {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
     <Btn loading={busy==='published'} disabled={!!busy} onClick={()=>save('published')}>{nid?'儲存':'發布'}</Btn>
@@ -272,6 +275,7 @@ function SettingsPage(){
     <h1 className="text-lg font-bold text-white">⚙ 公告設定</h1>
     <Card>
       {row('push','發布時可推播給個人','開啟後,發布公告時可勾選「推播給對象」(LINE 一人一則,會消耗官方帳號訊息額度)。預設關閉。')}
+      {row('testMode','測試公告模式','開啟後,發布頁會出現「測試公告」勾選(預設勾選):公告只有發布者自己看得到、自動加「測試」標籤,並自動推播給發布者本人(只有 1 則訊息)。測試完取消勾選即可轉為正式公告。預設關閉。')}
       {row('readersOpen','一般成員可看已讀名單','開啟後,成員可看公告的已讀/未讀名單(僅限自己店)。預設關閉,只有主管看得到。')}
     </Card>
     {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
