@@ -31,6 +31,7 @@ function Notice2Routes(){
   const q=new URLSearchParams(location.search);
   const p=q.get('n2')||'l';const nid=q.get('nid')||'';
   return(<NeedUser render={(me)=>{
+    if(p==='done')return nid?<DonePage me={me} nid={nid}/>:<Msg text="缺少公告代碼"/>;
     if(p==='v')return nid?<ViewPage me={me} nid={nid}/>:<Msg text="缺少公告代碼"/>;
     if(p==='new')return <EditPage me={me} nid=""/>;
     if(p==='edit')return nid?<EditPage me={me} nid={nid}/>:<Msg text="缺少公告代碼"/>;
@@ -87,28 +88,72 @@ function ListPage({me}){
 
 // ───────── 分享 Flex(主管在公告頁分享到群組) ─────────
 const CAT_VI={'緊急':'Khẩn cấp','排班':'Xếp ca','活動':'Hoạt động','規定':'Quy định','一般':'Chung'};
-// 主管分享用:多頁 Flex,第 1 頁中文、第 2 頁越南文(沒有越南文版本就只有中文頁)。n 需含 body/bodyVi(n2Get 的完整資料)
+// 卡片小字抬頭:style 2「龍山寺店公告 10/25」、style 3「龍山寺店公告-10/25」(只發給單一店用該店名,否則「公司公告」)
+function noticeHead(n,vi,sep){
+  const st=n.stores||[];const store=st.length===1?st[0]:'';const md=n.dateLabel||'';
+  return vi?('Thông báo '+(store||'công ty')+(md?' '+md:'')):((store?store+'公告':'公司公告')+(md?sep+md:''));
+}
+const fmtTime=(s)=>String(s||'').replace(/-/g,'/').slice(0,16);
+// 主管分享(樣式2):多頁 Flex,第 1 頁中文、第 2 頁越南文(沒有越南文版本就只有中文頁),完整標題/內文/分類/標籤。n 需含 body/bodyVi(n2Get 的完整資料)
 function buildNoticeFlex(n){
   const base='https://liff.line.me/'+window.__S2_LIFF_ID;
-  const vUrl=base+'?n2=v&nid='+n.id,rUrl=base+'?n2=r&nid='+n.id;
+  const dUrl=base+'?n2=done&nid='+n.id,rUrl=base+'?n2=r&nid='+n.id;
   const mk=(vi)=>{
     const title=(vi?n.titleVi:n.title)||n.title;const text=(vi?n.bodyVi:n.body)||'';
-    const tags=(vi?n.tagsVi:n.tags)||[];const dateTxt=n.dateLabel?(' '+n.dateLabel):'';
+    const tags=(vi?n.tagsVi:n.tags)||[];
     const col='#6d4aa8';
-    const body=[{type:'text',text:vi?'📢 Thông báo công ty':'📢 公司公告',weight:'bold',size:'sm',color:col}];
+    const body=[{type:'text',text:noticeHead(n,vi,' '),size:'xs',color:'#6B7280',wrap:true}];
     if(n.cat)body.push({type:'text',text:(vi?'Phân loại: '+(CAT_VI[n.cat]||n.cat):'分類:'+n.cat),size:'xs',color:'#888888'});
-    body.push({type:'text',text:title+dateTxt,weight:'bold',size:'lg',wrap:true,color:'#111111'});
+    body.push({type:'text',text:title,weight:'bold',size:'xl',wrap:true,color:'#111111'});
     if(text)body.push({type:'separator',margin:'md'},{type:'text',text:text,size:'sm',color:'#333333',wrap:true,margin:'md'});
     const tg=tags.filter(Boolean);
     if(tg.length)body.push({type:'text',text:tg.map(x=>'#'+String(x).replace(/^#/,'')).join(' '),size:'xs',color:col,wrap:true,margin:'md'});
     return{type:'bubble',size:'mega',body:{type:'box',layout:'vertical',spacing:'sm',paddingAll:'lg',contents:body},
       footer:{type:'box',layout:'vertical',spacing:'sm',paddingAll:'lg',contents:[
-        {type:'button',style:'primary',color:col,height:'sm',action:{type:'uri',label:vi?'Đã đọc xong':'完成閱讀',uri:vUrl}},
+        {type:'button',style:'primary',color:col,height:'sm',action:{type:'uri',label:vi?'Đã đọc xong':'完成閱讀',uri:dUrl}},
         {type:'button',style:'secondary',height:'sm',action:{type:'uri',label:vi?'Xem danh sách đã đọc':'查看閱讀名單',uri:rUrl}}]}};
   };
   const hasVi=!!(n.titleVi||n.bodyVi);
   const bubbles=[mk(false)];if(hasVi)bubbles.push(mk(true));
   return bubbles.length>1?{type:'carousel',contents:bubbles}:bubbles[0];
+}
+// 主管分享(樣式3):標題卡(同系統推播,小字抬頭+大字標題)+閱讀人數+完成閱讀。counts=[{store,read,total}](經理以下只有本店一筆;區經理以上各店)
+function buildNoticeSumFlex(n,counts){
+  const base='https://liff.line.me/'+window.__S2_LIFF_ID;const dUrl=base+'?n2=done&nid='+n.id;
+  const col='#7C3AED';
+  const mk=(vi)=>{
+    const title=(vi?n.titleVi:n.title)||n.title;
+    const body=[{type:'text',text:noticeHead(n,vi,'-'),size:'xs',color:'#6B7280',wrap:true},{type:'text',text:title,size:'xl',weight:'bold',wrap:true,margin:'sm'}];
+    if(counts&&counts.length){
+      body.push({type:'separator',margin:'md'});
+      if(counts.length===1)body.push({type:'text',text:(vi?'Số người đã đọc：':'閱讀人數：')+counts[0].read+'/'+counts[0].total,size:'sm',color:'#374151',margin:'md'});
+      else{body.push({type:'text',text:vi?'Số người đã đọc':'閱讀人數',size:'xs',color:'#6B7280',margin:'md'});
+        counts.forEach(c=>body.push({type:'text',text:c.store+'　'+c.read+'/'+c.total,size:'sm',color:'#374151'}));}
+    }
+    return{type:'bubble',size:'kilo',body:{type:'box',layout:'vertical',spacing:'xs',contents:body},
+      footer:{type:'box',layout:'vertical',contents:[{type:'button',style:'primary',color:col,height:'sm',action:{type:'uri',label:vi?'Đã đọc xong':'完成閱讀',uri:dUrl}}]}};
+  };
+  const bubbles=[mk(false)];if(n.titleVi||n.bodyVi)bubbles.push(mk(true));
+  return bubbles.length>1?{type:'carousel',contents:bubbles}:bubbles[0];
+}
+
+// ───────── 按「完成閱讀」後的確認頁 ─────────
+function DonePage({me,nid}){
+  const lang=me.user&&me.user.lang==='vi'?'vi':'zh';
+  const[st,setSt]=useState({loading:true});
+  useEffect(()=>{let dead=false;api('n2Done',{id:nid}).then(r=>{if(!dead){setSt({loading:false,r:r});if(r&&r.ok)cclear(['n2List','n2Get','n2Readers']);}});return()=>{dead=true;};},[nid]);
+  if(st.loading)return(<Loading text={L[lang].loading}/>);
+  const r=st.r||{};
+  if(!r.ok)return(<Msg text={r.error||L[lang].fail}/>);
+  const vi=lang==='vi';
+  return(<Box><Card className="space-y-3 text-center">
+    <p className="text-4xl">✅</p>
+    <p className="text-lg font-bold text-white">{vi?'Đã ghi nhận bạn đã đọc xong':'已記錄你已完成閱讀'}</p>
+    <p className="text-gray-300">{fmtTime(r.readAt)}</p>
+    <p className="text-sm text-gray-400">{vi?(r.titleVi||r.title):r.title}</p>
+    {!r.firstRead&&r.recorded&&<p className="text-xs text-gray-500">{vi?'(Bạn đã đọc trước đó, giữ nguyên thời gian đầu tiên)':'(你之前已經讀過,時間為第一次完成閱讀的時間)'}</p>}
+  </Card>
+  <Btn color="bg-gray-800 text-gray-200 border border-gray-600" onClick={()=>go('n2=v&nid='+nid)}>{vi?'Xem toàn văn thông báo':'查看公告全文'}</Btn></Box>);
 }
 
 // ───────── 內容 ─────────
@@ -116,16 +161,25 @@ function ViewPage({me,nid}){
   const defLang=me.user&&me.user.lang==='vi'?'vi':'zh';
   const[lang,setLang]=useState(defLang);const t=L[lang];
   const[st,reload]=useLoad('n2Get',{id:nid});
-  const[busy,setBusy]=useState(false);const[res,setRes]=useState('');
+  const[busy,setBusy]=useState(false);const[res,setRes]=useState('');const rdRef=useRef(null);
+  useEffect(()=>{if(st.data&&st.data.ok&&st.data.canReaders&&st.data.notice.status==='published'){let dead=false;api('n2Readers',{id:nid},true).then(r=>{if(!dead&&r&&r.ok)rdRef.current={t:Date.now(),stores:r.stores};});return()=>{dead=true;};}},[st.data&&st.data.ok]);
   useEffect(()=>{if(st.data&&st.data.ok&&st.data.firstRead&&Date.now()-(st.data._at||0)<15000)cclear(['n2List']);},[st.data]); // 剛剛才第一次讀到:清單的已讀標記要更新(之後切頁都用暫存)
   if(st.loading&&!st.data)return(<Loading text={t.loading}/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||t.fail}/>);
   const d=st.data;const n=d.notice;
   const hasVi=!!(n.titleVi||n.bodyVi);
   const act=async(action,p)=>{setBusy(true);const r=await api(action,Object.assign({id:nid},p));setBusy(false);if(r.ok)reload();else alert(r.error||'失敗');};
-  const share=async()=>{
+  const doShare=async(alt,contents)=>{
     try{if(!liff.isApiAvailable('shareTargetPicker')){setRes('此環境不支援分享,請在 LINE 內開啟');return;}
-      const r=await liff.shareTargetPicker([{type:'flex',altText:'📢 公司公告:'+n.title,contents:buildNoticeFlex(n)}]);setRes(r?'已分享 ✅':'已取消');}catch(e){setRes('錯誤:'+String(e&&e.message||e));}
+      const r=await liff.shareTargetPicker([{type:'flex',altText:alt,contents:contents}]);setRes(r?'已分享 ✅':'已取消');}catch(e){setRes('錯誤:'+String(e&&e.message||e));}
+  };
+  const altOf=()=>noticeHead(n,false,'-')+':'+n.title;
+  const share=()=>doShare(altOf(),buildNoticeFlex(n));
+  const shareSum=async()=>{ // 樣式3:閱讀人數用分享當下的最新統計(經理以下=本店;區經理以上=各店)
+    let rd=rdRef.current;
+    if(!rd||Date.now()-rd.t>60000){setRes('讀取閱讀人數中…');const r=await api('n2Readers',{id:nid},true);rd=r&&r.ok?{t:Date.now(),stores:r.stores}:null;rdRef.current=rd;setRes('');}
+    const counts=rd?rd.stores.map(g=>({store:g.store,read:g.read.length,total:g.total})):null;
+    doShare(altOf(),buildNoticeSumFlex(n,counts));
   };
   return(<Box {...barOf(st,reload,lang)}>
     <button className="text-sm text-violet-300" onClick={()=>go('n2=l')}>← {t.back}</button>
@@ -149,7 +203,8 @@ function ViewPage({me,nid}){
         {n.status==='published'&&<Btn color="bg-gray-700 text-white" loading={busy} onClick={()=>act('n2Pin',{pinned:!n.pinned})}>{n.pinned?'取消置頂':'📌 置頂'}</Btn>}
         {n.status!=='deleted'&&<Btn color={n.status==='hidden'?'bg-emerald-700 text-white':'bg-orange-700 text-white'} loading={busy} onClick={()=>{if(n.status==='hidden'||window.confirm('確定要隱藏這則公告嗎?(資料會保留,可以還原)'))act('n2Hide',{hidden:n.status!=='hidden'});}}>{n.status==='hidden'?'還原':'🙈 隱藏'}</Btn>}
         <Btn color={n.status==='deleted'?'bg-emerald-700 text-white':'bg-red-700 text-white'} loading={busy} onClick={()=>{if(n.status==='deleted'||window.confirm('確定要刪除這則公告嗎?(會收進「已刪除／已隱藏」,資料保留,可以還原)'))act('n2Delete',{deleted:n.status!=='deleted'});}}>{n.status==='deleted'?'還原':'🗑 刪除'}</Btn>
-        {n.status==='published'&&<Btn color="bg-blue-600 text-white" onClick={share}>📤 分享到群組</Btn>}
+        {n.status==='published'&&<Btn color="bg-blue-600 text-white" onClick={share}>📤 分享到群組（完整內容）</Btn>}
+        {n.status==='published'&&d.canReaders&&<Btn color="bg-blue-800 text-white" onClick={shareSum}>📤 分享到群組（標題＋閱讀人數）</Btn>}
       </div>
       {res&&<p className="text-center text-sm text-gray-400">{res}</p>}
     </Card>)}
