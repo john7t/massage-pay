@@ -9,12 +9,36 @@
 const{useState,useEffect,useMemo,useRef}=React;
 const C=window.S2Core;
 if(!C){window.Notice2Routes=()=>React.createElement('div',{className:'p-6 text-center text-red-400'},'載入失敗:缺少 safety2.js');return;}
-const{api,useLoad,Box,Card,Btn,Loading,Msg,Spinner,NeedUser,go,copyText,barOf,cclear,CACHEABLE,WRITE_CLEAR}=C;
+const{api,useLoad,Box,Card,Btn,Loading,Msg,Spinner,NeedUser,go,copyText,barOf,cclear,cput,ckey,peek,CACHEABLE,WRITE_CLEAR}=C;
 const Chip=C.Chip||(({on,children,onClick})=>(<button onClick={onClick} className={'px-4 py-2 rounded-full border text-sm '+(on?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-300')}>{children}</button>));
 
 // 暫存設定:清單/內容/已讀情況都先用本機暫存(有「重新整理」);設定頁、額度每次讀最新
 ['n2List','n2Get','n2Readers'].forEach(a=>{if(CACHEABLE.indexOf(a)<0)CACHEABLE.push(a);}); // 切換頁面預設用本機暫存,按「重新整理」才重讀(第一次開某則公告仍會真的讀取並記已讀)
 ['n2Save','n2Hide','n2Pin','n2Delete'].forEach(a=>{WRITE_CLEAR[a]=['n2List','n2Get','n2Readers'];});WRITE_CLEAR.n2SettingsSet=['n2List'];
+
+// ───────── 進頁面就同步:下載所有有權限的公告(含全文)到本機;離職員工則清掉本機公告資料 ─────────
+function clearLocalNotices(){
+  try{cclear(['n2List','n2Get','n2Readers']);
+    const ks=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf('n2draft:')===0)ks.push(k);}
+    ks.forEach(k=>localStorage.removeItem(k));}catch(_e){}
+}
+function n2SyncOnce(){ // 每次開啟頁面只做一次(頁面內切換不會重抓);回傳 {left:bool,ok:bool}
+  if(!window.__n2SyncP)window.__n2SyncP=api('n2List',{},true).then(r=>{
+    if(r&&r.left){clearLocalNotices();return{left:true,msg:r.error};}
+    if(r&&r.ok){cclear(['n2Get']);return{ok:true};} // 清單是最新的,舊的單則暫存作廢(之後從清單帶入)
+    return{ok:false};
+  }).catch(()=>({ok:false}));
+  return window.__n2SyncP;
+}
+function SyncGate({children,route}){
+  const have=!!peek('n2List',{});
+  const[s,setS]=useState(window.__n2SyncP&&window.__n2Done?window.__n2Done:null);
+  useEffect(()=>{let dead=false;n2SyncOnce().then(r=>{window.__n2Done=r;if(!dead)setS(r);});return()=>{dead=true;};},[]);
+  if(s&&s.left)return(<Msg text={(s.msg||'此帳號已離職，無法查看公告')+'\n本機的公告資料已清除'}/>);
+  if(!s&&!have)return(<Loading text="載入公告中…"/>);
+  // 有本機資料就先顯示,同步在背景進行;清單頁同步完成後重畫一次(換成最新資料)
+  return route==='l'?<React.Fragment key={s?'synced':'init'}>{children}</React.Fragment>:children;
+}
 
 const L={
   zh:{title:'公司公告',search:'搜尋標題、內容、標籤',go:'搜尋',all:'全部',unreadOnly:'只看未讀',none:'目前沒有公告',pinned:'置頂',back:'返回列表',unread:'未讀',read:'已讀',
@@ -30,15 +54,15 @@ const tagsOf=(n,lang)=>(lang==='vi'&&n.tagsVi&&n.tagsVi.length===n.tags.length)?
 function Notice2Routes(){
   const q=new URLSearchParams(location.search);
   const p=q.get('n2')||'l';const nid=q.get('nid')||'';
-  return(<NeedUser render={(me)=>{
+  return(<NeedUser render={(me)=><SyncGate route={p}>{(()=>{
     if(p==='done')return nid?<DonePage me={me} nid={nid}/>:<Msg text="缺少公告代碼"/>;
     if(p==='v')return nid?<ViewPage me={me} nid={nid}/>:<Msg text="缺少公告代碼"/>;
-    if(p==='new')return <EditPage me={me} nid=""/>;
+    if(p==='new')return <NewGate me={me}/>;
     if(p==='edit')return nid?<EditPage me={me} nid={nid}/>:<Msg text="缺少公告代碼"/>;
     if(p==='r')return nid?<ReadersPage me={me} nid={nid}/>:<Msg text="缺少公告代碼"/>;
     if(p==='set')return <SettingsPage/>;
     return <ListPage me={me}/>;
-  }}/>);
+  })()}</SyncGate>}/>);
 }
 
 // ───────── 清單 ─────────
@@ -48,12 +72,13 @@ function ListPage({me}){
   const q0=qp.get('q')||'';const tag0=qp.get('tag')||'';
   const[showArch,setShowArch]=useState(false);
   const[qIn,setQIn]=useState(q0);const[tag,setTag]=useState(tag0);const[onlyUnread,setOnlyUnread]=useState(false);
-  const[st,reload]=useLoad('n2List',q0?{q:q0}:{});
+  const[st,reload]=useLoad('n2List',{});
   if(st.loading&&!st.data)return(<Loading text={t.loading}/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||t.fail}/>);
   const d=st.data;
   const search=()=>go('n2=l'+(qIn.trim()?'&q='+encodeURIComponent(qIn.trim()):''));
   let list=d.notices;
+  if(q0){const ql=q0.toLowerCase();list=list.filter(n=>(n.title+' '+n.body+' '+n.tags.join(' ')+' '+n.titleVi+' '+n.bodyVi+' '+(n.tagsVi||[]).join(' ')).toLowerCase().indexOf(ql)>=0);} // 搜尋在本機做(資料已全部下載)
   if(tag)list=list.filter(n=>n.tags.indexOf(tag)>=0);
   if(onlyUnread)list=list.filter(n=>n.status==='published'&&!n.read&&!n.expired);
   const flag=(n)=>{const f=[];
@@ -137,6 +162,45 @@ function buildNoticeSumFlex(n,counts){
   return bubbles.length>1?{type:'carousel',contents:bubbles}:bubbles[0];
 }
 
+// ───────── 介紹「使用公告系統」的分享卡(設定頁按鈕) ─────────
+const N2_BENEFITS=[
+  '新加入 LINE 群組的老師，也能查到過去的公告',
+  '系統自動統計誰已讀、誰還沒讀，不用人工一個個確認',
+  '依店別、身分（老師／櫃台）精準發送，不打擾不相關的人',
+  '中文、越南文雙語，各自看得懂',
+  '用標籤與關鍵字搜尋，不必在群組裡往上滑找',
+  '重要公告可置頂，不會被聊天訊息洗掉',
+  '內容修改後，大家看到的都是最新版'
+];
+function buildIntroFlex(){
+  const base='https://liff.line.me/'+window.__S2_LIFF_ID;const col='#7C3AED';
+  return{type:'bubble',size:'mega',
+    body:{type:'box',layout:'vertical',spacing:'sm',paddingAll:'lg',contents:[
+      {type:'text',text:'📢 公司公告系統',size:'xs',color:'#6B7280'},
+      {type:'text',text:'使用公告系統的好處',size:'xl',weight:'bold',wrap:true},
+      {type:'separator',margin:'md'}].concat(N2_BENEFITS.map((b,i)=>({type:'text',text:(i+1)+'. '+b,size:'sm',wrap:true,color:'#111827',margin:'md'})))},
+    footer:{type:'box',layout:'vertical',paddingAll:'lg',contents:[{type:'button',style:'primary',color:col,height:'sm',action:{type:'uri',label:'測試公告系統',uri:base+'?n2=new&intro=1'}}]}};
+}
+// 發新公告入口:有主管權限就進填寫頁;沒有就先去申請主管,批准後(回到主管頁時)自動跳到發新公告
+function NewGate({me}){
+  const ok0=(()=>{const c=peek('n2List',{});return !!(c&&c.ok&&c.canPost);})();
+  const[st,setSt]=useState(ok0?{ok:true}:{wait:true});
+  useEffect(()=>{
+    if(st.ok)return;let dead=false;
+    n2SyncOnce().then(async()=>{
+      if(dead)return;let c=peek('n2List',{});
+      if(!c)c=await api('n2List',{},true); // 暫存被清掉(例如剛批准成主管):強制讀最新
+      if(c&&c.ok&&c.canPost){setSt({ok:true});return;}
+      if(c&&c.ok){try{localStorage.setItem('n2:afterMgr',JSON.stringify({t:Date.now(),to:'n2=new'}));}catch(_e){}go('s2=mgr');return;}
+      setSt({err:'讀取失敗,請稍後再試'});
+    });
+    return()=>{dead=true;};
+  },[]);
+  if(st.ok)return <EditPage me={me} nid=""/>;
+  if(st.err)return(<Msg text={st.err}/>);
+  return(<Loading text="確認權限中…"/>);
+}
+
 // ───────── 按「完成閱讀」後的確認頁 ─────────
 function DonePage({me,nid}){
   const lang=me.user&&me.user.lang==='vi'?'vi':'zh';
@@ -160,8 +224,20 @@ function DonePage({me,nid}){
 function ViewPage({me,nid}){
   const defLang=me.user&&me.user.lang==='vi'?'vi':'zh';
   const[lang,setLang]=useState(defLang);const t=L[lang];
+  { // 本機已有整份清單(含全文)就直接用,不再另外下載這則
+    const lst=peek('n2List',{});const ln=lst&&lst.ok&&(lst.notices||[]).find(x=>x.id===nid&&typeof x.body==='string');
+    if(ln&&!peek('n2Get',{id:nid}))cput(ckey('n2Get',{id:nid}),{ok:true,notice:ln,readAt:ln.read?'read':'',canReaders:!!ln.canReaders,canPost:lst.canPost,cfg:lst.cfg,firstRead:false,_at:lst._at||Date.now()});
+  }
   const[st,reload]=useLoad('n2Get',{id:nid});
   const[busy,setBusy]=useState(false);const[res,setRes]=useState('');const rdRef=useRef(null);
+  useEffect(()=>{ // 本機資料顯示的是未讀 → 背景記錄已讀,並更新本機清單的已讀標記
+    const dd=st.data;if(!dd||!dd.ok||dd.firstRead||dd.readAt||dd.notice.status!=='published')return;
+    let dead=false;api('n2Done',{id:nid}).then(r=>{
+      if(!r||!r.ok)return;
+      try{const k=ckey('n2List',{});const l=peek('n2List',{});if(l&&l.ok){const x=l.notices.find(y=>y.id===nid);if(x&&!x.read){x.read=true;if(!x.expired)l.unread=Math.max(0,(l.unread||0)-1);cput(k,l);}}
+        const k2=ckey('n2Get',{id:nid});const g=peek('n2Get',{id:nid});if(g&&g.ok){g.readAt=r.readAt;g.notice.read=true;cput(k2,g);}}catch(_e){}
+    });return()=>{dead=true;};
+  },[st.data&&st.data.ok]);
   useEffect(()=>{if(st.data&&st.data.ok&&st.data.canReaders&&st.data.notice.status==='published'){let dead=false;api('n2Readers',{id:nid},true).then(r=>{if(!dead&&r&&r.ok)rdRef.current={t:Date.now(),stores:r.stores};});return()=>{dead=true;};}},[st.data&&st.data.ok]);
   useEffect(()=>{if(st.data&&st.data.ok&&st.data.firstRead&&Date.now()-(st.data._at||0)<15000)cclear(['n2List']);},[st.data]); // 剛剛才第一次讀到:清單的已讀標記要更新(之後切頁都用暫存)
   if(st.loading&&!st.data)return(<Loading text={t.loading}/>);
@@ -220,7 +296,8 @@ function EditPage({me,nid}){
   const[tagsTxt,setTagsTxt]=useState('');const[tagsViTxt,setTagsViTxt]=useState('');const[cat,setCat]=useState('');
   const[stores,setStores]=useState([]);const[roles,setRoles]=useState([]);const[pinned,setPinned]=useState(false);const[endDate,setEndDate]=useState('');
   const[push,setPush]=useState(false);const[cnt,setCnt]=useState(null);const[isTest,setIsTest]=useState(null);const[testTo,setTestTo]=useState('self'); // isTest:null=還沒決定(新公告依設定預設)
-  const[busy,setBusy]=useState('');const[err,setErr]=useState('');const[aiMsg,setAiMsg]=useState('');
+  const[busy,setBusy]=useState('');const[err,setErr]=useState('');const[aiMsg,setAiMsg]=useState('');const[aiErr,setAiErr]=useState('');const[aiUsed,setAiUsed]=useState(null);
+  useEffect(()=>{let dead=false;api('n2AiUsage',{}).then(r=>{if(!dead&&r&&r.ok)setAiUsed(r.count);});return()=>{dead=true;};},[]);
   const[ready,setReady]=useState(false);const[restored,setRestored]=useState('');const baseRef=useRef(null);
   const dkey='n2draft:'+((()=>{try{return(liff.getContext()||{}).userId||'';}catch(_e){return '';}})())+':'+(nid||'new');
   const pack=(o)=>JSON.stringify({title:o.title,body:o.body,titleVi:o.titleVi,bodyVi:o.bodyVi,tagsTxt:o.tagsTxt,tagsViTxt:o.tagsViTxt,cat:o.cat,stores:o.stores,roles:o.roles,pinned:!!o.pinned,endDate:o.endDate,isTest:o.isTest,testTo:o.testTo,push:!!o.push});
@@ -267,10 +344,11 @@ function EditPage({me,nid}){
   if(nid&&g===false)return(<Msg text={err||'找不到這則公告'}/>);
   const toggle=(arr,set,v)=>set(arr.indexOf(v)>=0?arr.filter(x=>x!==v):arr.concat([v]));
   const analyze=async()=>{
-    if(!body.trim()){setErr('請先輸入公告內容');return;}
-    setErr('');setAiMsg('');setBusy('ai');
+    if(!body.trim()){setAiErr('請先輸入公告內容');return;}
+    setAiErr('');setAiMsg('');setBusy('ai');
     const r=await api('n2Analyze',{title:title,body:body});setBusy('');
-    if(!r.ok){setErr(r.error||'分析失敗');return;}
+    if(r&&r.usage!=null)setAiUsed(r.usage);
+    if(!r||!r.ok){setAiErr((r&&r.error)||'分析失敗或連線逾時,請再試一次');return;}
     const x=r.result;
     if(x.tags.length){setTagsTxt(x.tags.join(' '));setTagsViTxt((x.tagsVi||[]).join(' '));}
     if(x.cat)setCat(x.cat);if(x.titleVi)setTitleVi(x.titleVi);if(x.bodyVi)setBodyVi(x.bodyVi);if(!title.trim()&&x.title)setTitle(x.title);
@@ -295,12 +373,15 @@ function EditPage({me,nid}){
   return(<Box>
     <button className="text-sm text-violet-300" onClick={()=>nid?go('n2=v&nid='+nid):go('n2=l')}>← 返回</button>
     <h1 className="text-lg font-bold text-white">{nid?'✏️ 編輯公告':'＋ 發布公告'}</h1>
+    <p className="text-xs text-gray-400 -mt-2">可以只輸入公告內容，按「AI 產生」，等 AI 補齊所有欄位後再進行修改。</p>
     {restored&&<div className="rounded-xl border border-sky-700 bg-sky-950/40 px-3 py-2 text-xs text-sky-300 flex items-start justify-between gap-2"><span>{restored}</span><button className="shrink-0 underline" onClick={dropDraft}>捨棄</button></div>}
     {!restored&&ready&&(title||body)&&<p className="text-xs text-gray-500">輸入的內容會自動暫存在這支手機,中途離開不會不見。</p>}
     <Card className="space-y-3">
       <input value={title} onChange={e=>setTitle(e.target.value)} maxLength={60} placeholder="標題(最多60字)" className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-white"/>
       <textarea value={body} onChange={e=>setBody(e.target.value)} rows={8} maxLength={3000} placeholder="公告內容(中文)" className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-white"/>
       <Btn color="bg-indigo-600 text-white" loading={busy==='ai'} onClick={analyze}>✨ AI 產生標籤、分類與越南文</Btn>
+      {aiUsed!=null&&<p className="text-xs text-gray-500 text-right">本月使用次數：{aiUsed}</p>}
+      {aiErr&&<p className="text-sm text-red-400 text-center">{aiErr}</p>}
       {aiMsg&&<p className="text-xs text-emerald-400 text-center">{aiMsg}</p>}
     </Card>
     <Card className="space-y-3">
@@ -415,6 +496,10 @@ function SettingsPage(){
       {row('testMode','測試公告模式','開啟後,發布頁會出現「測試公告」勾選(預設勾選):公告只有發布者自己看得到、自動加「測試」標籤,並自動推播給發布者本人(只有 1 則訊息)。測試完取消勾選即可轉為正式公告。預設關閉。')}
       {row('readersOpen','一般成員可看已讀名單','開啟後,成員可看公告的已讀/未讀名單(僅限自己店)。預設關閉,只有主管看得到。')}
     </Card>
+    <Card className="space-y-2"><p className="text-white text-sm font-bold">📤 介紹公告系統</p>
+      <p className="text-xs text-gray-500">分享一張介紹卡到群組：列出使用公告系統的好處，下方「測試公告系統」按鈕會帶對方進入發新公告頁（還不是主管會先引導去申請）。</p>
+      <Btn color="bg-blue-600 text-white" onClick={async()=>{try{if(!liff.isApiAvailable('shareTargetPicker')){setErr('此環境不支援分享,請在 LINE 內開啟');return;}
+        const r=await liff.shareTargetPicker([{type:'flex',altText:'📢 使用公告系統的好處',contents:buildIntroFlex()}]);setErr(r?'':'已取消');}catch(e){setErr('錯誤:'+String(e&&e.message||e));}}}>分享「使用公告系統」</Btn></Card>
     <QuotaCard/>
     {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
   </Box>);
