@@ -141,7 +141,7 @@ function EditPage({me,nid}){
   const[titleVi,setTitleVi]=useState('');const[bodyVi,setBodyVi]=useState('');
   const[tagsTxt,setTagsTxt]=useState('');const[tagsViTxt,setTagsViTxt]=useState('');const[cat,setCat]=useState('');
   const[stores,setStores]=useState([]);const[roles,setRoles]=useState([]);const[pinned,setPinned]=useState(false);const[endDate,setEndDate]=useState('');
-  const[push,setPush]=useState(false);const[cnt,setCnt]=useState(null);const[isTest,setIsTest]=useState(null); // isTest:null=還沒決定(新公告依設定預設)
+  const[push,setPush]=useState(false);const[cnt,setCnt]=useState(null);const[isTest,setIsTest]=useState(null);const[testTo,setTestTo]=useState('self'); // isTest:null=還沒決定(新公告依設定預設)
   const[busy,setBusy]=useState('');const[err,setErr]=useState('');const[aiMsg,setAiMsg]=useState('');
   useEffect(()=>{
     if(!nid)return;let dead=false;
@@ -149,7 +149,7 @@ function EditPage({me,nid}){
       if(dead)return;
       if(!r.ok){setG(false);setErr(r.error||'失敗');return;}
       const n=r.notice;setG(n);setTitle(n.title);setBody(n.body);setTitleVi(n.titleVi);setBodyVi(n.bodyVi);
-      setTagsTxt(n.tags.join(' '));setTagsViTxt(n.tagsVi.join(' '));setCat(n.cat);setStores(n.stores);setRoles(n.roles);setPinned(n.pinned);setEndDate(n.endDate);setIsTest(!!n.test);
+      setTagsTxt(n.tags.join(' '));setTagsViTxt(n.tagsVi.join(' '));setCat(n.cat);setStores(n.stores);setRoles(n.roles);setPinned(n.pinned);setEndDate(n.endDate);setIsTest(!!n.test);setTestTo(n.testTo==='mgr'?'mgr':'self');
     });return()=>{dead=true;};
   },[nid]);
   const d=st.data&&st.data.ok?st.data:null;
@@ -184,9 +184,10 @@ function EditPage({me,nid}){
     if(status==='published'&&!nid&&!testOn&&push&&cfg.push){if(!window.confirm('發布後會推播給 '+(cnt==null?'對象':cnt+' 位')+'同事,確定發布嗎?'))return;}
     setBusy(status);
     const r=await api('n2Save',{id:nid||undefined,title:title.trim(),body:body.trim(),titleVi:titleVi,bodyVi:bodyVi,tags:tagsTxt,tagsVi:tagsViTxt,cat:cat,
-      stores:d.all?stores:[d.myStore],roles:roles,pinned:pinned,endDate:endDate,status:status,push:push&&!nid&&!testOn,test:testOn&&showTest});
+      stores:d.all?stores:[d.myStore],roles:roles,pinned:pinned,endDate:endDate,status:status,push:push&&!nid&&!testOn,test:testOn&&showTest,testTo:testTo});
     setBusy('');
     if(!r.ok){setErr(r.error||'失敗');return;}
+    if(r.quotaBlocked){window.alert('公告已發布，但本月 LINE 訊息額度不足（已用 '+(r.quota&&r.quota.used)+' / '+(r.quota&&r.quota.limit)+'，這次需要 '+r.need+' 則），所以沒有推播。');}
     go('n2=v&nid='+r.id);
   };
   const storeBox=d.all
@@ -219,7 +220,9 @@ function EditPage({me,nid}){
         <div className="flex gap-2">{['teacher','counter'].map(r=>(<button key={r} className={'px-3 py-1.5 rounded-full border text-sm '+(roles.indexOf(r)>=0?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-300')} onClick={()=>toggle(roles,setRoles,r)}>{ROLE_LABEL[r]}</button>))}</div></div>
       <label className="flex items-center gap-2 text-sm text-gray-300"><input type="checkbox" checked={pinned} onChange={e=>setPinned(e.target.checked)}/>置頂</label>
       <div><p className="text-sm text-gray-300 mb-1">到期日 <span className="text-xs text-gray-500">(選填,到期後成員看不到)</span></p><input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} className="rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/></div>
-      {showTest&&(<label className="flex items-start gap-2 text-sm text-sky-300"><input type="checkbox" className="mt-1" checked={testOn} onChange={e=>setIsTest(e.target.checked)}/><span>🧪 測試公告：只有我看得到，會加上「測試」標籤，發布後自動推播給我自己一人。{nid&&g&&g.test&&!testOn?' (取消勾選＝轉為正式公告,對象看得到)':''}</span></label>)}
+      {showTest&&(<div className="space-y-2"><label className="flex items-start gap-2 text-sm text-sky-300"><input type="checkbox" className="mt-1" checked={testOn} onChange={e=>setIsTest(e.target.checked)}/><span>🧪 測試公告：會加上「測試」標籤，不會給一般成員看到。{nid&&g&&g.test&&!testOn?' (取消勾選＝轉為正式公告,對象看得到)':''}</span></label>
+        {testOn&&(<div className="ml-6 flex flex-wrap gap-2 text-sm">{[['self','個人（只發給我）'],['mgr','主管（本店所有主管）']].map(o=>(<button key={o[0]} type="button" onClick={()=>setTestTo(o[0])} className={'px-3 py-1.5 rounded-full border '+(testTo===o[0]?'bg-sky-600 border-sky-600 text-white':'border-gray-600 text-gray-300')}>{o[1]}</button>))}
+          <p className="w-full text-xs text-gray-500">{nid?'編輯時不會重新推播。':'發布後會用卡片通知推播給所選對象（每人消耗 1 則 LINE 額度）。'}</p></div>)}</div>)}
       {!nid&&cfg.push&&!testOn&&(<label className="flex items-center gap-2 text-sm text-amber-300"><input type="checkbox" checked={push} onChange={e=>setPush(e.target.checked)}/>發布時推播給對象{push&&cnt!=null?'（共 '+cnt+' 人,會消耗 LINE 訊息額度）':''}</label>)}
     </Card>
     {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
@@ -260,6 +263,32 @@ function ReadersPage({me,nid}){
 }
 
 // ───────── 設定(管理者) ─────────
+function QuotaCard(){
+  const[q,setQ]=useState(null);const[lim,setLim]=useState('');const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');
+  const load=async()=>{const r=await api('n2Quota',{});setQ(r);if(r.ok)setLim(r.override?String(r.override):'');};
+  useEffect(()=>{load();},[]);
+  if(!q)return(<Card><p className="text-sm text-gray-400">讀取 LINE 額度中…</p></Card>);
+  if(!q.ok)return(<Card><p className="text-sm text-red-400">{q.error||'讀取失敗'}</p></Card>);
+  const save=async()=>{setBusy(true);setMsg('');const r=await api('n2QuotaSet',{limit:lim.trim()});setBusy(false);if(r.ok){setMsg('已儲存');load();}else setMsg(r.error||'失敗');};
+  const pct=q.used!=null&&q.limit?Math.min(100,Math.round(q.used*100/q.limit)):0;
+  return(<Card className="space-y-3">
+    <p className="text-white text-sm font-bold">📊 LINE 通知額度（{q.month}）</p>
+    <p className="text-2xl text-white">{q.used==null?'—':q.used}<span className="text-base text-gray-400"> / {q.limit==null?'不限':q.limit} 則</span></p>
+    {q.limit!=null&&(<div className="h-2 rounded-full bg-gray-800 overflow-hidden"><div className={'h-full '+(pct>=90?'bg-red-500':pct>=70?'bg-amber-500':'bg-emerald-500')} style={{width:pct+'%'}}/></div>)}
+    {!q.apiOk&&<p className="text-xs text-amber-400">暫時讀不到 LINE 的用量（檢查 LINE_CHANNEL_ACCESS_TOKEN），下方次數仍以本系統紀錄為準。</p>}
+    <p className="text-xs text-gray-500">用量來自 LINE 官方（含所有推播，每月 1 日歸零）。額度不足時，公告仍會發布，但不會推播。</p>
+    <div className="border-t border-gray-800 pt-2 space-y-1">
+      <p className="text-xs text-gray-400">本月公告推播紀錄（共 {q.logged} 則）</p>
+      {q.byUser.length===0?<p className="text-sm text-gray-500">本月尚未推播</p>:q.byUser.map((u,i)=>(<p key={i} className="text-sm text-gray-200">{u.label}　發送 {u.times} 次，共 {u.msgs} 則</p>))}
+    </div>
+    <div className="border-t border-gray-800 pt-2">
+      <p className="text-xs text-gray-400 mb-1">額度上限（改用付費方案時填寫；留空＝使用 LINE 回報的免費額度{q.autoLimit!=null?'：'+q.autoLimit:''}）</p>
+      <div className="flex gap-2"><input value={lim} onChange={e=>setLim(e.target.value.replace(/\D/g,''))} inputMode="numeric" placeholder={q.autoLimit!=null?String(q.autoLimit):'例如 200'} className="flex-1 rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/>
+      <button disabled={busy} onClick={save} className="px-4 rounded-xl bg-violet-600 text-white text-sm">儲存</button></div>
+      {msg&&<p className="text-xs text-emerald-400 mt-1">{msg}</p>}
+    </div>
+  </Card>);
+}
 function SettingsPage(){
   const[st,reload]=useLoad('n2Settings',{});
   const[busy,setBusy]=useState('');const[err,setErr]=useState('');
@@ -278,6 +307,7 @@ function SettingsPage(){
       {row('testMode','測試公告模式','開啟後,發布頁會出現「測試公告」勾選(預設勾選):公告只有發布者自己看得到、自動加「測試」標籤,並自動推播給發布者本人(只有 1 則訊息)。測試完取消勾選即可轉為正式公告。預設關閉。')}
       {row('readersOpen','一般成員可看已讀名單','開啟後,成員可看公告的已讀/未讀名單(僅限自己店)。預設關閉,只有主管看得到。')}
     </Card>
+    <QuotaCard/>
     {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
   </Box>);
 }
