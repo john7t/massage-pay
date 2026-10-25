@@ -1,6 +1,9 @@
-// app-core.js v1.13-042 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-045 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
+// v1.13-045 / (1)首頁「更多功能」移除圖表入口圖示(HIDE_CHART=true,隱藏不刪,ChartPage 保留);(2)新增自約存檔時呼叫 window.__logUse('booking_add'),背景記錄一次使用,用來統計有多少人在用自約。
+// v1.13-044 / Email雲端備份:啟動頁加Email(選填)+有備份時詢問還原;首頁每日檢查時有Email就自動備份到雲端;說明文字加雲端例外聲明。
+// v1.13-043 / Log加店別:pwdLogin/lineLoginBind/lineUidObtained/newDeviceSetup/dailyCredCheck呼叫都多帶store。
 // v1.13-042 / 名片彈窗版面:老師編號+上班時間同一排、訂位電話+會館地址同一排。
 // v1.13-041 / 首頁左上角館名跟著店別(店資storeSel,沒有就用啟動時選的store)變動:龍山寺=雲心閣養生會館、東門=映禪養生館、古亭=禪云心養生會館、公館=雲禪居養生會館;本部/教學處等沒有對應的用雲心閣。
 // v1.13-040 / 啟動頁NoticeBox改版:上方標題、說明文字放大(text-sm)、勾選移到說明下方。
@@ -117,11 +120,11 @@
 // 點年份文字跳年度總表(帶著listY);月份列表左右兩側原本各一個「年度」按鈕拿掉。
 // (YearlyPage)加year prop(選填),沒傳的話退回settings.year維持向下相容,讓兩個頁面能各自帶著自己導覽到的年份跳過來。
 // index.html加yearlyYear state記住要顯示哪一年,onGotoYear callback改成接收年份參數。加todayBtn翻譯key | 前: v1.13-020
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,DISABLE_GH_DATA_FETCH,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,hasMyKey,isNoticeRead,getNoticeReadCount,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,svcByCode,bookUnits,bookMinutes,bookLabel,bookRange,findConflicts,dayOffStatus,skName,getBookings,addBooking,updateBooking,deleteBooking,confirmBooking,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,getCardData,sendCardFlex,loadCardStores,CARD_STORE_DEFAULTS,CARD_BRAND,loadBreakStatus,breakFlipGreenLocal,breakFlipWhiteLocal,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,getMyLineUserId,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,DISABLE_GH_DATA_FETCH,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,hasMyKey,isNoticeRead,getNoticeReadCount,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,svcByCode,bookUnits,bookMinutes,bookLabel,bookRange,findConflicts,dayOffStatus,skName,getBookings,addBooking,updateBooking,deleteBooking,confirmBooking,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,normEmail,isValidEmail,gasEmailBackupCheck,doEmailBackupNow,emailRestore,getCardData,sendCardFlex,loadCardStores,CARD_STORE_DEFAULTS,CARD_BRAND,loadBreakStatus,breakFlipGreenLocal,breakFlipWhiteLocal,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,getMyLineUserId,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 
 
-function NoticeBox({t,agreed,setAgreed}){return(<div className="mt-6 space-y-3"><p className="text-[15px] text-gray-200 font-bold">{t.noticeTitle||'本系統記錄的資料說明'}</p><div className="space-y-2.5 text-sm text-gray-400 leading-relaxed"><p>{t.privacyBody}</p><p>{t.browserNote}</p><p className="text-red-400/90">{t.backupReminder}</p></div><button onClick={()=>setAgreed(!agreed)} className="flex items-center gap-2 w-full text-left pt-1"><span className={`w-5 h-5 rounded flex items-center justify-center text-xs flex-shrink-0 ${agreed?'bg-amber-600 text-white':'bg-white/[0.06] border border-white/[0.12] text-transparent'}`}>✓</span><span className="text-sm text-gray-200 font-semibold">{t.readConfirm}</span></button></div>)}
+function NoticeBox({t,agreed,setAgreed,email,setEmail}){return(<div className="mt-6 space-y-3"><p className="text-[15px] text-gray-200 font-bold">{t.noticeTitle||'本系統記錄的資料說明'}</p><div className="space-y-2.5 text-sm text-gray-400 leading-relaxed"><p>{t.privacyBody}</p><p className="text-amber-300/90">{t.emailPrivacy}</p><p>{t.browserNote}</p><p className="text-red-400/90">{t.backupReminder}</p></div><button onClick={()=>setAgreed(!agreed)} className="flex items-center gap-2 w-full text-left pt-1"><span className={`w-5 h-5 rounded flex items-center justify-center text-xs flex-shrink-0 ${agreed?'bg-amber-600 text-white':'bg-white/[0.06] border border-white/[0.12] text-transparent'}`}>✓</span><span className="text-sm text-gray-200 font-semibold">{t.readConfirm}</span></button>{setEmail&&<div className="pt-2 space-y-1.5"><label className="text-sm text-gray-300 font-semibold block">{t.emailLabel}</label><input type="email" inputMode="email" autoComplete="email" autoCapitalize="none" value={email||''} onChange={e=>setEmail(e.target.value)} placeholder="name@example.com" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/><p className="text-xs text-gray-500 leading-relaxed">{t.emailHint}</p></div>}</div>)}
 
 /* ══════════ StaffListSection ══════════ */
 function _pad2(n){return String(n).padStart(2,'0')}
@@ -138,7 +141,7 @@ function Onboarding({onComplete}){
   const[pending]=useState(()=>loadPending());
   const pendActive=pending&&(pending.mode==='newTicket'||pending.mode==='forgotTicket');
   const[mode,setMode]=useState(()=>pendActive?pending.mode:'choice');
-  const[lang,setLang]=useState(()=>(pending&&pending.lang)||'zh');const[code,setCode]=useState(()=>(pending&&pending.code)||'');const[err,setErr]=useState('');const[checking,setChecking]=useState(false);const[devId]=useState(()=>getDeviceId());const[stores,setStores]=useState(['龍山寺店']);const[store,setStore]=useState(()=>(pending&&pending.store)||'龍山寺店');const[agreed,setAgreed]=useState(false);const[agreeErr,setAgreeErr]=useState(false);
+  const[lang,setLang]=useState(()=>(pending&&pending.lang)||'zh');const[code,setCode]=useState(()=>(pending&&pending.code)||'');const[err,setErr]=useState('');const[checking,setChecking]=useState(false);const[devId]=useState(()=>getDeviceId());const[stores,setStores]=useState(['龍山寺店']);const[store,setStore]=useState(()=>(pending&&pending.store)||'龍山寺店');const[agreed,setAgreed]=useState(false);const[agreeErr,setAgreeErr]=useState(false);const[email,setEmail]=useState('');const[restoreOffer,setRestoreOffer]=useState(null);const[restoreBusy,setRestoreBusy]=useState(false);const[restoreErr,setRestoreErr]=useState('');
   const[codeCheck,setCodeCheck]=useState(null); // null/checking/new/exists/error — 新老師啟動頁的編號檢查閘門
   const[gender,setGender]=useState(()=>(pending&&pending.gender)||'');const[shift,setShift]=useState(()=>(pending&&pending.shift)||'');
   const[workStart,setWorkStart]=useState(()=>(pending&&pending.workStart)||nextHalfHour());const[workEnd,setWorkEnd]=useState(()=>(pending&&pending.workEnd)||addHalfHourTime(nextHalfHour(),12));const[workEndTouched,setWorkEndTouched]=useState(false);
@@ -184,14 +187,14 @@ function Onboarding({onComplete}){
     try{localStorage.removeItem('onboard-flow-marker')}catch(_e){}
     if(marker==='initial'){checkLightDataAndEnterForm(uid)}
     else if(marker==='afterPwdLogin'){
-      if(pendingActivateSettings&&pendingActivateSettings.code)gasLogFlowEnter(pendingActivateSettings.code,'lineLoginBind').catch(()=>{}); // 事件2:密碼登入後補綁LINE
+      if(pendingActivateSettings&&pendingActivateSettings.code)gasLogFlowEnter(pendingActivateSettings.code,'lineLoginBind',pendingActivateSettings.store).catch(()=>{}); // 事件2:密碼登入後補綁LINE
       checkLightDataAndEnterForm(uid);
     }
   },[]);
   useEffect(()=>{if(cooldown<=0)return;const tm=setTimeout(()=>setCooldown(c=>c>0?c-1:0),1000);return()=>clearTimeout(tm)},[cooldown]);
   const onWorkStartChange=(v)=>{setWorkStart(v);if(!workEndTouched)setWorkEnd(addHalfHourTime(v,12))};
   const onWorkEndChange=(v)=>{setWorkEnd(v);setWorkEndTouched(true)};
-  const baseSettings=(extra)=>Object.assign({code,unitPrice:250,lang,store,year:bizParts().y,deviceId:devId,gender,workStart,workEnd,shift,lockPwd:pwd},extra||{});
+  const baseSettings=(extra)=>Object.assign({email:isValidEmail(email)?normEmail(email):'',code,unitPrice:250,lang,store,year:bizParts().y,deviceId:devId,gender,workStart,workEnd,shift,lockPwd:pwd},extra||{});
   // 1.13版:如果這台裝置有綁定LINE,fire-and-forget自動打一次雲端備份(保底動作,跟自動備份勾選框完全無關)。
   // 抽成共用函式,啟動完成(doActivate)、匯入本地備份檔完成 這兩個「雲端可能還沒有這份最新資料」的情境都會呼叫
   const autoBackupIfLineBound=(settings)=>{
@@ -209,6 +212,13 @@ function Onboarding({onComplete}){
     autoBackupIfLineBound(settings);
     onComplete(settings);
   };
+  const doEmailRestoreNow=async()=>{
+    setRestoreBusy(true);setRestoreErr('');
+    const r=await emailRestore(code,normEmail(email));
+    if(r.ok){doActivate(Object.assign({},r.settings||baseSettings(),{code,email:normEmail(email),deviceId:devId}))}
+    else{setRestoreBusy(false);setRestoreErr(r.error||'還原失敗')}
+  };
+  const skipEmailRestore=()=>{setRestoreOffer(null);doActivate(baseSettings())};
   const pinOk=isValidPin(pwd);
   const canSubmitNew=HIDE_COMPANY_FEATURES
     ?(codeCheck==='new'&&code.trim()&&agreed)
@@ -256,10 +266,16 @@ function Onboarding({onComplete}){
     setAgreeErr(false);setFieldErr('');setChecking(true);
     // 1.13版:拿掉公司審核制度後,第一次使用直接本機啟動,完全不呼叫GAS、不送票證、不查admin.cfg/approved名單
     if(HIDE_COMPANY_FEATURES){
-      setChecking(false);
+      const em=normEmail(email);
+      if(em&&!isValidEmail(em)){setChecking(false);setFieldErr(t.emailInvalid||'Email 格式不正確');return}
       const lineUid=getMyLineUserId();
-      if(lineUid&&!pendingActivateSettings)gasLogFlowEnter(code,'lineUidObtained').catch(()=>{}); // 事件3:純LINE路線,填表單那一刻才第一次確立userId對應的編號
-      gasLogFlowEnter(code,'newDeviceSetup').catch(()=>{}); // 事件4:完成新裝置資料填寫
+      if(lineUid&&!pendingActivateSettings)gasLogFlowEnter(code,'lineUidObtained',store).catch(()=>{}); // 事件3:純LINE路線,填表單那一刻才第一次確立userId對應的編號
+      gasLogFlowEnter(code,'newDeviceSetup',store).catch(()=>{}); // 事件4:完成新裝置資料填寫
+      // 有填Email:先用「編號+Email」查雲端有沒有備份,有就問要不要還原(同編號不同Email會是不同份,查不到就當全新)
+      if(em){
+        try{const r=await gasEmailBackupCheck(code,em);if(r&&r.ok&&r.found){setChecking(false);setRestoreOffer({updatedAt:r.updatedAt||''});return}}catch(_e){}
+      }
+      setChecking(false);
       doActivate(baseSettings());
       return;
     }
@@ -334,7 +350,7 @@ function Onboarding({onComplete}){
       setChecking(false);
       if(r&&r.ok){
         const activated={code:r.code||code,unitPrice:r.unitPrice||250,unitPriceHistory:r.unitPriceHistory||[],lang:r.lang||lang,store:r.store||store,year:bizParts().y,deviceId:devId,gender:r.gender||'',workStart:r.workStart||'',workEnd:r.workEnd||'',shift:r.shift||'',lockPwd:loginPwdInput};
-        if(HIDE_COMPANY_FEATURES)gasLogFlowEnter(r.code||code,'pwdLogin').catch(()=>{}); // 事件1:編號用密碼登入
+        if(HIDE_COMPANY_FEATURES)gasLogFlowEnter(r.code||code,'pwdLogin',r.store||store).catch(()=>{}); // 事件1:編號用密碼登入
         doActivate(activated);
       }
       else if(r&&r.reason==='left'){setMode('reinstateAsk')}
@@ -449,7 +465,7 @@ function Onboarding({onComplete}){
       {pwd.length===4&&!pinOk&&<p className="text-xs text-red-400 text-center">{t.lockPwdInvalid}</p>}
       {pwd2.length===4&&pwd!==pwd2&&<p className="text-xs text-red-400 text-center">{t.lockPwdMismatch}</p>}
     </div>}
-    <NoticeBox t={t} agreed={agreed} setAgreed={v=>{setAgreed(v);if(v)setAgreeErr(false)}}/>
+    <NoticeBox t={t} agreed={agreed} setAgreed={v=>{setAgreed(v);if(v)setAgreeErr(false)}} email={email} setEmail={v=>{setEmail(v);setFieldErr('')}}/>
     </fieldset>
     <button onClick={submitNew} disabled={!canSubmitNew||checking} className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${canSubmitNew&&!checking?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{checking?t.adminWelcome:t.submitActivation}</button>
     {agreeErr&&<p className="text-xs text-red-400 text-center -mt-3">{t.mustReadFirst}</p>}
@@ -458,6 +474,7 @@ function Onboarding({onComplete}){
     <button onClick={goChoice} className="w-full py-2.5 rounded-xl bg-white/[0.05] text-gray-400 text-sm font-semibold">{t.backToChoice}</button>
     </div>)})()}
 
+    {restoreOffer&&(<div className="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-6"><div className="w-full max-w-sm bg-gray-900 border border-white/[0.1] rounded-2xl p-5 space-y-4"><p className="text-base font-bold text-gray-100 text-center">{t.emailRestoreTitle}</p><p className="text-sm text-gray-300 leading-relaxed text-center">{(t.emailRestoreBody||'').replace('{0}',restoreOffer.updatedAt||'-')}</p>{restoreErr&&<p className="text-xs text-red-400 text-center">{restoreErr}</p>}<button onClick={doEmailRestoreNow} disabled={restoreBusy} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold disabled:opacity-60">{restoreBusy?t.emailRestoring:t.emailRestoreBtn}</button><button onClick={skipEmailRestore} disabled={restoreBusy} className="w-full py-2.5 rounded-xl bg-white/[0.06] text-gray-300 text-sm font-semibold disabled:opacity-60">{t.emailSkipBtn}</button></div></div>)}
     {mode==='newTicket'&&ticketBlock('lineTicketNewPrefix','ticketPendingNewTitle',()=>doActivate(baseSettings()))}
 
     {mode==='login'&&(<div className="space-y-4">
@@ -1382,7 +1399,7 @@ function NameCardModal({t,settings,onClose,onUpdateSettings}){
     if(onUpdateSettings)onUpdateSettings(updated);
     setMsg(t.cardSaved||'已存檔');
   };
-  const share=()=>{save();sendCardFlex({code:init.code,brandMain:dflt.bm,brandSub:dflt.bs,workStart:f.workStart,workEnd:f.workEnd,phone:f.phone,addr:f.addr,addrNote:f.addrNote,mapUrl:f.mapUrl,appleUrl:f.appleUrl})};
+  const share=()=>{save();sendCardFlex({store:f.store,code:init.code,brandMain:dflt.bm,brandSub:dflt.bs,workStart:f.workStart,workEnd:f.workEnd,phone:f.phone,addr:f.addr,addrNote:f.addrNote,mapUrl:f.mapUrl,appleUrl:f.appleUrl})};
   const inp="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500";
   const lab="text-xs text-gray-400 mb-1 block";
   return(<BottomSheetModal onClose={onClose} heightPct={86}>
@@ -1414,6 +1431,7 @@ function NameCardModal({t,settings,onClose,onUpdateSettings}){
   </BottomSheetModal>);
 }
 
+const HIDE_CHART=true; // 圖表功能:使用者要求移除(隱藏不刪:ChartPage 與 settings 的 chart 子頁保留,只是首頁不再有入口圖示;要恢復改成 false)
 function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,onGotoChart,onGotoSuggest,onGotoAcupoint,onGotoViolation,onGotoBackup,onGotoManage,onGotoMonthly,onGotoMonthlyCalendar,onGotoCustomers,onGotoSettings,settingsAlert,onUpdateSettings,onLogout}){
   const now=bizDate();const bp=bizParts();const ty=settings.year||bp.y,tm=bp.m,td=bp.d;
   const[data,setData]=useState(null);const[prev,setPrev]=useState(null);const[otherMode,setOtherMode]=useState(false);const[otherVal,setOtherVal]=useState('');const[editPrev,setEditPrev]=useState(false);const[editToday,setEditToday]=useState(false);
@@ -1433,6 +1451,8 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
   // 1.13版:每日自動雲端備份共用邏輯——前提是設定頁已用LINE登入(有lineUserId),沒登入就直接跳過不做任何事。
   // 不再依賴settings.autoCloudBackup這個舊勾選欄位(公司化時代的設計),改成「有登入LINE=自動備份,沒登入=不備份」,
   // 使用者不需要再另外勾選開關。fire-and-forget,失敗也不影響其他每日檢查流程
+  // 1.13-044:填了Email就每日自動把備份傳到雲端(以編號+Email分檔);沒填Email完全不上傳,fire-and-forget
+  const doDailyEmailBackup=()=>{try{doEmailBackupNow(settings).catch(()=>{})}catch(_e){}};
   const doDailyAutoCloudBackup=async()=>{
     const lineUid=getMyLineUserId();
     if(!lineUid)return;
@@ -1478,7 +1498,8 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
       (async()=>{
         try{
           if(hasMyKey(settings.code)){const key=getMyKey(settings.code);await gasVerifyKey(settings.code,key)}
-          await gasLogDailyCheck(settings.code);
+          await gasLogDailyCheck(settings.code,settings.storeSel||settings.store);
+          doDailyEmailBackup(); // 每日檢查記Log的同時,有Email就備份到雲端
           // 1.13版:DISABLE_GH_DATA_FETCH=true時跳過——syncMyStaffStatus內部呼叫readStaff去抓GitHub Pages上的
           // staff.json,但那份檔案目前根本沒有部署,每次呼叫都是白跑一趟net請求,拿掉以後isStaffLeft永遠讀不到快取、
           // 預設回false(等同視為在職),「更多功能」區塊不會被誤擋
@@ -1665,7 +1686,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
       <button onClick={()=>onGotoBackup&&onGotoBackup()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg></span><span className="text-[10px] text-gray-500">{t.tabBackup||'備份'}</span></button>
       {!HIDE_COMPANY_FEATURES&&<button onClick={()=>onGotoNotices&&onGotoNotices()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M3 11l18-6v14l-18-6v-2z"/><path d="M8 15v4a2 2 0 002 2h1"/></svg></span><span className="text-[10px] text-gray-500">{t.tabNotice}</span></button>}
       <button onClick={()=>onGotoBook&&onGotoBook()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span><span className="text-[10px] text-gray-500">{t.tabBook2}</span></button>
-      <button onClick={()=>onGotoChart&&onGotoChart()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg></span><span className="text-[10px] text-gray-500">{t.tabChart}</span></button>
+      {!HIDE_CHART&&<button onClick={()=>onGotoChart&&onGotoChart()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg></span><span className="text-[10px] text-gray-500">{t.tabChart}</span></button>}
       <button onClick={()=>setShowCard(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="2.5" y="5" width="19" height="14" rx="2"/><circle cx="8.5" cy="11" r="2"/><path d="M5.5 16c.6-1.6 1.7-2.4 3-2.4s2.4.8 3 2.4M14 10h5M14 13.5h4"/></svg></span><span className="text-[10px] text-gray-500">{t.cardBtn||'名片'}</span></button>
       {!HIDE_COMPANY_FEATURES&&<button onClick={()=>onGotoSuggest&&onGotoSuggest()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7V17h8v-2.3A7 7 0 0012 2z"/></svg></span><span className="text-[10px] text-gray-500">{t.tabSuggest}</span></button>}
       <button onClick={()=>onGotoAcupoint&&onGotoAcupoint()} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><path d="M12 3a9 9 0 100 18 9 9 0 000-18z"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg></span><span className="text-[10px] text-gray-500">{t.acupointBtn}</span></button>
@@ -1966,6 +1987,7 @@ function BookingFormPanel({code,t,initial,onSave,onCancel}){
     if(!custName.trim()&&!custPhone.trim()){setErr(t.bookNoCustHint||t.pickCustomerFirst);return}
     try{upsertCust(code,{custName:custName.trim(),custTitle,custPhone:custPhone.trim()})}catch(_e){}
     addBooking(code,{custName:custName.trim(),custTitle,custPhone:custPhone.trim(),datetime:dt,svc,extra,party,partyDetails:partyDetails.slice(0,party),note:note.trim(),status:'confirmed'});
+    try{if(window.__logUse)window.__logUse('booking_add')}catch(_e){} // 只記一筆使用次數(背景送出、不等回應、失敗無所謂),用來統計有多少人在用自約功能
     onSave();
   };
   return(<div className="space-y-4 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4 fi">
