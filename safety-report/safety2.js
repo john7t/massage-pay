@@ -624,6 +624,11 @@ function NeedUserOptional({render}){
 }
 function MgrInner({me,needReg}){
   const[st,reload]=useLoad('s2MgrInfo',{});
+  useEffect(()=>{ // 從公告介紹卡過來申請主管:批准後(回到這頁、已是主管)自動跳到發新公告頁
+    if(!(st.data&&st.data.ok&&st.data.isMgr))return;
+    try{const v=JSON.parse(localStorage.getItem('n2:afterMgr')||'null');
+      if(v){localStorage.removeItem('n2:afterMgr');if(Date.now()-v.t<7*86400e3&&v.to){cclear(['n2List']);window.__n2SyncP=null;window.__n2Done=null;go(v.to);}}}catch(_e){}
+  },[st.data]);
   const LP='s2-mgr-pending';
   const lpGet=()=>{try{const v=JSON.parse(localStorage.getItem(LP)||'null');if(v&&Date.now()-v.t<3*86400e3)return v;}catch(_e){}return null;};
   const[step,setStep]=useState((me.pending||lpGet())?'sent':'ask');const[busy,setBusy]=useState(false);const[err,setErr]=useState('');const[reg,setReg]=useState(false);
