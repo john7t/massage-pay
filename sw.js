@@ -1,12 +1,13 @@
-/* 薪資追蹤 Service Worker (v1)
+/* 薪資追蹤 Service Worker (v2)
    目的:讓主程式能離線開啟、並加快開啟速度(函式庫與程式檔存在手機,不用每次重新下載)。
    不處理:POST、GAS(script.google.com)等其他網域的請求,一律直接走網路,不快取。
    策略:
    - 外部函式庫(cdnjs / tailwind / LIFF SDK):快取優先;超過 7 天在背景悄悄更新一次。
-   - 本站帶 ?v= 版本號的程式檔(common.js?v=… 等):快取優先(版本號一變網址就變,等於重新抓)。
+   - 本站帶 ?v= 版本號的程式檔(common.js?v=… 等):快取優先,但每次都在背景用「略過瀏覽器快取」重抓一次,內容有變就換掉快取(下次開啟生效)。
+     這是為了處理「檔案內容換了、但網址的 ?v= 忘了加」的情況(v1 會永遠卡舊內容,造成新舊檔混用而當機)。
    - 本站其他檔(index.html、json、圖片…):網路優先,4 秒內沒回應或離線才用快取,確保更新上線後馬上看到。
    改這支檔案的邏輯時,請把 VER 的數字加 1,舊快取會自動清掉。 */
-const VER='mp-sw-v1';
+const VER='mp-sw-v2';
 const LIBS=/^https:\/\/(cdnjs\.cloudflare\.com|cdn\.tailwindcss\.com|static\.line-scdn\.net)\//;
 const LIB_MAX_AGE=7*24*3600e3;
 const NET_TIMEOUT=4000;
@@ -43,18 +44,30 @@ async function libStrategy(req){
   if(r){putStamped(cache,req.url,r);return r;}
   return fetch(req); // 抓不到又沒快取:交給瀏覽器原本的流程(離線時會失敗)
 }
+async function pruneOld(cache,req){ // 同一支檔案的舊版本快取清掉,避免越積越多
+  try{
+    const u=new URL(req.url);const ks=await cache.keys();
+    await Promise.all(ks.filter(k=>{const x=new URL(k.url);return x.pathname===u.pathname&&x.search!==u.search;}).map(k=>cache.delete(k)));
+  }catch(_e){}
+}
 async function cacheFirst(req){
   const cache=await caches.open(VER);
   const hit=await cache.match(req);
-  if(hit)return hit;
-  const r=await fetch(req);
-  if(r&&r.ok){
-    await cache.put(req,r.clone());
-    try{ // 同一支檔案的舊版本快取清掉,避免越積越多
-      const u=new URL(req.url);const ks=await cache.keys();
-      await Promise.all(ks.filter(k=>{const x=new URL(k.url);return x.pathname===u.pathname&&x.search!==u.search;}).map(k=>cache.delete(k)));
+  const refresh=async()=>{ // 背景重抓(略過瀏覽器 HTTP 快取);內容不同才更新快取
+    try{
+      const r=await fetch(req.url,{cache:'no-cache'});
+      if(r&&r.ok){
+        if(hit){
+          const [a,b]=await Promise.all([hit.clone().text(),r.clone().text()]);
+          if(a===b)return;
+        }
+        await cache.put(req,r.clone());
+      }
     }catch(_e){}
-  }
+  };
+  if(hit){refresh();return hit;}
+  const r=await fetch(req);
+  if(r&&r.ok){await cache.put(req,r.clone());await pruneOld(cache,req);}
   return r;
 }
 async function networkFirst(req){
