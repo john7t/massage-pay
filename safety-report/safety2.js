@@ -19,11 +19,11 @@ const{gasCallPost}=window.MP||{};
 
 // ───────── 多語(回報人流程有中/越;發起人與主管頁僅中文) ─────────
 const TT={
-  zh:{lang:'語系',role:'你的角色',teacher:'老師',counter:'櫃台',store:'店別',code:'老師編號',name:'自訂名稱',codeHint:'請輸入你的老師編號',nameHint:'請輸入你的名稱(例如:小美)',next:'下一步',saving:'儲存中…',
+  zh:{lang:'語系',role:'你的角色',teacher:'老師',counter:'櫃台',store:'店別',code:'老師編號',shift:'班別',early:'早班',late:'晚班',shiftHint:'在 06~15 時上班皆為早班',name:'自訂名稱',codeHint:'請輸入你的老師編號',nameHint:'請輸入你的名稱(例如:小美)',next:'下一步',saving:'儲存中…',
       survey:'安全回報',by:'發起人',end:'截止',closed:'這筆回報已截止',ok:'我平安',help:'需要協助',other:'其他',otherHint:'請說明你的狀況',send:'送出',sent:'已回報',sentAt:'回報時間',change:'修改回報',
       list:'回報名單',editInfo:'修改基本資料',loading:'載入中…',copy:'點此複製',copied:'已複製',refresh:'重新整理',dataAt:'資料時間',noOne:'尚無人回報',needHelp:'需要協助',
       tapToChange:'你已回報,可再點選修改',back:'返回',fail:'失敗',detail:'詳細'},
-  vi:{lang:'Ngôn ngữ',role:'Vai trò',teacher:'KTV',counter:'Lễ tân',store:'Chi nhánh',code:'Số KTV',name:'Tên của bạn',codeHint:'Nhập số KTV của bạn',nameHint:'Nhập tên của bạn (ví dụ: Mai)',next:'Tiếp theo',saving:'Đang lưu…',
+  vi:{lang:'Ngôn ngữ',role:'Vai trò',teacher:'KTV',counter:'Lễ tân',store:'Chi nhánh',code:'Số KTV',shift:'Ca làm',early:'Ca sáng',late:'Ca tối',shiftHint:'Làm việc trong khoảng 06~15 giờ đều là ca sáng',name:'Tên của bạn',codeHint:'Nhập số KTV của bạn',nameHint:'Nhập tên của bạn (ví dụ: Mai)',next:'Tiếp theo',saving:'Đang lưu…',
       survey:'Báo cáo an toàn',by:'Người tạo',end:'Hạn chót',closed:'Báo cáo này đã hết hạn',ok:'Tôi an toàn',help:'Cần hỗ trợ',other:'Khác',otherHint:'Hãy mô tả tình trạng của bạn',send:'Gửi',sent:'Đã báo cáo',sentAt:'Thời gian',change:'Sửa báo cáo',
       list:'Danh sách báo cáo',editInfo:'Sửa thông tin cơ bản',loading:'Đang tải…',copy:'Sao chép',copied:'Đã sao chép',refresh:'Làm mới',dataAt:'Thời gian dữ liệu',noOne:'Chưa có ai báo cáo',needHelp:'Cần hỗ trợ',
       tapToChange:'Bạn đã báo cáo, có thể sửa lại',back:'Quay lại',fail:'Thất bại',detail:'Chi tiết'}
@@ -119,13 +119,14 @@ function RegisterForm({user,onDone,showLangFirst}){
   const[role,setRole]=useState(user?user.role:'');
   const[store,setStore]=useState(user?user.store:'');
   const[code,setCode]=useState(user?user.code:'');
+  const[shift,setShift]=useState(user&&user.shift?user.shift:'');
   const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
   const t=TT[lang];
-  const ready=role&&store&&code.trim();
+  const ready=role&&store&&code.trim()&&(role!=='teacher'||shift);
   const submit=async()=>{
     setBusy(true);setErr('');
     let name='';try{const p=await liff.getProfile();name=p.displayName||'';}catch(_e){}
-    const r=await api('s2Register',{role,store,lang,code:code.trim(),displayName:name});
+    const r=await api('s2Register',{role,store,lang,code:code.trim(),displayName:name,shift:role==='teacher'?shift:''});
     setBusy(false);
     if(r.ok)onDone(r.user);else setErr(r.error||t.fail);
   };
@@ -140,6 +141,8 @@ function RegisterForm({user,onDone,showLangFirst}){
       {role&&(<div><p className="text-sm text-gray-400 mb-2">{role==='teacher'?t.code:t.name}</p>
         <input value={code} onChange={e=>setCode(e.target.value)} maxLength={role==='teacher'?6:20} inputMode={role==='teacher'?'numeric':'text'} placeholder={role==='teacher'?t.codeHint:t.nameHint}
           className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-lg text-white"/></div>)}
+      {role==='teacher'&&(<div><p className="text-sm text-gray-400 mb-2">{t.shift}</p><div className="flex gap-2"><Chip on={shift==='early'} onClick={()=>setShift('early')}>{t.early}</Chip><Chip on={shift==='late'} onClick={()=>setShift('late')}>{t.late}</Chip></div>
+        <p className="text-xs text-gray-500 mt-2">{t.shiftHint}</p></div>)}
     </Card>
     {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
     <Btn disabled={!ready} loading={busy} onClick={submit}>{busy?t.saving:t.next}</Btn>
@@ -264,6 +267,7 @@ function missingText(title,codes){
   const n=new Date();const p=x=>String(x).padStart(2,'0');
   return String(title||'')+'尚未回報人員：'+(codes||[]).join(' ')+' ('+n.getFullYear()+'/'+p(n.getMonth()+1)+'/'+p(n.getDate())+' '+p(n.getHours())+':'+p(n.getMinutes())+')';
 }
+const SEGS=[['te','老師 早班','早班','Ca sáng'],['tl','老師 晚班','晚班','Ca tối'],['tn','老師 未填班別','未填班別','Chưa chọn ca'],['c','櫃台','櫃台','Lễ tân']];
 function ListInner({me,sid}){
   const t=TT[me.user.lang];const lang0=me.user.lang;
   const[st,reload]=useLoad('s2GetList',{id:sid});
@@ -277,9 +281,17 @@ function ListInner({me,sid}){
     {d.stores.map(g=>(<Card key={g.store}>
       <div className="flex items-center justify-between"><p className="font-bold text-white">{g.store}（{g.items.length}/{g.total}）</p>
         {g.items.length>0&&<button className="text-sm text-violet-400" onClick={()=>doCopy(g)}>{copied===g.store?t.copied:t.copy}</button>}</div>
-      <p className="mt-2 text-base leading-8 break-all">
-        {g.items.length===0?<span className="text-gray-500">{t.noOne}</span>:g.items.map((i,k)=>(<span key={k} className={'mr-3 '+(i.status==='help'?'text-red-400 font-bold':i.status==='other'?'text-amber-300':'text-gray-100')}>{i.label}{i.status==='help'?'⚠':''}</span>))}
-      </p>
+      {g.items.length===0&&<p className="mt-2 text-gray-500">{t.noOne}</p>}
+      {g.segTotals&&(()=>{
+        const vi=lang0==='vi';const tk=['te','tl','tn'];
+        const tTot=tk.reduce((a,k)=>a+g.segTotals[k],0);const tRep=g.items.filter(i=>tk.indexOf(i.seg)>=0).length;
+        const line=(sg,indent)=>{if(!g.segTotals[sg[0]])return null;const its=g.items.filter(i=>i.seg===sg[0]);
+          return(<p key={sg[0]} className={'text-base leading-8 break-all '+(indent?'pl-4':'')}><span className="text-sm text-gray-400">{vi?sg[3]:sg[2]}（{its.length}/{g.segTotals[sg[0]]}）：</span>
+            {its.map((i,k)=>(<span key={k} className={'mr-3 '+(i.status==='help'?'text-red-400 font-bold':i.status==='other'?'text-amber-300':'text-gray-100')}>{i.label}{i.status==='help'?'⚠':''}</span>))}</p>);};
+        return(<div className="mt-2">
+          {tTot>0&&<p className="text-sm font-bold text-white">{vi?'KTV':'老師'}（{tRep}/{tTot}）</p>}
+          {SEGS.filter(sg=>sg[0]!=='c').map(sg=>line(sg,true))}{line(SEGS[3],false)}</div>);
+      })()}
     </Card>))}
     {d.restricted&&<p className="text-xs text-gray-500 text-center">{lang0==='vi'?'Chỉ hiển thị chi nhánh của bạn':'僅顯示你所屬店家'}:{d.myStore}</p>}
     {d.showMissing&&(<Card className="space-y-3"><p className="font-bold text-white">未回報名單<span className="ml-2 text-xs font-normal text-gray-500">(已登記但尚未回報)</span></p>
@@ -503,7 +515,7 @@ function StaffList(){
     {groups.length===0&&<p className="text-sm text-gray-500">目前沒有人員</p>}
     {groups.map(g=>(<div key={g.store}><p className="text-sm text-gray-300">{g.store}（在職 {g.items.filter(x=>!x.left).length}／共 {g.items.length}）</p>
       <div className="mt-1 divide-y divide-gray-800">{g.items.map(m=>(<div key={m.id} className="flex items-center justify-between py-2">
-        <div className="min-w-0"><p className={m.left?'text-gray-500 line-through':'text-gray-100'}>{m.code}{m.role==='counter'?'（櫃台）':''}{m.left?'　已移除':''}{m.web&&<span className="ml-2 text-xs text-violet-300 no-underline">網頁管理者</span>}</p>
+        <div className="min-w-0"><p className={m.left?'text-gray-500 line-through':'text-gray-100'}>{m.code}{m.role==='counter'?'（櫃台）':''}{m.shift==='early'?'（早班）':m.shift==='late'?'（晚班）':''}{m.left?'　已移除':''}{m.web&&<span className="ml-2 text-xs text-violet-300 no-underline">網頁管理者</span>}</p>
           <p className="text-xs text-gray-400 break-all">LINE：{m.name||'（未取得）'}</p></div>
         <div className="flex flex-col gap-1 items-end flex-none ml-2">
           <button disabled={busy===m.id} className={'px-3 py-1 rounded-full text-sm '+(m.left?'bg-emerald-700 text-white':'bg-gray-700 text-gray-200')} onClick={()=>toggle(m)}>{m.left?'恢復':'移除'}</button>
@@ -707,6 +719,6 @@ function Safety2Routes(){
   return <Msg text="不支援的頁面"/>;
 }
 // 匯出給 notice2.js(公司公告)共用:API、暫存、版面元件、人員註冊流程
-window.S2Core={api,useLoad,Box,Card,Btn,Loading,Msg,Spinner,NeedUser,go,copyText,barOf,cclear,cput,ckey,peek,CACHEABLE,WRITE_CLEAR,STORES};
+window.S2Core={Chip,api,useLoad,Box,Card,Btn,Loading,Msg,Spinner,NeedUser,go,copyText,barOf,cclear,cput,ckey,peek,CACHEABLE,WRITE_CLEAR,STORES};
 window.Safety2App=Safety2App;
 })();
