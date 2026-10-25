@@ -638,6 +638,7 @@ function MgrInner({me,needReg}){
     <Card className="space-y-3"><p className="font-bold text-white">📤 分享（僅主管）</p>
       <Btn onClick={()=>go('s2=mnew')}>＋ 建立新回報並分享</Btn>
       <Btn color="bg-gray-800 text-white border border-gray-600" onClick={()=>go('s2=mine&pick=1')}>目前的安全回報調查（查看名單／分享）</Btn>
+      <Btn color="bg-gray-800 text-white border border-gray-600" onClick={()=>go('n2=l')}>📢 公司公告（發布／已讀情況）</Btn>
       <ShareFlexBtn label="📖 分享「回報教學」給好友" altText="如何做安全回報(教學)" build={buildTutorialFlex}/>
       <ShareFlexBtn label="🚫 分享「老師不要在大群回文」字卡" altText="老師不要在大群回文" build={buildNoReplyFlex}/>
       <ShareFlexBtn label="🛡️ 分享「主管功能」邀請" altText="主管功能" build={buildMgrInviteFlex}/>
@@ -690,6 +691,7 @@ function Safety2App({liffId}){
 }
 function Safety2Routes(){
   const q=new URLSearchParams(location.search);
+  if(q.has('n2')&&window.Notice2Routes){const N2=window.Notice2Routes;return <N2/>;} // 公司公告 2.0(notice2.js):人員/權限/暫存都共用這支,頁面獨立
   const p=q.get('s2')||'';const sid=q.get('sid')||'';
   if(p==='r')return sid?<ReportPage sid={sid}/>:<Msg text="缺少回報代碼"/>;
   if(p==='l')return sid?<ListPage sid={sid}/>:<Msg text="缺少回報代碼"/>;
@@ -704,5 +706,7 @@ function Safety2Routes(){
   if(p==='apv')return <ApvPage rid={q.get('rid')||''}/>;
   return <Msg text="不支援的頁面"/>;
 }
+// 匯出給 notice2.js(公司公告)共用:API、暫存、版面元件、人員註冊流程
+window.S2Core={api,useLoad,Box,Card,Btn,Loading,Msg,Spinner,NeedUser,go,copyText,barOf,cclear,cput,ckey,peek,CACHEABLE,WRITE_CLEAR,STORES};
 window.Safety2App=Safety2App;
 })();
