@@ -1,1238 +1,1209 @@
-// settings.js — 設定頁相關元件(從 index.html 抽離,降低 index 體積)
-// v1.13-020 / 設定頁隱藏「老師專屬憑證/申請認證/領取金鑰」給沒有金鑰的新同事(HIDE_CERT_FOR_NEW=true,隱藏不刪);已領金鑰者仍顯示憑證卡以便展期。
-// v1.13-019 / BackupSection新增「Email雲端備份」區塊(填Email→每日自動備份到雲端;儲存時立刻備份一次)。
-// v1.13-018 / 配合common.js v1.13-025修正熱力圖晚班跨夜軸失真問題:ChartPage的heatView改讀personalChartStats新回傳的
-// stats.hourOrder(已經處理好跨夜環狀排序的小時陣列)取代原本的stats.minHour/stats.maxHour,其餘渲染邏輯不變
-// | 前: v1.13-017 / 圖表頁(ChartPage)個人資料分析重構:原本公司層級的班別比/性別比/上工人數/在線人數(loadStats讀
-// stats.json的公司統計,跟個人記帳無關)整個移除,改成讀自己的流水(collectAllSlips)做個人分析,討論過程見DEV_NOTES §45:
-// (1)分頁改成熱力圖/周幾趨勢/加訪趨勢三個(沿用原本的分頁切換UI樣式)(2)熱力圖=weekday×hour矩陣,顏色深淺代表單位數多寡,
-// 時間軸只顯示資料實際出現的minHour~maxHour(動態,不同統計區間各自動態決定,不訂死一個全域範圍)(3)周幾趨勢=長條圖,
-// 周一~周日個加總單位數(4)加訪趨勢=長條圖,統計單日流水數>=2筆的天數依2/3/4/5+分組,看每天加訪的頻率分布
-// (5)區間切換(月/年/自訂範圍)討論後決定留後再做,目前先用「本年度」(settings.year)當單一統計區間(6)「本週是否該整週隱藏
-// 不即時更新」這個提案討論後採用折衷方案:熱力圖/周幾趨勢/加訪趨勢這三個都是跨多週的加總比較,本週(可能還沒過完)的資料
-// 排除在這些加總之外,避免還沒發生的日子被誤判成「比較少客人」,但本週目前的即時數字(common.js personalChartStats算出的
-// curWeek)仍會用一行提示文字顯示出來,不會整個隱藏看不到。common.js新增personalChartStats函式負責這些統計運算
-// | 前: v1.13-016 / 「我的自約」整合進index內:設定頁subTab='book'原本是一顆按鈕location.href跳去獨立的booking.html頁面
-// (離開SPA狀態),底下還有一塊從沒做完的「同步店家預約資訊」框架(textarea+複製/貼上+灰字disabled的同步鈕,本來就是空殼)。
-// 這次拿掉這兩塊,改成直接渲染app-core.js新增的<BookingSection code={settings.code} t={t}/>——自約的新增/列表/詳情/
-// 編輯/確認/複製全部都在這裡用BottomSheet同一個畫面完成,不再跳頁;自約的老點資訊改接common.js的custdb(searchCustDB/
-// upsertCust),跟流水共用同一份客戶資料,不再是booking.html自己那套獨立的getCustomers/upsertCustomer系統。
-// 詳細設計跟取捨記在DEV_NOTES。booking.html檔案本身先不刪(隱藏不刪除),但已經沒有任何內部連結指向它了
-// | 前: v1.13-015 / 【測試用】LINE登入成功當下立刻備份一次,不等每日自動備份:方便逐一請不同老師點「使用LINE登入」測試手機能不能
-// 正常登入時,馬上就能在GAS的Backups工作表看到一筆新紀錄當佐證,不用等到隔天才知道這支手機有沒有成功——跟目前還在排查的
-// 「LINE登入在部分裝置真實環境大量失敗」問題有關(見DEV_NOTES已知擱置事項),純粹是測試階段的輔助,之後正式穩定後這個
-// 「登入當下就備份」的動作要不要繼續保留可以再討論 | 前: v1.13-014 / 拿掉獨立的「LINE登出/換帳號」按鈕,併入既有的「登出／切換帳號」:討論後確認這顆按鈕對一般使用者沒有真實用途——
-// (1)LINE內建瀏覽器裡不可能切換成另一個LINE帳號(liff.login()只會靜默帶出裝置目前登入的那個帳號,不會跳出選擇畫面)
-// (2)非LINE內建瀏覽器也沒有需要切換LINE帳號的情境 (3)唯一用得到的只有開發排查登入/登出畫面。UI上拿掉這顆按鈕(已綁定時
-// 只顯示狀態文字,不再有登出連結),改成按既有的「登出／切換帳號」(換老師編號用)時,一併呼叫doLineLogout()清掉LINE綁定跟
-// 自動備份旗標——換帳號本來就代表這台裝置接下來要給別人用,理當一起清掉前一位的LINE身份,不然新的人進來後舊綁定還留著,
-// 容易搞混雲端備份對象。doLineLogout函式本身保留(隱藏不刪除) | 前: v1.13-013 / 修正bug:登出LINE後幾乎立刻被復原——根因是「備份」「設定」兩個首頁圖示其實導去同一個SettingsPage元件(只是
-// 透過sessionStorage的__settingsSub帶不同subTab),所以每次從首頁點其中一個進來都是重新掛載這個元件;元件掛載時有一段
-// 「嘗試靜默liff.init()偵測有沒有登入」的useEffect(本來是為了抓住剛從LINE登入頁導轉回來的情境),判斷式只看「本機目前沒存
-// lineUserId」就會觸發,不管是不是真的剛登入導轉回來。登出動作本身只是清掉本機存的lineUserId,沒有真的讓LINE App跟這個
-// LIFF頻道斷開授權關係——在LINE內建瀏覽器(WebView)裡,liff.logout()只會清掉SDK本機持有的token,下次liff.init()會在背景
-// 靜默重新登入成功(不會跳出任何畫面),於是這段useEffect又把登入狀態寫回本機,等於登出形同虛設,過一會兒(下次隨便點進備份
-// 或設定頁重新掛載)就被自動復原。修法:doLineLogout()時連同common.js新增的setLineLogoutFlag()一起設置「使用者主動登出」
-// 旗標(存localStorage),掛載時的靜默偵測useEffect看到旗標存在就整個跳過不執行;旗標只有使用者自己按「使用LINE登入」按鈕
-// (doLineLogin)時才會被clearLineLogoutFlag()解除,代表這次是真的要重新走登入流程(含登入成功後從LINE導轉回來那次) | 前: v1.13-012 / 雲端備份正式開放+備份頁UI簡化:(1)拿掉CLOUD_BACKUP_DISABLED/TEST_LINE_USER_ID/effLineUserId這些暫時性測試開關,2026-10-01已實測verify過GAS↔Sheets↔Drive這條路本身沒問題(見DEV_NOTES §31),真正的識別一律用登入拿到的真實lineUserId(2)雲端備份改成全自動:每日第一次打開App時(app-core.js的doDailyAutoCloudBackup),只要設定頁已登入LINE就會自動備份一次,不用使用者自己記得按(3)BackupSection的UI整個依是否登入LINE分岔:沒登入時只顯示手動匯出/匯入區塊;登入時雲端備份區塊拿掉手動備份/查詢/還原按鈕跟autoCloudBackup勾選,改成顯示靜態說明文字「本裝置已用LINE登入，每日第一次開啟App時會自動備份一次」(cloudAutoBackupActiveMsg翻譯key)。doCloudCheck/doCloudRestore函式本身保留(隱藏不刪除),只是沒有UI入口呼叫,方便之後如果要在別的地方(例如換新裝置時的還原流程)重新接上 | 前: v1.13-011 / 【暫時測試】雲端備份重新打開測試:CLOUD_BACKUP_DISABLED改回false,不再整個鎖住;新增TEST_LINE_USER_ID固定測試值,BackupSection內部改用effLineUserId=lineUserId||TEST_LINE_USER_ID,沒有真的用LINE登入時也能先測雲端備份/查詢/還原這幾個動作本身能不能正常跟GAS/Sheets溝通,跟LINE登入問題分開排查。UI在使用測試值時會顯示提示文字告知目前是測試帳號。排查完LINE登入問題、確認雲端備份穩定後,把TEST_LINE_USER_ID這行整個刪掉、effLineUserId改回直接等於lineUserId即可 | 前: v1.13-010 / 【修正遺失的修正】匯出JSON檔案改成優先用手機原生分享功能(Web Share API)觸發,不支援才fallback回傳統<a download>下載機制——LINE內建瀏覽器(WebView)對傳統下載機制支援不完整,點了常常沒反應,這是之前處理過但環境重置後遺失的修正,現在補回來 | 前: v1.13-009 / 【實測回饋】雲端備份暫時整個關閉:加CLOUD_BACKUP_DISABLED常數(=true),備份/查詢按鈕強制disabled、整個區塊灰階、提示文字改成「雲端備份暫停開放，測試穩定後會恢復」,不管有沒有登入LINE都一樣。LINE登入按鈕本身維持正常可用(方便之後排查各裝置登入失敗原因),只是雲端備份這個依賴LINE身份的功能先關閉。之後排查完問題,把常數改回false即可恢復,不用重寫UI邏輯。加cloudBackupPausedMsg翻譯key | 前: v1.13-008 / 3項修正:(1)LINE登入從BackupSection搬到SettingsPage層級,UI放在語系設定下方,BackupSection改成透過props接收lineUserId(不再自己管理登入狀態),雲端備份功能不受影響,只是登入入口換位置(2)設定頁的「狀態」開關(homeShowC)改成預設關閉,判斷式!==false改成===true(3)HIDE_COMPANY_FEATURES改從common.js匯入 | 前: v1.13-007 / 拿掉密碼鎖屏相關的兩處:(1)設定頁的「保護密碼」區塊(標題+關閉首頁密碼開關+自動上鎖時間下拉選單)整個拿掉,緊鄰的「首頁版面顯示」設定完全不受影響(2)穴道知識庫的憑證閘門拿掉「今天有沒有通過每日密碼解鎖」這層檢查——這層原本依賴首頁密碼閘門寫入的時間戳記,首頁閘門拿掉後這個時間戳記永遠不會被寫入,不處理會變成永遠打不開的死鎖。只保留跟密碼無關的憑證有效性檢查。HIDE_COMPANY_FEATURES改成從common.js匯入(不是app-core.js),避免因為index.html裡settings.js比app-core.js先載入而在跨檔案引用時發生ReferenceError | 前: v1.13-006 / 「匯入本地備份檔」從開場畫面搬到這裡的備份區塊,跟匯出功能湊成一對——不再只是新裝置啟動時的一次性機會,啟動完成後也能隨時匯入。doCloudBackup順便帶一份輕資料JSON(store/gender/shift/workStart/workEnd)給GAS存進索引,配合開場畫面LINE登入後的快速預填 | 前: v1.13-005 / 雲端備份區塊加暫時性除錯工具:doDebugEcho用跟doCloudBackup完全一樣的參數組合呼叫debugEcho(不做實際寫入),把GAS實際收到的內容原樣顯示出來,排查POST資料在傳輸過程有沒有遺失。排查完問題後這段UI應該移除 | 前: v1.13-004 / 雲端備份完整改用LINE userId當key(GAS的Backups表:gas-backup.gs.txt改成lineUserId欄位當唯一識別,code只當附加資訊):doCloudBackup/doCloudCheck/doCloudRestore開頭都先檢查有沒有lineUserId,沒有就擋下顯示提示訊息不呼叫GAS。雲端備份UI區塊未登入時整體降低透明度+按鈕disabled+標題下方顯示「請先用LINE登入」提示,自動備份checkbox也一併鎖住。加lineLoginRequiredMsg翻譯key | 前: v1.13-003 / 備份區塊加LINE登入功能:新增LINE登入按鈕跟doLineLogin(用新申請的INDEX_LIFF_ID呼叫liff.init()+liff.login()),取得的userId存本機(getMyLineUserId/setMyLineUserId,common.js新增)。元件掛載時如果本機還沒存userId,會嘗試跑一次liff.init()檢查isLoggedIn(),抓住剛從LINE登入頁導轉回來這個情境。已綁定時顯示狀態+登出/換帳號選項。這輪只做登入跟存userId,還沒接上雲端備份的開關邏輯(下一輪) | 前: v1.13-002 / 備份區塊加回JSON檔案匯出功能(v1.12-063時曾拿掉只留雲端備份,這次1.13版重新加回):新增「匯出JSON檔案」按鈕,用makePersonalBackup產生跟雲端備份同一種格式的資料,透過瀏覽器原生Blob+下載連結機制存成本機檔案,檔名含編號/年份/日期方便辨識,不經過雲端 | 前: v1.13-001 / 進入1.13系列,版號改成全檔案統一對齊。本檔這輪內容未變動,僅標記版號起點 | 前: v1.12-079 / 新增「靜謐灰調」主題(quiet):參考 Hallmark 設計技能(github.com/Nutlope/hallmark)的Quiet目錄主題精神——低彩度/近中性暖灰色系(#17161a背景+#8a8377暖灰褐強調色),不靠鮮豔色相搶眼,靠明暗與粗細建立層次。是目前所有深色主題裡唯一走低彩度中性路線的(其餘neon/forest/sunset/ocean都是高飽和度強調色),在強調色色相軸上跟既有主題明顯區隔開。主題選單新增這個選項 | 前: v1.12-078 / 2項修正:(1)移除LINE質感綠主題(跟森系植癒風的抹茶綠太相近,不易區分)(2)修正5個新主題(neon/forest/sunset/ocean)的嚴重視覺bug——原本的萬用選擇器[class*="bg-amber-6"]等會把「帶透明度」的amber class(如bg-amber-600/15半透明按鈕)誤判成跟純色一樣,直接套用完全不透明的強調色,導致原本設計成柔和半透明的按鈕/邊框變成過曝的實心色塊,在深色背景襯托下像在發光。加上精確比對的透明度規則,依source order覆蓋掉粗略規則,還原原本的透明層次感 | 前: v1.12-077 / 新增4個主題:森系植癒風(forest,#121a15深森綠黑+#4ade80抹茶綠強調色)、日落金(sunset,#18120b深可可暖黑+#f59e0b琥珀金強調色)、LINE質感綠(linegreen,#111b12深墨綠黑+#06c755 LINE官方綠強調色)、海洋藍(ocean,#0b1329深海午夜藍+#0ea5e9天空青藍強調色)。全部依background/surface/accent/text四色規格實作,取代amber強調色,主題選單一併加上對應的漸層預覽色 | 前: v1.12-076 / 新增「霓虹科技」主題(neon):沉浸式深色科技藍黑背景(#0b0f19)+青藍霓虹毛玻璃卡片+強調色升級為電光青色系(#38bdf8/#0ea5e9),邊框跟輸入框聚焦帶發光陰影特效。主題選單新增這個選項,用深藍到青色的漸層當預覽色 | 前: v1.12-075 / 穴道知識庫加憑證檢查閘門:進入頁面時先確認今天有沒有通過每日密碼解鎖,沒有就提示先去公告頁面解鎖;通過的話再檢查憑證是否有效,無效就清空本機快取並擋住存取。加settings prop讓AcupointPage能拿到code/lockAutoTime | 前: v1.12-074 / 2項主題調整:(1)「質感玻璃」改名為「黑紫色」(2)新增「極簡白」主題(apple),依Apple官方網站設計語言分析文件實作:中性灰階不帶紫色調+單一藍色強調色(#0066cc取代amber)+按鈕改膠囊型圓角。主題選單改3x2排列(6個選項) | 前: v1.12-073 / 新增SmoothUI風格主題「質感玻璃」(smooth):深色底(#0d0d18)+玻璃模糊卡片(backdrop-blur)+加大圓角+強調色從amber換成鮮豔紫色。主題選單改3欄排列(5個選項),用紫黑漸層當這個選項的預覽色 | 前: v1.12-072 / 穴道知識庫加2功能:(1)展開內容最下方加LINE分享按鈕,點擊可用Flex分享該穴道完整資訊(位置/保健用途/按摩手法/注意事項)給指定好友(2)加愛心收藏按鈕,收藏後該穴道會排到所屬部位列表最上面,存在本機不會遺失 | 前: v1.12-071 / 穴道知識庫搜尋框下方加最近搜尋紀錄:輸入停頓800ms後存進本機(最多5筆,去重複,最新排前面),顯示成可點擊的小標籤,點了直接帶入搜尋框重新查詢 | 前: v1.12-070 / 穴道知識庫搜尋加強:(1)注意事項欄位也能被搜尋到,例如搜「孕婦」能找出所有孕婦禁按/慎用的穴道,不再侷限於名稱跟關鍵字(2)如果是靠注意事項比對到的,收合狀態下會先預覽那段文字(⚠️開頭),不用每筆都點開才看得到 | 前: v1.12-069 / 穴道知識庫搜尋框加X清除鈕,有輸入內容時右側才會出現,點了一鍵清空 | 前: v1.12-068 / 穴道知識庫改用外部JSON檔案讀取(./data/acupoints.json),AcupointPage改成fetchAcupoints()動態載入(有loading/error狀態),不再依賴common.js內嵌的常數 | 前: v1.12-067 / 穴道知識庫大擴充:從140+筆完整資料匯入(足部小腿/肩膀/上背/下背/臀部大腿/手臂/頭部共7大部位,144個穴道),AcupointPage改成兩層篩選:第一層部位分頁,第二層依所選部位動態產生的經脈子篩選,搜尋框維持原本的名稱/症狀關鍵字搜尋。目前只有中文,越南文欄位先留空由前端自動fallback顯示中文,之後可以陸續補上 | 前: v1.12-066 / 新增穴道知識庫功能:首頁圖示列新增「穴道知識」入口(跟圖表/建議同級),新增AcupointPage元件,支援依名稱或症狀關鍵字搜尋(中越文皆可),點擊展開查看位置/保健用途/按摩手法/注意事項,底部附保健參考免責聲明 | 前: v1.12-065 / 5項修正:(1)備份區塊/登出區塊/拒接名單說明,全部改用翻譯key,補齊越南語系(2)備份冷卻60秒時,連「備份到雲端」按鈕也一起鎖住,不讓短時間內重複備份 | 前: v1.12-064 / 移除「系統設定」頁的標題列(重複多餘),並用-mt-4消除上方多出來的空白 | 前: v1.12-063 / 5項修正:(1)備份大幅簡化,只保留雲端備份,移除範圍代碼/JSON匯出匯入等舊機制(2)雲端備份說明文字簡化(3)新增「每日第一次登入驗證密碼後自動備份」勾選設定(4)拒接名單說明文字放大調亮(不再是灰色小字)(5)月份明細/公告/設定彈窗90%改成80% | 前: v1.12-062 / 5項修正:(1)備份到雲端成功後,查詢按鈕冷卻60秒(Google Drive寫入後不會馬上查得到)(2)拒接名單加持續顯示的條件說明文字(3)移除設定頁的「本服務本機/連線狀況」那一列,保留憑證卡片跟連線申請流程(4)修正嚴重bug:settingsAlert判斷邏輯,新老師第一次登入(從沒有confirmedProfile快照)被誤判成「有未確認變更」冒出紅色驚嘆號,改成沒快照時不算有變更 | 前: v1.12-061 / 3項修正:(1)修正嚴重bug:NoticeManagePage沒有接收onLogout參數,SettingsPage呼叫時也沒往下傳,導致點公告詳情(需要密碼鎖屏時)崩潰報錯Can't find variable: onLogout(2)彈窗高度改成動態:SettingsPage自己內部依subTab決定高度(設定/公告=90%,其餘子分頁=50%),不再由App層級統一寫死;客戶管理(app-level tab)改50%;月份明細維持90%(3)ChartPage/CustomerPage/SuggestPage/自約/備份/違規,標題列統一補上sticky置頂(之前只有月份明細跟公告/設定有) | 前: v1.12-060 / 4項修正:(1)彈窗改成首頁一律渲染在背景,子頁面用彈窗蓋在上面,上方空白處才看得到首頁(不是整頁切換導致背景空白)(2)拿掉往下滑動關閉手勢,只保留點空白處關閉(3)各彈窗標題列縮小文字+置中+減少padding,不再佔掉太多70%版面(4)修正嚴重bug:index.html舊版備份代碼hash自動登入邏輯,遇到LINE LIFF登入導轉留下的access_token網址片段會誤判成合法備份代碼,把亂碼存進settings.code,導致首頁編號顯示變成一長串token字串。加上排除判斷+長度合理性檢查,並對已污染的app-settings加防護(code過長視為無效) | 前: v1.12-059 / 子頁面版面大改版:月份明細/客戶管理/公告/圖表/建議/違規/備份/設定,全部改成從螢幕下方滑出的70%高度彈出視窗(BottomSheetModal,定義在app-core.js),蓋在首頁上面而不是整頁切換,解決在LINE內建瀏覽器裡看到「兩個X」的問題(LINE自己的關閉鈕+APP自己的X重複)。移除各頁面自己的X按鈕,改成點上方空白處或往下滑動手勢關閉 | 前: v1.12-058 / 新增雲端備份功能(取代原本行為代碼設計,更簡單):直接用老師編號存取GAS的Backups工作表,「備份到雲端」一鍵存檔,換手機登入後「查詢雲端備份」找到就能直接還原,不用透過LINE分享或行為代碼 | 前: v1.12-057 / 新增備份專頁功能:index.html刻意保留不呼叫liff.init(離線記帳需求),改在safety-report.html(正式LIFF端點)加backupView模式,liff.init已成功呼叫,shareTargetPicker能正常運作。完整JSON備份區塊新增「在LINE查看／分享備份」按鈕導過去 | 前: v1.12-056 / 修正bug:「傳送」按鈕改用sendTicketFlex(導去safety-report.html正式LIFF端點代發),不再直接呼叫liff.shareTargetPicker——index.html從沒呼叫liff.init(不是正式LIFF端點),導致Promise靜默失敗,按了完全沒反應 | 前: v1.12-055 / 備份功能改善LINE內建瀏覽器體驗:偵測是否在LIFF環境內,(1)範圍代碼加「傳送」按鈕,用liff.shareTargetPicker讓人選要傳給誰(含傳給自己)(2)完整JSON備份匯出後,LINE內建瀏覽器常常不會跳出下載提示,加「複製完整備份內容」按鈕當備援,可以貼到LINE Keep或記事本保存 | 前: v1.12-054 / 修正bug:拒接名單送出狀態(blSubmitted)改存localStorage,之前純用React state切分頁/重整就消失,現在持久保存 | 前: v1.12-053 / 拒接申請補上服務項目/事發時間(方便主管核對監視器畫面),送出時一併帶上 | 前: v1.12-052 / 修正bug:上一版漏了把gasBlacklistSubmit/gasBlacklistCheck/gasBlacklistApprove/gasBlacklistSearch加進bridge匯入清單,導致送出拒接申請報錯找不到變數 | 前: v1.12-051 / 新增拒接黑名單功能:客戶管理頁新增「拒接名單」分頁,自動列出流水裡標記拒接的客人,可送出審核申請(K代碼,跟其他票證系統一致的Flex分享+檢查核准流程) | 前: v1.12-050 / 「首頁版面顯示」設定區塊改用翻譯key(t.homeLayoutXxx),之前寫死中文,切換越南文時沒有跟著變 | 前: v1.12-049 / 新增首頁版面設定:三個開關控制A(快速加支數)/B(今日流水列表)/C(狀態選擇)要不要顯示在首頁,關閉後仍可從今日日期進編輯畫面操作 | 前: v1.12-048 / 安全修正:鎖屏「忘記密碼」不再能自助直接重設(這會讓非本人也能繞過鎖屏,失去防護意義),改成引導登出→走登入頁的忘記密碼(需主管審核)。順便加上登出前建議先備份的提醒。NoticeDetailModal的鎖屏也同步改成一樣邏輯,傳入onLogout | 前: v1.12-047 / Flex分享訊息補上越南文判斷:有ticketSeq的用第2碼(1=中文2=越南文),沒有的(連線碼/舊版request code)改用settings.lang判斷 | 前: v1.12-046 / 所有傳送行為代碼改用Flex分享(common.js新增sendTicketFlex共用函式,導去safety-report.html代發,因為shareTargetPicker一定要透過liff.line.me網址啟動才能用):憑證展期/連線碼/基資店資request code共4處 | 前: v1.12-045 / 移除系統設定頁的「重設自訂密碼」區塊(改到鎖屏畫面提供,見app-core.js的ForgotPwdModal) | 前: v1.12-044 / 系統設定新增「登出／切換帳號」按鈕(不刪本機資料,月報表/客戶資料庫都是依編號存的,換帳號登入原本資料還在) | 前: v1.12-043 / 系統設定新增「重設自訂密碼」功能,沿用忘記密碼那套鍵盤流程,不用先驗證舊密碼直接設新的 | 前: v1.12-042 / 客戶管理:更新客戶資料時不再直接覆蓋,舊版本存進history陣列,列表每列右側加(N)標籤顯示歷史筆數,點了展開列出過去的壓力/施力部位記錄 | 前: v1.12-041 / 系統設定/公告管理頁標題列改成sticky置頂(超過一頁滾動時,標題+✕不會跟著捲走) | 前: v1.12-040 / 兩項修正:(1)保護密碼自動上鎖時間改成下拉選單(5/10/20/30/40/50/60/120分鐘),修正之前notice-liff.html誤寫入lockAutoTime:99999999污染本機設定的bug(2)系統設定/自約/客戶管理/公告/圖表/建議/違規/備份,標題統一改跟✕關閉按鈕同一排(不再是App層級通用置頂列,改由各頁面自己處理) | 前: v1.12-039 / 複製名單格式加上公告編號+摘要(方便主管/老師直接關聯是哪一則公告,不用只看到一串內部編號) | 前: v1.12-038 / 公告管理頁改版:(1)列表項目改三排式(編號・日期・圓框頭像+發文者/標題摘要/主子分類+開啟次數置右),移除列表上的分享按鈕(2)編輯頁新增「誰有看」「誰沒看」區塊各自附複製按鈕,底部按鈕改成修改/下架/分享到LINE三顆並排 | 前: v1.12-037 / 設定頁完全移除左側分頁列(改由首頁圖示導向所有子頁面,backup/manage新增首頁圖示) | 前: v1.12-036 / 設定頁分頁移除基資/店資(已改由首頁左上角彈窗處理,底層邏輯不受影響) | 前: v1.12-035 / 推播圖示改成LINE品牌綠色圓形小圖示(不再是📲emoji) | 前: v1.12-034 / 公告Flex卡片改版+列表加推播按鈕:(1)GAS的_buildNoticeFlex加入人員徽章(圓框頭像圖示+編號,標題下方)+內容後面加「編號 主分類 子分類 發布日」這行meta資訊(2)已發布公告列表每一則旁邊多一顆📲推播按鈕,不用先進編輯或新建流程,任何一則都能直接推播到自己的LINE | 前: v1.12-033 / 修正兩個bug:(1)gasPushNoticeFlexToMe忘記加進bridge匯入清單導致推播按鈕報錯找不到變數(2)發布成功後「發布公告」按鈕沒有跟著鎖住,現在會保持灰色不能重複按 | 前: v1.12-032 / 新建公告接LINE推播:發布成功後不再自動關閉視窗,改成留在頁面上顯示「推播到我的LINE」按鈕(用code查安全回報那邊收集到的LINE身分,查不到會提示先去登記)+「查誰還沒看」按鈕(沿用既有的noticeUnread動作) | 前: v1.12-031 / 首頁圖示改版+建議功能實作:(1)自約/公告/圖表/建議/違規5個分頁按鈕從TABS移除,改用首頁圖示進入(2)SuggestPage移除假資料,改接真正的GAS(submitSuggestion/listSuggestions),送出建議會真的存進Sheet,清單真的從GAS撈 | 前: v1.12-030 / 公告分類分頁改用完整8分類清單:不再從現有公告資料推導(避免有分類還沒被用過就不會出現在分頁),改讀GAS發布時一併附上的mainCats(含中越文對照),固定顯示「全部」+8個主分類共9個按鈕(3x3排列),依語系自動切換中文/越南文標籤 | 前: v1.12-029 / 首頁設定新增「保護密碼」區塊:關閉首頁密碼要求的開關+自動上鎖時間(可調整,最小5分鐘,預設60分鐘,取代原本寫死的5分鐘) | 前: v1.12-028 / 公告列表細部調整+憑證狀態整合:(1)分類分頁改3欄(原4欄文字被吃),點主分類後下方多一列子分類可再篩選(2)公告編號從第一排移到分類標籤之後(3)本機優先(還沒發布)的公告加綠底白字「本機」標籤(4)CredentialCard整合進既有「老師專屬憑證」那行,不再是獨立卡片,加憑證期限+離職日/已逾期原因顯示,展期按鈕改成到期前7天就會出現(不用等真的失效),移除卡片裡的離職按鈕(離職移到店資彈窗) | 前: v1.12-027 / 公告列表大改版:(1)標題下方加分類分頁(全部+最多6個主分類,從現有公告資料取不重複主分類,不用另外查Categories表)(2)每則公告第一排最前面加公告編號(3)加下架/上架:編輯頁下方新增按鈕,呼叫GAS toggleNoticeStatus,下架後列表仍看得到但灰字+加下架標籤,一般老師端(notices.json實際發布內容)會被過濾掉(4)editNotice核准後,GAS回傳最終欄位值(含AI產生的越南文),前端直接套用到本機列表,不用等下次發布就能看到完整結果 | 前: v1.12-025 / 重新正確加入離職+憑證展期功能(CredentialCard元件):上一版(v023)bridge匯入清單裡`buildReqLink`重複宣告(跟後面既有的申請碼系統匯入撞名),導致Babel轉譯整個檔案失敗、index.html跟著崩潰(白畫面"網站更新中")。這次改成只加缺少的識別字(gasVerifyKey/gasLeaveTeacher/gasSubmitAction/gasCheckAction/getMyKey),不重複加已存在的(buildReqLink/hasMyKey),並額外做了「解構清單重複識別字」專門檢查(TypeScript語法檢查器抓不到這種錯誤,只有真的用Babel轉譯才會抓到) | 前: v1.12-022 / 公告列表照新規格重排:第二排依序👤發布人/👁開啟次數(依主管選的人數或人次)/👍已讀人數/主子分類(受顯示開關控制)/時間(置右)。第一排文字改用主管選的標題或摘要(listText設定) | 前: v1.12-021 / 公告列表版面調整:第一排只留摘要+編輯鈕(主分類移出);第二排右側改放主/子分類(合併顯示,如"薪資・調整")+開啟次數(👁圖示+數字,取代原本的已讀人數,開啟次數是更寬鬆的被動記錄指標) | 前: 語系選項從基資分頁移到首頁設定的主題下方(語系是個人偏好,不屬於需要主管審核的基資,放首頁設定更直覺) | 前: 版次對齊(內容未變動):跟隨common.js/index.html/auth.html/notice-modal.js這次的整理點同步版號,方便日後從標題/檔頭確認全套部署是否一致 | 前: 公告分頁:移除進入公告頁後的提示文字段落(點右上新增公告...那句)。新增公告的權限限制(限主管supervisor+admin)在v034已完成(canManage判斷),此次確認沿用 | 前:hotfix:公告編輯權限判斷修正(admin查admin.cfg雜湊,不是staff.json role) | 前: 新增公告完整流程接功能(033)
-// 注意:此檔為 type="text/babel",獨立作用域,需自行宣告 hooks 與 bridge
-const{useState,useEffect,useCallback,useMemo}=React;
-const{normEmail,isValidEmail,doEmailBackupNow,gasAnalyze,gasAddNotice,gasEditNotice,noticeSummary,noticeTitle,getNoticeReadCount,getNoticeShow,getNoticeListText,getNoticeCountType,getNoticeMainCats,getNoticesLocal,fetchNotices,gasVerifyKey,gasLeaveTeacher,gasSubmitAction,gasCheckAction,gasBlacklistSubmit,gasBlacklistCheck,gasBlacklistApprove,gasBlacklistSearch,gasBackupSubmit,gasBackupCheck,gasBackupFetch,gasDebugEcho,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,getMyLineUserId,setMyLineUserId,clearMyLineUserId,getLineLogoutFlag,setLineLogoutFlag,clearLineLogoutFlag,gasToggleNoticeStatus,gasSubmitSuggestion,gasListSuggestions,gasPushNoticeFlexToMe,getMyKey,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,gasSetInitialPwd,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,sendTicketFlex,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,getGasUrl,setGasUrl,gasCall,hasMyKey,issueKey,claimMyKey,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,personalChartStats,bookTitleName,BOOK_TITLES,fetchAcupoints,clearAcupointsCache,checkCredentialValid,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
-function fmtSyncTime(iso){try{const d=new Date(iso);const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"/"+p(d.getMonth()+1)+"/"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes())}catch(_e){return ""}}
+/* ════════════════════════════════════════════════════════════
+   common.js — 薪資追蹤系統 共用工具
+   v1.13-039 / gasLogDailyCheck、gasLogFlowEnter 也帶 env/os(Log 工作表新增 env、os 欄)。
+   v1.13-038 / logUse 多送 env(pwa/line/chrome/safari/edge/firefox/other)與 os(ios/android/desktop),只看 userAgent。
+   v1.13-037 / 新增logUse(feature)(window.__logUse):功能使用統計,背景送GAS不等回應、失敗無所謂,只送功能名+匿名裝置代號(本機隨機產生)+版本+語系,不含編號/姓名/客戶資料;目前用於「新增自約」。
+   v1.13-036 / 隱私說明再改寫:沒備份時店家/管理者救不回資料;雲端備份以「編號+Email」為依據,提醒勿公開Email。
+   v1.13-035 / 隱私說明改寫:「系統不會主動上傳,雲端備份由使用者自己決定」(privacyBody/emailPrivacy,zh+vi)。
+   v1.13-034 / 新增Email雲端備份(gasEmailBackupXxx系列、doEmailBackupNow、emailRestore、normEmail、isValidEmail)+相關翻譯鍵;privacyBody加「預設」。
+   v1.13-033 / gasLogDailyCheck/gasLogFlowEnter多帶store參數(Log分頁加店別欄);名片分享資料帶st(店別)。
+   v1.13-032 / 啟動頁說明文字改寫:加標題、字放大、勾選移到說明下方(我已閱讀以上說明)、三種開啟方式暫存各自獨立、備份改匯出JSON檔。
+   v1.13-031 / 名片加Apple地圖連結(appleUrl/cardAppleUrl)。
+   v1.13-030 / 名片各館預設資料可由cardstores.json覆蓋(loadCardStores),抓不到用內建。
+   v1.13-029 / getCardData優先用settings.cardStore(名片自己選的館別)。
+   v1.13-028 / 名片館名改依店別:龍山寺=雲心閣養生會館、東門=映禪養生館、古亭=禪云心養生會館、公館=雲禪居養生會館(CARD_STORE_DEFAULTS加bm/bs)。
+   v1.13-027 / 新增名片分享:CARD_STORE_DEFAULTS四店預設資料、getCardData、sendCardFlex。
+   v1.13-026 / 配合app-core.js的BreakTimerSection(翻綠/休息計時器)去公司化,新增breakDayKey/loadBreakStatus/
+   breakFlipGreenLocal/breakFlipWhiteLocal四個函式,把原本會打GAS寫進公司共用雲端表格(BreakTickets,含店名,
+   還會分享連結給櫃台確認)的翻綠/回牌動作,改成純本機localStorage讀寫(LS key: break-{code}),不連線、不傳出
+   任何資料、不會有人被通知。breakDayKey沿用GAS端原本_breakDayKey同一套「跨夜班別算前一天」的邏輯,確保
+   凌晨翻綠的紀錄會跟前一晚算在同一個休息日,不會被切成兩段。詳見DEV_NOTES §47
+   | 前: v1.13-025 / 修正personalChartStats的時段軸在晚班(跨夜)情境下失真的問題:原本單純用minHour/maxHour算範圍,
+   遇到下午5點上工、凌晨3點下班這種跨夜班別,min會被凌晨時段拉到0、max被下午拉到23,軸變成幾乎整天(0~23),完全沒有
+   縮小範圍的效果。改成新增_hourOrder(hasHour)輔助函式:把24小時視為環狀,找出「資料實際出現的小時」裡最大的一段連續
+   空檔(沒工作的那段),從空檔結束後排到空檔開始前,這樣晚班會自然排成17,18,...,23,0,1,2,3這種跨夜但連續的順序;
+   日班(例如8~20點)的最大空檔自然落在夜間,排序結果跟原本min~max等價,不受影響。回傳值的minHour/maxHour兩個欄位
+   改成hourOrder(排好順序的小時陣列),settings.js的ChartPage熱力圖跟著改用這個陣列畫橫軸。流水歸屬哪一天完全不受影響,
+   一律用該筆流水原始日期的getDay()判定周幾,不會因為跨夜就自動+1天(這點原本的寫法就是對的,這次只是確認並寫進註解)
+   | 前: v1.13-024 / 配合settings.js的ChartPage個人資料圖表重構,新增personalChartStats(slipsWithTime)——
+   依流水開始時間(slipStartTime)算出weekday×hour熱力圖矩陣、周幾單位數加總趨勢、單日流水數分布(>=2筆的天數依2/3/4/5+分組),
+   並附上資料實際出現的minHour/maxHour供圖表動態決定時間軸範圍(不同時間區間各自算各自的動態範圍,不是全域固定一個範圍)。
+   「本週」(含今天、可能還沒過完的這個ISO週)的資料另外算在curWeek,不併入跨週加總的heat/weekdayTotals/extraDist裡面
+   (避免還沒發生的日子被誤判成「比較少客人」拉低平均),但仍即時算出來給畫面顯示「本週目前」用,不整週隱藏看不到。
+   新增_isoWeek/_weekKeyOf內部輔助函式(ISO週一為一週開始的週數計算)。加10個chart系列翻譯key(中越皆補)
+   | 前: v1.13-023 / 加DISABLE_GH_DATA_FETCH總開關(=true):目前GitHub Pages上沒有部署staff.json/notices.json,
+   index.html/app-core.js對應的readStaff/fetchNotices呼叫點改用這個開關直接跳過,不再白發永遠拿空結果的網路請求。
+   寫法跟HIDE_COMPANY_FEATURES同一套,之後真的部署了這兩份檔案,改回false即可整套恢復
+   | 前: v1.13-022 / 配合app-core.js v1.13-028,加logUnconfirmAssigned(取消與指定老師{0}確認)/bookConfirmStatusLabel
+   (自約確認情形的固定標籤文字)兩個翻譯key(中越文皆補)
+   | 前: v1.13-021 / 配合app-core.js v1.13-027「跟櫃台確認」加可取消的動作,加cancelWithCounter(跟櫃台取消)/
+   cancelledCounterToast(已取消與櫃台確認)/logUnconfirm(取消與櫃台確認)三個翻譯key(中越文皆補)
+   | 前: v1.13-020 / 自約(booking)相關三件事:(1)修正備份bug——exportPersonalData原本讀'booking-'+code(單數)但實際存取key是
+   BOOK_KEY(code)='bookings-'+code(複數),兩邊打不到,自約資料從來沒被真正備份過,現在改用正確的key (2)評估後決定只備份
+   「還沒過期」的自約(過期的真正有價值的紀錄早就在每月流水/custdb裡,不用重複備份一堆沒用的歷史預約),還原時跟本機既有
+   自約以id合併(不整包覆蓋,降低覆蓋風險) (3)加bookHistory/collapseBtn/expandBtn/duplicateBtn/bookNoCustHint翻譯key,
+   配合app-core.js v1.13-025把自約UI搬進index內,拿掉過期自約的「已過期」改稱「歷史」+加越南文收合/展開/複製文字
+   | 前: v1.13-019 / 加LINE登出旗標機制(getLineLogoutFlag/setLineLogoutFlag/clearLineLogoutFlag,存localStorage的my-line-logout):修正登出後在LINE內建瀏覽器裡幾乎立刻被settings.js掛載時的靜默重新登入偵測復原的bug——liff.logout()只清SDK本機token,LINE App本身對這個LIFF頻道的授權還在,下次liff.init()會靜默重新登入成功。加這個旗標讓登出後的狀態能持續被尊重,只有使用者自己按登入按鈕才會解除 | 前: v1.13-018 / 加cloudAutoBackupActiveMsg翻譯key(中越文皆補),配合settings.js v1.13-012把雲端備份改成全自動+備份頁UI簡化——登入LINE後備份區塊不再放手動按鈕,改顯示這行「已自動備份」的靜態說明文字 | 前: v1.13-017 / 修正bug:排查iOS Safari上點DayEditor「完成」鈕會整頁白屏(錯誤代碼00015375)——根因是slips陣列裡如果混入null元素(舊資料或搬移過程殘留),slipUnitsTotal/slipLaodianTotal/collectSlips/collectAllSlips/tagStats/searchSlips這幾個直接對slip元素取屬性的函式都沒防護,遇到null就整個拋出TypeError讓App層級的錯誤兜底攔截器接住、顯示更新中白屏。這次統一補上null防護(forEach/reduce/filter前先擋掉falsy元素),搭配app-core.js v1.13-022同一輪的DayEditor滌清修正 | 前: v1.13-016 / 加todayBtn翻譯key,配合月曆版新增的「今日」按鈕(取代原本的「年度」按鈕位置) | 前: v1.13-015 / 加monthlyCalendar翻譯key,配合新增的月曆版月份明細功能(更多功能區塊的入口按鈕文字) | 前: v1.13-014 / 加startUseBtn翻譯key(開場畫面簡化成只剩「開始使用」一個按鈕用) | 前: v1.13-013 / 加cloudBackupPausedMsg翻譯key,配合settings.js雲端備份暫停開放的提示文字 | 前: v1.13-012 / 【重要架構修正】把HIDE_COMPANY_FEATURES常數從app-core.js搬到這裡:原本定義在app-core.js,但index.html載入順序是settings.js先於app-core.js,settings.js如果引用這個常數會因為執行順序問題拋出ReferenceError讓整個頁面白屏。搬到common.js(所有檔案最先載入)當單一事實來源,兩邊都改成從匯入清單取得,不再各自宣告 | 前: v1.13-011 / gasBackupSubmit加profileJson參數(選填),配合GAS端Backups表新增輕資料欄位(店家/性別/班別/上下班時間),讓開場畫面LINE登入後能直接查backup-index.json拿到輕資料快速預填,不用等GAS也不用真的讀完整備份內容 | 前: v1.13-010 / 加gasDebugEcho前端封裝(暫時性除錯工具,排查雲端備份POST資料在傳輸過程有沒有遺失,確認完問題後應該移除) | 前: v1.13-009 / 文字修飾:pwdLoginBindWarn/pwdLoginTempNote把「此方式」/「此登入方式」這種模糊代稱改成明確講「密碼登入」,中越文都改 | 前: v1.13-008 / 加gasCheckStaffCode前端封裝(對應GAS既有的checkStaffCode,不需密碼即可查店家/性別/班別)。加restoreAskHint/restoreAskYes/restoreAskNo/restoreSourceHint/restoreSourceCloudBtn共5個翻譯key,配合開場畫面最終版流程圖 | 前: v1.13-007 / 加gasLogFlowEnter前端封裝,重用GAS既有的logFlowEnter端點,fire-and-forget記錄開場畫面4個關鍵時機點(密碼登入/LINE登入/取得userid/完成新裝置設定) | 前: v1.13-006 / 加新裝置開場畫面(Onboarding)重新設計用到的17個翻譯key:flowFirstUse/flowAlreadyUsed/restoreChoiceHint/restoreImportBtn/restoreLineBtn/restorePwdBtn/restoreImportHint/restoreImportPick/restoreImporting/restoreLineHint/restoreLineCheckHint/restoreLineCheckBtn/restoreLineNotFoundHint/restoreLineFreshBtn/pwdLoginOkTitle/pwdLoginBindWarn/skipForNow | 前: v1.13-005 / 雲端備份三個GAS包裝函式(gasBackupSubmit/gasBackupCheck/gasBackupFetch)改用lineUserId參數取代code,配合GAS端Backups表改用LINE userId當key。加lineLoginRequiredMsg翻譯key | 前: v1.13-004 / 新增LINE登入功能:INDEX_LIFF_ID常數(主程式專用,跟auth.html的AUTH_LIFF_ID是不同的兩組LIFF應用程式)+getMyLineUserId/setMyLineUserId/clearMyLineUserId(本機LINE userId存取,獨立key不跟settings混在一起)。加lineLoginXxx系列翻譯key | 前: v1.13-003 / 加JSON匯出相關翻譯key(jsonExportTitle/jsonExportDesc/jsonExportBtn/jsonExportOk/jsonExportFail),配合settings.js的備份區塊加回JSON檔案匯出功能 | 前: v1.13-002 / 加infoSavedDirectMsg翻譯key(基資/店資直接本機存檔成功的提示文字),配合app-core.js的1.13版免審核存檔功能 | 前: v1.13-001 / 進入1.13系列,版號改成全檔案統一對齊。本檔這輪內容未變動,僅標記版號起點 | 前: v1.12-077 / 新增「靜謐灰調」主題(quiet):THEMES加quiet:'#17161a',加themeQuiet中越文翻譯。實際CSS覆蓋規則(低彩度暖灰褐強調色,不用鮮豔色相)寫在index.html,一開始就正確處理帶透明度的amber class精確覆蓋(之前幾個主題事後才補的那種bug這次不會發生) | 前: v1.12-076 / 單價分段生效UI文字調整:(1)拿掉「已核准一筆單價調整申請」這種官方感敘述,改成簡潔的「自 DATE 起調整為 $AMOUNT（已核准）」(2)新增「申請中」狀態顯示——doSubmitTicket加pendingPrice參數存進本機pending紀錄,店資檢視畫面讀取後,如果有還沒核准的分段調整申請,一併顯示「自 DATE 起調整為 $AMOUNT（申請中）」,核准後pending紀錄會被清掉不會重複顯示。priceFutureNote改成priceFutureApproved/priceFuturePending兩個key | 前: v1.12-075 / 修正單價分段生效的2項問題:(1)【真正的bug】applyPriceFrom原本只會append新紀錄,同一天重複申請會在unitPriceHistory留下兩筆同日期紀錄,getUnitPriceForDate的比對邏輯(h.from>best.from)在日期完全相同時不會更新,導致先申請的那筆生效而不是後申請的——現在改成送出前先過濾掉同一天的舊紀錄,確保同一天只留最新那筆;getUnitPriceForDate的比較也加上=號多一層防禦(2)店資檢視畫面的單價欄位,原本核准了未來生效的分段價格完全看不出任何痕跡——現在改成如果unitPriceHistory裡有未來日期的紀錄,單價下方會顯示「已核准一筆單價調整申請,自XX起生效,調整為$XX」的提示文字。加priceFutureNote翻譯key | 前: v1.12-074 / 預先核准加入店資(S)/基資(B)兩個選項,預設不勾(N/F/A預先核准的邏輯是「主管已事先電話/當面確認過內容」,但店資/基資通常沒有這種事先確認的情境,直接勾等於完全不審核內容就同意變更,風險比較高,所以刻意不預設開啟),勾選後會顯示黃字警告提醒主管這是「不審核內容直接生效」。加preApproveBsWarn翻譯key | 前: v1.12-073 / 調整LINE登入申請主管流程3項:(1)訊息文字改成「目前登入的LINE帳號並未綁定主管權限」,語氣上不預設對方就是沒有主管資格(2)移除手動輸入編號欄位,改成一定要settings.code已存在(已用index.html的老師編號登入過)才能申請,settings.code不存在時改顯示「請先去主程式登入老師編號」的引導畫面,不接受隨便輸入不是自己的編號(3)按鈕文字改成「申請此LINE帳號綁定主管權限」,payload明確帶入level:1(實習副理,SUP_LEVELS裡本來就有這個職級,核准畫面的職級選單預設值也本來就是1,天然符合)。加liffNeedCodeFirst/liffGoLoginBtn翻譯key,移除不再使用的liffApplySupPh | 前: v1.12-072 / auth.html登入畫面4項改動:(1)偵錯資訊改成收合框,預設收合(2)LINE登入/重新授權按鈕下方加返回首頁按鈕(3)LINE登入成功但不是主管身分時,改顯示「你無主管權限」+輸入編號送出A票證(主管申請)的入口(4)預先核准功能加入A票證(主管申請)選項,搭配上面的申請流程,主管可以預先核准某人即將送出的主管申請。加liffNoSupPerm/liffApplySup系列/backHomeBtn/liffDiagToggle等翻譯key | 前: v1.12-071 / 移除LINE質感綠主題(跟森系植癒風太相近):THEMES物件跟中越文翻譯移除linegreen。修正5個新主題透明度覆蓋bug的CSS規則寫在index.html | 前: v1.12-070 / 新增4個主題:森系植癒風(forest)、日落金(sunset)、LINE質感綠(linegreen)、海洋藍(ocean)。THEMES物件加4個key,加對應中越文翻譯。實際CSS覆蓋規則寫在index.html | 前: v1.12-069 / 新增「霓虹科技」主題(neon):THEMES加neon:'#0b0f19',加themeNeon中越文翻譯「霓虹科技」/「Neon Công Nghệ」。實際CSS覆蓋規則(深色科技藍黑背景+青藍霓虹毛玻璃卡片+電光青色強調色+發光陰影)寫在index.html | 前: v1.12-068 / 修正預先核准的GitHub CDN延遲問題:老師端checkTicket原本邏輯有個缺口——如果actions.json(GitHub快取)顯示還沒核准就直接return,完全不會往下查GAS,如果CDN還沒跟上寫入(即使GAS端已經自動核准了),老師會被卡在「請稍候」畫面傻等。現在改成先查preapprove.json(GAS的preApprove/cancelPreApprove都會同步寫這份檔案),有生效中的預先核准紀錄就不信任actions.json的pending狀態,直接往下查GAS拿最新真實資料 | 前: v1.12-067 / 新增「預先核准」功能:主管已事先電話/當面跟老師確認過要送N(新老師啟動)或F(忘記密碼)票證時,可先設定預先核准,1小時內這個編號送出符合類型的票證會立即自動核准,不用等主管手動點核准。GAS加preApprove/getPreApprove/cancelPreApprove(存指令碼屬性PREAPPROVE_編號,固定1小時有效期不開放自訂),submitAction送出票證後檢查有沒有符合的預先核准紀錄。auth.html新增PreApproveBlock元件。common加gasPreApprove/gasGetPreApprove/gasCancelPreApprove包裝函式+preApprove系列翻譯key | 前: v1.12-066 / 新增主管專用「辭退」功能(區別於老師自願的離職流程):GAS的leaveTeacher加權限檢查(非本人操作時必須驗證操作者是主管/管理者身分,避免任何人代按別人離職)。auth.html新增DismissBlock元件(SupervisorPage/AdminPage都有),主管輸入員工編號→確認→呼叫gasLeaveTeacher(targetCode,myCode)。辭退後該員工仍可自行送R票證申請復職,跟自願離職共用同一套復職流程。common加normCode匯出(auth.html要用來比對員工編號)+dismiss系列翻譯key | 前: v1.12-065 / 新增離職限制機制(取代分散在各頁面的憑證檢查):新增syncMyStaffStatus(每日背景檢查時,順便去staff.json抓自己這筆的狀態存本機)+isStaffLeft(判斷是否離職,只有成功同步過且狀態是left才視為離職,從沒同步成功一律不限制)。加moreFuncBtn/moreFuncLeftMsg翻譯key,搭配首頁「更多功能」收合區塊 | 前: v1.12-064 / 穴道知識庫改成永久本機快取(fetchAcupoints優先讀localStorage,沒有才打網路抓再存下來),加clearAcupointsCache(憑證失效時清快取)、checkCredentialValid(跟notice-modal.js共用同一組憑證檢查快取,一天只查一次GAS)。加acupointNeedUnlock翻譯key | 前: v1.12-063 / auth.html的LIFF登入改成按鈕觸發,不再頁面載入就自動導轉liff.login()(自動導轉容易被瀏覽器的防護機制擋下來,尤其在一般瀏覽器直接開網址、非LINE App情境下)。加liffNeedLogin/liffLoginBtn/liffNeedReauth/liffReauthBtn翻譯key | 前: v1.12-062 / 加AUTH_LIFF_BASE共用常數('https://liff.line.me/2010673151-78xtxXg9'),票證通知的LINE分享連結全部改用這個LIFF網址開頭,不再直接用GitHub Pages網址,避免收到通知的人直接在LINE點開時觸發「permission is not in LIFF app scope」錯誤 | 前: v1.12-061 / auth.html主管/管理者身分改用LINE登入判定:加liffChecking翻譯key(等待LINE身分驗證中的提示文字),配合auth.html新增的LIFF登入+admin.cfg/supervisors.cfg比對機制 | 前: v1.12-060 / 單價分段生效功能:(1)新增getUnitPriceForDate(settings,y,m,d),依日期查對應單價,支援settings.unitPriceHistory分段紀錄陣列,沒有分段紀錄時退回settings.unitPrice(向下相容)(2)加priceAsk系列翻譯key,搭配店資申請流程的「全部套用/從某天開始套用」確認選單 | 前: v1.12-059 / 修正編號正規化問題(跟GAS端_normCode邏輯一致):新增normCode()函式,lockPwdCred()內部改用正規化後的編號計算憑證雜湊值,避免打「005」跟「5」算出不同雜湊值導致密碼登入失敗。⚠️注意:如果有老師的密碼是用帶前導0的編號原始設定的,這個修正後首次登入雜湊值會改變,理論上不影響(因為GAS端也同步用正規化後的編號查找/比對),但如果真的有人受影響,請聯繫回報 | 前: v1.12-058 / 修好2個真正的根本bug:(1)upsertCust從來沒處理tags欄位,不管流水打了什麼標籤,永遠不會存進客戶資料庫(現在改成新舊標籤聯集合併)(2)searchCustDB搜尋時完全沒比對tags欄位,現在加入,並自動去掉查詢字串開頭的#號(打「老點」或「#老點」都能搜到) | 前: v1.12-057 / 2項主題調整:(1)themeSmooth翻譯改為「黑紫色」/「Đen Tím」(2)THEMES加apple:'#f5f5f7',加themeApple中越文翻譯「極簡白」/「Trắng Tối Giản」。實際CSS覆蓋規則(中性灰階/藍色強調色/膠囊按鈕)寫在index.html | 前: v1.12-056 / 新增SmoothUI風格主題「質感玻璃」(smooth):THEMES加smooth:'#0d0d18',加themeSmooth中越文翻譯。實際的玻璃模糊/大圓角/紫色強調色CSS覆蓋規則寫在index.html | 前: v1.12-055 / 加acupointShareLine/acupointFavorite/acupointFavoritedHint翻譯key,搭配穴道知識庫LINE分享+收藏功能 | 前: v1.12-054 / 加acupointRecentSearch翻譯key,搭配穴道知識庫搜尋歷史功能 | 前: v1.12-053 / 穴道知識庫改成外部JSON檔案(data/acupoints.json),移除common.js裡內嵌的ACUPOINTS/ACUPOINT_BODYPARTS常數,改成fetchAcupoints()非同步載入函式。144個穴道全部補齊越南文(名稱/經脈/位置/保健用途/按摩手法/注意事項/搜尋關鍵字),共同翻譯14條經脈名稱對照表 | 前: v1.12-052 / 穴道知識庫大擴充:從使用者提供的完整資料匯入144個穴道(足部小腿25/肩膀20/上背20/下背19/臀部大腿20/手臂20/頭部20),每筆新增「所屬經脈」欄位,新增ACUPOINT_BODYPARTS部位分類清單。跳過1筆(長強穴,原文位置敏感且原文本身建議非專業不要操作,不予收錄)。目前只有中文內容,越南文留空 | 前: v1.12-051 / 新增穴道知識庫資料(ACUPOINTS,含5個範例穴道:太陽穴/肩井穴/合谷穴/足三里/湧泉穴,各自有中越文的位置/保健用途/按摩手法/注意事項/搜尋關鍵字)+相關UI翻譯key | 前: v1.12-050 / 補齊越南語系翻譯(雲端備份/登出/拒接名單說明/團購狀態分區/手套團購預設標題/截止時間提示等),並修正bug:團購「手套」預設標題改由前端依語系送出,不再讓GAS產生固定中文標題;首頁自動彈出的團購詢問彈窗,改成只在scope是店/全店時才觸發,「不公告」的團購不會主動打擾任何人 | 前: v1.12-049 / 團購系統補完:(1)發起表單預設自訂項目,手套已有進行中的會鎖定不可選(2)截止時間預設明天23:59,一般老師鎖定不可改只有主管能自訂(3)通知範圍加「不公告」選項(4)修正越南語系翻譯:狀態分區標籤/發起人文字/倒數天數時分單位/不需要人數,全部改用翻譯key而非硬編碼中文 | 前: v1.12-048 / 新增gasSetGroupBuyStatus(團購狀態可設為open/closed/collecting/shipping/ended,不只單純的開/關兩態),順便修正app-core.js既有漏洞:gasSetGroupBuyOrderStatus從沒被匯入bridge清單 | 前: v1.12-047 / 新增雲端備份(Backups工作表,存Drive檔案索引)+黑名單搜尋包裝函式 | 前: v1.12-046 / 忘記密碼流程改用專屬的resetLockPwd(GAS新增,跟setInitialPwd不同,不管原本有沒有密碼都直接覆蓋,不會被「已設定過密碼」擋掉),common加gasResetLockPwd包裝函式 | 前: v1.12-044 / 團購功能改版:(1)登記按鈕加轉圈圈避免連點(2)團購列表加編號徽章+已結束區塊(預設收合,原本已過期的完全不會顯示)(3)我登記的分頁改成可點進詳情看誰一起登記,加已交錢/已到貨兩個狀態按鈕(GAS加setGroupBuyOrderStatus,GroupBuyOrders加paid/arrived欄位)(4)我發起的分頁加金額計算(人數×單價)+底部小計 | 前: v1.12-043 / 主系統與安全回報LINE身分整合第一步:GAS加_findLineUserIdByCode(用老師編號/主管編號去查安全回報SafetyUsers表收集到的LINE userId,只要在任一LIFF專頁登記過就查得到,不用重複登記)+pushNoticeFlexToMe(把公告組成Flex卡片推播給發布人自己,共用gas-safetyreport.gs.txt裡的_linePushFlex,GAS專案裡多檔案共用作用域不用重複定義) | 前: v1.12-042 / 首頁新增自約/公告/圖表/建議/違規5個圖示(跟團購天災回報同排,加文字標籤),點擊沿用既有的sessionStorage導頁機制直接跳到設定頁對應分頁;設定頁分頁列拿掉這5個按鈕(底層頁面邏輯不受影響,還是能從首頁圖示開啟);建議功能從假資料+「功能建置中」改成真正接GAS(新增Suggestions工作表,submitSuggestion/listSuggestions,匿名者不回傳編號) | 前: v1.12-041 / 公告分類系統全面更新為8大分類+AI優先比對子分類機制:(1)Categories工作表改新內容(服務流程與SOP/工作紀律與態度/人事與出勤管理/現場清潔與衛生/公共空間與設備/業績表揚與激勵/安全防治與天災/內部行政與關懷共8個主分類,每個底下2~4個子分類,新增「分類定義與代表性範例說明」欄位給AI判斷用) (2)GAS的analyzeNotice/editNotice prompt加強:優先從既有子分類裡選最相近的,真的完全不符合才新增,新增時AI要一併給越南文譯名+定義說明,GAS收到後自動回存到Categories工作表(_saveNewSubcat,同分類下已存在就不重複寫入) (3)publishNotices發布時一併附上完整的8分類清單(中越文對照)到notices.json,前端分類分頁改讀這份固定清單(不再受「目前有沒有公告用到這個分類」限制),固定顯示「全部」+8個主分類共9顆按鈕 | 前: v1.12-040 / 天災調查管理優化+團購登記流程改版:(1)管理頁天災調查:已結束的可按X刪除(GAS加deleteDisasterSurvey),查詢日期從date輸入框改成「day1: 7/11」這種天數下拉選單(依startDate自動算) (2)首頁安全回報彈窗:主管以上(判斷LS裡supervisor-{code}的approved狀態)最下方會出現「查詢回報情形」按鈕,選day n後列出回報人員+狀況+時間(置右) (3)團購全面改版:「參加」全部改「登記」;點登記後彈出尺寸(手套限定)+數量(預設1)的表單,按「完成」才真的送出;「不需要」點了立即變灰且不可再按,團購卡片上會顯示不需要人數;myGroupBuyOrders改回傳含response欄位的完整記錄(不再只回join),讓灰色狀態重新整理後不會消失;「我的團購」改名「我登記的」,新增「我發起的」分頁,點進去看尺寸分組明細(手套會按尺寸分組列出人員,自訂項目列出登記人+數量)+提前結束按鈕 | 前: v1.12-039 / 修正天災回報日期bug+AI無回應+分類中越對照+多項UX:(1)【重大】Google Sheets會把日期字串自動轉成Date物件,導致「今天有沒有交過」「這天有沒有回報」的字串比對永遠對不上——這是造成「送6次都被當新紀錄」「管理頁查詢顯示0人已回報」的共同根源。GAS加_normDate()正規化,submitDisasterReport/myDisasterReports/disasterDayStatus都套用;submitDisasterReport順便改成每次都新增(不再upsert),搭配前端「新增一筆安全回報」設計 (2)gasAnalyze/gasTranslate原本用GET傳公告內容,太長時送不出去,改用POST(同一類bug第三次抓到,已全面掃過common.js確認沒有其他漏網之魚) (3)公告主/子分類改支援中越對照:Categories工作表新格式(中文主/越南文主/中文子/越南文子[,標籤]選填),notices()會查表附上catVi/subcatVi,notice-modal.js在越南文模式會顯示越南文分類名稱 (4)天災調查加通報範圍(單店/全店,預設不主動通報)+自訂通知內容,複製未回報名單訊息格式比照需求範例(調查名稱+自訂內容+今日尚未回報名單+平台連結) (5)DisasterReportModal改版:已回報過預設顯示「安全回報記錄」(今日回報摘要+歷史記錄),底部「新增一筆安全回報」按鈕才切回填寫表單,狀態顯示改用正確的中文標籤而非英文key | 前: v1.12-036 / 修正發布公告「GAS無回應」:gasAddNotice/gasEditNotice原本用GET(gasCall)傳整份公告內容,AI翻好越南文之後內容變長,GET網址可能超出長度限制送不出去或被擋掉。改用POST(gasCallPost),跟你們專案裡saveStaff/writeStaff同一套已經驗證過的解法(大資料量一律走POST) | 前: v1.12-035 / 修正auth.html重大bug+5項細節:(1)【重大】auth.html最上面錯誤攔截腳本裡有一處未跳脫的雙引號(誤植的span標籤`id="__fbkeep"`,引號沒加反斜線),導致這段JS語法錯誤、整個頁面白畫面——這是auth頁一直空白的真正原因,已修正(移除誤植的span,恢復純文字) (2)團購彈窗標題「手套團購」改「團購列表」(3)GroupBuyModal/DisasterReportModal的GAS查詢失敗時原本會卡在null狀態一直顯示「載入中」,改成失敗也要有明確結果(空陣列+錯誤訊息) (4)主管申請按鈕加busy狀態+轉圈圈圖示,按下後disable,避免GAS回應慢時被連續點擊產生多筆重複申請記錄 (5)debug.html加測試時間顯示(頁面上+複製的Markdown都有) | 前: v1.12-034 / 團購UX修正+匯出方式微調:(1)手套尺寸選擇從列表移除,改成按「參加」時才判斷——基資已有尺寸就直接用,沒有才彈出選擇(2)「參加」按鈕改依查詢結果狀態:已登記過的變灰字disabled顯示「已登記」,未登記才是亮色可按(3)檔尾匯出語法從`global.MP=`改成`window.MP=`(檔案本來就用`(function(global){...})(window)`包起來,global本來就等於window,這個改動語意不變、單純寫法更直覺,不是這次bug的真正原因) | 前: v1.12-033 / 團購與天災回報大擴充:(1)團購:GAS加item(手套/自訂)+amount(必填)+scope(通知範圍)+一般老師24小時截止限制(server端依staff role判斷,不是前端假限制);GroupBuyOrders加response欄位(join/decline),新增declineGroupBuy(正式記錄不需要)+logGroupBuyOpen(記錄點開看過)+closeGroupBuy(發起人提前結束)+groupBuyDetail(查參加/不需要/看過三份名單);手套尺寸選擇後自動同步回staff.gloveSize,下次自動帶出。index.html的GroupBuyModal全面改版:發起表單(項目/金額/截止/範圍)、列表項目由XX發起+倒數計時置右、參加/不需要雙按鈕、點進去看明細(發起人多看到不需要名單+開啟名單+提前結束鈕) (2)天災回報改架構:原本單次回報改成DisasterSurveys(調查)+DisasterReports(每日回報)兩層,不用再選天災類別(調查名稱本身就代表,如"0710強颱"),回報選項增加「其他」自訂文字;auth.html新增DisasterSurveyBlock(管理頁發起/結束調查,查某天回報狀況,複製未回報名單附app網址);index.html的DisasterReportModal改成先查有沒有進行中的調查,沒有就顯示提示,有就直接顯示回報表單(當天已回報過會顯示我的回報紀錄) | 前: v1.12-031 / 離職帳號復職申請+錯誤訊息露出:(1)GAS的loginPwd帳號停用時多回傳reason:'left'區分是不是離職;approveAction加R分支(復職核准:staff狀態改回active+金鑰恢復展延6個月,舊密碼不變不用重設) (2)index.html的忘記密碼送出前先用gasCheckCode檢查狀態,若已離職就導去復職申請流程(新增reinstateAsk/reinstateTicket兩個畫面);密碼登入頁偵測到reason==='left'同樣導去復職申請;登入/忘記密碼的錯誤訊息不再全部蓋成同一句,改成把GAS實際回傳的error內容一起顯示(方便之後排查) (3)auth.html的ActionTicketBlock加R類型支援 | 前: v1.12-029 / 鎖屏時間可調整+首頁每日提醒+團購+天災回報(大量新功能):(1)notice-modal.js/InfoEditModal的密碼鎖屏時間改讀settings.lockAutoTime(預設60分鐘,取代原本寫死5分鐘),settings.js新增「保護密碼」設定區塊(關閉首頁密碼要求開關+自動上鎖時間調整,最小5分鐘) (2)首頁新增每日一次的密碼要求彈窗(可在設定關閉),通過後背景做憑證檢查並記錄log(GAS加logDailyCheck) (3)基資新增手套尺寸欄位(XS/S/M/L/XL,預設M) (4)新增團購系統:GAS加GroupBuys/GroupBuyOrders工作表+createGroupBuy/listGroupBuys/joinGroupBuy/myGroupBuyOrders四個動作,首頁狀態列下方加購物車圖示開團購彈窗(團購/我的團購兩分頁,任何人可發起),每天檢查是否有未參加的進行中團購,有的話跳出加入提示 (5)新增天災安全回報:GAS加DisasterReports工作表+submitDisasterReport動作(送出時同步更新基資通訊縣市/鄉鎮),首頁狀態列下方加回報圖示,彈窗含日期/天災別/狀況多選,沒填通訊地址會先擋著要求填寫 (6)common加對應7個gas包裝函式+大量翻譯鍵 | 前: v1.12-028 / AI標題規則+憑證期限顯示+離職入口調整:(1)GAS analyzeNotice/editNotice的prompt加「標題不要跟主/子分類文字重疊」規則 (2)verifyKey回傳擴充:加expiresAt(到期日)+reason(left離職/expired逾期),供設定頁顯示憑證期限與原因 (3)離職按鈕從設定頁的CredentialCard移到首頁左上角店資彈窗的編輯按鈕左邊(index.html的InfoEditModal type=store專屬) | 前: v1.12-027 / AI分類規則+字詞庫擴充+公告下架:(1)GAS analyzeNotice/editNotice的prompt加主分類封閉清單限制(不可新增主分類,子分類可擴充)+字詞庫新詞偵測(行業敏感度),AI回傳的newGlossaryTerms自動存進GlossarySuggestions工作表待審核 (2)公告加下架/上架:common加gasToggleNoticeStatus包裝函式,GAS加toggleNoticeStatus動作 (3)buildNoticesJson加openers清單(誰開過的號碼,跟readers對稱),供notice-modal.js的開啟人員清單用 (4)發文者存檔格式加"號"字(如5號) | 前: v1.12-025 / 修正重大bug+重新加入離職/展期功能:上一版settings.js的bridge匯入清單`buildReqLink`重複宣告(跟原本申請碼系統的匯入撞名),導致Babel轉譯整個settings.js失敗、index.html白畫面當機。這次common.js加gasLeaveTeacher包裝函式+離職/展期相關翻譯鍵(內容不變,只是這次settings.js那邊改成正確只加缺少的識別字) | 前: v1.12-022 / 開啟次數改分人數/人次雙軌統計+體驗優化:(1)logNoticeOpen改每次都記(人次用),noticeOpens/buildNoticesJson同時算openCount(人數不重複)+openVisits(人次全部) (2)publishNotices加listText(標題/摘要)、countType(人數/人次)參數,存進script屬性NOTICE_DISPLAY_OPTS,publishNoticesJob(每天12點定時)沿用主管上次手動選的設定 (3)auth.html的NoticePublishBlock加「列表文字用標題/摘要」「開啟次數顯示人數/人次」兩組選項 (4)settings.js公告列表照新規格重排第二排:👤發布人→👁開啟次數→👍已讀人數→主/子分類(受顯示開關控制)→時間(置右),第一排文字改用主管選的標題或摘要 (5)已讀圖示全部改回👍(notice-modal.js詳情頁、已閱讀按鈕、index.html首頁列表),✓不再用於已讀狀態,首頁列表未讀狀態改用○ (6)效能優化:notice-modal.js/InfoEditModal(店資)的憑證檢查改成樂觀渲染——內容先顯示,背景查憑證,真的失效才即時擋掉,不再等GAS回應才顯示內容(這才是真正造成"打開變慢"的原因);開啟記錄呼叫延遲1.5秒觸發,不跟畫面顯示搶資源 (7)common加getNoticeListText/getNoticeCountType讀取函式+gasLogNoticeOpen包裝函式+相關翻譯鍵 | 前: v1.12-021 / 公告開啟記錄+體驗優化:(1)GAS加NoticeOpens工作表(logNoticeOpen/noticeOpens),同人同公告只記一次,跟已讀(readNotice)是兩層;publishNotices/buildNoticesJson一併把openCount寫進notices.json (2)notice-modal.js內容真的顯示出來(密碼+金鑰兩關都過)才自動記開啟;已讀圖示從👁改✓(避免跟開啟次數的👁撞圖示),detail header改成"👁開啟次數 ✓已讀人數"並列 (3)憑證有效性檢查改一天一次:加getCachedKeyCheck/setCachedKeyCheck,用localStorage存當日查過的結果,notice-modal.js跟InfoEditModal(店資)都套用,同一組key互通 (4)公告列表(settings.js NoticeManagePage)版面調整:第一排只留摘要+編輯鈕,第二排右側改放主/子分類合併顯示+開啟次數 | 前: v1.12-020 / 一次處理5項:(1)GAS加rejectAction(退回申請附理由),ActionTicketBlock加退回按鈕,老師端ticket畫面偵測rejected狀態→顯示理由+重新編輯按鈕(用changedList重建表單,不怕中途重新整理過) (2)語系選項從基資分頁移到首頁設定主題下方 (3)憑證有效期限:Keys表加expiresAt欄位,claimKey/batchClaim/N票證/A票證領取金鑰的當下才設6個月到期(不是主管核准當下),_keyValid/verifyKey都加到期檢查;notice-modal.js跟InfoEditModal(store)密碼關卡過了之後背景驗證金鑰,失效就擋內容(離職員工密碼還能用但看不到公司資料);InfoEditModal(basic)不擋檢視,只擋送出 (4)GAS加_ensureKeyExpirySet內部函式 (5)common加gasRejectAction/gasVerifyKey包裝函式+相關翻譯鍵 | 前: v1.12-019 / 一次處理多項:(1)票證查詢加申請時間/核准時間/核准人顯示,GAS checkAction回傳加createdAt (2)首頁基資彈窗:縣市/鄉鎮區改用TW_REGIONS連動下拉(桃園/新北/臺北/宜蘭排前面)、詳細地址下加"外籍員工"分隔線、越南姓名移到分隔線下、到期日改名工作證到期日、核發日/到期日改日期選擇器、就讀學校科系移到核發單位之下 (3)核准後同步寫入confirmedProfile/confirmedStore快照,避免底部設定❗提醒抓不到"已確認"而永遠亮著 (4)GAS加revokeSup(主管撤銷GAS化,不再需要revoked.cfg)+common加gasRevokeSup包裝函式 (5)auth.html移除舊的主管審核UI(parseSup/approveSupOnline/approveSupOnlineSup,SupervisorPage跟AdminPage各一份共兩處,已被A票證系統取代) | 前: 核准通知訊息依票證類型分開文案:auth.html的notifyApproved原本N/F/A/B/S五種票證都共用同一句「帳號已啟動」的文案,對F(忘記密碼)/A(主管申請)/B(基資)/S(店資)來說文不對題。改成依actionCode選對應文案(lineApprovedForgotPrefix/lineApprovedSupPrefix/lineApprovedBasicPrefix/lineApprovedStorePrefix),句尾加上點通知按鈕那位主管自己的登入編號,方便老師知道是誰核准的、有問題找誰 | 前: 基資/店資移入首頁彈窗,改可編輯+走票證審核+雙鎖屏:GAS approveAction加B(基資)/S(店資)分支(payload只含變更欄位,直接merge進staff,免像N/A那樣要組完整物件)。index.html新增InfoEditModal元件(取代原本的唯讀彈窗):畫面分三段——view(全部列出,按編輯才能改)/edit(可編輯,gender用按鈕/shift用按鈕/workStart-workEnd用整點半點下拉/storeSel用店家下拉,其餘文字輸入)/ticket(送出後畫面全清空,只留票證代碼+傳LINE給主管+檢查審核情形2顆按鈕+下方列出本次變更欄位,核准後自動merge回本機settings)。ticket狀態存localStorage(info-pending-{type}-{code}),重新整理停在原畫面不會重新申請。兩個彈窗都加密碼鎖屏閘門(沒設密碼先引導設定/設過但超過5分鐘要求解鎖),解鎖時間戳跟公告共用同一個key(解鎖一次兩邊都算),基資用「此頁含個人資訊」文案、店資沿用公司資料文案。App的updateSettings傳給HomePage(onUpdateSettings)供核准/設密碼後同步本機狀態。auth.html的ActionTicketBlock加B/S類型顯示(列出變更欄位清單)。common加ticketTypeB/ticketTypeS/lineTicketBasicPrefix/lineTicketStorePrefix/infoEditBtn/infoSubmitBtn/infoCancelBtn/infoNoChange/infoChangedTitle/infoPwdSetupBasicBody/infoPwdSetupStoreBody/infoPwdLockedBasicBody/infoPwdLockedStoreBody翻譯鍵 | 前: 主管申請GAS化,取消連線碼流程:GAS approveAction加A分支(核准當下把選的等級寫回payload,_staffUpsert設role:supervisor+level+status,順便產金鑰);checkAction對已核准的A票證額外帶回GH_TOKEN/GH_OWNER/GH_REPO(script屬性)+金鑰。common的gasApproveAction加level參數。auth.html的AuthGate的doApply/checkSupOnline全面改走GAS票證(gasSubmitAction/gasCheckAction),不再需要申請人本機先有GitHub Token才能申請(移除hasConn/needConnFirst擋關);checkSupOnline核准後直接呼叫saveGHConfigLocal存token,不再需要「已連線的主管產連線碼→申請人輸入」那段人工作業。ActionTicketBlock加A類型支援(核准前選主管等級,核准後顯示等級)。common加ticketTypeA/lineTicketSupPrefix翻譯鍵 | 前: 票證系統修正:(1)加大LINE相關按鈕(傳LINE/核准/通知)方便點擊(2)透過連結進auth.html時自動捲動到查詢代碼區塊(3)通知申請人已核准的LINE訊息內容改成親切問候語(不列細節)：「{code} 你好：你的帳號已啟動，請點擊網頁中的「檢查核定情形」來登入主頁，進行支數管理…」，取代原本只有編號的空訊息 | 前: 票證UI優化:主管審核頁核准後移除重複的「此申請已處理過」文字(跟「已核准✓」重複),改成核准後顯示「通知申請人 已核准」LINE分享按鈕(中越雙語並陳);查詢按鈕改成查到結果後變「清空」鈕,按下清空輸入框跟結果、鈕再變回查詢。老師端傳給主管、主管端通知老師的LINE訊息都改成同時附中文跟越南文(避免收件人語系跟寄件人不同看不懂)。common加ticketClearBtn/ticketNotifyBtn/lineApprovedPrefix翻譯鍵 | 前: 新老師啟動大修:GAS加syncProfile(快速通道admin.cfg/已核准的老師啟動時直接同步基本資料到Staff,修正原本快速通道完全沒呼叫GAS導致性別/班別/上下班/語系沒同步進staff的問題)+checkCode(查詢編號是否已是Staff裡的已啟動老師,新老師啟動頁"檢查"按鈕用)。approveAction的F(忘記密碼)分支改成核准當下直接套用老師預先設定好的新密碼(payload.lockPwdEnc),不用老師端再多一步呼叫updatePwd。common加gasSyncProfile/gasCheckCode包裝函式+相關翻譯鍵。版次號改回每波統一編號(不再各檔案獨立遞增),這波是v1.12-008 | 前: 公告密碼閘門+全檔版次對齊:notice-modal.js(v1.10-029→併入1.12系列)加密碼閘門——已啟動老師點開公告詳情時,若本機沒設過4位密碼→引導設定(文案:公告內容為公司資料需密碼保護,5分鐘內免重複輸入);若有設過但距上次解鎖超過5分鐘→要求輸入密碼才顯示內容。密碼比對純本機不查GAS(快),首次設定背景同步一份到GAS Staff(呼叫新增的setInitialPwd,已有密碼會被GAS拒絕,要走F忘記密碼流程改)。GAS加setInitialPwd。因是逢重大版次的整理點,index.html/auth.html/settings.js/notice-modal.js版號一併同步對齊至v1.12-004 | 前: 行為代碼+流水正式上線(N=新老師啟動,F=忘記密碼):GAS加Actions工作表(submitAction送出待審核/checkAction查狀態/approveAction主管核准/updatePwd忘記密碼核准後設新密碼/loginPwd密碼登入比對)+Staff單列讀寫輔助(_staffGet/_staffUpsert/_regenerateStaffJson,每次異動後重新編碼整包寫回staff.json維持舊讀取路徑相容)。common加lockPwdCred(密碼用老師編號當key加密,GAS只需字串比對不需解密)+5個GAS包裝函式(gasSubmitAction/gasCheckAction/gasApproveAction/gasUpdatePwd/gasLoginPwd)。新老師啟動不再把資料塞進encReg傳給主管,改成先送GAS存Staff拿流水號,傳給主管的短碼只有「N+流水號」;新老師啟動頁的性別/上下工時間UI改成時間下拉選單(只能選整點或30分)+進頁面預設抓當下時間下一個半小時、下工預設上工+12小時(手動調整後不再自動連動)、加班別(早/晚班)欄位。新增「已有帳號密碼登入」與「忘記密碼」流程(密碼登入換機免找主管要啟動碼;忘記密碼送F票證給主管核准後設新密碼,票證檢查按鈕按過一次若未核准會出現60秒倒數)。auth.html的SupervisorPage/AdminPage都加ActionTicketBlock(貼票證代碼查詢+核准,主管現在也能核准新老師,不再只限admin) | 前: 新老師啟動頁擴充:common加isValidPin(4位數解鎖密碼驗證,不可4碼相同或連續遞增/遞減)+T字典加lockPwd相關中越翻譯鍵;index.html的Onboarding新增性別/上下工時間/4位解鎖密碼欄位(密碼僅存本機,不隨註冊碼傳給主管;性別/上下工時間會編碼進encReg傳給主管審核);auth.html的decodeTeacher同步解析新增欄位,approveTeacherOnline建立staff時一併寫入 | 前: staff存檔搬Sheet(第一階段,只動寫入路徑,讀取不動):GAS加saveStaff(收前端xEnc加密的完整staff陣列→解密驗證→存Staff工作表[B方案,一列一人,code獨立欄+json欄]→容錯寫回GitHub staff.json維持讀取路徑不變,GitHub那步失敗不擋管理端操作只記log)。common的writeStaff()內部改呼叫GAS saveStaff(不再直接打GitHub API),函式簽名不變,auth.html約20處呼叫點都不用改。因staff整包資料量大,GET網址會超長,新增gasCallPost(POST+JSON body版,不設Content-Type避免CORS預檢)專門給大資料量動作用,writeStaff改用這個。因是大改動,版次號另起1.12系列 | 前: 公告線上編輯:GAS加editNotice(依ID找Notices列,先算有效值再找出主分類/子分類/標題/摘要/標籤裡的缺漏欄位,若有缺且內文非空→一次Gemini呼叫同時補缺欄位+把最終標題/摘要/內文翻越南文寫回,失敗自動重試1次,仍失敗仍算存檔成功回viOk:false讓前端顯示提醒;034.2再優化成缺欄位與翻譯合併一次呼叫省額度,已填欄位當context不被覆蓋);common加gasEditNotice(呼叫editNotice,逾時45秒因含AI) | 前: 新增公告完整流程:GAS加addNotice(自動產ID最大+1如L0305→L0306,寫進Notices Sheet新列,記log新增公告);common加gasAddNotice;settings新增公告Modal接功能:打內容→AI產生(gasAnalyze顯示可修改的分類/標題/摘要/標籤/越南文)→發布(gasAddNotice寫Sheet)+提示已發布需等更新才顯示;帶登入者編號 | 前: Gemini詳細log:GAS加_geminiLog每次呼叫記一列到GeminiLog工作表(時間/編號/功能);_gemini收meta(code/feature);translate/analyzeNotice收code+feature參數;common gasTranslate/gasAnalyze加code/feature參數;AITestBlock帶登入者編號(app-settings.code)+功能名(翻譯測試/分析測試).用途:歷史用量供未來收費參考+誰用什麼功能稽核 | 前: Gemini用量計數:GAS _gemini每次成功呼叫記一筆到GEMINI_USAGE屬性(日期:次數,換日歸零);加geminiUsage查詢(回today/used/limit250/remain);common加gasUsage;管理頁AITestBlock顯示今日已用X/250次剩Y次(剩≤20提示快用完).說明:一次analyzeNotice(分類+標題+摘要+翻譯)算1次RPD | 前: Gemini串接(GAS端):GAS加_gemini(呼叫gemini-2.5-flash,GEMINI_API_KEY屬性)+_readCategories(讀分類庫)+_readGlossary(讀行話表)+translateNotice(中文→越南文,用你優化的prompt+行話保一致)+analyzeNotice(內容→選分類/標籤+中文標題摘要+越南文,回JSON);common加gasTranslate/gasAnalyze;管理頁加AITestBlock(翻譯/完整分析測試,申請key後可測) | 前: 公告未閱讀人員清單+編號+複製催讀:GAS加_readStaff(讀staff.json用DECRYPT_KEY屬性XOR解密)+noticeUnread(在職老師-已讀,分早晚班);common加getNoticeUnread;notice-modal詳情主分類前加公告編號(N號),中間鈕改未閱讀人員(展開分早班/晚班/其他+複製鈕格式305號公告 未閱讀人員：早班 122 148/晚班 175),已閱讀人數改可點展開已讀清單 | 前: 公告詳情彈窗抽成共用元件notice-modal.js(index與公告頁共用,未來公告頁獨立不用大改);index改用元件(4827字元→精簡);設定公告頁列表第一排改摘要(越南語系顯示越文摘要空則中文)+點了彈完整詳情(雙語/已讀/閱讀人員);首頁彈窗更多公告→跳設定公告頁(onGotoNotices) | 前: 公告可勾選顯示欄位:公告更新加3勾選框(主分類/子分類/標籤,預設不勾不顯示,因chatgpt分類不準,校正好再勾);json加show:{cat,subcat,tags};老師端index詳情依getNoticeShow顯示分類/子分類/標籤(預設隱藏);設定公告頁(管理用)維持顯示cat方便校正 | 前: 公告更新可輸入筆數:管理頁NoticePublishBlock加兩輸入框(首頁筆數預設2/公告頁筆數預設10,0或空白清空);json結構改{homeCount,notices};GAS publishNotices收homeCount+listCount;fetchNotices相容新舊結構+存homeCount;首頁用getNoticeHomeCount取筆數;設定公告頁讀json顯示公告列表(取代空殼) | 前: 建議頁UI(先純UI假資料):設定建議分頁改SuggestPage,列表兩排(第一排標題+發布人,第二排內容+時間,匿名者發布人顯示隱藏),右上+新建議按鈕→Modal(標題+內容+匿名勾選+送出,先不功能),之後接GAS/Sheet | 前: 新增公告頁UI(先無功能):設定公告分頁改成公告管理(NoticeManagePage),右上+新增公告按鈕→跳Modal彈窗(只打內容框+AI產生鈕+發布鈕,AI依內容自動分類/標題/摘要/翻譯的設計,先留位不功能) | 前: 公告已讀統計靜態化(省GAS配額):GAS新增publishNotices(產最新2筆+每則已讀人數readCount/清單readers→寫notices.json到GitHub,需GAS設GH_TOKEN/GH_OWNER/GH_REPO屬性)+publishNoticesJob(每天12點定時觸發用);前端publishNotices改呼叫GAS action;老師端已讀人數/閱讀人員改從notices.json靜態讀(不查GAS),只點已讀即時寫GAS。人數延遲到下次更新(主管按/12點) | 前: 我已閱讀按鈕未讀改一般色(白底灰字)點後變綠已閱讀;閱讀人員功能:點閱讀人員→GAS查該公告閱讀清單(noticeReads加detail回readers編號+時間)→詳情內展開顯示已讀編號;getNoticeReaders | 前: 已閱讀實際功能(金鑰首次實際驗證用途):點我已閱讀帶金鑰→GAS驗金鑰身分→記NoticeReads工作表(同編號同公告只記一次)→回真實已讀人數;詳情顯示👁人數(取代寫死400);列表已讀顯✓;GAS加readNotice/noticeReads/_keyValid | 前: 金鑰領取診斷:管理頁加KeyDiagBlock(輸入編號模擬領取,顯示內建網址/領取碼有無填、shouldClaim判斷、HTTP狀態、GAS回應、成功或卡點原因);diagClaimKey函式。⚠️common的BUILTIN常數仍空,部署時需填回你的值 | 前: 設定分頁改名首頁設定→系統設定;系統設定連線狀況區加老師專屬憑證排(依hasMyKey顯示本機已領✓綠/未領) | 前: 公告列表精簡成兩排(第一排摘要+單/全店標籤黃/紅底白字圓框,第二排發布人時間+👍已閱讀數暫寫400);單全店用日期寫死(6/27全店其餘單店,展示用);中/VI切換保證至少一個亮(已亮的再點切到另一個) | 前: 公告詳情改三按鈕:我已閱讀(綠,點了自動抓金鑰)/閱讀人員(灰,建置中)/更多公告(灰,建置中);移除我有意見按鈕 | 前: 公告按鈕改掉alert彈窗:點了直接在按鈕下方顯示狀態(開通中⏳/已開通✓綠/失敗✗紅/建置中琥珀),不打斷操作不用按確認 | 前: 公告發布加分步進度+詳細錯誤:publishNotices回報卡在哪步(連GAS/GAS回應/讀GitHub/寫GitHub)及原因;gasCall加逾時參數,公告抓取用30秒(GAS冷啟動+資料量大);管理頁按鈕顯示⏳進度+紅字錯誤,方便回報卡點 | 前: 公告按鈕金鑰判斷:沒金鑰的老師點我已閱讀/我有意見→背景autoClaimKey開通(引導領金鑰,你的誘因設計);有金鑰→顯示功能建置中;沒金鑰時按鈕下方顯示開通提示 | 前: 公告改GitHub json架構:老師端fetchNotices強制讀./notices.json(公開免金鑰免GAS,無則空);管理者NoticePublishBlock按鈕(去GAS抓最新2筆→寫notices.json到GitHub,publishNotices);公告詳情下方加我已閱讀/我有意見按鈕(先UI,點顯示功能建置中);越南文顏色改emerald-600(白粉主題看得清);ghWriteFile支援建新檔 | 前: 公告階段2:首頁最新2則(改);GAS多讀越文標題(17欄)/越文摘要(18欄);列表依語系顯示標題摘要(noticeTitle/noticeSummary,越文空fallback中文)+發布人;詳情彈窗右上中/VI切換鈕(可單選雙選,預設跟隨語系,雙選時中越並陳)+發布人;修009的onGotoNotices未定義崩潰 | 前: 防護:公告函式呼叫加typeof檢查(防common快取舊版時version錯配崩潰)、getNoticesLocal確保回陣列(防舊資料非陣列)、latestNotices防護。舊裝置爆00030000是index新009+common舊快取的版本錯配,務必common也更新+清快取 | 前: 公告階段1:GAS加notices動作讀Notices工作表回JSON(不驗證);common加fetchNotices(讀GAS存本機notices-cache)/noticeBody(中越雙語)/noticeCats/noticeTags;首頁頂部加最新公告區塊(最新3則,點開詳情彈窗,雙語顯示) | 前: 首頁今日排請假(事/病/休)時顯示假別標籤、去掉支數金額(比照前一筆邏輯);GAS密碼UI改稱GAS連線密碼(不用ADMIN_SECRET字眼) | 前: 發碼即產金鑰(管理者手動發碼時,若已存adminSecret+有GAS,背景順便issueKey);老師啟用即領金鑰(輸入啟動碼啟用成功後背景autoClaimKey,靜默,失敗不影響啟用靠首頁banner下次再領) | 前: KeyGenBlock產金鑰元件(管理者用adminSecret產,存本機發過一次就免打);放在手動發碼下方+員工編輯區(編號自動抓當前員工);adminSecret本機存取getAdminSecret/setAdminSecret;GAS時間改台北時區;Log工作表記領取活動 | 前: 更新banner失敗時顯示具體錯誤原因(領取碼不符/尚未產金鑰/金鑰停用/連不到GAS/缺編號),對應GAS回傳的error方便診斷 | 前: 改用做法B專用領取碼(不放adminSecret):內建BUILTIN_GAS_URL(乾淨網址)+BUILTIN_BATCH_CODE(只能領金鑰的碼);autoClaimKey改呼叫batchClaim(GAS驗BATCH_CODE);洩漏危害極小,領完清空兩常數+GAS清BATCH_CODE即停用。GAS需更新含batchClaim版並設BATCH_CODE屬性 | 前: 內建GAS網址批量發放金鑰:common加BUILTIN_GAS_URL常數(空,你填網址+adminSecret)/shouldClaimKey/autoClaimKey;一進系統畫面下方(nav上方)顯示更新banner(已啟動老師+有內建網址+沒金鑰時),點了自動領金鑰存本機;領完或沒填網址則不顯示 | 前: GAS金鑰發放UI:管理者端產金鑰(輸入編號+adminSecret→顯示領取碼);老師端領金鑰(輸入領取碼→claimKey存本機,已有金鑰則不顯示);金鑰函式getMyKey/issueKey/claimMyKey;GAS測試鈕改實心綠底白字;GAS輸入框移除90%(只時間框需要) | 前: 【1.10 GAS整合階段】GAS呼叫層+預熱+設定頁GAS網址設定;時間框90% | 前: (增量重做)客戶編輯刪除鈕;月份明細捲到今日+高亮(綠框加強對比);首頁換頁時間點設定(預設06:30);圖表時間軸6點起(settings+auth都改);含022.1的groups修正 | 前版: 修iPhone Safari新老師輸入編號後00020000錯誤:(1)clipboard.writeText全部加.catch(Safari對剪貼簿權限嚴格會reject promise,同步try/catch抓不到);(2)unhandledrejection不再跳錯誤畫面只記錄(promise rejection多為背景async失敗,不應讓整頁變網站更新中,致命的js error仍會攔) | 前版: 員工完整資料編輯拆成兩區:基資完整資料+店資完整資料(店資含班別/上下班/備註/單價/技術指導/置物櫃+懷孕/油壓接不接切換鈕),各自存回staff | 前版: 【逢十全檔對齊】管理者員工編輯小畫面加完整資料檢視+編輯(解讀staff該員工所有欄位:姓名/電話/email/性別/地址/學校/工作證/班別/備註/置物櫃),改完一鍵存回staff | 前版: 手動發碼新建員工時,店家預設=發碼者所屬店家(原本寫死空白);老師線上核准時若老師沒填店家,fallback用發碼者店家 | 前版: 主管(SupervisorPage)補上線上審核主管申請功能(寫approved.cfg+staff,老師端可線上自動核准,等級限低於自己);之前主管審核只發離線碼、線上檢查不會過的斷點已修 | 前版: #3老點=1且有姓+稱謂自動加#老點標籤;#4連線碼LINE鈕改傳給老師;#6主管申請碼加傳LINE給主管鈕;#5連線碼可傳連結(老師點了自動帶入token啟用,補上原本缺的連線碼接收流程,長碼自動分段) | 前版: JSON完整備份補齊:加入客戶資料庫(custdb)與標籤歷史(tagHistory),還原一併復原(流水本來就含在月份資料);新增CHANGELOG.md | 前版: 備份碼匯入時每日total自動轉一筆流水(數字對得上,流水列表有資料),備份碼下方註明缺點(無法還原每筆明細);月份明細年度鈕改實心綠底白字(閱讀更清楚) | 前版: 客管頁加左右留白;每日進index讀staff同步基資店資(老師沒改的欄位跟staff一致,改過且不一致的保留本機值+欄位下方紅字顯示公司登記值,一致則無紅字) | 前版: 最後同步時間改永久顯示(修upd會被form覆蓋的bug);底部導覽年度薪資改客戶管理(加人物圖示);年度入口移到月份明細切換列首尾(上下半年都易達);年度頁加返回鈕 | 前版: #8修Safari相容(無參catch{}改catch(_e){},iOS舊Safari不支援導致新用戶輸入編號出錯);#10移除引導學習點A(不再強制寫入工作證到期日);#11 S22U主題背景改data-theme純CSS靜態(不靠JS動態改色);#9基資店資確認碼通過後主動讀staff同步+記錄最後同步時間
+   純 JS（不經 Babel）：加密、雜湊、GitHub API、i18n、儲存工具
+   index.html 與 auth.html 共用，確保加密邏輯單一來源
+   ════════════════════════════════════════════════════════════ */
+(function(global){
+'use strict';
 
-// 1.13版圖表重構:原本公司層級的班別比/性別比/上工人數/在線人數(loadStats讀stats.json)整個移除改成個人資料分析——
-// 討論結論:(1)區間切換(月/年/自訂範圍)留後再做,目前先用「本年度」當單一區間(2)熱力圖/長條圖都先做樣版,不急著二選一
-// (3)沿用原本的分頁切換UI(4)時間軸動態抓這個區間資料實際出現的最早/最晚小時,不同區間各自動態決定,不訂死一個全域範圍
-// (5)「只統計完整周」提案討論後改成:單周/單日的即時資料永遠照常顯示,只有做跨多周加總比較(周幾趨勢/加訪趨勢這兩個分頁)
-// 才排除掉本週(可能還沒過完)的資料,本週目前的即時數字另外用一行文字顯示,不整個隱藏看不到。詳見DEV_NOTES §45
-function ChartPage({t,settings,onClose}){
-  const[sub,setSub]=useState('heat');
-  const SUBS=[['heat',t.chartTabHeat],['weekday',t.chartTabWeekday],['extra',t.chartTabExtra]];
-  const year=settings.year||new Date().getFullYear();
-  // 目前先用「本年度」當統計區間(區間切換功能留後再加),之後加了範圍選擇,這裡改傳對應範圍的流水即可,
-  // 下面的personalChartStats本身就是「這個區間」各自動態算最早/最晚小時+動態週排除,不用額外改寫
-  const allSlips=useMemo(()=>collectAllSlips(settings.code,year),[settings.code,year]);
-  const stats=useMemo(()=>personalChartStats(allSlips.map(s=>({time:s.startTime,units:s.units}))),[allSlips]);
-  const WD_ZH=['日','一','二','三','四','五','六'];
-  const WD_VI=['CN','T2','T3','T4','T5','T6','T7'];
-  const WD=t===T.zh?WD_ZH:WD_VI;
-  const noData=stats.totalSlips===0&&stats.curWeek.slips===0;
-  // 熱力圖:weekday(縱)×hour(橫,動態只顯示minHour~maxHour),顏色深淺依單位數佔最大值比例
-  const heatView=()=>{
-    const hours=stats.hourOrder||[];
-    if(hours.length===0)return<p className="text-sm text-gray-500 text-center py-8">{t.chartNoSlipData}</p>;
-    const max=Math.max(1,...stats.heat.flat());
-    const order=[1,2,3,4,5,6,0]; // 周一~周日的顯示順序
-    return(<div className="space-y-2">
-      <p className="text-xs text-gray-500">{t.chartHeatDesc}</p>
-      <div className="overflow-x-auto">
-        <div style={{display:'inline-block'}}>
-          <div className="flex gap-[2px] pl-6 mb-1">{hours.map(h=>(<span key={h} className="text-[9px] text-gray-600 tabular-nums" style={{width:16,textAlign:'center'}}>{h}</span>))}</div>
-          {order.map(wd=>(<div key={wd} className="flex items-center gap-[2px] mb-[2px]">
-            <span className="text-[10px] text-gray-500 w-5 text-right pr-1">{WD[wd]}</span>
-            {hours.map(h=>{const v=stats.heat[wd][h]||0;const ratio=v/max;const bg=v===0?'rgba(255,255,255,0.03)':`rgba(217,119,6,${0.15+ratio*0.75})`;return<div key={h} title={`${WD[wd]} ${h}:00 — ${v}`} style={{width:16,height:16,background:bg,borderRadius:3}}></div>})}
-          </div>))}
-        </div>
-      </div>
-      {stats.curWeek.slips>0&&<p className="text-xs text-amber-400/90 pt-1">{(t.chartCurWeekNote||'').replace('{0}',stats.curWeek.slips)}</p>}
-    </div>);
-  };
-  // 長條圖:周幾單位數趨勢(idea 2),x軸固定周一~周日,排除本週(跨週加總比較)
-  const weekdayView=()=>{
-    const max=Math.max(1,...stats.weekdayTotals);
-    const order=[1,2,3,4,5,6,0];
-    const total=stats.weekdayTotals.reduce((a,b)=>a+b,0);
-    if(total===0)return<p className="text-sm text-gray-500 text-center py-8">{t.chartNoSlipData}</p>;
-    return(<div className="space-y-2">
-      <p className="text-xs text-gray-500">{t.chartWeekdayDesc}</p>
-      <div className="space-y-1.5">{order.map(wd=>{const v=stats.weekdayTotals[wd]||0;return(<div key={wd} className="flex items-center gap-2"><span className="text-[11px] text-gray-500 w-5 text-right">{WD[wd]}</span><div className="flex-1 h-4 bg-white/[0.03] rounded-sm overflow-hidden"><div className="h-full rounded-sm" style={{width:(v/max*100)+'%',background:'#D97706'}}></div></div><span className="text-[10px] tabular-nums w-6 text-gray-500">{v||''}</span></div>)})}</div>
-      {stats.curWeek.slips>0&&<p className="text-xs text-amber-400/90 pt-1">{(t.chartCurWeekNote||'').replace('{0}',stats.curWeek.slips)}</p>}
-    </div>);
-  };
-  // 長條圖:單日流水數超過1筆的分布趨勢(idea 3),排除本週(跨週加總比較)
-  const extraView=()=>{
-    const keys=['2','3','4','5+'];
-    const vals=keys.map(k=>stats.extraDist[k]||0);
-    const max=Math.max(1,...vals);
-    const total=vals.reduce((a,b)=>a+b,0);
-    return(<div className="space-y-2">
-      <p className="text-xs text-gray-500">{t.chartExtraDesc}</p>
-      {total===0?<p className="text-sm text-gray-500 text-center py-6">{t.chartNoSlipData}</p>:
-      <div className="space-y-1.5">{keys.map((k,i)=>{const v=vals[i];return(<div key={k} className="flex items-center gap-2"><span className="text-[11px] text-gray-500 w-8 text-right">+{k}</span><div className="flex-1 h-4 bg-white/[0.03] rounded-sm overflow-hidden"><div className="h-full rounded-sm" style={{width:(v/max*100)+'%',background:'#7C3AED'}}></div></div><span className="text-[10px] tabular-nums w-10 text-gray-500">{v?`${v} ${t.chartExtraDaysUnit}`:''}</span></div>)})}</div>}
-      {stats.curWeek.extraDays>0&&<p className="text-xs text-amber-400/90 pt-1">{(t.chartCurWeekNote||'').replace('{0}',stats.curWeek.slips)}</p>}
-    </div>);
-  };
-  return(<div className="fi space-y-4">
-    <div className="sticky top-0 z-10 -mx-4 px-4 py-1 bg-gray-950 flex items-center justify-center"><h2 className="text-sm font-semibold text-gray-300">{t.tabChart}</h2></div>
-    <div className="flex gap-1 bg-white/[0.03] rounded-lg p-1 overflow-x-auto">{SUBS.map(([id,label])=>(<button key={id} onClick={()=>setSub(id)} className={`flex-1 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold ${sub===id?'bg-amber-600 text-white':'text-gray-500'}`}>{label}</button>))}</div>
-    {noData?<p className="text-sm text-gray-500 text-center py-8">{t.chartNoSlipData}</p>:(<div className="space-y-3">
-      {sub==='heat'&&heatView()}
-      {sub==='weekday'&&weekdayView()}
-      {sub==='extra'&&extraView()}
-      <p className="text-[11px] text-gray-500 text-center">{t.statTotal} {stats.totalSlips} · {t.chartUpdatedAt}：{new Date(stats.updatedAt).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</p>
-      <p className="text-[10px] text-gray-600 text-center">{t.chartMockupHint}</p>
-    </div>)}
-  </div>);
-}
+/* ══════════ localStorage ══════════ */
+const LS={
+  get(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(_e){return null}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){console.error(e)}},
+};
+/* LS key map (cache offsets) */
+const _m=[['key.cfg',18,3],['admin.cfg',18,3],['revoked.cfg',49,3],['revoked.cfg',10,3],['key.cfg',31,3],['stores.cfg',44,3],['key.cfg',38,3],['key.cfg',58,3],['revoked.cfg',32,2],['admin.cfg',34,2],['revoked.cfg',16,3],['admin.cfg',26,2],['stores.cfg',1,2],['stores.cfg',21,3],['admin.cfg',25,2],['revoked.cfg',8,2],['key.cfg',53,3],['key.cfg',6,3],['stores.cfg',12,3],['revoked.cfg',50,3],['revoked.cfg',11,3],['key.cfg',45,2],['admin.cfg',0,2],['revoked.cfg',0,3]];
+const _v='031706';
+function _sel(){const o=[];for(let i=0;i<_v.length;i+=2)o.push(parseInt(_v.substr(i,2),10)-3);return o}
 
-function BackupSection({settings,t,onUpdate,lineUserId}){
-  // 雲端備份:直接用編號存進GAS,換手機後查詢就能還原,不用行為代碼/LINE分享這一層
-  const[cloudBusy,setCloudBusy]=useState(false);
-  const[cloudMsg,setCloudMsg]=useState(null);
-  // 1.13-019:Email雲端備份——填了Email,每日第一次開啟App會自動備份到雲端(app-core.js的doDailyEmailBackup);儲存Email當下也立刻備份一次
-  const[emailInput,setEmailInput]=useState(settings.email||'');const[emailMsg,setEmailMsg]=useState(null);const[emailBusy,setEmailBusy]=useState(false);
-  const saveEmail=async()=>{
-    const em=normEmail(emailInput);
-    if(em&&!isValidEmail(em)){setEmailMsg({ok:false,text:t.emailInvalid||'Email 格式不正確'});return}
-    const updated=Object.assign({},settings,{email:em});
-    if(onUpdate)onUpdate(updated);
-    if(!em){setEmailMsg({ok:true,text:t.emailClearedMsg});return}
-    setEmailBusy(true);setEmailMsg(null);
-    const r=await doEmailBackupNow(updated);
-    setEmailBusy(false);
-    setEmailMsg(r&&r.ok?{ok:true,text:t.emailSavedMsg}:{ok:false,text:(t.emailSavedFailMsg||'')+((r&&r.error)||'')});
-  };
-  const[cloudCheck,setCloudCheck]=useState(null); // null=還沒查/{found:false}/{found:true,year,updatedAt}
-  const[cloudConfirm,setCloudConfirm]=useState(false);
-  const[cooldownUntil,setCooldownUntil]=useState(0); // 備份成功後,查詢按鈕要冷卻到這個時間點才能按(Google Drive寫入後不會馬上就查得到)
-  const[cooldownTick,setCooldownTick]=useState(0);
-  useEffect(()=>{if(!cooldownUntil)return;const iv=setInterval(()=>setCooldownTick(x=>x+1),1000);return()=>clearInterval(iv)},[cooldownUntil]);
-  const cooldownLeft=cooldownUntil?Math.max(0,Math.ceil((cooldownUntil-Date.now())/1000)):0;
-  // 1.13版:LINE登入按鈕移到SettingsPage(語系設定下方),這裡透過props接收lineUserId,不再自己管理登入狀態
-  // v1.13-012:雲端備份正式開放,不再有CLOUD_BACKUP_DISABLED/測試用假userId這類暫時性開關——
-  // 2026-10-01已實測verify過GAS↔Sheets↔Drive這條路本身沒問題(見DEV_NOTES §31),真正的識別一律用登入拿到的真實lineUserId。
-  // 手動「備份到雲端」/「查詢雲端備份」/還原這幾個按鈕拿掉,改成:只要設定頁登入LINE,每日第一次打開App時
-  // (app-core.js的doDailyAutoCloudBackup)就會自動備份一次,使用者不用自己記得按。
-  // doCloudCheck/doCloudRestore函式本身保留(隱藏不刪除),只是沒有UI入口呼叫,方便之後如果要在別的地方
-  // (例如換新裝置時的還原流程)重新接上
-  const doCloudBackup=async()=>{
-    if(!lineUserId){setCloudMsg({ok:false,text:t.lineLoginRequiredMsg||'請先用LINE登入才能使用雲端備份'});return}
-    setCloudBusy(true);setCloudMsg(null);
-    try{
-      const obj=makePersonalBackup(settings.code,settings.year);
-      const jsonStr=JSON.stringify(obj);
-      const profileJson=JSON.stringify({store:settings.store||'',gender:settings.gender||'',shift:settings.shift||'',workStart:settings.workStart||'',workEnd:settings.workEnd||''});
-      const r=await gasBackupSubmit(lineUserId,settings.code,settings.year,jsonStr,profileJson);
-      if(r&&r.ok){setCloudMsg({ok:true,text:t.cloudBackedUpMsg.replace('{0}',settings.year)});setCooldownUntil(Date.now()+60000)}
-      else setCloudMsg({ok:false,text:(r&&r.error)||'備份失敗'});
-    }catch(e){setCloudMsg({ok:false,text:String(e)})}
-    setCloudBusy(false);
-  };
-  // 暫時性除錯工具:排查雲端備份POST資料遺失問題用,跟doCloudBackup用完全一樣的參數組合,
-  // 但呼叫debugEcho(不做任何實際寫入),直接把GAS實際收到什麼原樣顯示出來。確認完問題後這整段要移除
-  const[debugResult,setDebugResult]=useState(null);
-  const[debugBusy,setDebugBusy]=useState(false);
-  const doDebugEcho=async()=>{
-    if(!lineUserId){setDebugResult({ok:false,error:'請先登入LINE'});return}
-    setDebugBusy(true);setDebugResult(null);
-    try{
-      const obj=makePersonalBackup(settings.code,settings.year);
-      const jsonStr=JSON.stringify(obj);
-      const r=await gasDebugEcho({lineUserId:lineUserId,code:settings.code,year:settings.year,jsonData:jsonStr});
-      setDebugResult(r);
-    }catch(e){setDebugResult({ok:false,error:String(e)})}
-    setDebugBusy(false);
-  };
-  const doCloudCheck=async()=>{
-    if(!lineUserId){setCloudMsg({ok:false,text:t.lineLoginRequiredMsg||'請先用LINE登入才能使用雲端備份'});return}
-    if(cooldownLeft>0)return;
-    setCloudBusy(true);setCloudMsg(null);setCloudConfirm(false);
-    try{
-      const r=await gasBackupCheck(lineUserId);
-      if(r&&r.ok)setCloudCheck(r);
-      else setCloudMsg({ok:false,text:(r&&r.error)||'查詢失敗'});
-    }catch(e){setCloudMsg({ok:false,text:String(e)})}
-    setCloudBusy(false);
-  };
-  const doCloudRestore=async()=>{
-    if(!lineUserId){setCloudMsg({ok:false,text:t.lineLoginRequiredMsg||'請先用LINE登入才能使用雲端備份'});return}
-    setCloudBusy(true);setCloudMsg(null);
-    try{
-      const r=await gasBackupFetch(lineUserId);
-      if(r&&r.ok){
-        let obj;try{obj=JSON.parse(r.jsonData)}catch(_e){setCloudMsg({ok:false,text:'備份內容毀損'});setCloudBusy(false);return}
-        const parsed=parsePersonalBackup(obj);
-        if(!parsed.ok){const map={notBackup:t.jsonNotBackup,broken:t.jsonBroken,modified:t.jsonModified};setCloudMsg({ok:false,text:map[parsed.reason]||t.jsonBroken});setCloudBusy(false);return}
-        restorePersonalBackup(parsed);
-        setCloudMsg({ok:true,text:'✓ 已還原，重新整理頁面套用'});
-        setTimeout(()=>location.reload(),1200);
-      }else{setCloudMsg({ok:false,text:(r&&r.error)||'還原失敗'})}
-    }catch(e){setCloudMsg({ok:false,text:String(e)})}
-    setCloudBusy(false);
-  };
-  const doJsonExport=async()=>{
-    try{
-      const obj=makePersonalBackup(settings.code,settings.year);
-      const jsonStr=JSON.stringify(obj,null,2);
-      const today=new Date();
-      const dateStr=today.getFullYear()+String(today.getMonth()+1).padStart(2,'0')+String(today.getDate()).padStart(2,'0');
-      const fileName=`備份_${settings.code}_${settings.year}_${dateStr}.json`;
-      // LINE內建瀏覽器(WebView)對<a download>這種傳統下載機制支援不完整,點了常常沒反應。
-      // 優先偵測手機原生分享功能能不能分享檔案,支援的話跳出分享選單(可以選「儲存到檔案」、傳給自己、AirDrop等),
-      // 不支援(例如舊版瀏覽器)才fallback回傳統下載機制
-      try{
-        const file=new File([jsonStr],fileName,{type:'application/json'});
-        if(navigator.canShare&&navigator.canShare({files:[file]})){
-          await navigator.share({files:[file],title:fileName});
-          setCloudMsg({ok:true,text:t.jsonExportOk||'已匯出JSON檔案'});
-          return;
-        }
-      }catch(shareErr){
-        if(shareErr&&shareErr.name==='AbortError')return; // 使用者自己取消分享,不算失敗,不用顯示錯誤訊息
-      }
-      const blob=new Blob([jsonStr],{type:'application/json'});
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a');
-      a.href=url;a.download=fileName;
-      document.body.appendChild(a);a.click();document.body.removeChild(a);
-      setTimeout(()=>URL.revokeObjectURL(url),1000);
-      setCloudMsg({ok:true,text:t.jsonExportOk||'已匯出JSON檔案'});
-    }catch(e){setCloudMsg({ok:false,text:t.jsonExportFail||'匯出失敗'})}
-  };
-  // 1.13版:匯入本地備份檔,從開場畫面搬過來,跟匯出湊成一對,不再只是新裝置啟動時的一次性機會
-  const[importBusy,setImportBusy]=useState(false);
-  const doImportFile=async(file)=>{
-    if(!file)return;
-    setImportBusy(true);setCloudMsg(null);
-    try{
-      const text=await file.text();
-      const obj=JSON.parse(text);
-      const parsed=parsePersonalBackup(obj);
-      if(!parsed.ok){const map={notBackup:t.jsonNotBackup,broken:t.jsonBroken,modified:t.jsonModified};setCloudMsg({ok:false,text:map[parsed.reason]||t.jsonBroken});setImportBusy(false);return}
-      restorePersonalBackup(parsed);
-      setCloudMsg({ok:true,text:'✓ 已還原，重新整理頁面套用'});
-      setTimeout(()=>location.reload(),1200);
-    }catch(_e){setCloudMsg({ok:false,text:t.jsonBroken});setImportBusy(false)}
-  };
-  // v1.13-012:備份頁UI依是否登入LINE整個分岔——
-  // 沒登入LINE:只顯示手動匯出/匯入區塊(雲端備份需要身分識別,沒登入就不提供)
-  // 有登入LINE:雲端備份改成全自動(每日第一次開啟App時由app-core.js觸發),這裡不再放手動備份/查詢/還原按鈕,
-  // 只留靜態說明文字告知使用者「已自動備份」,手動匯出/匯入仍然保留當作額外備援管道
-  return(<div className="space-y-3 pt-4 border-t border-white/[0.06]"><h3 className="text-sm font-semibold text-amber-400">{t.backup}</h3>
-    <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-3 space-y-2">
-      <p className="text-sm font-semibold text-gray-200">{t.jsonExportTitle||'匯出備份檔案'}</p>
-      <p className="text-[11px] text-gray-500 leading-relaxed">{t.jsonExportDesc||'下載一份本年度資料的JSON檔案，自行保存在手機或電腦，不上傳雲端。'}</p>
-      <button onClick={doJsonExport} className="w-full py-2.5 rounded-xl bg-white/[0.08] border border-white/[0.1] text-gray-200 text-sm font-semibold active:bg-white/[0.14]">{t.jsonExportBtn||'匯出JSON檔案'}</button>
-      <label className="block w-full py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-gray-400 text-sm font-semibold text-center cursor-pointer active:bg-white/[0.08]">
-        {importBusy?(t.restoreImporting||'處理中…'):(t.restoreImportBtn||'匯入備份檔')}
-        <input type="file" accept=".json,application/json" className="hidden" disabled={importBusy} onChange={e=>{const f=e.target.files&&e.target.files[0];doImportFile(f);e.target.value=''}}/>
-      </label>
-    </div>
-    <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-3 space-y-2">
-      <p className="text-sm font-semibold text-gray-200">{t.emailBackupTitle}</p>
-      <p className="text-[11px] text-gray-500 leading-relaxed">{t.emailBackupDesc}</p>
-      <p className="text-[11px] text-amber-300/80 leading-relaxed">{t.emailPrivacy}</p>
-      <input type="email" inputMode="email" autoComplete="email" autoCapitalize="none" value={emailInput} onChange={e=>{setEmailInput(e.target.value);setEmailMsg(null)}} placeholder="name@example.com" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>
-      {emailMsg&&<p className={`text-xs ${emailMsg.ok?'text-emerald-400':'text-red-400'}`}>{emailMsg.text}</p>}
-      <button onClick={saveEmail} disabled={emailBusy} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-semibold disabled:opacity-60">{emailBusy?'…':t.emailSaveBtn}</button>
-    </div>
-    {lineUserId&&(
-    <div className="bg-emerald-500/[0.06] border border-emerald-500/20 rounded-xl p-3 space-y-2">
-      <p className="text-sm font-semibold text-emerald-400">{t.cloudBackupTitle}</p>
-      <p className="text-[11px] text-gray-500 leading-relaxed">{t.cloudBackupDesc}</p>
-      <p className="text-xs text-emerald-400/90">{t.cloudAutoBackupActiveMsg}</p>
-      {cloudMsg&&<p className={`text-xs ${cloudMsg.ok?'text-emerald-400':'text-red-400'}`}>{cloudMsg.text}</p>}
-      <div className="pt-2 border-t border-dashed border-white/[0.08] space-y-1.5">
-        <p className="text-[10px] text-amber-500/70">⚠ 暫時性除錯工具，排查完問題後會移除</p>
-        <button onClick={doDebugEcho} disabled={debugBusy} className="w-full py-2 rounded-lg bg-white/[0.05] border border-white/[0.1] text-gray-400 text-xs disabled:opacity-50">{debugBusy?'檢查中…':'除錯：檢查GAS實際收到什麼'}</button>
-        {debugResult&&<pre className="bg-black/40 rounded-lg p-2 text-[10px] text-gray-300 overflow-x-auto whitespace-pre-wrap break-all">{JSON.stringify(debugResult,null,2)}</pre>}
-      </div>
-    </div>
-    )}
-  </div>);
-}
-
-/* ══════════ Settings ══════════ */
-/* ══════════ Settings (slim — admin/supervisor 移至 auth.html) ══════════ */
-// 客管分頁(老師端:流水hashtag統計 + 姓名/手機搜流水,不碰自約客)
-function CustomerPage({t,settings,onClose}){
-  const[mode,setMode]=useState('search'); // 預設客戶管理(搜尋)
-  const[openTag,setOpenTag]=useState(null);
-  const[openHistory,setOpenHistory]=useState(null); // 目前展開歷史記錄的客戶key
-  const[q,setQ]=useState('');
-  const[editCust,setEditCust]=useState(null);const[delConfirm,setDelConfirm]=useState(false);
-  const[blSubmitting,setBlSubmitting]=useState(null); // 目前正在送出中的候選key
-  const blSubKey='bl-submitted-'+settings.code;
-  const[blSubmitted,setBlSubmittedRaw]=useState(()=>{try{return LS.get(blSubKey)||{}}catch(_e){return {}}}); // key -> {reqId,status}
-  const setBlSubmitted=(updater)=>{setBlSubmittedRaw(prev=>{const next=typeof updater==='function'?updater(prev):updater;try{LS.set(blSubKey,next)}catch(_e){}return next})};
-  const[blCheckBusy,setBlCheckBusy]=useState(null);
-  const year=settings.year||new Date().getFullYear();
-  const custList=useMemo(()=>{return (q||'').trim()?searchCustDB(settings.code,q):recentCust(settings.code,10)},[q,settings.code,mode,editCust]);
-  const saveCust=()=>{if(!editCust)return;upsertCust(settings.code,editCust);setEditCust(null)};
-  const allSlips=useMemo(()=>collectAllSlips(settings.code,year),[settings.code,year]);
-  const tags=useMemo(()=>tagStats(allSlips),[allSlips]);
-  const blCandidates=useMemo(()=>{
-    const seen={};const out=[];
-    allSlips.filter(s=>s.blacklist&&(s.custName||'').trim()&&(s.custPhone||'').trim()).forEach(s=>{
-      const key=(s.custPhone||'')+'|'+(s.custName||'')+'|'+(s.custTitle||'')+'|'+s.id;
-      if(seen[key])return;seen[key]=true;
-      const ms=s.startAt||s.createdAt;const d=new Date(ms);
-      const startAtStr=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
-      out.push({key,custName:s.custName,custTitle:s.custTitle,custPhone:s.custPhone,reason:s.blacklistReason||'騷擾',svc:s.svc||'',startAt:startAtStr});
-    });
-    return out;
-  },[allSlips]);
-  const doBlSubmit=async(cand)=>{
-    setBlSubmitting(cand.key);
-    try{
-      const r=await gasBlacklistSubmit(settings.code,cand.custName,cand.custTitle,cand.custPhone,cand.reason,cand.svc,cand.startAt);
-      if(r&&r.ok){setBlSubmitted(m=>({...m,[cand.key]:{reqId:r.reqId,status:'pending'}}))}
-      else{alert((r&&r.error)||'送出失敗')}
-    }catch(e){alert(String(e))}
-    setBlSubmitting(null);
-  };
-  const doBlRecheck=async(key)=>{
-    const rec=blSubmitted[key];if(!rec)return;
-    setBlCheckBusy(key);
-    try{const r=await gasBlacklistCheck(rec.reqId);if(r&&r.ok)setBlSubmitted(m=>({...m,[key]:{...m[key],status:r.status}}))}catch(_e){}
-    setBlCheckBusy(null);
-  };
-  const doBlShare=(cand,reqId)=>{
-    const base=location.origin+location.pathname.replace(/index\.html$/,'')+'auth.html';
-    const link=buildReqLink(base,reqId);
-    sendTicketFlex('🚫 拒接申請審核通知','請協助審核'+settings.code+'號老師的拒接申請，代碼：',link);
-  };
-  const fmtDT=(s)=>`${s.month}/${s.day} ${String(new Date(s.startTime).getHours()).padStart(2,'0')}:${String(new Date(s.startTime).getMinutes()).padStart(2,'0')}`;
-  const tagSlips=openTag?allSlips.filter(s=>(s.tags||[]).includes(openTag)):[];
-  const found=mode==='search'?searchSlips(allSlips,q):[];
-  const slipRow=(s)=>(<div key={s.id} className="flex items-center gap-2 px-3 py-2 bg-white/[0.03] border border-white/[0.05] rounded-lg"><span className="text-sm font-bold text-amber-300 min-w-[3rem]">{slipSvcLabel(s,t===T.zh?"zh":"vi")}</span><span className="text-xs text-gray-400 tabular-nums w-20">{fmtDT(s)}</span><div className="flex-1 min-w-0"><span className="text-xs text-gray-300">{s.custName||''}{s.custTitle?' '+bookTitleName(s.custTitle,t===T.zh?'zh':'vi'):''}</span>{s.tags&&s.tags.length>0&&<span className="text-[10px] text-gray-500 ml-1">{s.tags.map(x=>'#'+x).join(' ')}</span>}</div>{s.custPhone&&<span className="text-[10px] text-gray-500">{s.custPhone}</span>}</div>);
-  return(<div className="fi space-y-3 max-w-lg mx-auto px-4 py-2">
-    <div className="sticky top-0 z-10 -mx-4 px-4 py-1 bg-gray-950 flex items-center justify-center"><h2 className="text-sm font-semibold text-gray-300">{t.custMgmt}</h2></div>
-    <div className="flex gap-1 bg-white/[0.03] rounded-lg p-1">
-      <button onClick={()=>setMode('search')} className={`flex-1 py-1.5 rounded-md text-xs font-semibold ${mode==='search'?'bg-amber-600 text-white':'text-gray-500'}`}>{t.custSearchBtn}</button>
-      <button onClick={()=>setMode('tags')} className={`flex-1 py-1.5 rounded-md text-xs font-semibold ${mode==='tags'?'bg-amber-600 text-white':'text-gray-500'}`}>{t.custTagStats}</button>
-      <button onClick={()=>setMode('blacklist')} className={`flex-1 py-1.5 rounded-md text-xs font-semibold ${mode==='blacklist'?'bg-red-600 text-white':'text-gray-500'}`}>{t.blacklistTab||'拒接名單'}</button>
-    </div>
-    {mode==='blacklist'&&(<div className="space-y-2">
-      {blCandidates.length===0&&<p className="text-sm text-gray-500 text-center py-8">{t.blacklistNoCandidate||'目前沒有標記拒接的客人，請先在流水詳情勾選拒接'}</p>}
-      {blCandidates.map(cand=>{
-        const sub=blSubmitted[cand.key];
-        return(<div key={cand.key} className="bg-white/[0.03] border border-red-500/20 rounded-xl p-3 space-y-1.5">
-          <div className="flex items-center gap-2"><span className="text-sm text-gray-200 font-semibold">{cand.custName}{cand.custTitle?bookTitleName(cand.custTitle,t===T.zh?'zh':'vi'):''}</span><span className="text-xs text-gray-500">{cand.custPhone}</span></div>
-          <p className="text-xs text-red-400">{t.blacklistReasonLabel||'拒接原因'}：{cand.reason}</p>
-          <p className="text-[11px] text-gray-500">{cand.svc||'—'}・{cand.startAt}</p>
-          {!sub?(
-            <button onClick={()=>doBlSubmit(cand)} disabled={blSubmitting===cand.key} className="w-full py-2 rounded-lg bg-red-600 text-white text-sm font-bold disabled:opacity-50">{blSubmitting===cand.key?'送出中…':(t.blacklistSubmitBtn||'送出拒接申請')}</button>
-          ):(<div className="space-y-1.5">
-            <p className="text-[11px] text-gray-500 font-mono">{t.ticketCode}：{sub.reqId}</p>
-            <p className={`text-xs font-semibold ${sub.status==='approved'?'text-emerald-400':sub.status==='rejected'?'text-red-500':'text-amber-400'}`}>{sub.status==='approved'?(t.ticketApproved||'已核准！'):sub.status==='rejected'?'已拒絕':(t.ticketPending||'尚未核准，請稍候')}</p>
-            {sub.status==='pending'&&(<div className="flex gap-2">
-              <button onClick={()=>doBlShare(cand,sub.reqId)} className="flex-1 py-2 rounded-lg bg-[#06C755] text-white text-xs font-bold">{t.ticketSend}</button>
-              <button onClick={()=>doBlRecheck(cand.key)} disabled={blCheckBusy===cand.key} className="flex-1 py-2 rounded-lg bg-white/[0.06] text-gray-300 text-xs font-semibold disabled:opacity-50">{blCheckBusy===cand.key?'…':(t.ticketCheckBtn||'重新檢查核准情形')}</button>
-            </div>)}
-          </div>)}
-        </div>);
-      })}
-      <p className="text-sm text-amber-300 text-center pt-2 leading-relaxed">{t.blacklistTabHint}</p>
-    </div>)}
-    {mode==='tags'&&(<div className="space-y-2">
-      {tags.length===0&&<p className="text-sm text-gray-500 text-center py-8">{t.custNoTags}</p>}
-      {tags.length>0&&<div className="flex flex-wrap gap-1.5">{tags.map(({tag,count})=>(<button key={tag} onClick={()=>setOpenTag(openTag===tag?null:tag)} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs ${openTag===tag?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-300'}`}>#{tag}<span className="text-[10px] opacity-70">({count})</span></button>))}</div>}
-      {openTag&&<div className="space-y-1.5 pt-2"><p className="text-xs text-gray-500">#{openTag}（{tagSlips.length}）</p>{tagSlips.map(slipRow)}</div>}
-    </div>)}
-    {mode==='search'&&(<div className="space-y-2">
-      <input value={q} onChange={e=>setQ(e.target.value)} placeholder={t.custSearchPlaceholder} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>
-      {custList.length===0&&<p className="text-sm text-gray-500 text-center py-6">{(q||'').trim()?t.noMatch:t.custNoRecent}</p>}
-      <div className="space-y-1.5">{custList.map((c,i)=>{const last=custLastSlip(settings.code,year,c.custName,c.custTitle,c.custPhone);const key=c.custPhone?('p:'+c.custPhone):('n:'+(c.custName||'')+'|'+(c.custTitle||''));const hist=c.history||[];const histOpen=openHistory===key;return(<div key={i}>
-        <div className="flex items-center gap-2 px-3 py-2.5 bg-white/[0.03] border border-white/[0.05] rounded-lg">
-          <div onClick={()=>setEditCust({custName:c.custName||'',custTitle:c.custTitle||'',custPhone:c.custPhone||'',pressBody:c.pressBody||'',pressFoot:c.pressFoot||'',parts:c.parts||[]})} className="flex items-center gap-2 flex-1 min-w-0 active:opacity-70"><span className="text-sm text-gray-200">{c.custName||''}</span>{c.custTitle&&<span className="text-xs text-gray-400">{bookTitleName(c.custTitle,t===T.zh?'zh':'vi')}</span>}{c.custPhone&&<span className="text-xs text-gray-500">{c.custPhone}</span>}{last&&last.svc&&<span className="text-xs font-bold text-amber-300">{slipSvcLabel(last,t===T.zh?"zh":"vi")}</span>}{last&&<span className="text-[11px] text-gray-500 tabular-nums ml-auto whitespace-nowrap">{last.month}/{last.day} {String(new Date(last.startTime).getHours()).padStart(2,'0')}:{String(new Date(last.startTime).getMinutes()).padStart(2,'0')}</span>}</div>
-          {hist.length>0&&<button onClick={()=>setOpenHistory(histOpen?null:key)} className={`text-[11px] px-2 py-1 rounded-full font-semibold flex-shrink-0 ${histOpen?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>({hist.length})</button>}
-        </div>
-        {histOpen&&(<div className="mt-1.5 ml-2 pl-3 border-l-2 border-white/[0.08] space-y-1.5 fi">{hist.slice().reverse().map((h,hi)=>(
-          <div key={hi} className="bg-white/[0.02] rounded-lg px-2.5 py-2 text-[11px] text-gray-400">
-            <p className="text-gray-500">{h.lastAt?new Date(h.lastAt).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'—'}</p>
-            {(h.pressBody||h.pressFoot)&&<p>{t.pressBody}：{h.pressBody?t['press'+h.pressBody.charAt(0).toUpperCase()+h.pressBody.slice(1)]:'—'}　{t.pressFoot}：{h.pressFoot?t['press'+h.pressFoot.charAt(0).toUpperCase()+h.pressFoot.slice(1)]:'—'}</p>}
-            {h.parts&&h.parts.length>0&&<p>{t.strengthParts}：{h.parts.map(p=>t['part'+p.charAt(0).toUpperCase()+p.slice(1)]).join('、')}</p>}
-          </div>
-        ))}</div>)}
-      </div>)})}</div>
-    </div>)}
-    {editCust&&(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={()=>setEditCust(null)}><div className="su bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}><div className="p-4 border-b border-white/[0.06] flex items-center justify-between"><h3 className="text-lg font-bold text-gray-100">{t.custEditTitle}</h3><button onClick={()=>setEditCust(null)} className="text-gray-500 text-sm">✕</button></div><div className="p-4 space-y-3">
-      <div className="grid grid-cols-2 gap-2"><input value={editCust.custName} onChange={e=>setEditCust({...editCust,custName:e.target.value})} placeholder={t.custName} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/><select value={editCust.custTitle} onChange={e=>setEditCust({...editCust,custTitle:e.target.value})} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-amber-500"><option value="">{t.custTitle}</option>{BOOK_TITLES.map(o=><option key={o.v} value={o.v}>{o[t===T.zh?'zh':'vi']}</option>)}</select></div>
-      <input value={editCust.custPhone} onChange={e=>setEditCust({...editCust,custPhone:e.target.value})} inputMode="numeric" placeholder={t.custPhone} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>
-      <div className="grid grid-cols-2 gap-2"><div><label className="text-[10px] text-gray-600 block mb-0.5">{t.pressBody}</label><div className="flex gap-1">{PRESS_LEVELS.map(pl=>(<button key={pl} onClick={()=>setEditCust({...editCust,pressBody:editCust.pressBody===pl?'':pl})} className={`flex-1 py-1 rounded text-[11px] ${editCust.pressBody===pl?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t['press'+pl.charAt(0).toUpperCase()+pl.slice(1)]}</button>))}</div></div><div><label className="text-[10px] text-gray-600 block mb-0.5">{t.pressFoot}</label><div className="flex gap-1">{PRESS_LEVELS.map(pl=>(<button key={pl} onClick={()=>setEditCust({...editCust,pressFoot:editCust.pressFoot===pl?'':pl})} className={`flex-1 py-1 rounded text-[11px] ${editCust.pressFoot===pl?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t['press'+pl.charAt(0).toUpperCase()+pl.slice(1)]}</button>))}</div></div></div>
-      <div><label className="text-[10px] text-gray-600 block mb-0.5">{t.strengthParts}</label><div className="flex flex-wrap gap-1">{BODY_PARTS.map(bp=>(<button key={bp} onClick={()=>{const arr=editCust.parts||[];setEditCust({...editCust,parts:arr.includes(bp)?arr.filter(x=>x!==bp):[...arr,bp]})}} className={`px-2 py-1 rounded text-[11px] ${(editCust.parts||[]).includes(bp)?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t['part'+bp.charAt(0).toUpperCase()+bp.slice(1)]}</button>))}</div></div>
-      <button onClick={saveCust} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold">{t.save}</button><button onClick={()=>{if(delConfirm){deleteCust(settings.code,editCust.custName,editCust.custTitle,editCust.custPhone);setEditCust(null);setDelConfirm(false)}else{setDelConfirm(true);setTimeout(()=>setDelConfirm(false),3000)}}} className={`w-full py-2.5 mt-2 rounded-xl text-sm font-semibold ${delConfirm?"bg-red-600 text-white":"bg-red-500/10 text-red-400"}`}>{delConfirm?(t.custDelConfirm||"再按一次確認刪除"):(t.custDelBtn||"刪除此客戶")}</button>
-    </div></div></div>)}
-  </div>);
-}
-// 圖表分頁(老師端:讀stats.json快照顯示班別比/性別比)
-function AcupointPage({t,settings}){
-  const isVi=t===T.vi;
-  const lang=isVi?'vi':'zh';
-  const fb=(obj)=>(obj&&(obj[lang]||obj.zh))||''; // 越南文還沒補的欄位,自動fallback顯示中文
-  const code=settings&&settings.code;
-  // 憑證檢查閘門:gate為null(檢查中)/locked(今天還沒通過每日密碼解鎖)/invalid(憑證已失效)/ok(可以看)
-  const[gate,setGate]=useState(null);
-  useEffect(()=>{
-    (async()=>{
-      if(!code){setGate('ok');return} // 沒有code理論上不會發生,容錯不擋
-      if(!HIDE_COMPANY_FEATURES){
-        try{
-          const lockAutoTime=(settings&&settings.lockAutoTime)||60;
-          const unlockTs=parseInt(localStorage.getItem('notice-pwd-unlock-'+code)||'0',10)||0;
-          if(Date.now()-unlockTs>lockAutoTime*60*1000){setGate('locked');return}
-        }catch(_e){}
-      }
-      try{
-        const valid=await checkCredentialValid(code);
-        if(!valid){clearAcupointsCache();setGate('invalid');return}
-        setGate('ok');
-      }catch(_e){setGate('ok')} // 容錯不擋
-    })();
-  },[code]);
-  const[data,setData]=useState(null); // null=載入中,{bodyParts,points,error?}
-  const[bp,setBp]=useState('');
-  const[meridian,setMeridian]=useState('all');
-  const[q,setQ]=useState('');
-  const[openId,setOpenId]=useState(null);
-  const[history,setHistory]=useState(()=>LS.get('acupoint-search-history')||[]);
-  useEffect(()=>{if(gate==='ok')fetchAcupoints().then(d=>{setData(d);if(d.bodyParts&&d.bodyParts.length)setBp(d.bodyParts[0].id)})},[gate]);
-  useEffect(()=>{setMeridian('all');setOpenId(null)},[bp]); // 換部位時重置經脈篩選跟展開狀態
-  // 輸入停頓500ms後才記錄,避免每打一個字就存一次;打完字很快清空的話不記錄(代表可能是打錯字)
-  useEffect(()=>{
-    const kw=q.trim();
-    if(!kw)return;
-    const tm=setTimeout(()=>{
-      setHistory(h=>{
-        const next=[kw,...h.filter(x=>x!==kw)].slice(0,5);
-        LS.set('acupoint-search-history',next);
-        return next;
-      });
-    },800);
-    return()=>clearTimeout(tm);
-  },[q]);
-  const[favorites,setFavorites]=useState(()=>LS.get('acupoint-favorites')||[]);
-  const toggleFavorite=(id)=>{
-    setFavorites(f=>{
-      const next=f.includes(id)?f.filter(x=>x!==id):[...f,id];
-      LS.set('acupoint-favorites',next);
-      return next;
-    });
-  };
-  const bodyParts=data&&data.bodyParts||[];
-  const points=data&&data.points||[];
-  const bpList=useMemo(()=>{
-    const arr=points.filter(a=>a.bodyPart===bp);
-    return arr.slice().sort((x,y)=>{
-      const fx=favorites.includes(x.id)?1:0,fy=favorites.includes(y.id)?1:0;
-      return fy-fx; // 收藏的排最前面,其餘維持原順序
-    });
-  },[points,bp,favorites]);
-  const meridianList=useMemo(()=>{
-    const seen=[];const set=new Set();
-    bpList.forEach(a=>{const m=fb(a.meridian);if(!set.has(m)){set.add(m);seen.push(m)}});
-    return seen;
-  },[bpList,lang]);
-  const results=useMemo(()=>{
-    let arr=bpList;
-    if(meridian!=='all')arr=arr.filter(a=>fb(a.meridian)===meridian);
-    const kw=q.trim().toLowerCase();
-    if(kw){
-      arr=arr.filter(a=>{
-        if(fb(a.name).toLowerCase().includes(kw))return true;
-        if(a.name.zh.toLowerCase().includes(kw))return true; // 不管語系,中文名稱也順便比對,避免打錯語系找不到
-        if((a.keywords[lang]||[]).some(k=>k.toLowerCase().includes(kw))||(a.keywords.zh||[]).some(k=>k.toLowerCase().includes(kw)))return true;
-        if(fb(a.caution).toLowerCase().includes(kw))return true; // 注意事項也能搜,例如搜「孕婦」找出所有孕婦禁按的穴道
-        if(a.caution.zh.toLowerCase().includes(kw))return true;
-        return false;
-      });
+/* ══════════ CRYPTO ══════════ */
+const CK_DEFAULT="MP2026KEY";
+let CK=CK_DEFAULT;
+const KC_KEY='key-config';
+/* offset map */
+const _n=[['revoked.cfg',50,2],['revoked.cfg',27,2],['revoked.cfg',27,3],['stores.cfg',40,3],['admin.cfg',23,3],['revoked.cfg',39,2],['stores.cfg',16,3],['stores.cfg',20,3],['stores.cfg',12,2],['admin.cfg',33,3],['key.cfg',38,2],['revoked.cfg',34,2],['stores.cfg',0,3],['admin.cfg',5,3],['revoked.cfg',0,2],['revoked.cfg',53,3],['stores.cfg',12,3],['stores.cfg',44,2],['stores.cfg',26,2],['stores.cfg',25,2],['key.cfg',38,3],['admin.cfg',28,2],['admin.cfg',56,3],['admin.cfg',29,3]];
+const _w='2610220518';
+function _sel2(){const o=[];for(let i=0;i<_w.length;i+=2)o.push(parseInt(_w.substr(i,2),10)-3);return o}
+async function _bk(){try{const need={};for(const i of _sel()){const f=_m[i][0];if(!need[f])need[f]=null}for(const f in need){const r=await fetch('./'+f,{cache:'no-store'});if(!r.ok)return null;need[f]=(await r.text()).split('\n')[0]||''}const p=[];for(const i of _sel()){const[f,s,l]=_m[i];const ln=need[f];if(ln.length<s+l)return null;p.push(ln.substr(s,l))}const b=p.join('');return b.length>=4?b:null}catch(_e){return null}}
+async function _bk2(){try{const need={};for(const i of _sel2()){const f=_n[i][0];if(!need[f])need[f]=null}for(const f in need){const r=await fetch('./'+f,{cache:'no-store'});if(!r.ok)return null;need[f]=(await r.text()).split('\n')[0]||''}const p=[];for(const i of _sel2()){const[f,s,l]=_n[i];const ln=need[f];if(ln.length<s+l)return null;p.push(ln.substr(s,l))}return p.join('')}catch(_e){return null}}
+function getKeyConfig(){return LS.get(KC_KEY)||null}
+function saveKeyConfig(cfg){LS.set(KC_KEY,cfg)}
+async function buildDynamicKey(){
+  const cfg=getKeyConfig();
+  if(_v.length>_w.length){const k2=await _bk2();if(k2&&k2.length>=4){CK=k2;return}}
+  if(!cfg||!cfg.rules||!cfg.rules.length){const k=await _bk();CK=k||CK_DEFAULT;return}
+  try{
+    const parts=[];
+    for(const r of cfg.rules){
+      if(!r.file||r.start==null||!r.len)continue;
+      const res=await fetch('./'+r.file,{cache:'no-store'});
+      if(!res.ok){const k=await _bk();CK=k||CK_DEFAULT;return}
+      const text=await res.text();
+      const firstLine=text.split('\n')[0]||'';
+      if(firstLine.length<r.start+r.len){const k=await _bk();CK=k||CK_DEFAULT;return}
+      parts.push(firstLine.substring(r.start,r.start+r.len));
     }
-    return arr;
-  },[bpList,meridian,q,lang]);
-  if(gate===null)return(<div className="space-y-3 fi"><div className="sticky top-0 z-10 -mx-4 px-4 py-1 bg-gray-950 flex items-center justify-center"><h2 className="text-sm font-semibold text-gray-300">{t.acupointTitle}</h2></div><div className="flex justify-center py-10"><span className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/></div></div>);
-  if(gate==='locked')return(<div className="space-y-3 fi"><div className="sticky top-0 z-10 -mx-4 px-4 py-1 bg-gray-950 flex items-center justify-center"><h2 className="text-sm font-semibold text-gray-300">{t.acupointTitle}</h2></div><p className="text-sm text-gray-500 text-center py-8 px-4">{t.acupointNeedUnlock||'請先到公告頁面完成每日密碼驗證，再回來查看穴道知識庫'}</p></div>);
-  if(gate==='invalid')return(<div className="space-y-3 fi"><div className="sticky top-0 z-10 -mx-4 px-4 py-1 bg-gray-950 flex items-center justify-center"><h2 className="text-sm font-semibold text-gray-300">{t.acupointTitle}</h2></div><p className="text-sm text-red-400 text-center py-8 px-4">{t.keyInvalidMsg}</p></div>);
-  if(data===null)return(<div className="space-y-3 fi"><div className="sticky top-0 z-10 -mx-4 px-4 py-1 bg-gray-950 flex items-center justify-center"><h2 className="text-sm font-semibold text-gray-300">{t.acupointTitle}</h2></div><div className="flex justify-center py-10"><span className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/></div></div>);
-  if(data.error||bodyParts.length===0)return(<div className="space-y-3 fi"><div className="sticky top-0 z-10 -mx-4 px-4 py-1 bg-gray-950 flex items-center justify-center"><h2 className="text-sm font-semibold text-gray-300">{t.acupointTitle}</h2></div><p className="text-sm text-gray-600 text-center py-8">{t.acupointLoadFail||'讀取失敗，請檢查網路後重新整理'}</p></div>);
-  return(<div className="space-y-3 fi">
-    <div className="sticky top-0 z-10 -mx-4 px-4 py-1 bg-gray-950 flex items-center justify-center"><h2 className="text-sm font-semibold text-gray-300">{t.acupointTitle}</h2></div>
-    {/* 第一層:部位分頁 */}
-    <div className="flex gap-1.5 overflow-x-auto pb-1" style={{scrollbarWidth:'none'}}>
-      {bodyParts.map(b=>(
-        <button key={b.id} onClick={()=>setBp(b.id)} className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${bp===b.id?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{fb(b)}</button>
-      ))}
-    </div>
-    {/* 第二層:經脈子篩選(依目前部位動態產生) */}
-    <div className="flex gap-1.5 overflow-x-auto pb-1" style={{scrollbarWidth:'none'}}>
-      <button onClick={()=>setMeridian('all')} className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap ${meridian==='all'?'bg-sky-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t.acupointAllMeridian||'全部經脈'}</button>
-      {meridianList.map(m=>(
-        <button key={m} onClick={()=>setMeridian(m)} className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap ${meridian===m?'bg-sky-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{m}</button>
-      ))}
-    </div>
-    <div className="relative"><input value={q} onChange={e=>setQ(e.target.value)} placeholder={t.acupointSearchPh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl pl-3 pr-9 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>{q&&<button onClick={()=>setQ('')} className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/[0.1] flex items-center justify-center text-gray-400 active:bg-white/[0.18]">✕</button>}</div>
-    {history.length>0&&(<div className="flex items-center gap-1.5 flex-wrap"><span className="text-[10px] text-gray-600 flex-shrink-0">{t.acupointRecentSearch||'最近搜尋：'}</span>{history.map((h,i)=>(<button key={i} onClick={()=>setQ(h)} className="px-2 py-0.5 rounded-full bg-white/[0.05] text-[11px] text-gray-400 active:bg-white/[0.1]">{h}</button>))}</div>)}
-    {results.length===0&&<p className="text-sm text-gray-600 text-center py-8">{t.acupointNoResult}</p>}
-    <div className="space-y-2">
-      {results.map(a=>{
-        const open=openId===a.id;
-        const kw=q.trim().toLowerCase();
-        const nameOrKwMatch=kw&&(fb(a.name).toLowerCase().includes(kw)||a.name.zh.toLowerCase().includes(kw)||(a.keywords[lang]||[]).some(k=>k.toLowerCase().includes(kw))||(a.keywords.zh||[]).some(k=>k.toLowerCase().includes(kw)));
-        const cautionMatch=kw&&!nameOrKwMatch; // 有搜尋字但不是靠名稱/關鍵字比對到的,代表是靠注意事項比對到
-        return(<div key={a.id} className="bg-white/[0.03] border border-white/[0.06] rounded-xl overflow-hidden">
-          <div onClick={()=>setOpenId(open?null:a.id)} className="px-3 py-2.5 flex items-center justify-between cursor-pointer active:bg-white/[0.04]"><div className="flex-1 min-w-0"><span className="text-sm font-semibold text-gray-100">{fb(a.name)}</span><span className="text-[10px] text-sky-400 ml-2">{fb(a.meridian)}</span>{!open&&cautionMatch&&<p className="text-[11px] text-red-400 mt-0.5 truncate">⚠️ {fb(a.caution)}</p>}</div><span className="text-gray-500 text-xs flex-shrink-0 ml-2">{open?'▲':'▼'}</span></div>
-          {open&&(<div className="px-3 pb-3 space-y-2 border-t border-white/[0.06] pt-2">
-            <div><p className="text-[11px] text-amber-400 font-semibold mb-0.5">{t.acupointLocation}</p><p className="text-[13px] text-gray-300 leading-relaxed">{fb(a.location)}</p></div>
-            <div><p className="text-[11px] text-amber-400 font-semibold mb-0.5">{t.acupointBenefit}</p><p className="text-[13px] text-gray-300 leading-relaxed">{fb(a.benefit)}</p></div>
-            <div><p className="text-[11px] text-amber-400 font-semibold mb-0.5">{t.acupointTechnique}</p><p className="text-[13px] text-gray-300 leading-relaxed">{fb(a.technique)}</p></div>
-            <div><p className="text-[11px] text-red-400 font-semibold mb-0.5">{t.acupointCaution}</p><p className="text-[13px] text-gray-400 leading-relaxed">{fb(a.caution)}</p></div>
-            <div className="flex items-center gap-2 pt-1">
-              <button onClick={()=>{
-                const link=location.origin+location.pathname;
-                const title='🌿 '+fb(a.name);
-                const body=(t.acupointLocation+'：'+fb(a.location)+'\n\n'+t.acupointBenefit+'：'+fb(a.benefit)+'\n\n'+t.acupointTechnique+'：'+fb(a.technique)+'\n\n'+t.acupointCaution+'：'+fb(a.caution));
-                sendTicketFlex(title,body,link);
-              }} className="w-9 h-9 rounded-full bg-[#06C755] flex items-center justify-center active:bg-[#05b34c] flex-shrink-0" title={t.acupointShareLine||'分享到LINE'}>
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M12 2C6.48 2 2 5.85 2 10.5c0 4.15 3.53 7.63 8.31 8.34.32.07.76.21.87.48.1.25.07.63.03.88l-.14.85c-.04.25-.19.98.86.53 1.05-.44 5.68-3.35 7.75-5.73C21.24 13.9 22 12.28 22 10.5 22 5.85 17.52 2 12 2z"/></svg>
-              </button>
-              <button onClick={()=>toggleFavorite(a.id)} className="w-9 h-9 rounded-full bg-white/[0.06] flex items-center justify-center active:bg-white/[0.12] flex-shrink-0" title={t.acupointFavorite||'收藏，排到最上面'}>
-                <svg viewBox="0 0 24 24" width="16" height="16" fill={favorites.includes(a.id)?'#f43f5e':'none'} stroke={favorites.includes(a.id)?'#f43f5e':'#9ca3af'} strokeWidth={1.8}><path d="M12 21s-6.7-4.35-9.3-8.1C1.1 10.5 1.6 7 4.6 5.6c2.2-1 4.6-.2 5.9 1.5.5.6.9 1.3 1.5 1.3s1-.7 1.5-1.3c1.3-1.7 3.7-2.5 5.9-1.5 3 1.4 3.5 4.9 1.9 7.3C18.7 16.65 12 21 12 21z"/></svg>
-              </button>
-              {favorites.includes(a.id)&&<span className="text-[10px] text-rose-400">{t.acupointFavoritedHint||'已收藏，排在此部位最上方'}</span>}
-            </div>
-          </div>)}
-        </div>);
-      })}
-    </div>
-    <p className="text-[10px] text-gray-600 text-center pt-2 leading-relaxed">{t.acupointDisclaimer}</p>
-  </div>);
+    const built=parts.join('');
+    if(built.length>=4)CK=built; else {const k=await _bk();CK=k||CK_DEFAULT}
+  }catch(_e){const k=await _bk();CK=k||CK_DEFAULT}
 }
-function SuggestPage({t,settings,onClose}){
-  const[showAdd,setShowAdd]=React.useState(false);
-  const[title,setTitle]=React.useState('');
-  const[body,setBody]=React.useState('');
-  const[anon,setAnon]=React.useState(false);
-  const[status,setStatus]=React.useState('');
-  const[busy,setBusy]=React.useState(false);
-  const[list,setList]=React.useState(undefined);
-  const load=()=>{gasListSuggestions().then(r=>{if(r&&r.ok)setList(r.list||[]);else setList([])}).catch(()=>setList([]))};
-  React.useEffect(()=>{load()},[]);
-  const closeAdd=()=>{setShowAdd(false);setTitle('');setBody('');setAnon(false);setStatus('')};
-  const submit=async()=>{
-    if(!title.trim()||!body.trim())return;
-    setBusy(true);setStatus('');
-    try{
-      const r=await gasSubmitSuggestion(title.trim(),body.trim(),settings.code||'',anon);
-      if(r&&r.ok){closeAdd();load()}else{setStatus('err')}
-    }catch(_e){setStatus('err')}
-    setBusy(false);
-  };
-  return(<div className="fi">
-    <div className="sticky top-0 z-10 -mx-4 px-4 py-1 bg-gray-950 relative flex items-center justify-center mb-2"><h2 className="text-sm font-semibold text-gray-300">{t.suggestBox||'建議'}</h2><button onClick={()=>setShowAdd(true)} className="absolute right-4 px-2.5 py-1 rounded-lg bg-amber-600 text-white text-[11px] font-semibold active:bg-amber-700">+ {t.suggestAdd||'新建議'}</button></div>
-    {list===undefined?<p className="text-xs text-gray-600 text-center py-6">{t.loading||'載入中…'}</p>:list.length===0?<p className="text-xs text-gray-600 text-center py-6">{t.suggestEmpty||'目前沒有建議'}</p>:(
-    <div className="space-y-2">{list.map(s=>(<div key={s.id} className="bg-white/[0.03] border border-white/[0.05] rounded-xl px-3 py-2.5"><div className="flex items-center justify-between gap-2"><p className="text-sm text-gray-200 font-medium truncate flex-1">{s.title}</p><span className="text-[10px] text-gray-500 flex-shrink-0">{s.anon?(t.suggestAnon||'發布人：隱藏'):('發布人：'+s.author)}</span></div><div className="flex items-center justify-between gap-2 mt-1"><p className="text-[11px] text-gray-500 truncate flex-1">{s.body}</p><span className="text-[10px] text-gray-600 flex-shrink-0">{s.time}</span></div></div>))}</div>
-    )}
-    {showAdd&&(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={closeAdd}><div className="bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[88vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
-      <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{t.suggestAdd||'新建議'}</h3><button onClick={closeAdd} className="text-gray-500 text-sm">✕</button></div>
-      <div className="p-4 space-y-4">
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.suggestTitle||'標題'}</label><input value={title} onChange={e=>setTitle(e.target.value)} placeholder={t.suggestTitlePh||'一句話說明你的建議'} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500" style={{boxSizing:'border-box'}}/></div>
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.suggestContent||'內容'}</label><textarea value={body} onChange={e=>setBody(e.target.value)} rows={5} placeholder={t.suggestContentPh||'詳細說明你的想法…'} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 resize-none" style={{boxSizing:'border-box'}}/></div>
-        <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={anon} onChange={e=>setAnon(e.target.checked)} className="w-4 h-4 rounded accent-amber-500"/><span className="text-sm text-gray-300">{t.suggestAnonOpt||'匿名發布（不顯示我的編號）'}</span></label>
-        {status==='err'&&<p className="text-[11px] text-red-400 text-center">{t.suggestSubmitFail||'送出失敗，請再試一次'}</p>}
-        <button onClick={submit} disabled={busy||!title.trim()||!body.trim()} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold active:bg-emerald-700 disabled:opacity-50">{busy?'…':(t.suggestSubmit||'送出建議')}</button>
-      </div>
-    </div></div>)}
-  </div>);
+function getCK(){return CK}
+function xEnc(t){return Array.from(t).map((c,i)=>(c.charCodeAt(0)^CK.charCodeAt(i%CK.length)).toString(16).padStart(2,'0')).join('')}
+function xDec(h){try{return h.match(/.{2}/g).map((x,i)=>String.fromCharCode(parseInt(x,16)^CK.charCodeAt(i%CK.length))).join('')}catch(_e){return''}}
+function fnv(s){let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193);h=h&0x7fffffff}return h}
+function adminHash(code){const S="MassagePay2026!Adm";let h=fnv(S+code+S);for(let i=0;i<200;i++)h=fnv(String(h)+S+code);return h.toString(36).padStart(6,'0')}
+function genAdminAct(code,uuid){const b=`ADM:${code}:${uuid}`;return['#DELTA','#ECHO','#FOXTROT'].map(s=>String(fnv(b+s)%10000).padStart(4,'0')).join('-')}
+function revokeHash(code){const S="MassagePay2026!Rvk";let h=fnv(S+code+S);for(let i=0;i<200;i++)h=fnv(String(h)+S+code);return h.toString(36).padStart(6,'0')}
+function approveHash(code,devId){const S="MassagePay2026!Apr";let h=fnv(S+code+':'+devId+S);for(let i=0;i<200;i++)h=fnv(String(h)+S+code);return h.toString(36).padStart(6,'0')}
+function supApproveHash(code){const S="MassagePay2026!Sup";let h=fnv(S+code+S);for(let i=0;i<200;i++)h=fnv(String(h)+S+code);return h.toString(36).padStart(6,'0')}
+function genSimpleAct(code){const S="MassagePay2026!SimpleAct";let h=fnv(S+code+S);for(let i=0;i<50;i++)h=fnv(String(h)+S+code);const n=h%1000000000;const s=String(n).padStart(9,'0');return s.substring(0,3)+'-'+s.substring(3,6)+'-'+s.substring(6,9)}
+// 4位數解鎖密碼驗證:必須4碼數字,不可4碼相同(如1111),不可連續遞增(1234)或連續遞減(4321)
+function isValidPin(pin){
+  const s=String(pin||'');
+  if(!/^\d{4}$/.test(s))return false;
+  if(/^(\d)\1{3}$/.test(s))return false;
+  const d=s.split('').map(Number);
+  let asc=true,desc=true;
+  for(let i=1;i<4;i++){if(d[i]!==d[i-1]+1)asc=false;if(d[i]!==d[i-1]-1)desc=false;}
+  if(asc||desc)return false;
+  return true;
 }
-function NoticeManagePage({t,settings,onClose,onLogout}){
-  const[showAdd,setShowAdd]=React.useState(false);
-  const[content,setContent]=React.useState('');
-  const[aiResult,setAiResult]=React.useState(null);
-  const[aiStatus,setAiStatus]=React.useState('');
-  const[list,setList]=React.useState(()=>{try{return getNoticesLocal()}catch(_e){return []}});
-  const[noticeView,setNoticeView]=React.useState(null);
-  const[canManage,setCanManage]=React.useState(false); // 主管/管理者才能新增+編輯公告
-  const[editing,setEditing]=React.useState(null); // 正在編輯的公告(原始資料)
-  const[editForm,setEditForm]=React.useState(null); // {cat,subcat,title,summary,body,tags}
-  const[editStatus,setEditStatus]=React.useState('');
-  const openNotice=(n)=>{try{if(getNoticeReadCount)getNoticeReadCount(n.id)}catch(_e){}setNoticeView(n)};
-  React.useEffect(()=>{fetchNotices().then(l=>{if(Array.isArray(l))setList(l)}).catch(()=>{})},[]);
-  React.useEffect(()=>{let alive=true;(async()=>{
-    const code=(settings&&settings.code)||'';
-    if(!code)return;
-    // 先查staff.json role(主管的權威判斷方式)
-    try{
-      const staff=await readStaff();
-      const me=(staff||[]).find(s=>String(s.code)===String(code));
-      if(me&&(me.role==='supervisor'||me.role==='admin')){if(alive)setCanManage(true);return;}
-    }catch(_e){}
-    // 管理者不一定寫進staff.json role,權威判斷方式是admin.cfg雜湊比對(比照auth.html tryCheck邏輯)
-    try{
-      const res=await fetch('./admin.cfg',{cache:'no-store'});
-      if(res.ok){
-        const text=(await res.text()).trim();
-        const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
-        const myHash=adminHash(code);
-        const match=lines.some(l=>{const parts=l.split(':');const h=parts.length>=2?parts[parts.length-1]:parts[0];return h===myHash});
-        if(match&&alive)setCanManage(true);
-      }
-    }catch(_e){}
-  })();return()=>{alive=false}},[settings&&settings.code]);
-  const closeAdd=()=>{setShowAdd(false);setContent('');setAiResult(null);setAiStatus('')};
-  const myCode=(()=>{try{return (settings&&settings.code)||''}catch(_e){return ''}})();
-  const[editAiFilled,setEditAiFilled]=React.useState([]);
-  const openEdit=(n,ev)=>{try{if(ev)ev.stopPropagation()}catch(_e){}setEditing(n);setEditForm({cat:n.cat||'',subcat:n.subcat||'',title:n.title||'',summary:n.summary||'',body:n.body||'',tags:n.tags||''});setEditStatus('');setEditAiFilled([]);setReadInfo(null);setUnreadInfo(null);setEditPushMsg('')};
-  const closeEdit=()=>{setEditing(null);setEditForm(null);setEditStatus('');setEditAiFilled([])};
-  const updEdit=(k,v)=>setEditForm(p=>Object.assign({},p,{[k]:v}));
-  const FIELD_ZH={cat:'主分類',subcat:'子分類',title:'標題',summary:'摘要',tags:'標籤'};
-  const submitEdit=async()=>{
-    if(!editing||!editForm)return;
-    setEditStatus('saving');setEditAiFilled([]);
-    try{
-      const r=await gasEditNotice({id:editing.id,cat:editForm.cat,subcat:editForm.subcat,title:editForm.title,summary:editForm.summary,body:editForm.body,tags:editForm.tags,code:myCode});
-      if(r&&r.ok){
-        setEditAiFilled(Array.isArray(r.aiFilled)?r.aiFilled:[]);
-        // 本機列表直接套用GAS回傳的最終欄位(含AI補的中文欄位+AI翻的越南文),不用等下次publishNotices就能馬上看到完整結果
-        const merged=r.fields||editForm;
-        setList(prev=>prev.map(x=>x.id===editing.id?Object.assign({},x,merged):x));
-        setLocalOverrides(prev=>Object.assign({},prev,{[editing.id]:true}));
-        setEditStatus(r.viOk===false?'savedNoVi':'saved');
-        setTimeout(()=>closeEdit(),4500);
-      }else{setEditStatus('失敗：'+((r&&r.error)||'?'));}
-    }catch(e){setEditStatus('錯誤：'+e);}
-  };
-  const runAI=async()=>{
-    if(!content.trim()){setAiStatus('請先輸入公告內容');return;}
-    setAiStatus('processing');setAiResult(null);
-    try{
-      const r=await gasAnalyze(content,myCode,'新增公告');
-      if(r&&r.ok){setAiResult(Object.assign({body:content},r.result));setAiStatus('');}
-      else{setAiStatus('AI 失敗：'+((r&&r.error)||'?'));}
-    }catch(e){setAiStatus('錯誤：'+e);}
-  };
-  const publish=async()=>{
-    if(!aiResult){setAiStatus('請先產生 AI 結果');return;}
-    setAiStatus('publishing');
-    try{
-      const r=await gasAddNotice({cat:aiResult.cat,subcat:aiResult.subcat,title:aiResult.title,summary:aiResult.summary,body:aiResult.body||content,bodyVi:aiResult.bodyVi,tags:aiResult.tags,titleVi:aiResult.titleVi,summaryVi:aiResult.summaryVi,author:myCode,code:myCode});
-      if(r&&r.ok){setAiStatus('done:'+r.id);} // 不再自動關閉,留在頁面上讓主管可以推播到LINE+查誰還沒看
-      else{setAiStatus('發布失敗：'+((r&&r.error)||'?'));}
-    }catch(e){setAiStatus('錯誤：'+e);}
-  };
-  const[pushBusy,setPushBusy]=React.useState(false);const[pushMsg,setPushMsg]=React.useState('');
-  const doPushNotice=async(noticeId)=>{
-    setPushBusy(true);setPushMsg('');
-    try{
-      const r=await gasPushNoticeFlexToMe(noticeId,myCode);
-      if(r&&r.ok)setPushMsg('✓ 已推播到你的LINE');
-      else if(r&&r.needBind)setPushMsg('尚未綁定LINE帳號，請先到安全回報頁面登記一次');
-      else setPushMsg('推播失敗：'+((r&&r.error)||'?'));
-    }catch(e){setPushMsg('推播失敗：'+e)}
-    setPushBusy(false);
-  };
-  const[readInfo,setReadInfo]=React.useState(null);const[readBusy,setReadBusy]=React.useState(false);
-  const checkRead=async(noticeId)=>{
-    setReadBusy(true);
-    try{const r=await gasCall('noticeReads',{noticeId,detail:true},10000);if(r&&r.ok)setReadInfo(r)}catch(_e){}
-    setReadBusy(false);
-  };
-  const copyText=async(text)=>{try{await navigator.clipboard.writeText(text);return true}catch(_e){try{const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.focus();ta.select();document.execCommand('copy');document.body.removeChild(ta);return true}catch(_e2){return false}}};
-  const[copyMsg,setCopyMsg]=React.useState('');
-  const doCopy=async(text,label)=>{const ok=await copyText(text);setCopyMsg(ok?(label+'已複製'):'複製失敗');setTimeout(()=>setCopyMsg(''),2000)};
-  const[editPushBusy,setEditPushBusy]=React.useState(false);const[editPushMsg,setEditPushMsg]=React.useState('');
-  const doPushEdit=async()=>{
-    if(!editing)return;
-    setEditPushBusy(true);
-    try{
-      const r=await gasPushNoticeFlexToMe(editing.id,myCode);
-      setEditPushMsg(r&&r.ok?'✓ 已推播':(r&&r.needBind?'尚未綁定LINE':'推播失敗'));
-    }catch(_e){setEditPushMsg('推播失敗')}
-    setEditPushBusy(false);
-    setTimeout(()=>setEditPushMsg(''),2500);
-  };
-  const[unreadInfo,setUnreadInfo]=React.useState(null);const[unreadBusy,setUnreadBusy]=React.useState(false);
-  const checkUnread=async(noticeId)=>{
-    setUnreadBusy(true);
-    try{const r=await gasCall('noticeUnread',{noticeId},10000);if(r&&r.ok)setUnreadInfo(r)}catch(_e){}
-    setUnreadBusy(false);
-  };
-  const upd=(k,v)=>setAiResult(p=>Object.assign({},p,{[k]:v}));
-  const[catTab,setCatTab]=React.useState('all');
-  const[subTabSel,setSubTabSel]=React.useState('all');
-  const[localOverrides,setLocalOverrides]=React.useState({}); // {id:true} 這則公告是不是套用了本機優先(還沒發布)的內容
-  const mainCatsAll=React.useMemo(()=>{
-    try{const v=getNoticeMainCats();if(v&&v.length)return v}catch(_e){}
-    // 防呆:還沒按過「公告更新」重新發布、或Categories工作表還沒設定好時,mainCats會是空的。
-    // 這種情況先退回舊做法(從目前公告資料裡抓出現過的分類),不然畫面會只剩「全部」一個按鈕看起來像壞掉。
-    const s=[];const seen={};list.forEach(n=>{if(n.cat&&!seen[n.cat]){seen[n.cat]=1;s.push({zh:n.cat,vi:''})}});
-    return s;
-  },[list]);
-  const catLabel=(zh)=>{const found=mainCatsAll.find(c=>c.zh===zh);return (settings.lang==='vi'&&found&&found.vi)?found.vi:zh};
-  const subCatsPresent=React.useMemo(()=>{if(catTab==='all')return[];const s=[];const seen={};list.forEach(n=>{if(n.cat===catTab&&n.subcat&&!seen[n.subcat]){seen[n.subcat]=1;s.push(n.subcat)}});return s},[list,catTab]);
-  const[toggleBusy,setToggleBusy]=React.useState(false);
-  const toggleStatus=async()=>{
-    if(!editing)return;
-    setToggleBusy(true);
-    try{
-      const r=await gasToggleNoticeStatus(editing.id,myCode);
-      if(r&&r.ok){
-        setList(prev=>prev.map(x=>x.id===editing.id?Object.assign({},x,{status:r.status}):x));
-        setEditing(prev=>prev?Object.assign({},prev,{status:r.status}):prev);
-      }
-    }catch(_e){}
-    setToggleBusy(false);
-  };
-  return(<div className="fi">
-    <div className="sticky top-0 z-10 -mx-4 px-4 py-1 bg-gray-950 relative flex items-center justify-center mb-2"><h2 className="text-sm font-semibold text-gray-300">{t.noticeCenter||'公告'}</h2>{canManage&&<button onClick={()=>setShowAdd(true)} className="absolute right-4 px-2.5 py-1 rounded-lg bg-amber-600 text-white text-[11px] font-semibold active:bg-amber-700">+ {t.noticeAdd||'新增公告'}</button>}</div>
-    <div className="grid grid-cols-3 gap-1.5 mb-2">{[['all',t.catTabAll||'全部'],...mainCatsAll.map(c=>[c.zh,catLabel(c.zh)])].map(([k,l])=>(<button key={k} onClick={()=>{setCatTab(k);setSubTabSel('all')}} className={`py-2 rounded-lg text-[11px] font-semibold truncate px-1 ${catTab===k?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-400'}`}>{l}</button>))}</div>
-    {catTab!=='all'&&subCatsPresent.length>0&&(<div className="flex flex-wrap gap-1.5 mb-3">{[['all',t.catTabAll||'全部'],...subCatsPresent.map(c=>[c,c])].map(([k,l])=>(<button key={k} onClick={()=>setSubTabSel(k)} className={`px-2.5 py-1 rounded-full text-[10px] font-medium ${subTabSel===k?'bg-amber-500/20 text-amber-400 border border-amber-500/30':'bg-white/[0.04] text-gray-500 border border-transparent'}`}>{l}</button>))}</div>)}
-    <div className="space-y-2 mt-3">{list.length===0?<p className="text-xs text-gray-600 text-center py-6">{t.noticeEmpty||'目前沒有公告'}</p>:list.filter(n=>(catTab==='all'||n.cat===catTab)&&(subTabSel==='all'||n.subcat===subTabSel)).slice().reverse().map(n=>{
-      const listText=(typeof getNoticeListText==='function'?getNoticeListText():'summary');
-      const showFlags=(typeof getNoticeShow==='function'?getNoticeShow():{cat:false,subcat:false});
-      const countType=(typeof getNoticeCountType==='function'?getNoticeCountType():'people');
-      const displayText=listText==='title'?(noticeTitle?noticeTitle(n,settings.lang):n.title):((noticeSummary?noticeSummary(n,settings.lang):n.summary)||n.title);
-      const openN=countType==='visits'?(typeof n.openVisits==='number'?n.openVisits:0):(typeof n.openCount==='number'?n.openCount:0);
-      const isOff=n.status==='off';
-      const isLocal=!!localOverrides[n.id];
-      return(<div key={n.id} onClick={()=>openNotice(n)} className={`bg-white/[0.03] border border-white/[0.05] rounded-xl px-3 py-2.5 active:bg-white/[0.06] cursor-pointer ${isOff?'opacity-50':''}`}>
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 min-w-0 flex-1">
-            <span className="text-[10px] text-gray-600 font-mono flex-shrink-0">{n.id}</span>
-            <span className="text-[10px] text-gray-600 flex-shrink-0">・{n.date}</span>
-            <span className="w-4 h-4 rounded-full bg-amber-600/30 flex items-center justify-center flex-shrink-0"><span className="text-[8px]">👤</span></span>
-            <span className="text-[10px] text-gray-500 truncate">{n.author||''}</span>
-          </div>
-          {canManage&&<button onClick={(ev)=>openEdit(n,ev)} className="text-[11px] px-1.5 py-0.5 rounded-full bg-white/[0.08] text-gray-300 active:bg-white/[0.15] flex-shrink-0">✏️</button>}
-        </div>
-        <p className={`text-sm font-medium truncate mt-1 ${isOff?'text-gray-500':'text-gray-200'}`}>{displayText}</p>
-        <div className="flex items-center justify-between gap-2 mt-1">
-          <div className="flex items-center gap-2 flex-wrap min-w-0">
-            {(showFlags.cat&&n.cat)&&<span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 flex-shrink-0">{n.cat}{(showFlags.subcat&&n.subcat)?'・'+n.subcat:''}</span>}
-            {isOff&&<span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-gray-500 flex-shrink-0">{t.noticeOffBtn||'下架'}</span>}
-            {isLocal&&<span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-600 text-white flex-shrink-0">{t.noticeLocalBadge||'本機'}</span>}
-          </div>
-          <span className="text-[10px] text-gray-500 flex-shrink-0">👁 {openN}</span>
-        </div>
-      </div>);
-    })}</div>
-    {noticeView&&window.NoticeDetailModal&&(()=>{const NDM=window.NoticeDetailModal;return <NDM notice={noticeView} settings={settings} t={t} onClose={()=>setNoticeView(null)} onMore={()=>setNoticeView(null)} onLogout={onLogout}/>;})()}
-    {editing&&editForm&&(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={closeEdit}><div className="bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[88vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
-      <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{t.noticeEdit||'編輯公告'} #{editing.id}</h3><button onClick={closeEdit} className="text-gray-500 text-sm">✕</button></div>
-      <div className="p-4 space-y-3">
-        <p className="text-sm text-red-500 font-semibold leading-relaxed">只需改中文,存檔後系統會在背景自動更新越南文翻譯;哪個欄位留空,AI 會依內文自動幫你補上。</p>
-        <p className="text-sm text-red-500 font-semibold leading-relaxed">目前頁面是靜態的,每天晚上12點才會重新生成、計算已閱讀人數,所以你在重新整理後看到的還會是舊的,這是正常的。</p>
-        <p className="text-sm text-red-500 font-semibold leading-relaxed">AI 翻譯及處理摘要等,每天免費是有額度的,請不要過度使用,造成額外費用。</p>
-        <div className="grid grid-cols-2 gap-2"><div><label className="text-[10px] text-gray-500">主分類{!editForm.cat&&<span className="text-amber-500">（留空→AI自動判斷）</span>}</label><div className="relative"><input value={editForm.cat} onChange={e=>updEdit('cat',e.target.value)} className="w-full bg-white/[0.06] rounded-lg pl-2 pr-6 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/>{editForm.cat&&<button type="button" onClick={()=>updEdit('cat','')} className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-500 active:text-red-400 text-xs px-1">✕</button>}</div></div><div><label className="text-[10px] text-gray-500">子分類{!editForm.subcat&&<span className="text-amber-500">（留空→AI自動判斷）</span>}</label><div className="relative"><input value={editForm.subcat} onChange={e=>updEdit('subcat',e.target.value)} className="w-full bg-white/[0.06] rounded-lg pl-2 pr-6 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/>{editForm.subcat&&<button type="button" onClick={()=>updEdit('subcat','')} className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-500 active:text-red-400 text-xs px-1">✕</button>}</div></div></div>
-        <div><label className="text-[10px] text-gray-500">標題{!editForm.title&&<span className="text-amber-500">（留空→AI自動生成）</span>}</label><div className="relative"><input value={editForm.title} onChange={e=>updEdit('title',e.target.value)} className="w-full bg-white/[0.06] rounded-lg pl-2 pr-6 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/>{editForm.title&&<button type="button" onClick={()=>updEdit('title','')} className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-500 active:text-red-400 text-xs px-1">✕</button>}</div></div>
-        <div><label className="text-[10px] text-gray-500">摘要{!editForm.summary&&<span className="text-amber-500">（留空→AI自動生成）</span>}</label><div className="relative"><input value={editForm.summary} onChange={e=>updEdit('summary',e.target.value)} className="w-full bg-white/[0.06] rounded-lg pl-2 pr-6 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/>{editForm.summary&&<button type="button" onClick={()=>updEdit('summary','')} className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-500 active:text-red-400 text-xs px-1">✕</button>}</div></div>
-        <div><label className="text-[10px] text-gray-500">內文</label><textarea value={editForm.body} onChange={e=>updEdit('body',e.target.value)} rows={5} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100 resize-none" style={{boxSizing:'border-box'}}/></div>
-        <div><label className="text-[10px] text-gray-500">標籤{!editForm.tags&&<span className="text-amber-500">（留空→AI自動生成）</span>}</label><div className="relative"><input value={editForm.tags} onChange={e=>updEdit('tags',e.target.value)} className="w-full bg-white/[0.06] rounded-lg pl-2 pr-6 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/>{editForm.tags&&<button type="button" onClick={()=>updEdit('tags','')} className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-500 active:text-red-400 text-xs px-1">✕</button>}</div></div>
-        {editStatus==='saving'&&<p className="text-[11px] text-amber-500 text-center">存檔中…（背景AI處理，免費空間較慢）</p>}
-        {editStatus==='saved'&&<p className="text-[11px] text-emerald-500 text-center font-semibold">✓ 已存檔，越南文已同步更新{editAiFilled.length>0?('，AI 已自動補上：'+editAiFilled.map(k=>FIELD_ZH[k]||k).join('、')):''}。公告頁是快取，需等下次更新才會顯示，當下沒變是正常的。</p>}
-        {editStatus==='savedNoVi'&&<p className="text-[11px] text-amber-500 text-center font-semibold">✓ 中文已存檔{editAiFilled.length===0?'':'（部分欄位待AI補，'}，AI 處理暫時失敗待補（不影響已填的中文內容）。</p>}
-        {editStatus&&editStatus!=='saving'&&editStatus!=='saved'&&editStatus!=='savedNoVi'&&<p className="text-[11px] text-red-400 text-center">{editStatus}</p>}
-        <div className="pt-2 border-t border-white/[0.06] space-y-2">
-          <div className="flex items-center justify-between"><p className="text-xs font-semibold text-gray-400">誰有看</p><div className="flex gap-1.5"><button onClick={()=>checkRead(editing.id)} disabled={readBusy} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-400 disabled:opacity-50">{readBusy?'查詢中…':'查詢'}</button>{readInfo&&readInfo.readers&&readInfo.readers.length>0&&<button onClick={()=>doCopy('公告編號：'+editing.id+'\n公告摘要：'+(editing.summary||editing.title||'')+'\n已閱讀（'+readInfo.readers.length+'人）：'+readInfo.readers.map(r=>r.code).join('、'),'已閱讀名單')} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-400">複製</button>}</div></div>
-          {readInfo&&(readInfo.readers?<div className="bg-white/[0.03] rounded-lg p-2.5"><p className="text-[11px] text-gray-500 mb-1">共{readInfo.readers.length}人</p><div className="flex flex-wrap gap-1">{readInfo.readers.map(r=>(<span key={r.code} className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400">{r.code}</span>))}</div></div>:null)}
-          <div className="flex items-center justify-between"><p className="text-xs font-semibold text-gray-400">誰沒看</p><div className="flex gap-1.5"><button onClick={()=>checkUnread(editing.id)} disabled={unreadBusy} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-400 disabled:opacity-50">{unreadBusy?'查詢中…':'查詢'}</button>{unreadInfo&&unreadInfo.total>0&&<button onClick={()=>doCopy('公告編號：'+editing.id+'\n公告摘要：'+(editing.summary||editing.title||'')+'\n未閱讀（'+unreadInfo.total+'人）：\n'+['day','night','other'].map(k=>unreadInfo[k]&&unreadInfo[k].length?(k==='day'?'早班：':k==='night'?'晚班：':'未選班別：')+unreadInfo[k].join('、'):'').filter(Boolean).join('\n'),'未閱讀名單')} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-400">複製</button>}</div></div>
-          {unreadInfo&&(<div className="bg-white/[0.03] rounded-lg p-2.5 space-y-1"><p className="text-[11px] text-gray-500">未讀共{unreadInfo.total}人</p>{unreadInfo.day.length>0&&<p className="text-[11px] text-gray-400">早班：{unreadInfo.day.join('、')}</p>}{unreadInfo.night.length>0&&<p className="text-[11px] text-gray-400">晚班：{unreadInfo.night.join('、')}</p>}{unreadInfo.other.length>0&&<p className="text-[11px] text-gray-400">未選班別：{unreadInfo.other.join('、')}</p>}</div>)}
-          {copyMsg&&<p className="text-[11px] text-center text-emerald-400">{copyMsg}</p>}
-        </div>
-        <div className="pt-2 border-t border-white/[0.06] grid grid-cols-3 gap-2">
-          <button onClick={submitEdit} disabled={editStatus==='saving'} className="py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold active:bg-emerald-700 disabled:opacity-50">{editStatus==='saving'?'…':(t.noticeSaveBtn||'修改')}</button>
-          <button onClick={toggleStatus} disabled={toggleBusy} className={`py-2.5 rounded-xl text-xs font-semibold disabled:opacity-50 ${editing.status==='off'?'bg-emerald-600/20 text-emerald-400':'bg-red-600/20 text-red-400'}`}>{toggleBusy?'…':(editing.status==='off'?(t.noticeOnBtn||'上架'):(t.noticeOffBtn||'下架'))}</button>
-          <button onClick={doPushEdit} disabled={editPushBusy} className="py-2.5 rounded-xl bg-[#06C755] text-white text-xs font-semibold active:opacity-80 disabled:opacity-50 flex items-center justify-center gap-1">{editPushBusy?'…':<svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.5 2 2 5.6 2 10c0 3.9 3.6 7.2 8.4 7.9.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1.1 1 .6 1.1-.5 6.2-3.7 8.5-6.3C22.1 12.6 22 11.3 22 10c0-4.4-4.5-8-10-8z"/></svg>}分享
-          </button>
-        </div>
-        {editPushMsg&&<p className="text-[11px] text-center text-gray-400">{editPushMsg}</p>}
-      </div>
-    </div></div>)}
-    {showAdd&&(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={closeAdd}><div className="bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[88vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
-      <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{t.noticeAdd||'新增公告'}</h3><button onClick={closeAdd} className="text-gray-500 text-sm">✕</button></div>
-      <div className="p-4 space-y-4">
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.noticeContentLabel||'公告內容（中文）'}</label><textarea value={content} onChange={e=>setContent(e.target.value)} rows={6} placeholder={t.noticeContentPh||'直接貼上或輸入公告內容，其他交給 AI…'} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 resize-none" style={{boxSizing:'border-box'}}/></div>
-        <button onClick={runAI} disabled={aiStatus==='processing'||aiStatus==='publishing'} className="w-full py-2.5 rounded-xl bg-sky-600 text-white text-sm font-semibold active:bg-sky-700 disabled:opacity-50">{aiStatus==='processing'?'AI 處理中…（免費空間較慢）':('✨ '+(t.noticeAIGen||'AI 產生'))}</button>
-        {aiStatus&&aiStatus!=='processing'&&aiStatus!=='publishing'&&!aiStatus.startsWith('done:')&&<p className="text-[11px] text-amber-500 text-center">{aiStatus}</p>}
-        {aiResult&&(<div className="space-y-2 bg-white/[0.03] rounded-xl p-3">
-          <p className="text-[11px] text-gray-500">{t.noticeAIPreview||'AI 產生結果（可修改後發布）'}</p>
-          <div className="grid grid-cols-2 gap-2"><div><label className="text-[10px] text-gray-500">主分類</label><input value={aiResult.cat||''} onChange={e=>upd('cat',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div><div><label className="text-[10px] text-gray-500">子分類</label><input value={aiResult.subcat||''} onChange={e=>upd('subcat',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div></div>
-          <div><label className="text-[10px] text-gray-500">標題</label><input value={aiResult.title||''} onChange={e=>upd('title',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div>
-          <div><label className="text-[10px] text-gray-500">摘要</label><input value={aiResult.summary||''} onChange={e=>upd('summary',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div>
-          <div><label className="text-[10px] text-gray-500">標籤</label><input value={aiResult.tags||''} onChange={e=>upd('tags',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-100" style={{boxSizing:'border-box'}}/></div>
-          <div><label className="text-[10px] text-emerald-600">越南文標題</label><input value={aiResult.titleVi||''} onChange={e=>upd('titleVi',e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-emerald-500" style={{boxSizing:'border-box'}}/></div>
-          <div><label className="text-[10px] text-emerald-600">越南文內容</label><textarea value={aiResult.bodyVi||''} onChange={e=>upd('bodyVi',e.target.value)} rows={3} className="w-full bg-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-emerald-500 resize-none" style={{boxSizing:'border-box'}}/></div>
-        </div>)}
-        {aiStatus&&aiStatus.startsWith('done:')&&(<div className="space-y-2">
-          <p className="text-[11px] text-emerald-500 text-center font-semibold">✓ 已發布（{aiStatus.slice(5)}號）。公告頁是快取，需等下次更新才會顯示，當下沒變是正常的。</p>
-          <button onClick={()=>doPushNotice(aiStatus.slice(5))} disabled={pushBusy} className="w-full py-2.5 rounded-xl bg-[#06C755] text-white text-sm font-semibold active:bg-[#05a648] disabled:opacity-50">{pushBusy?'推播中…':'📲 推播到我的LINE'}</button>
-          {pushMsg&&<p className="text-[11px] text-center text-gray-400">{pushMsg}</p>}
-          <button onClick={()=>checkUnread(aiStatus.slice(5))} disabled={unreadBusy} className="w-full py-2 rounded-xl bg-white/[0.06] text-gray-400 text-xs font-semibold disabled:opacity-50">{unreadBusy?'查詢中…':'查誰還沒看'}</button>
-          {unreadInfo&&(<div className="bg-white/[0.03] rounded-lg p-2.5 space-y-1"><p className="text-[11px] text-gray-500">未讀共{unreadInfo.total}人</p>{unreadInfo.day.length>0&&<p className="text-[11px] text-gray-400">早班：{unreadInfo.day.join('、')}</p>}{unreadInfo.night.length>0&&<p className="text-[11px] text-gray-400">晚班：{unreadInfo.night.join('、')}</p>}{unreadInfo.other.length>0&&<p className="text-[11px] text-gray-400">其他：{unreadInfo.other.join('、')}</p>}</div>)}
-          <button onClick={closeAdd} className="w-full py-2 rounded-xl bg-white/[0.04] text-gray-500 text-xs">關閉</button>
-        </div>)}
-        <div className="pt-2 border-t border-white/[0.06]"><button onClick={publish} disabled={!aiResult||aiStatus==='publishing'||(aiStatus&&aiStatus.startsWith('done:'))} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold active:bg-emerald-700 disabled:opacity-50">{aiStatus==='publishing'?'發布中…':(aiStatus&&aiStatus.startsWith('done:'))?'✓ 已發布':(t.noticePublishBtn||'發布公告')}</button></div>
-      </div>
-    </div></div>)}
-  </div>);
+function encWithKey(text,key){return Array.from(text).map((c,i)=>(c.charCodeAt(0)^key.charCodeAt(i%key.length)).toString(16).padStart(2,'0')).join('')}
+function decWithKey(hex,key){try{return hex.match(/.{2}/g).map((x,i)=>String.fromCharCode(parseInt(x,16)^key.charCodeAt(i%key.length))).join('')}catch(_e){return''}}
+function actKey(code,devId){return code+':'+devId+':ACT2026'}
+// 4位密碼→傳輸/儲存用憑證(用老師編號當key加密,GAS端只需字串比對,不需能解密回明文)
+// 老師編號正規化:去掉開頭多餘的0(例如"005"→"5"),要跟GAS端的_normCode邏輯完全一致,
+// 否則密碼雜湊值會因為輸入"005"或"5"而算出不同結果,即使GAS查表時有正規化也對不上密碼
+function normCode(c){
+  const s=String(c||'').trim();
+  const stripped=s.replace(/^0+(?=\d)/,'');
+  return stripped||'0';
 }
-function CredentialCard({t,settings}){
-  const code=settings&&settings.code;
-  const[status,setStatus]=React.useState(null); // null/checking/ok/invalid
-  const[expiresAt,setExpiresAt]=React.useState('');
-  const[reason,setReason]=React.useState(''); // 'left'/'expired'/''
-  const[daysLeft,setDaysLeft]=React.useState(null);
-  const[showRenew,setShowRenew]=React.useState(false);
-  const[devId]=React.useState(()=>getDeviceId());
-  const[ticketSeq,setTicketSeq]=React.useState('');const[ticketStatus,setTicketStatus]=React.useState('');const[cooldown,setCooldown]=React.useState(0);const[busy,setBusy]=React.useState(false);const[err,setErr]=React.useState('');
-  const doCheck=React.useCallback(()=>{
-    if(!code||!hasMyKey(code)){setStatus('ok');return}
-    setStatus('checking');
-    (async()=>{
-      try{
-        const key=getMyKey(code);
-        const r=await gasVerifyKey(code,key);
-        setStatus((r&&r.ok&&r.valid)?'ok':'invalid');
-        setExpiresAt((r&&r.expiresAt)||'');
-        setReason((r&&r.reason)||'');
-        if(r&&r.expiresAt){
-          const d=Math.ceil((new Date(r.expiresAt.replace(/\//g,'-')).getTime()-Date.now())/86400000);
-          setDaysLeft(d);
-        }else{setDaysLeft(null)}
-      }catch(_e){setStatus('ok')}
-    })();
-  },[code]);
-  React.useEffect(()=>{doCheck()},[doCheck]);
-  React.useEffect(()=>{if(cooldown<=0)return;const tm=setTimeout(()=>setCooldown(c=>c>0?c-1:0),1000);return()=>clearTimeout(tm)},[cooldown]);
-  const submitRenew=async()=>{
-    setBusy(true);setErr('');
-    try{
-      const r=await gasSubmitAction('E',code,{devId});
-      setBusy(false);
-      if(r&&r.ok){setTicketSeq(r.seq);setTicketStatus('')}else{setErr((r&&r.error)||'送出失敗')}
-    }catch(e){setBusy(false);setErr(String(e))}
-  };
-  const checkRenew=async()=>{
-    if(cooldown>0||ticketStatus==='checking')return;
-    setTicketStatus('checking');
-    try{
-      const r=await gasCheckAction(ticketSeq);
-      if(r&&r.ok){
-        if(r.status==='approved'){
-          setTicketStatus('approved');
-          try{const today=new Date().toISOString().slice(0,10);localStorage.setItem('key-check-date-'+code,today);localStorage.setItem('key-check-result-'+code,'ok')}catch(_e){}
-          setTimeout(()=>{setShowRenew(false);setTicketSeq('');setTicketStatus('');doCheck()},1500);
-        }else{setTicketStatus('pending');setCooldown(60)}
-      }else{setTicketStatus('error');setCooldown(60)}
-    }catch(_e){setTicketStatus('error');setCooldown(60)}
-  };
-  const showRenewBtn=status==='invalid'||(typeof daysLeft==='number'&&daysLeft<=7&&daysLeft>=0);
-  return(<>
-    <div className="bg-white/[0.04] rounded-xl px-4 py-3">
-      <div className="flex items-center justify-between"><span className="text-sm text-gray-400">{t.teacherCert||'老師專屬憑證'}</span><span className={`text-sm font-semibold ${status==='invalid'?'text-red-400':'text-emerald-400'}`}>{status==='checking'?'…':status==='invalid'?(t.credentialInvalid||'無效'):('✓ '+(t.certGot||'本機已領'))}</span></div>
-      {expiresAt&&<div className="flex items-center justify-between mt-1"><span className="text-xs text-gray-500">{t.credentialExpiryLabel||'憑證期限'}</span><span className="text-xs text-gray-400">{expiresAt}{reason==='left'?('（'+(t.leftDateLabel||'離職日')+'）'):reason==='expired'?('（'+(t.expiredLabel||'已逾期')+'）'):''}</span></div>}
-    </div>
-    {showRenewBtn&&<button onClick={()=>setShowRenew(true)} className="w-full py-2.5 rounded-xl bg-amber-600/20 border border-amber-500/30 text-amber-400 text-sm font-semibold active:bg-amber-600/30">{t.renewModalTitle||'憑證展期'}</button>}
-    {showRenew&&(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={()=>setShowRenew(false)}><div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl" onClick={e=>e.stopPropagation()}>
-      <div className="p-4 border-b border-white/[0.06] flex items-center justify-between"><h3 className="text-base font-bold text-gray-100">{t.renewModalTitle}</h3><button onClick={()=>setShowRenew(false)} className="text-gray-500 text-sm">✕</button></div>
-      <div className="p-4 space-y-4">
-        {!ticketSeq?(<>
-          <p className="text-sm text-gray-400">{t.renewModalBody}</p>
-          {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
-          <button onClick={submitRenew} disabled={busy} className="w-full py-3 rounded-xl bg-amber-600 text-white font-bold disabled:opacity-50">{busy?'…':t.submitActivation}</button>
-        </>):(<>
-          <div className="bg-white/[0.03] rounded-xl p-4 text-center"><p className="text-[11px] text-gray-500 mb-1">{t.ticketInfoTeacher}</p><p className="text-2xl font-bold text-gray-100 mb-3">{code}</p><p className="text-[11px] text-gray-500 mb-1">{t.ticketCode}</p><p className="text-base font-semibold text-amber-400 font-mono tracking-widest select-all">{ticketSeq}</p></div>
-          <button onClick={()=>{const base=location.origin+location.pathname.replace(/index\.html$/,'')+'auth.html';const link=buildReqLink(base,ticketSeq);const zhMsg=(T.zh.lineTicketRenewPrefix||'').replace('{code}',code);const isVi=ticketSeq&&ticketSeq[1]==='2';const viMsg=isVi?(T.vi.lineTicketRenewPrefix||'').replace('{code}',code):'';sendTicketFlex('📅 審核通知',zhMsg,link,viMsg)}} className="w-full px-3 py-4 rounded-xl text-base font-bold bg-[#06C755] text-white active:bg-[#05b34c]">{t.ticketSend}</button>
-          <button onClick={checkRenew} disabled={cooldown>0||ticketStatus==='checking'} className={`w-full py-3.5 rounded-xl font-bold transition-all ${cooldown>0||ticketStatus==='checking'?'bg-white/[0.06] text-gray-600 cursor-not-allowed':'bg-amber-600 text-white'}`}>{ticketStatus==='checking'?t.ticketChecking:cooldown>0?fmtLog(t.ticketWaitCountdown,[String(cooldown)]):t.ticketCheckBtn}</button>
-          {ticketStatus==='pending'&&<p className="text-xs text-gray-500 text-center">{t.ticketPending}</p>}
-          {ticketStatus==='approved'&&<p className="text-xs text-emerald-400 text-center font-semibold">{t.ticketApproved}</p>}
-          {ticketStatus==='error'&&<p className="text-xs text-red-400 text-center">{t.pwdLoginFail}</p>}
-        </>)}
-      </div>
-    </div></div>)}
-  </>);
+function lockPwdCred(code,pwd){return encWithKey(String(pwd||''),normCode(code)+':LOCKPWD2026')}
+function genActWithToken(code,devId,ghCfg){const payload=JSON.stringify({t:ghCfg.token,o:ghCfg.owner,r:ghCfg.repo});return encWithKey(payload,actKey(code,devId))}
+function verifyActToken(actCode,code,devId){try{const json=decWithKey(actCode.trim(),actKey(code,devId));const d=JSON.parse(json);if(d.t&&d.o&&d.r)return{token:d.t,owner:d.o,repo:d.r};return null;}catch(_e){return null}}
+/* ── 基資/店資 申請碼 + 確認碼 ──
+   申請碼:類別碼(B=基資 S=店資)+ 加密payload(老師端key)
+   確認碼:類別碼(小寫 b/s)+ 短碼(payload內容hash) */
+const REQ_CAT={basic:'B',store:'S',conn:'C',supapply:'A'};
+// 統一識別申請碼類型(看第一字元)→ {cat,bound} 或 null
+function identifyReqCode(s){const x=(s||'').trim();if(!x)return null;const c1=x[0];const up=c1.toUpperCase();const map={B:'basic',S:'store',C:'conn',A:'supapply'};const cat=map[up];if(!cat)return null;return{cat,catChar:c1,bound:c1===up,body:x.slice(1)}}
+// 把長碼切成多段參數連結:req=...&req2=...&req3=...（每段預設500字，避開LINE單段約600字辨識上限）
+// auth.html的LIFF網址(不是直接的GitHub Pages網址)——票證通知連結都要用這個開頭,
+// 因為直接開auth.html會觸發LINE的「permission is not in LIFF app scope」錯誤,一定要透過liff.line.me這個網址進站,LIFF授權才會正確生效
+const AUTH_LIFF_BASE='https://liff.line.me/2010673151-78xtxXg9';
+function buildReqLink(base,code,seg,prefix){const S=seg||500;const P=prefix||'req';const parts=[];for(let i=0;i<code.length;i+=S)parts.push(code.slice(i,i+S));let url=base+'#'+P+'='+encodeURIComponent(parts[0]);for(let i=1;i<parts.length;i++)url+='&'+P+(i+1)+'='+encodeURIComponent(parts[i]);return url}
+// 通用行為代碼Flex分享:導去safety-report.html的LIFF正式網址代發Flex卡片(shareTargetPicker一定要透過liff.line.me網址正式啟動LIFF才能用)
+const TICKET_FLEX_LIFF_ID='2010673151-kemVP4Pi';
+function sendTicketFlex(title,body,link,viBody){
+  const fullBody=viBody?(body+'\n\n'+viBody):body;
+  const uri='https://liff.line.me/'+TICKET_FLEX_LIFF_ID+'?flexTitle='+encodeURIComponent(title)+'&flexBody='+encodeURIComponent(fullBody||'')+'&flexLink='+encodeURIComponent(link);
+  location.href=uri;
 }
-// 新同事用不到「老師專屬憑證/申請認證/領取金鑰」(1.13 已拿掉公司審核):預設隱藏(隱藏不刪,要恢復改 false)。
-// 已經領過金鑰的老師(hasMyKey)仍會看到憑證卡,因為金鑰過期時店資內容會被擋,要靠憑證卡的「憑證展期」處理。
-const HIDE_CERT_FOR_NEW=true;
-function SettingsPage({settings,onUpdate,t,theme,setTheme,onClose,onLogout}){
-  const[form,setForm]=useState({...settings});const[gasTest,setGasTest]=useState('');const[keyAdminSec,setKeyAdminSec]=useState('');const[keyGenCode,setKeyGenCode]=useState('');const[keyGenResult,setKeyGenResult]=useState(null);const[claimInput,setClaimInput]=useState('');const[claimMsg,setClaimMsg]=useState('');
-  const[saved,setSaved]=useState(false);
-  const[subTab,setSubTab]=useState('home');
-  useEffect(()=>{try{const s=sessionStorage.getItem('__settingsSub');if(s){setSubTab(s);sessionStorage.removeItem('__settingsSub')}}catch(e){}},[]);
-  const devId=getDeviceId();
-  const[connMode,setConnMode]=useState(null);
-  const[connInput,setConnInput]=useState('');
-  const[connStatus,setConnStatus]=useState('');
-  const[stores,setStores]=useState([]);
-  const[logoutConfirm,setLogoutConfirm]=useState(false);
-  const[basicCode,setBasicCode]=useState('');
-  const[storeCode,setStoreCode]=useState('');
-  const lang=t===T.zh?'zh':'vi';
-  useEffect(()=>{loadStores().then(setStores)},[]);
-  // 1.13版:LINE登入(從備份區塊搬到這裡,放在語系設定下方),雲端備份還是需要用這個身份存取,往下傳給BackupSection
-  const[lineUserId,setLineUserIdState]=useState(()=>getMyLineUserId());
-  const[liffBusy,setLiffBusy]=useState(false);
-  const[liffErr,setLiffErr]=useState('');
-  // v1.13-019:加getLineLogoutFlag()判斷——使用者主動登出後,就算LINE內建瀏覽器讓liff.init()靜默重新登入成功,
-  // 也不要把這個結果存回本機,否則每次重新打開備份/設定頁(同一個SettingsPage元件,只是subTab不同)都會把剛登出的狀態復原。
-  // 這個旗標只有使用者自己按「使用LINE登入」才會清掉(doLineLogin),代表這是他主動要重新登入,不是被動靜默復原
-  useEffect(()=>{
-    if(lineUserId)return;
-    if(getLineLogoutFlag())return;
-    if(typeof liff==='undefined')return;
-    (async()=>{
-      try{
-        await liff.init({liffId:INDEX_LIFF_ID});
-        if(liff.isLoggedIn()){
-          const profile=await liff.getProfile();
-          if(profile&&profile.userId){
-            setMyLineUserId(profile.userId);setLineUserIdState(profile.userId);
-            // v1.13-015:【測試用】登入LINE成功當下立刻備份一次,不等每日自動備份——
-            // 目的是讓老師點完「使用LINE登入」馬上就能在GAS Sheet看到一筆新紀錄,方便逐一測試不同老師的手機LINE登入
-            // 到底能不能正常運作(跟目前還在排查的LINE登入真實環境失敗問題有關),不用等到隔天才能確認這支手機有沒有成功
-            try{
-              const obj=makePersonalBackup(settings.code,settings.year||bizParts().y);
-              const pj=JSON.stringify({store:settings.store||'',gender:settings.gender||'',shift:settings.shift||'',workStart:settings.workStart||'',workEnd:settings.workEnd||''});
-              gasBackupSubmit(profile.userId,settings.code,settings.year||bizParts().y,JSON.stringify(obj),pj).catch(()=>{});
-            }catch(_e){}
-          }
-        }
-      }catch(_e){}
-    })();
-  },[]);
-  const doLineLogin=async()=>{
-    if(typeof liff==='undefined'){setLiffErr(t.liffSdkFail||'LINE SDK載入失敗，請檢查網路');return}
-    setLiffBusy(true);setLiffErr('');
-    clearLineLogoutFlag(); // 使用者主動要重新登入,解除登出旗標,允許下面的liff.login()跟導轉回來後的靜默偵測正常運作
-    try{
-      await liff.init({liffId:INDEX_LIFF_ID});
-      if(liff.isLoggedIn())liff.logout();
-      const cleanUrl=location.origin+location.pathname+location.hash;
-      liff.login({redirectUri:cleanUrl});
-    }catch(e){setLiffBusy(false);setLiffErr(String(e))}
+// ===== 名片分享(1.13-027) =====
+const CARD_STORE_DEFAULTS={
+  '龍山寺店':{appleUrl:'https://maps.apple/p/RpjW94GS9r5ZVd',bm:'雲心閣',bs:'養生會館',phone:'(02)2338-0193',addr:'台北市西園路一段218號',addrNote:'龍山寺捷運站1號出口對面',mapUrl:'https://maps.app.goo.gl/mco4AX52NrL7HaP9A?g_st=ic'},
+  '東門店':{appleUrl:'https://maps.apple/p/EMiV82dAh3KoW6',bm:'映禪',bs:'養生館',phone:'02 3322 6176',addr:'106臺北市大安區信義路二段176號',addrNote:'東門捷運站5號出口',mapUrl:'https://maps.app.goo.gl/pVDzhGJsT2UAJjrH6?g_st=ic'},
+  '古亭店':{appleUrl:'https://maps.apple/p/FKY5tqMv7fUC3F',bm:'禪云心',bs:'養生會館',phone:'02 2356 7017',addr:'100臺北市中正區和平西路一段19號',addrNote:'古亭捷運站7號出口走到和平西路右轉',mapUrl:'https://maps.app.goo.gl/8HkE2QFALZDY2vfj8?g_st=ic'},
+  '公館店':{appleUrl:'https://maps.apple/p/hAb8wkkjQZg~pm',bm:'雲禪居',bs:'養生會館',phone:'02 2362 0393',addr:'100臺北市中正區汀州路三段199號',addrNote:'公館捷運站4號出口往52巷走',mapUrl:'https://maps.app.goo.gl/J6UjtaBCbUdpPyCm7?g_st=ic'}
+};
+// 從GitHub上的cardstores.json讀各館預設(改檔案不用改程式),成功就併進CARD_STORE_DEFAULTS;失敗沿用內建。回傳是否有更新
+async function loadCardStores(){
+  try{
+    const res=await fetch('./cardstores.json',{cache:'no-store'});if(!res.ok)return false;
+    const j=await res.json();let ch=false;
+    Object.keys(j||{}).forEach(k=>{const v=j[k];if(k.charAt(0)==='_'||!v||typeof v!=='object'||!v.addr)return;CARD_STORE_DEFAULTS[k]=Object.assign({},CARD_STORE_DEFAULTS[k]||{},v);ch=true});
+    return ch;
+  }catch(_e){return false}
+}
+const CARD_BRAND='雲心閣養生會館';
+// 名片資料:使用者自填(settings.card*)優先,沒填用店別預設;本部/教學處等沒有預設的店別一律用龍山寺店
+function getCardData(settings){
+  const s=settings||{};
+  const store=s.cardStore||s.storeSel||s.store||'龍山寺店';
+  const d=CARD_STORE_DEFAULTS[store]||CARD_STORE_DEFAULTS['龍山寺店'];
+  return{
+    store,code:String(s.code||''),brandMain:d.bm,brandSub:d.bs,
+    workStart:s.workStart||'09:00',workEnd:s.workEnd||'21:00',
+    phone:s.cardPhone!=null&&s.cardPhone!==''?s.cardPhone:d.phone,
+    addr:s.cardAddr!=null&&s.cardAddr!==''?s.cardAddr:d.addr,
+    addrNote:s.cardAddrNote!=null&&s.cardAddrNote!==''?s.cardAddrNote:d.addrNote,
+    mapUrl:s.cardMapUrl!=null&&s.cardMapUrl!==''?s.cardMapUrl:d.mapUrl,
+    appleUrl:s.cardAppleUrl!=null&&s.cardAppleUrl!==''?s.cardAppleUrl:(d.appleUrl||'')
   };
-  const doLineLogout=()=>{
-    try{if(typeof liff!=='undefined'&&liff.isLoggedIn())liff.logout()}catch(_e){}
-    clearMyLineUserId();setLineUserIdState('');
-    setLineLogoutFlag(); // 標記「使用者主動登出」,擋住掛載時的靜默重新登入偵測,不然LINE內建瀏覽器幾乎會立刻把登入狀態復原
-  };
-  const upd=(patch)=>{const ns={...form,...patch};setForm(ns);onUpdate({...ns,lastSyncBasic:settings.lastSyncBasic,lastSyncStore:settings.lastSyncStore})};
-  const[goAuthChecking,setGoAuthChecking]=useState(false);
-  const goAuth=async()=>{
-    if(goAuthChecking)return;setGoAuthChecking(true);
-    let hasPerm=false;
-    try{const sup=LS.get('supervisor-'+settings.code);if(sup&&sup.status==='approved')hasPerm=true}catch(_e){}
-    if(!hasPerm){try{const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),4000);const res=await fetch('./admin.cfg',{cache:'no-store',signal:ctrl.signal});clearTimeout(timer);if(res.ok){const text=(await res.text()).trim();const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));const myHash=adminHash(settings.code);hasPerm=lines.some(l=>{const parts=l.split(':');const h=parts.length>=2?parts[parts.length-1]:parts[0];return h===myHash})}}catch(_e){}}
-    location.href='./auth.html#lang='+(settings.lang||'zh')+(hasPerm?'&auto=1':'');
-  };
-  const fld=(label,key,opt)=>(<div><label className="text-xs text-gray-400 mb-1 block">{label}{opt&&<span className="text-[10px] text-gray-600 ml-1">({t.optional})</span>}</label><input value={form[key]||''} onChange={e=>upd({[key]:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>);
-  const Construction=()=>(<div className="flex flex-col items-center justify-center py-20 text-center"><svg className="w-12 h-12 text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/></svg><p className="text-sm text-gray-500">{t.underConstruction}</p></div>);
-  // 產生申請碼:把欄位加密,標記變動
-  const isBound=()=>{try{return localStorage.getItem('uuid-bound-'+settings.code)==='1'}catch(_e){return false}};
-  const[reqErr,setReqErr]=useState('');
-  // 必填檢核:* 欄位
-  const checkRequired=(cat,fields)=>{const miss=[];if(cat==='basic'){if(!fields.gender)miss.push(t.gender);if(!fields.addrCity)miss.push(t.city);if(!fields.addrDist)miss.push(t.district);}else if(cat==='store'){if(!fields.shift)miss.push(t.shift);if(!fields.workStart)miss.push(t.workStart);if(!fields.workEnd)miss.push(t.workEnd);if(!fields.preg)miss.push(t.pregClient);if(!fields.oil)miss.push(t.oilLabel)}return miss};
-  const genCode=(cat,fields,setter)=>{const miss=checkRequired(cat,fields);if(miss.length){setReqErr(t.reqMissing+'：'+miss.join('、'));setter('');setTimeout(()=>setReqErr(''),4000);return}setReqErr('');try{const enc=genReqCode(cat,settings.code,devId,fields,isBound());setter(enc)}catch(e){setter('')}};
-  // 貼確認碼:驗證通過→更新本機快照(清未確認)+若確認碼大寫設已綁定
-  const[confirmInput,setConfirmInput]=useState('');
-  const[confirmMsg,setConfirmMsg]=useState('');
-  const applyConfirm=async(cat,fields,snapKey)=>{const ok=verifyConfirmCode(confirmInput,cat,settings.code,fields);if(ok){const snap={...fields};if(cat==='store'){snap.storeSel=form.storeSel||'';}const nowIso=new Date().toISOString();const syncKey=cat==='store'?'lastSyncStore':'lastSyncBasic';let ns={...settings,...form,[snapKey]:snap,[syncKey]:nowIso};
-    // #9:確認碼通過後,主動讀 staff.json 找自己編號,把雲端有的欄位寫回本機(以雲端為準)
-    try{const staff=await readStaff({});if(Array.isArray(staff)&&staff.length){const me=staff.find(s=>String(s.code)===String(settings.code));if(me){const merge={};['nameZh','nameVi','phone','email','storeSel','shift','permitNo','permitExpiry','permitDate','permitOrg'].forEach(k=>{if(me[k]!==undefined&&me[k]!==''&&me[k]!==null)merge[k]=me[k]});ns={...ns,...merge}}}}catch(_e){}
-    onUpdate(ns);setForm(f=>({...f,lastSyncBasic:ns.lastSyncBasic,lastSyncStore:ns.lastSyncStore}));if(confirmCodeIsBound(confirmInput)){try{localStorage.setItem('uuid-bound-'+settings.code,'1')}catch(_e){}}setConfirmMsg('ok');setConfirmInput('');setTimeout(()=>setConfirmMsg(''),3000)}else{setConfirmMsg('fail');setTimeout(()=>setConfirmMsg(''),3000)}};
-  const onWorkStartChange=(hh)=>{let patch={workStart:hh};if(hh!==''){const h=Number(hh);const eh=(h+12)%24;patch.workEnd=String(eh).padStart(2,'0')+':00';}upd(patch)};
-  // 上工預設現在小時(僅未設過時)
-  useEffect(()=>{if(!form.workStart&&!settings.workStart){const nowH=new Date().getHours();const eh=(nowH+12)%24;upd({workStart:String(nowH).padStart(2,'0')+':00',workEnd:String(eh).padStart(2,'0')+':00'})}},[]);
-  // 前次主管確認值快照(只有確認過才有,新老師沒有→不顯示紅字)
-  const confirmedP=settings.confirmedProfile||null;
-  const confirmedS=settings.confirmedStore||null;
-  // 是否為主管(有連線能力):主管改了直接存,不需確認流程,不亮❗
-  const isSupervisor=useMemo(()=>{const gh=getGHConfig();return!!(gh&&gh.token)},[]);
-  // 基資/店資是否有未確認變動(主管除外)
-  const profileFields=['gender','nameZh','nameVi','phone','email','addrCity','addrDist','addrDetail','school','major','schoolType','permitNo','permitDate','permitExpiry','permitOrg'];
-  const storeFields=['storeSel','shift','workStart','workEnd','workNote','unitPrice','preg','oil','techMentor','lockerNo'];
-  const hasChg=(snapshot,fields,src)=>{if(isSupervisor)return false;if(!snapshot)return fields.some(k=>{const v=src[k];return v!==undefined&&v!==''&&v!==null});return fields.some(k=>(snapshot[k]||'')!==((src[k]!==undefined?src[k]:'')||''))};
-  const basicChanged=hasChg(confirmedP,profileFields,form);
-  const storeChanged=hasChg(confirmedS,storeFields,form);
-  const anyChanged=basicChanged||storeChanged;
-  // 工作證到期提醒:到期前30天內或已過期
-  const permitExpiring=(()=>{if(!form.permitExpiry)return false;const exp=new Date(form.permitExpiry);const now=new Date();const days=(exp-now)/86400000;return days<=30})();
-  const prevHint=(snapshot,key,curVal)=>{
-    // 優先比對 staff 現值(公司登記),不一致顯示紅字
-    const sv=settings.staffValues&&settings.staffValues[key];
-    if(sv!==undefined&&sv!==null&&sv!==''){
-      if(String(sv)!==String(curVal||''))return<p className="text-[11px] text-red-400 mt-1">{t.staffValueHint}：{String(sv)}</p>;
-      return null;
+}
+// 導去safety-report.html的LIFF網址代發名片Flex(同sendTicketFlex機制)
+function sendCardFlex(card){
+  const o={bm:card.brandMain,bs:card.brandSub,c:card.code,ws:card.workStart,we:card.workEnd,p:card.phone,a:card.addr,n:card.addrNote,m:card.mapUrl,am:card.appleUrl||'',st:card.store||''};
+  location.href='https://liff.line.me/'+TICKET_FLEX_LIFF_ID+'?cardShare='+encodeURIComponent(JSON.stringify(o));
+}
+// 從 hash 還原完整碼：依序接回 req,req2,req3...
+function parseReqHash(hash,prefix){const P=prefix||'req';const h=(hash||'').replace(/^#/,'');if(!h)return null;const params={};h.split('&').forEach(kv=>{const idx=kv.indexOf('=');if(idx>0){const k=kv.slice(0,idx);const v=kv.slice(idx+1);params[k]=v}});if(params[P]===undefined)return null;let code='';try{code=decodeURIComponent(params[P])}catch(_e){code=params[P]}let n=2;while(params[P+n]!==undefined){try{code+=decodeURIComponent(params[P+n])}catch(_e){code+=params[P+n]}n++}return code}
+// 連線申請碼:C + code:uuid(老師→主管,主管產生連線碼用)
+function genConnReq(code,devId){return 'C'+code+':'+devId}
+function parseConnReq(s){const id=identifyReqCode(s);if(!id||id.cat!=='conn')return null;const parts=id.body.split(':');if(parts.length<2)return null;return{code:parts[0],uuid:parts.slice(1).join(':')}}
+// 主管申請碼:A + xEnc(code:uuid:devName)
+function genSupReq(code,devId,devName){return 'A'+xEnc(code+':'+devId+':'+(devName||'unknown'))}
+function parseSupReq(s){const id=identifyReqCode(s);if(!id||id.cat!=='supapply')return null;try{const dec=xDec(id.body);const parts=dec.split(':');if(parts.length<2)return null;return{code:parts[0],uuid:parts[1],devName:parts.slice(2).join(':')||''}}catch(_e){return null}}
+function genReqCode(cat,code,devId,fields,bound){const payload=JSON.stringify({cat,code,uuid:devId||'',fields,ts:Date.now()});const enc=xEnc(encodeURIComponent(payload));const c1=(REQ_CAT[cat]||'X');return (bound?c1:c1.toLowerCase())+enc}
+function parseReqCode(reqCode){const s=(reqCode||'').trim();if(!s)return null;const c1=s[0];const up=c1.toUpperCase();const cat=up==='B'?'basic':up==='S'?'store':null;if(!cat)return null;const bound=(c1===up);return{cat,catChar:c1,bound,enc:s.slice(1)}}
+function decReqCode(reqCode){const p=parseReqCode(reqCode);if(!p)return null;try{const json=decodeURIComponent(xDec(p.enc));const d=JSON.parse(json);if(d.cat&&d.fields)return{cat:d.cat,code:d.code,uuid:d.uuid||'',fields:d.fields,ts:d.ts,boundClaim:p.bound};return null}catch(_e){return null}}
+// 確認碼:類別小寫 + 6碼(由 code+cat+欄位值 算hash);老師端用相同算法驗證
+function genConfirmCode(cat,code,fields){const S='MPConfirm2026';const f=fields||{};const sortedKeys=Object.keys(f).filter(k=>{const v=f[k];if(v===undefined||v===null||v==='')return false;if(Array.isArray(v)&&v.length===0)return false;return true}).sort();const norm=sortedKeys.map(k=>{let v=f[k];if(Array.isArray(v))v=v.slice().sort().join(',');return k+'='+String(v)}).join('&');const base=S+code+cat+norm+S;let h=fnv(base);for(let i=0;i<30;i++)h=fnv(String(h)+S);const n=h%1000000;const up=(REQ_CAT[cat]||'X');return up+String(n).padStart(6,'0')}
+function verifyConfirmCode(confirmCode,cat,code,fields){const s=(confirmCode||'').trim();if(!s)return false;const expect=genConfirmCode(cat,code,fields);return s.toUpperCase()===expect.toUpperCase()}
+function confirmCodeIsBound(confirmCode){const s=(confirmCode||'').trim();if(!s)return false;return s[0]===s[0].toUpperCase()}
+function genUUID(){return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&0x3|0x8)).toString(16)})}
+function getDeviceId(){let id=localStorage.getItem('device-uuid');if(!id){id=genUUID();localStorage.setItem('device-uuid',id)}return id}
+
+/* ══════════ Supervisor levels ══════════ */
+const SUP_LEVELS=[{id:1,zh:'實習副理',vi:'Phó QL thực tập'},{id:2,zh:'副理',vi:'Phó quản lý'},{id:3,zh:'經理',vi:'Quản lý'},{id:4,zh:'區經理',vi:'Quản lý khu vực'},{id:5,zh:'執行長',vi:'Giám đốc'}];
+function supLevelName(id,lang){const lv=SUP_LEVELS.find(l=>l.id===id);return lv?(lv[lang]||lv.zh):''}
+function effSupLevel(level){return level}
+
+/* ══════════ GitHub API ══════════ */
+const GH_KEY='github-config';
+function getGHConfig(){return LS.get(GH_KEY)||{}}
+function saveGHConfigLocal(cfg){LS.set(GH_KEY,cfg)}
+async function saveGHConfig(cfg){LS.set(GH_KEY,cfg)}
+async function ghReadFile(cfg,path){const res=await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${path}`,{headers:{'Authorization':`token ${cfg.token}`,'Accept':'application/vnd.github.v3+json'}});if(!res.ok)return null;const data=await res.json();return{content:atob(data.content.replace(/\n/g,'')),sha:data.sha}}
+async function ghWriteFile(cfg,path,content,sha,msg){const body={message:msg||'update '+path,content:btoa(unescape(encodeURIComponent(content)))};if(sha)body.sha=sha;const res=await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${path}`,{method:'PUT',headers:{'Authorization':`token ${cfg.token}`,'Content-Type':'application/json'},body:JSON.stringify(body)});return res.ok}
+async function ghAppendLine(cfg,path,line,msg){const file=await ghReadFile(cfg,path);if(!file){try{const res=await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${path}`,{method:'PUT',headers:{'Authorization':'token '+cfg.token,'Content-Type':'application/json'},body:JSON.stringify({message:msg||'create '+path,content:btoa(unescape(encodeURIComponent(line+'\n')))})});if(res.ok)return{ok:true};const err=await res.json().catch(()=>({}));return{ok:false,reason:err.message||'HTTP '+res.status};}catch(e){return{ok:false,reason:e.message||'network error'}}}const newContent=file.content.trim()+'\n'+line+'\n';const ok=await ghWriteFile(cfg,path,newContent,file.sha,msg);return ok?{ok:true}:{ok:false,reason:'write failed'}}
+async function ghRemoveLine(cfg,path,line,msg){const file=await ghReadFile(cfg,path);if(!file)return false;const lines=file.content.split('\n').filter(l=>l.trim()!==line.trim());return ghWriteFile(cfg,path,lines.join('\n'),file.sha,msg)}
+
+/* ══════════ Staff / Stores / Approvals ══════════ */
+async function readStaff(gh){try{const res=await fetch('./staff.json',{cache:'no-store'});if(!res.ok)return[];const enc=(await res.text()).trim();if(!enc)return[];const raw=xDec(enc);try{return JSON.parse(decodeURIComponent(raw))}catch(_e){try{return JSON.parse(raw)}catch(_e){return[]}}}catch(_e){return[]}}
+// 每日密碼閘門通過後呼叫:去staff.json抓自己這個編號的最新狀態,存本機供「更多功能」區塊判斷要不要開放。
+// 抓不到(讀取失敗/查無此編號)不會寫入任何快取,也不會清掉舊快取——維持容錯優先,查不到就沿用上次結果或視為在職,不會平白把人擋住
+async function syncMyStaffStatus(code){
+  if(!code)return;
+  try{
+    const list=await readStaff();
+    const rec=Array.isArray(list)?list.find(s=>s&&String(s.code)===String(code)):null;
+    if(!rec)return; // 查無此編號(可能讀取失敗或還沒同步到),不動舊快取
+    const data={status:rec.status||'active',checkedAt:Date.now()};
+    localStorage.setItem('staff-status-'+code,JSON.stringify(data));
+  }catch(_e){} // 網路失敗容錯,不動舊快取
+}
+// 判斷是否離職:只有「本機確實成功同步過」且狀態是left,才視為離職;從沒同步成功過的裝置一律不限制(容錯優先,避免誤傷)
+function isStaffLeft(code){
+  if(!code)return false;
+  try{
+    const raw=localStorage.getItem('staff-status-'+code);
+    if(!raw)return false;
+    const data=JSON.parse(raw);
+    return data&&data.status==='left';
+  }catch(_e){return false}
+}
+async function writeStaff(gh,staffList){
+  // 改走GAS存Staff Sheet(第一階段:只動寫入,讀取仍是下面readStaff()打staff.json不動)。
+  // GAS saveStaff內部會存Sheet(真實來源)+容錯寫回staff.json(維持這個readStaff()讀取路徑不變)。
+  try{
+    const json=JSON.stringify(staffList);
+    const enc=xEnc(encodeURIComponent(json));
+    const myCode=((LS.get('app-settings')||{}).code)||'';
+    const r=await gasCallPost('saveStaff',{staff:enc,code:myCode},30000);
+    return !!(r&&r.ok);
+  }catch(_e){return false}
+}
+async function checkApproved(type,hash){try{const res=await fetch('./approved.cfg',{cache:'no-store'});if(!res.ok)return null;const text=await res.text();const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));for(const line of lines){const parts=line.split(':');if(parts[0]===type&&parts[1]===hash)return{level:parts[2]?parseInt(parts[2]):0}}return null;}catch(_e){return null}}
+async function writeApproval(gh,type,hash,level){const line=level?`${type}:${hash}:${level}`:`${type}:${hash}`;return ghAppendLine(gh,'approved.cfg',line,'approve '+type+' '+hash)}
+async function loadStores(){try{const res=await fetch('./stores.cfg',{cache:'no-store'});if(!res.ok)return['龍山寺店'];const text=(await res.text()).trim();const stores=text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));return stores.length?stores:['龍山寺店'];}catch(_e){return['龍山寺店']}}
+async function saveStores(gh,stores){if(!gh.token)return false;const content=stores.join('\n')+'\n';const file=await ghReadFile(gh,'stores.cfg');if(file)return ghWriteFile(gh,'stores.cfg',content,file.sha,'update stores');try{const res=await fetch(`https://api.github.com/repos/${gh.owner}/${gh.repo}/contents/stores.cfg`,{method:'PUT',headers:{'Authorization':'token '+gh.token,'Content-Type':'application/json'},body:JSON.stringify({message:'create stores.cfg',content:btoa(unescape(encodeURIComponent(content)))})});return res.ok;}catch(_e){return false}}
+/* ══════════ 統計快照(stats.json) ══════════ */
+// 從 staffList 算統計(班別比/性別比/上工人數),可選店篩選
+function computeStats(staffList,storeFilter){const rows=(staffList||[]).filter(s=>s.role!=='admin'&&(!storeFilter||s.store===storeFilter));const shifts={day:0,night:0,other:0};const genders={M:0,F:0,other:0};rows.forEach(s=>{const sh=s.shift;if(sh==='day')shifts.day++;else if(sh==='night')shifts.night++;else shifts.other++;const g=s.gender;if(g==='M')genders.M++;else if(g==='F')genders.F++;else genders.other++});const workHours=Array.from({length:24},()=>0);const workStart=Array.from({length:24},()=>0);rows.forEach(s=>{if(!s.workStart)return;const h0=Number(String(s.workStart).split(':')[0]);if(isNaN(h0))return;workStart[h0]++;let eh=s.workEnd?Number(String(s.workEnd).split(':')[0]):(h0+12)%24;if(isNaN(eh))eh=(h0+12)%24;let h=h0;for(let i=0;i<24;i++){workHours[h]++;if(h===eh)break;h=(h+1)%24;if(h===h0)break}});return{total:rows.length,shifts,genders,workHours,workStart,updatedAt:Date.now()}}
+// 主管發布快照到 stats.json
+async function publishStats(gh,stats){if(!gh||!gh.token)return false;const content=JSON.stringify(stats);try{const file=await ghReadFile(gh,'stats.json');if(file)return ghWriteFile(gh,'stats.json',content,file.sha,'update stats');const res=await fetch(`https://api.github.com/repos/${gh.owner}/${gh.repo}/contents/stats.json`,{method:'PUT',headers:{'Authorization':'token '+gh.token,'Content-Type':'application/json'},body:JSON.stringify({message:'create stats.json',content:btoa(unescape(encodeURIComponent(content)))})});return res.ok}catch(_e){return false}}
+// 老師端讀公開快照
+async function loadStats(){try{const res=await fetch('./stats.json',{cache:'no-store'});if(!res.ok)return null;return await res.json()}catch(_e){return null}}
+function getApproved(){return LS.get('approved-supervisors')||[]}
+function saveApproved(list){LS.set('approved-supervisors',list)}
+function addApproved(code,devName){const list=getApproved();list.push({code,devName,ts:Date.now(),revoked:false});saveApproved(list)}
+
+/* ══════════ Logs ══════════ */
+function addLog(msg,level='admin'){const logs=LS.get('admin-log')||[];const s=LS.get('app-settings');const operator=s?.code||'';logs.push({ts:Date.now(),msg,level:level||'admin',op:operator});if(logs.length>200)logs.splice(0,logs.length-200);LS.set('admin-log',logs)}
+function getLogs(filterLevel){const logs=(LS.get('admin-log')||[]).reverse();if(!filterLevel)return logs;if(filterLevel==='teacher')return logs.filter(l=>l.level==='teacher');if(filterLevel==='supervisor')return logs.filter(l=>l.level==='teacher'||l.level==='supervisor');return logs}
+function fmtLog(s,args){return args.reduce((r,a,i)=>r.replace(`{${i}}`,a),s)}
+function fmtDate(ts){const d=new Date(ts);return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
+
+/* ══════════ Theme ══════════ */
+const THEMES={pink:'#fce4f6',black:'#030712',white:'#f9fafb',gray:'#1f2937',smooth:'#0d0d18',apple:'#f5f5f7',neon:'#0b0f19',forest:'#121a15',sunset:'#18120b',ocean:'#0b1329',quiet:'#17161a'};
+
+/* ══════════ Data helpers (salary tracking) ══════════ */
+const SKILL_KEYS=['guasha','baguang','xiujiao'];
+const SKILL_SHORT=['gs','bg','xj'];
+const SKILL_PRICES=[250,250,300];
+const SKILL_COLORS=['text-cyan-400','text-violet-400','text-pink-400'];
+const SK=["normal","sick","late","rest","personal","early"];
+const SBG=["","bg-red-500/20","bg-yellow-500/20","bg-blue-500/20","bg-purple-500/20","bg-orange-500/20"];
+const STC=["","text-red-300","text-yellow-300","text-blue-300","text-purple-300","text-orange-300"];
+const canWork=[true,false,true,false,false,true];
+const toB36=n=>Math.min(Math.max(Math.round(n),0),35).toString(36);
+const fromB36=c=>parseInt(c,36)||0;
+const dim=(y,m)=>new Date(y,m,0).getDate();
+const dow=(y,m,d)=>new Date(y,m-1,d).getDay();
+/* ── 營業日：分界 6:30。凌晨 0:00–6:29 算前一天 ──
+   傳入可選的 Date（預設現在），回傳調整後的 Date 物件 */
+const BIZ_CUTOFF_MIN=6*60+30;
+function getBizCutoff(){try{const s=LS.get("app-settings");if(s&&s.bizCutoff){const p=String(s.bizCutoff).split(":");const mm=parseInt(p[0])*60+parseInt(p[1]||"0");if(!isNaN(mm)&&mm>=0&&mm<1440)return mm}}catch(_e){}return BIZ_CUTOFF_MIN}
+function bizDate(now){now=now||new Date();const mins=now.getHours()*60+now.getMinutes();const cut=getBizCutoff();const d=new Date(now);if(mins<cut){d.setDate(d.getDate()-1)}d.setHours(12,0,0,0);return d}
+function bizParts(now){const d=bizDate(now);return{y:d.getFullYear(),m:d.getMonth()+1,d:d.getDate(),dow:d.getDay()}}
+const dk=(c,y,m)=>`data-${c}-${y}-${String(m).padStart(2,'0')}`;
+const eDay=()=>({groups:[],total:0,laodian:0,status:0,skills:{guasha:0,baguang:0,xiujiao:0},slips:[],did:'',ts:0});
+const stamp=(dd)=>{dd.did=getDeviceId();dd.ts=Date.now();return dd};
+/* ══════════ 流水記錄(客管明細,與計薪總數獨立) ══════════ */
+// 一筆流水:{id,units,createdAt,startAt(修正開始時間,空=用createdAt),tags[]}
+function newSlip(units){const now=Date.now();return{id:'S'+now+Math.floor(Math.random()*1000),units:units||1,laodian:0,createdAt:now,startAt:0,tags:[],custName:'',custTitle:'',custPhone:'',svc:'',extra:0,pressBody:'',pressFoot:'',parts:[],reqs:[],laodianOut:'',shiftOut:''}}
+// 客管欄位常數
+const PRESS_LEVELS=['light','normal','heavy'];
+const BODY_PARTS=['head','shoulder','upperback','lowerback','waist','butt','thigh','calf','arm'];
+const CLIENT_REQS=['male','female','tw','vn','cn'];
+// 客戶資料庫(存受力/部位等固定屬性,key=電話優先,無電話用 姓+稱謂)
+function custKey(name,title,phone){const p=(phone||'').trim();if(p)return 'p:'+p;const n=(name||'').trim();const t=(title||'').trim();if(n)return 'n:'+n+'|'+t;return ''}
+// ===== GAS 後端呼叫層(1.10 GAS整合,疊加在現有機制,gasUrl未設定時全部略過不影響原流程) =====
+// 內建 GAS 網址 + 批量領取碼(過渡期批量發放用)
+// BUILTIN_GAS_URL: 你的 exec 網址(乾淨的,不帶任何密碼)
+// BUILTIN_BATCH_CODE: 只能「領金鑰」的專用碼(對應 GAS 的 BATCH_CODE 屬性)
+//   洩漏危害極小(最多幫已啟動老師領金鑰,拿不到 adminSecret、不能作廢)。
+//   大部分老師領完後,清空這兩個 + 到 GAS 清掉 BATCH_CODE 屬性即停用。
+const BUILTIN_GAS_URL='https://script.google.com/macros/s/AKfycbzH6TqbO1-Xe6UkLKqn5OSbsz18rtVQ4Ze-xe9VDmMxlmMum9XZi26FK3hJJfNClOhrIw/exec';
+const BUILTIN_BATCH_CODE='%X7KrJx6j?7FNGhG7o}#';
+function getGasUrl(){try{const s=LS.get('app-settings');if(s&&s.gasUrl)return s.gasUrl}catch(_e){}try{const u=localStorage.getItem('gas-url');if(u)return u}catch(_e){}return BUILTIN_GAS_URL||''}
+function getBuiltinGasUrl(){return BUILTIN_GAS_URL||''}
+// 老師是否該看到「更新領金鑰」提示:有內建網址+領取碼+還沒領過金鑰
+function shouldClaimKey(code){try{if(!code)return false;if(!BUILTIN_GAS_URL||!BUILTIN_BATCH_CODE)return false;if(hasMyKey(code))return false;return true}catch(_e){return false}}
+// 用內建網址+batchCode 領自己金鑰(batchClaim 只能領,不能管理)
+async function autoClaimKey(code){
+  if(!code)return{ok:false};if(!BUILTIN_GAS_URL||!BUILTIN_BATCH_CODE)return{ok:false};
+  try{
+    const url=BUILTIN_GAS_URL+(BUILTIN_GAS_URL.indexOf('?')>=0?'&':'?')+'action=batchClaim&code='+encodeURIComponent(code)+'&batch='+encodeURIComponent(BUILTIN_BATCH_CODE);
+    const ctrl=new AbortController();const to=setTimeout(()=>ctrl.abort(),8000);
+    const res=await fetch(url,{signal:ctrl.signal});clearTimeout(to);
+    if(!res.ok)return{ok:false};
+    const r=await res.json();
+    if(r&&r.ok&&r.key){setMyKey(code,r.key);return{ok:true,key:r.key}}
+    return{ok:false,error:(r&&r.error)||'fail'}
+  }catch(_e){return{ok:false,error:'network'}}
+}
+// 診斷:模擬指定編號領金鑰,回傳完整過程(管理者用)
+async function diagClaimKey(code){
+  const info={code:code,hasBuiltinUrl:!!BUILTIN_GAS_URL,hasBuiltinBatch:!!BUILTIN_BATCH_CODE,builtinUrlPreview:BUILTIN_GAS_URL?BUILTIN_GAS_URL.slice(0,45)+'…':'(空)',alreadyHasKey:hasMyKey(code),shouldClaim:shouldClaimKey(code)};
+  if(!BUILTIN_GAS_URL){info.result='fail';info.reason='common.js的BUILTIN_GAS_URL是空的(沒填或部署未更新)';return info}
+  if(!BUILTIN_BATCH_CODE){info.result='fail';info.reason='common.js的BUILTIN_BATCH_CODE是空的';return info}
+  try{
+    const url=BUILTIN_GAS_URL+(BUILTIN_GAS_URL.indexOf('?')>=0?'&':'?')+'action=batchClaim&code='+encodeURIComponent(code)+'&batch='+encodeURIComponent(BUILTIN_BATCH_CODE);
+    const ctrl=new AbortController();const to=setTimeout(()=>ctrl.abort(),15000);
+    const res=await fetch(url,{signal:ctrl.signal});clearTimeout(to);
+    info.httpStatus=res.status;
+    if(!res.ok){info.result='fail';info.reason='HTTP '+res.status+'(網址錯或GAS未部署)';return info}
+    const r=await res.json();
+    info.gasResponse=JSON.stringify(r);
+    if(r&&r.ok&&r.key){info.result='ok';info.reason='領取成功,金鑰='+String(r.key).slice(0,20)+'…';return info}
+    info.result='fail';info.reason='GAS拒絕:'+((r&&r.error)||'unknown')+'(bad batch=領取碼不符/no key yet=尚未產金鑰/revoked=已停用)';return info
+  }catch(e){info.result='fail';info.reason='連線例外:'+(e&&e.name||e)+'(逾時或連不到)';return info}
+}
+function setGasUrl(url){try{localStorage.setItem('gas-url',url||'')}catch(_e){}}
+async function gasCall(action,params,timeoutMs){
+  const url=getGasUrl();if(!url)return null;
+  try{
+    const qs=Object.keys(params||{}).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(params[k])).join('&');
+    const full=url+(url.indexOf('?')>=0?'&':'?')+'action='+encodeURIComponent(action)+(qs?'&'+qs:'');
+    const ctrl=new AbortController();const to=setTimeout(()=>ctrl.abort(),timeoutMs||8000);
+    const res=await fetch(full,{signal:ctrl.signal});clearTimeout(to);
+    if(!res.ok)return null;
+    return await res.json();
+  }catch(_e){return null}
+}
+function gasWarmup(){try{if(getGasUrl())gasCall('ping',{})}catch(_e){}}
+// POST版(JSON body,不塞網址):給資料量大的動作用(如staff整包陣列),GET網址長度會爆
+// 刻意不設Content-Type header(讓瀏覽器預設text/plain),避免觸發CORS預檢請求導致GAS網頁應用失敗
+async function gasCallPost(action,params,timeoutMs){
+  const url=getGasUrl();if(!url)return null;
+  try{
+    const ctrl=new AbortController();const to=setTimeout(()=>ctrl.abort(),timeoutMs||15000);
+    const body=Object.assign({action:action},params||{});
+    const res=await fetch(url,{method:'POST',body:JSON.stringify(body),signal:ctrl.signal});
+    clearTimeout(to);
+    if(!res.ok)return null;
+    return await res.json();
+  }catch(_e){return null}
+}
+// 功能使用統計(只記「某功能被按了一次」):背景送 GAS、不等回應、失敗無所謂。只送:功能名、匿名裝置代號(本機隨機產生,不是老師編號)、版本、語系;不送任何姓名/編號/客戶資料。
+function __getInstallId(){try{let v=localStorage.getItem('mp-install-id');if(!v){v=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():('i'+Date.now().toString(36)+Math.random().toString(36).slice(2,10));localStorage.setItem('mp-install-id',v)}return v}catch(_e){return ''}}
+// 開啟環境:pwa(加到主畫面)/line(LINE 內建瀏覽器)/chrome/safari/edge/firefox/other;作業系統 ios/android/desktop。只看 userAgent,不含個資
+function __detectEnv(){
+  try{
+    const ua=String(navigator.userAgent||'');
+    const os=/iPhone|iPad|iPod/i.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)?'ios':/Android/i.test(ua)?'android':'desktop';
+    let standalone=false;try{standalone=!!navigator.standalone||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);}catch(_e){}
+    let env='other';
+    if(standalone)env='pwa';
+    else if(/Line\//i.test(ua))env='line';
+    else if(/EdgiOS|EdgA|Edg\//.test(ua))env='edge';
+    else if(/FxiOS|Firefox/.test(ua))env='firefox';
+    else if(/CriOS|Chrome/.test(ua))env='chrome';
+    else if(/Safari/.test(ua))env='safari';
+    return {env:env,os:os};
+  }catch(_e){return {env:'',os:''};}
+}
+function logUse(feature){
+  try{
+    const url=getGasUrl();if(!url)return;
+    let lang='';try{const s=LS.get('app-settings');lang=(s&&s.lang)||''}catch(_e){}
+    const ver=(String(document.title).match(/v[\d.\-]+/)||[''])[0];
+    fetch(url,{method:'POST',body:JSON.stringify({action:'logUse',feature:String(feature||'').slice(0,40),installId:__getInstallId(),ver:ver,lang:lang,env:__detectEnv().env,os:__detectEnv().os}),keepalive:true,mode:'no-cors'}).catch(function(){});
+  }catch(_e){}
+}
+window.__logUse=logUse;
+// 公告:從GAS讀取存本機(這階段不驗證)
+function getNoticesLocal(){try{const v=LS.get('notices-cache');return Array.isArray(v)?v:[]}catch(_e){return []}}
+function saveNoticesLocal(list){try{LS.set('notices-cache',list||[])}catch(_e){}}
+// 老師端:強制讀 GitHub 的 notices.json(公開、免金鑰、免GAS)。有就顯示,無則空
+async function fetchNotices(){
+  try{
+    const res=await fetch('./notices.json?t='+Date.now(),{cache:'no-store'});
+    if(res.ok){const txt=(await res.text()).trim();if(txt){const data=JSON.parse(txt);
+      if(Array.isArray(data)){saveNoticesLocal(data);return data} // 舊格式:純陣列
+      if(data&&Array.isArray(data.notices)){saveNoticesLocal(data.notices);try{localStorage.setItem('notices-homecount',String(data.homeCount!=null?data.homeCount:2))}catch(_e){}try{localStorage.setItem('notices-show',JSON.stringify(data.show||{}))}catch(_e){}try{localStorage.setItem('notices-listtext',data.listText||'summary')}catch(_e){}try{localStorage.setItem('notices-counttype',data.countType||'people')}catch(_e){}try{localStorage.setItem('notices-maincats',JSON.stringify(data.mainCats||[]))}catch(_e){}return data.notices} // 新格式
+    }}
+  }catch(_e){}
+  return getNoticesLocal();
+}
+// 首頁要顯示幾筆(來自notices.json的homeCount,預設2)
+function getNoticeHomeCount(){try{const v=localStorage.getItem('notices-homecount');const n=v!=null?parseInt(v,10):2;return isNaN(n)?2:n}catch(_e){return 2}}
+// 公告欄位顯示開關(主分類/子分類/標籤),預設都不顯示
+function getNoticeShow(){try{const v=localStorage.getItem('notices-show');const o=v?JSON.parse(v):{};return {cat:!!o.cat,subcat:!!o.subcat,tags:!!o.tags}}catch(_e){return {cat:false,subcat:false,tags:false}}}
+// 完整的主分類清單(含中越文對照),不受目前有沒有公告限制,固定顯示全部分類分頁按鈕用
+function getNoticeMainCats(){try{const v=localStorage.getItem('notices-maincats');return v?JSON.parse(v):[]}catch(_e){return []}}
+// 列表文字用標題還是摘要(主管在公告更新按鈕選的),預設摘要
+function getNoticeListText(){try{return localStorage.getItem('notices-listtext')||'summary'}catch(_e){return 'summary'}}
+// 開啟次數顯示人數(不重複)還是人次(全部),預設人數
+function getNoticeCountType(){try{return localStorage.getItem('notices-counttype')||'people'}catch(_e){return 'people'}}
+// 管理者:去GAS抓最新N筆公告,寫成 notices.json 存 GitHub(供老師公開讀取)
+async function publishNotices(homeCount,listCount,show,onStep,opts){
+  const step=(s)=>{try{if(onStep)onStep(s)}catch(_e){}};
+  if(!getGasUrl()){return {ok:false,error:'no gas url',step:'GAS網址'};}
+  step('請GAS產生公告靜態檔(含已讀統計)…');
+  let r;
+  const sh=show||{};const op=opts||{};
+  try{r=await gasCall('publishNotices',{homeCount:homeCount,listCount:listCount,showCat:sh.cat?1:'',showSubcat:sh.subcat?1:'',showTags:sh.tags?1:'',listText:op.listText||'summary',countType:op.countType||'people'},40000);}catch(e){return {ok:false,error:'gas exception:'+e,step:'連GAS'};}
+  if(!r){return {ok:false,error:'GAS無回應(連不到或逾時40秒)',step:'連GAS'};}
+  if(!r.ok){return {ok:false,error:'GAS錯:'+(r.error||'unknown')+'(可能GAS缺GH_TOKEN/GH_OWNER/GH_REPO屬性,或未重新部署)',step:'GAS寫GitHub'};}
+  step('完成,共'+(r.count||0)+'筆');
+  return {ok:true,count:r.count||0};
+}
+// 公告顯示文字(依語言選中/越文,越文空則用中文)
+function noticeBody(n,lang){if(!n)return '';if(lang==='vi'&&n.bodyVi&&n.bodyVi.trim())return n.bodyVi;return n.body||''}
+// 列表用:依語系選標題/摘要,越文空則fallback中文
+function noticeTitle(n,lang){if(!n)return '';if(lang==='vi'&&n.titleVi&&n.titleVi.trim())return n.titleVi;return n.title||''}
+function noticeSummary(n,lang){if(!n)return '';if(lang==='vi'&&n.summaryVi&&n.summaryVi.trim())return n.summaryVi;return n.summary||''}
+// 公告主分類清單(去重)
+function noticeCats(list){const s={};(list||[]).forEach(n=>{if(n.cat)s[n.cat]=1});return Object.keys(s)}
+// 公告標籤清單(標籤欄可能逗號/空格分隔)
+function noticeTags(list){const s={};(list||[]).forEach(n=>{String(n.tags||'').split(/[,、\s]+/).forEach(t=>{const tt=t.trim();if(tt)s[tt]=1})});return Object.keys(s)}
+// 金鑰本機存取
+// 1.13版:主程式(index.html)專用的LIFF ID,拿掉公司化後用來讓老師自己綁定LINE身份(雲端備份防撞號用),
+// 跟auth.html的AUTH_LIFF_ID(主管審核用)是完全不同的兩組LIFF應用程式,各自綁定各自的網址
+// 1.13版:拿掉公司化功能的總開關。原本定義在app-core.js裡,但settings.js比app-core.js先載入,
+// 跨檔案引用會因為執行順序問題拋出ReferenceError,所以搬到這裡(common.js永遠最先載入,所有檔案都能安全引用)
+const HIDE_COMPANY_FEATURES=true;
+// 1.13版:目前GitHub Pages上根本沒有部署staff.json/notices.json這兩份檔案(從來沒下載成功過,readStaff/
+// fetchNotices永遠拿到空陣列),這個開關讓index.html的對應呼叫點直接跳過、連fetch都不送出,不是「隱藏功能不刪除」
+// 那種UI層級的隱藏,是真的連網路請求都不觸發——跟HIDE_COMPANY_FEATURES同樣的總開關寫法,方便之後如果真的部署了
+// 這兩份檔案,只要把這裡改回false就能整套恢復,呼叫點程式碼不用再改一次
+const DISABLE_GH_DATA_FETCH=true;
+const INDEX_LIFF_ID='2010673151-QNFLrsH0';
+function getMyLineUserId(){try{return localStorage.getItem('my-line-userid')||''}catch(_e){return ''}}
+function setMyLineUserId(uid){try{localStorage.setItem('my-line-userid',uid)}catch(_e){}}
+function clearMyLineUserId(){try{localStorage.removeItem('my-line-userid')}catch(_e){}}
+// v1.13-019:「使用者主動登出」旗標——單純清掉my-line-userid不夠,因為settings.js裡有一段「掛載時嘗試靜默liff.init()偵測有沒有登入」
+// 的邏輯(原意是抓住剛從LINE登入頁導轉回來的情境),在LINE內建瀏覽器(WebView)裡,liff.logout()只會清掉SDK本機存的token,
+// LINE App本身對這個LIFF頻道的授權還在,下次liff.init()會靜默重新登入成功(不會跳出任何畫面),導致每次重新打開備份/設定頁
+// (兩者其實是同一個SettingsPage元件,只是進入時的subTab不同)都會被這段偵測邏輯悄悄把登出復原。
+// 加這個旗標之後,登出時一併設置,偵測邏輯看到旗標存在就完全跳過靜默登入;只有使用者自己按「使用LINE登入」按鈕時才會清掉旗標、
+// 允許重新走登入流程(含真正登入後從LINE導轉回來那次)
+function getLineLogoutFlag(){try{return localStorage.getItem('my-line-logout')==='1'}catch(_e){return false}}
+function setLineLogoutFlag(){try{localStorage.setItem('my-line-logout','1')}catch(_e){}}
+function clearLineLogoutFlag(){try{localStorage.removeItem('my-line-logout')}catch(_e){}}
+function getMyKey(code){try{return localStorage.getItem('gaskey-'+code)||''}catch(_e){return ''}}
+// 公告已讀:本機記錄哪些已讀
+function getReadNotices(){try{return LS.get('notices-read')||{}}catch(_e){return {}}}
+function isNoticeRead(id){try{return !!getReadNotices()[id]}catch(_e){return false}}
+function setNoticeReadLocal(id){try{const r=getReadNotices();r[id]=Date.now();LS.set('notices-read',r)}catch(_e){}}
+// 帶金鑰記已讀→GAS,回該公告人數
+async function markNoticeRead(code,noticeId){
+  const key=getMyKey(code);
+  if(!key)return {ok:false,error:'no key'};
+  const r=await gasCall('readNotice',{code:code,key:key,noticeId:noticeId},12000);
+  if(r&&r.ok){setNoticeReadLocal(noticeId);return {ok:true,count:r.count}}
+  return {ok:false,error:(r&&r.error)||'fail'}
+}
+// 查公告已讀人數:優先從靜態公告(notices.json含readCount),省GAS
+function getNoticeReadCount(noticeId){
+  try{const list=getNoticesLocal();const n=(list||[]).find(x=>String(x.id)===String(noticeId));if(n&&typeof n.readCount==='number')return n.readCount;}catch(_e){}
+  return null;
+}
+// 查公告閱讀人員清單:優先靜態(notices.json含readers);沒有才即時查GAS
+async function getNoticeReaders(noticeId){
+  try{const list=getNoticesLocal();const n=(list||[]).find(x=>String(x.id)===String(noticeId));if(n&&Array.isArray(n.readers))return n.readers;}catch(_e){}
+  const r=await gasCall('noticeReads',{noticeId:noticeId,detail:1},10000);
+  if(r&&r.ok&&Array.isArray(r.readers))return r.readers;
+  return null;
+}
+// 未讀清單(GAS即時算:在職老師－已讀,分早晚班)。回 {ok,day[],night[],other[],total}
+async function getNoticeUnread(noticeId){
+  const r=await gasCall('noticeUnread',{noticeId:noticeId},15000);
+  if(r&&r.ok)return r;
+  return {ok:false,error:(r&&r.error)||'GAS無回應',day:[],night:[],other:[],total:0};
+}
+// AI翻譯公告中文→越南文
+async function gasTranslate(text,code,feature){
+  const r=await gasCallPost('translateNotice',{text:text,code:code||'',feature:feature||'翻譯測試'},40000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// AI分析公告:內容→分類/標籤/標題/摘要/越南文
+async function gasAddNotice(data){
+  const r=await gasCallPost('addNotice',data,20000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 主管線上編輯既有公告(改中文,GAS背景自動翻越南文)。data需含id,其餘cat/subcat/title/summary/body/tags只帶有改的欄位
+async function gasEditNotice(data){
+  const r=await gasCallPost('editNotice',data,45000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// ===== 行為代碼+流水 通用審核架構 =====
+// 送出一個待審核動作(如新老師啟動N、忘記密碼F),回{ok,seq}
+async function gasSubmitAction(actionCode,code,payload){
+  const r=await gasCallPost('submitAction',{actionCode,code,payload:JSON.stringify(payload||{})},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 查詢流水號目前狀態(pending/approved/used/rejected)
+async function gasCheckAction(seq){
+  const r=await gasCall('checkAction',{seq},10000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 拒接黑名單(K代碼)查詢/送出/核准/查詢清單
+async function gasBlacklistSubmit(teacherCode,custName,custTitle,custPhone,reason,svc,startAt){
+  const r=await gasCallPost('blacklistSubmit',{teacherCode,custName,custTitle,custPhone,reason,svc,startAt},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasBlacklistCheck(seq){
+  const r=await gasCall('blacklistCheck',{seq},10000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasBlacklistApprove(seq,code,approve){
+  const r=await gasCallPost('blacklistApprove',{seq,code,approve},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasBlacklistSearch(q){
+  const r=await gasCall('blacklistSearch',{q},10000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 雲端備份:直接用編號存取,換手機後查詢就能還原,不用行為代碼/LINE分享
+async function gasBackupSubmit(lineUserId,code,year,jsonData,profileJson){
+  const r=await gasCallPost('backupSubmit',{lineUserId,code,year,jsonData,profileJson},20000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasBackupCheck(lineUserId){
+  const r=await gasCall('backupCheck',{lineUserId},10000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasBackupFetch(lineUserId){
+  const r=await gasCall('backupFetch',{lineUserId},20000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 待審核登記(G代碼)查詢/核准,用密碼登入的員工編號驗證(auth.html專用,不需要LINE身分)
+async function gasSfGetPendingDetail(code,reqId){
+  const r=await gasCall('sfGetPendingDetail',{code,reqId},10000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasSfApprovePendingRegistration(code,reqId,approve){
+  const r=await gasCallPost('sfApprovePendingRegistration',{code,reqId,approve},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 主管核准動作(建staff/標記approved)
+async function gasApproveAction(seq,code,level){
+  const params={seq,code};
+  if(level!=null)params.level=level;
+  const r=await gasCallPost('approveAction',params,20000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 忘記密碼核准後,設定新密碼(需帶已核准的F流水號)
+async function gasUpdatePwd(code,seq,lockPwdEnc){
+  const r=await gasCallPost('updatePwd',{code,seq,lockPwdEnc},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 密碼登入(換機用):比對GAS Staff裡存的密碼憑證
+async function gasLoginPwd(code,lockPwdEnc){
+  const r=await gasCall('loginPwd',{code,lockPwdEnc},10000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 首次設定密碼(非忘記密碼重設,已有密碼會被GAS拒絕)
+async function gasSetInitialPwd(code,lockPwdEnc){
+  const r=await gasCallPost('setInitialPwd',{code,lockPwdEnc},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 自助式忘記密碼(鎖屏畫面直接重設,不透過主管審核):跟gasSetInitialPwd不同,不管原本有沒有密碼都直接覆蓋
+async function gasResetLockPwd(code,lockPwdEnc){
+  const r=await gasCallPost('resetLockPwd',{code,lockPwdEnc},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 已通過本機信任檢查(admin.cfg/已核准)的老師啟動時,直接同步基本資料到Staff(不需要走N票證審核)
+async function gasSyncProfile(code,payload){
+  const r=await gasCallPost('syncProfile',{code,payload:JSON.stringify(payload||{})},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 查詢編號是否已經是Staff裡的已啟動老師(新老師啟動頁用來判斷該走新啟動還是密碼登入)
+async function gasCheckCode(code){
+  const r=await gasCall('checkCode',{code},10000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 1.13版:填寫表單時,如果已知編號,用這個嘗試預填店家/性別/班別(舊Staff表資料),不需密碼即可查,避免使用者重複輸入
+async function gasCheckStaffCode(code){
+  const r=await gasCall('checkStaffCode',{code},10000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 主管直接透過GAS讀取全部員工資料(不依賴GitHub靜態檔或本機Token)
+async function gasAuthStaffList(code){
+  const r=await gasCall('authStaffList',{code},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 主管自動取得GitHub設定(GAS指令碼屬性已存GH_OWNER/GH_REPO/GH_TOKEN,不用每次換裝置手動貼)
+async function gasGetGHConfigForSupervisor(code){
+  const r=await gasCall('getGHConfigForSupervisor',{code},10000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 撤銷主管權限(GAS化,直接改staff role,不再需要寫revoked.cfg)
+async function gasRevokeSup(targetCode,code){
+  const r=await gasCallPost('revokeSup',{targetCode,code},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 退回申請(附理由)
+async function gasRejectAction(seq,code,reason){
+  const r=await gasCallPost('rejectAction',{seq,code,reason},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 查金鑰是否有效(含到期日檢查)。離職員工憑證過期後,靠這個擋公告/店資檢視、基資送出
+async function gasVerifyKey(code,key){
+  const r=await gasCall('verifyKey',{code,key},10000);
+  return r||{ok:false,valid:false,error:'GAS無回應'};
+}
+// 記公告開啟(被動記錄,同人同公告只記一次,跟markNoticeRead的主動已讀是兩層)
+async function gasLogNoticeOpen(noticeId,code){
+  const r=await gasCall('logNoticeOpen',{noticeId,code},8000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 離職:staff狀態標記+憑證立即過期
+async function gasLeaveTeacher(code,by){
+  const r=await gasCallPost('leaveTeacher',{code,by:by||code},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 主管預先核准某編號1小時內送出的N/F票證
+async function gasPreApprove(targetCode,code,actionCodes){
+  const r=await gasCallPost('preApprove',{targetCode,code,actionCodes:(actionCodes||['N','F']).join(',')},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasGetPreApprove(targetCode){
+  const r=await gasCall('getPreApprove',{targetCode},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasCancelPreApprove(targetCode,code){
+  const r=await gasCallPost('cancelPreApprove',{targetCode,code},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 公告下架/上架切換
+async function gasToggleNoticeStatus(id,code){
+  const r=await gasCallPost('toggleNoticeStatus',{id,code},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasSubmitSuggestion(title,body,author,anon){
+  const r=await gasCallPost('submitSuggestion',{title,body,author,anon},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasListSuggestions(){
+  const r=await gasCall('listSuggestions',{},10000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasPushNoticeFlexToMe(noticeId,code){
+  const r=await gasCallPost('pushNoticeFlexToMe',{noticeId,code},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 首頁一天一次的密碼+憑證檢查記錄
+async function gasLogDailyCheck(code,store){
+  const r=await gasCall('logDailyCheck',Object.assign({code,store:store||''},__detectEnv()),8000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 1.13版:開場畫面幾個關鍵時機點的輕量記錄(密碼登入/LINE登入/取得userId/完成新裝置設定),
+// fire-and-forget不等回應,呼叫方直接.catch(()=>{})吞掉錯誤,不影響使用者當下的操作流程
+async function gasLogFlowEnter(code,flow,store){
+  const r=await gasCall('logFlowEnter',Object.assign({code,flow,store:store||''},__detectEnv()),8000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 暫時性除錯工具:排查雲端備份POST資料遺失問題用,確認完應該連同UI上的除錯按鈕一起移除
+async function gasDebugEcho(params){
+  const r=await gasCallPost('debugEcho',params,20000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 團購(手套)
+async function gasCreateGroupBuy(code,title,item,amount,deadline,scope){
+  const r=await gasCallPost('createGroupBuy',{code,title,item,amount,deadline,scope},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasListGroupBuys(){
+  const r=await gasCall('listGroupBuys',{},10000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasJoinGroupBuy(buyId,code,size,qty){
+  const r=await gasCallPost('joinGroupBuy',{buyId,code,size,qty},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasMyGroupBuyOrders(code){
+  const r=await gasCall('myGroupBuyOrders',{code},10000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 天災安全回報
+async function gasSubmitDisasterReport(params){
+  const r=await gasCallPost('submitDisasterReport',params,15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasDeclineGroupBuy(buyId,code){
+  const r=await gasCallPost('declineGroupBuy',{buyId,code},10000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasLogGroupBuyOpen(buyId,code){
+  const r=await gasCall('logGroupBuyOpen',{buyId,code},8000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasCloseGroupBuy(buyId,code){
+  const r=await gasCallPost('closeGroupBuy',{buyId,code},10000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasGroupBuyDetail(buyId){
+  const r=await gasCall('groupBuyDetail',{buyId},10000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasSetGroupBuyOrderStatus(buyId,code,field){
+  const r=await gasCallPost('setGroupBuyOrderStatus',{buyId,code,field},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasSetGroupBuyStatus(buyId,code,status){
+  const r=await gasCallPost('setGroupBuyStatus',{buyId,code,status},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasCreateDisasterSurvey(name,startDate,code,scope,message){
+  const r=await gasCallPost('createDisasterSurvey',{name,startDate,code,scope,message},15000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasEndDisasterSurvey(id,code){
+  const r=await gasCallPost('endDisasterSurvey',{id,code},10000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasDeleteDisasterSurvey(id,code){
+  const r=await gasCallPost('deleteDisasterSurvey',{id,code},10000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasListDisasterSurveys(){
+  const r=await gasCall('listDisasterSurveys',{},10000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasMyDisasterReports(surveyId,code){
+  const r=await gasCall('myDisasterReports',{surveyId,code},10000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasDisasterDayStatus(surveyId,date){
+  const r=await gasCall('disasterDayStatus',{surveyId,date},10000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasUsage(){
+  const r=await gasCall('geminiUsage',{},10000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasAnalyze(content,code,feature){
+  const r=await gasCallPost('analyzeNotice',{content:content,code:code||'',feature:feature||'分析測試'},40000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+function setMyKey(code,key){try{localStorage.setItem('gaskey-'+code,key||'')}catch(_e){}}
+function hasMyKey(code){return !!getMyKey(code)}
+// adminSecret 本機存取(管理者輸入一次後存,之後產金鑰自動用)
+function getAdminSecret(){try{return localStorage.getItem('gas-admin-secret')||''}catch(_e){return ''}}
+function setAdminSecret(s){try{localStorage.setItem('gas-admin-secret',s||'')}catch(_e){}}
+function hasAdminSecret(){return !!getAdminSecret()}
+// 主管端產金鑰(需adminSecret),回金鑰+領取碼
+async function issueKey(code,adminSecret,role){const r=await gasCall('genKey',{code:code,adminSecret:adminSecret||'',role:role||'teacher'});return r||{ok:false,error:'no gas'}}
+// 老師端憑領取碼領金鑰,存本機
+async function claimMyKey(code,claim){if(!code||!claim)return{ok:false,error:'missing'};const ex=getMyKey(code);if(ex)return{ok:true,key:ex,already:true};const r=await gasCall('claimKey',{code:code,claim:claim});if(r&&r.ok&&r.key){setMyKey(code,r.key);return{ok:true,key:r.key}}return{ok:false,error:(r&&r.error)||'fail'}}
+function loadCustDB(code){try{return LS.get('custdb-'+code)||{}}catch(e){return{}}}
+function saveCustDB(code,db){LS.set('custdb-'+code,db)}
+function getCust(code,name,title,phone){const k=custKey(name,title,phone);if(!k)return null;const db=loadCustDB(code);return db[k]||null}
+function upsertCust(code,cust){const k=custKey(cust.custName,cust.custTitle,cust.custPhone);if(!k)return;const db=loadCustDB(code);const prev=db[k]||{};
+  // 有舊資料、且真的有變動內容(壓力/施力部位)時,把舊版本存進history,不直接蓋掉消失
+  const history=prev.history||[];
+  const prevHasData=prev.pressBody||prev.pressFoot||(prev.parts&&prev.parts.length);
+  const changed=prevHasData&&(prev.pressBody!==cust.pressBody||prev.pressFoot!==cust.pressFoot||JSON.stringify(prev.parts||[])!==JSON.stringify(cust.parts||[]));
+  if(changed)history.push({pressBody:prev.pressBody||'',pressFoot:prev.pressFoot||'',parts:prev.parts||[],lastAt:prev.lastAt||0});
+  const mergedTags=Array.from(new Set([...(prev.tags||[]),...(cust.tags||[])]));
+  db[k]={custName:cust.custName||prev.custName||'',custTitle:cust.custTitle||prev.custTitle||'',custPhone:cust.custPhone||prev.custPhone||'',pressBody:cust.pressBody!==undefined?cust.pressBody:(prev.pressBody||''),pressFoot:cust.pressFoot!==undefined?cust.pressFoot:(prev.pressFoot||''),parts:cust.parts!==undefined?cust.parts:(prev.parts||[]),tags:mergedTags,lastAt:Date.now(),history:history};saveCustDB(code,db)}
+function deleteCust(code,name,title,phone){const k=custKey(name,title,phone);if(!k)return false;const db=loadCustDB(code);if(db[k]){delete db[k];saveCustDB(code,db);return true}return false}
+// 搜尋客戶DB(姓/稱謂/手機/hashtag)
+function searchCustDB(code,q){q=(q||'').trim().toLowerCase();q=q.replace(/^#/,'');if(!q)return[];const db=loadCustDB(code);const out=[];for(const k in db){const c=db[k];const hay=((c.custName||'')+' '+(c.custTitle||'')+' '+(c.custPhone||'')+' '+((c.tags||[]).join(' '))).toLowerCase();if(hay.includes(q))out.push(c)}return out.sort((a,b)=>(b.lastAt||0)-(a.lastAt||0)).slice(0,8)}
+function recentCust(code,n){const db=loadCustDB(code);const arr=[];for(const k in db)arr.push(db[k]);return arr.sort((a,b)=>(b.lastAt||0)-(a.lastAt||0)).slice(0,n||10)}
+// 找某客戶最近一筆流水(顯示課程/日期)
+function custLastSlip(code,year,name,title,phone){const k=custKey(name,title,phone);if(!k)return null;const all=collectAllSlips(code,year);let best=null;all.forEach(s=>{if(custKey(s.custName,s.custTitle,s.custPhone)===k){if(!best||(s.startTime||0)>(best.startTime||0))best=s}});return best}
+// 流水支數/老點加總
+function slipUnitsTotal(slips){return (slips||[]).reduce((a,s)=>a+(s?s.units||0:0),0)}
+function slipLaodianTotal(slips){return (slips||[]).reduce((a,s)=>a+(s?Math.min(s.laodian||0,s.units||0):0),0)}
+// 一次性遷移:把舊分組 groups 轉成流水,之後只用流水。回傳是否有變動。
+function migrateDayGroups(dd){
+  if(!dd)return false;
+  if(!dd.slips)dd.slips=[];
+  if(dd.groups&&dd.groups.length>0){
+    // 若已有流水,且流水支數已達total(表示首頁+N已同時寫過流水),只清groups不重複加
+    const slipU=slipUnitsTotal(dd.slips);
+    const groupU=dd.groups.reduce((a,b)=>a+(parseInt(b)||0),0);
+    if(slipU>=(dd.total||0)&&slipU>0){
+      // 流水已足額,舊分組是重複資料 → 直接丟棄
+      dd.groups=[];
+    }else{
+      // 流水不足,把groups補成流水
+      dd.groups.forEach(n=>{const v=parseInt(n)||0;if(v>0)dd.slips.push(newSlip(v))});
+      dd.groups=[];
     }
-    // 無 staff 值時,退回比對上次確認快照
-    if(!snapshot||!(key in snapshot))return null;const prev=snapshot[key];if((prev||'')===(curVal||''))return null;return<p className="text-[11px] text-red-400 mt-1">{t.prevConfirmed}：{prev||'—'}</p>};
-  const fldP=(label,key,opt,snapshot)=>(<div><label className="text-xs text-gray-400 mb-1 block">{label}{opt&&<span className="text-[10px] text-gray-600 ml-1">({t.optional})</span>}</label><input value={form[key]||''} onChange={e=>upd({[key]:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>{prevHint(snapshot,key,form[key])}</div>);
-  const sheetHeight=(subTab==='home'||subTab==='notice'||subTab==='acupoint')?80:50;
-  return(
-    <BottomSheetModal heightPct={sheetHeight} onClose={onClose}>
-    <div className="flex h-full fi">
-      <div className="flex-1 w-full overflow-y-auto p-4 pb-8 space-y-5 min-w-0">
-      {subTab==='home'&&(<div className="space-y-5 fi -mt-4">
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.year}</label>
-          <div className="flex items-center gap-3"><button onClick={()=>upd({year:form.year-1})} className="w-12 h-12 rounded-xl bg-white/[0.04] text-gray-300 text-2xl active:bg-white/[0.08]">−</button><span className="text-2xl font-bold text-gray-100 flex-1 text-center tabular-nums">{form.year}</span><button onClick={()=>upd({year:form.year+1})} className="w-12 h-12 rounded-xl bg-white/[0.04] text-gray-300 text-2xl active:bg-white/[0.08]">+</button></div>
-        </div>
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.theme}</label>
-          <div className="grid grid-cols-3 gap-2">{[['pink',t.themePink,'#fce4f6',null],['black',t.themeBlack,'#030712',null],['gray',t.themeGray,'#1f2937',null],['white',t.themeWhite,'#f9fafb',null],['smooth',t.themeSmooth,'#0d0d18','linear-gradient(135deg,#0d0d18 0%,#2a1a4a 60%,#7c3aed 100%)'],['apple',t.themeApple,'#f5f5f7',null],['neon',t.themeNeon,'#0b0f19','linear-gradient(135deg,#0b0f19 0%,#0c2a3d 55%,#0ea5e9 100%)'],['forest',t.themeForest,'#121a15','linear-gradient(135deg,#121a15 0%,#1b261f 55%,#4ade80 100%)'],['sunset',t.themeSunset,'#18120b','linear-gradient(135deg,#18120b 0%,#261c14 55%,#f59e0b 100%)'],['ocean',t.themeOcean,'#0b1329','linear-gradient(135deg,#0b1329 0%,#132238 55%,#38bdf8 100%)'],['quiet',t.themeQuiet,'#17161a','linear-gradient(135deg,#17161a 0%,#201f24 55%,#8a8377 100%)']].map(([k,l,c,grad])=>(<button key={k} onClick={()=>setTheme(k)} className={`py-2.5 rounded-xl text-xs font-semibold border-2 ${theme===k?'border-amber-500':'border-transparent'}`} style={{background:grad||c,color:k==='black'||k==='gray'||k==='smooth'||k==='neon'||k==='forest'||k==='sunset'||k==='ocean'||k==='quiet'?'#ccc':k==='apple'?'#0066cc':'#333'}}>{l}</button>))}</div>
-        </div>
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.language}</label>
-          <div className="grid grid-cols-2 gap-2">{[['zh','中文'],['vi','Tiếng Việt']].map(([c,l])=>(<button key={c} onClick={()=>upd({lang:c})} className={`py-2.5 rounded-xl text-sm font-semibold ${form.lang===c?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div>
-        </div>
-        <div className="bg-[#06C755]/[0.06] border border-[#06C755]/20 rounded-xl p-3 space-y-2">
-          <p className="text-sm font-semibold" style={{color:'#06C755'}}>{t.lineLoginTitle||'LINE 登入'}</p>
-          {lineUserId?(<>
-            <p className="text-[11px] text-gray-500 leading-relaxed">{t.lineLoginBoundDesc||'已綁定LINE帳號，雲端備份會用這個身份存取。'}</p>
-            <div className="bg-white/[0.05] rounded-lg p-2"><span className="text-xs text-gray-400">✓ {t.lineLoginBoundLabel||'已綁定'}</span></div>
-          </>):(<>
-            <p className="text-[11px] text-gray-500 leading-relaxed">{t.lineLoginDesc||'請先用LINE登入——這樣才能使用雲端備份，且能確保換手機或忘記密碼時，用LINE身份就能安全找回資料。'}</p>
-            <button onClick={doLineLogin} disabled={liffBusy} className="w-full py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{background:'#06C755'}}>{liffBusy?(t.liffLoggingIn||'登入中…'):(t.lineLoginBtn||'使用LINE登入')}</button>
-            {liffErr&&<p className="text-xs text-red-400">{liffErr}</p>}
-          </>)}
-        </div>
-        {!HIDE_COMPANY_FEATURES&&<div className="space-y-2"><label className="text-xs text-gray-400 mb-1 block">{t.lockPwdSectionTitle}</label>
-          <label className="flex items-center gap-2 bg-white/[0.04] rounded-xl px-4 py-3 cursor-pointer"><input type="checkbox" checked={!!form.disableHomePwd} onChange={e=>upd({disableHomePwd:e.target.checked})} className="w-4 h-4 rounded accent-amber-500"/><span className="text-sm text-gray-300">{t.disableHomePwdLabel}</span></label>
-          <div className="bg-white/[0.04] rounded-xl px-4 py-3"><label className="text-xs text-gray-500 block mb-1.5">{t.lockAutoTimeLabel}</label><div className="flex items-center gap-2"><select value={[5,10,20,30,40,50,60,120].includes(form.lockAutoTime)?form.lockAutoTime:60} onChange={e=>upd({lockAutoTime:parseInt(e.target.value,10)})} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500">{[5,10,20,30,40,50,60,120].map(v=>(<option key={v} value={v}>{v}</option>))}</select><span className="text-xs text-gray-500">{t.lockAutoTimeHint}</span></div></div>
-        </div>}
-        <div className="bg-white/[0.04] rounded-xl px-4 py-3 space-y-2">
-            <p className="text-xs text-gray-500 mb-1">{t.homeLayoutTitle}</p>
-            <label className="flex items-center justify-between gap-2 py-1 cursor-pointer"><span className="text-sm text-gray-300">{t.homeLayoutA}</span><button onClick={()=>upd({homeShowA:form.homeShowA===false})} className={`w-10 h-6 rounded-full flex items-center px-0.5 transition-colors flex-shrink-0 ${form.homeShowA!==false?'bg-amber-600 justify-end':'bg-white/[0.1] justify-start'}`}><span className="w-5 h-5 rounded-full bg-white block"></span></button></label>
-            <label className="flex items-center justify-between gap-2 py-1 cursor-pointer"><span className="text-sm text-gray-300">{t.homeLayoutB}</span><button onClick={()=>upd({homeShowB:form.homeShowB===false})} className={`w-10 h-6 rounded-full flex items-center px-0.5 transition-colors flex-shrink-0 ${form.homeShowB!==false?'bg-amber-600 justify-end':'bg-white/[0.1] justify-start'}`}><span className="w-5 h-5 rounded-full bg-white block"></span></button></label>
-            <label className="flex items-center justify-between gap-2 py-1 cursor-pointer"><span className="text-sm text-gray-300">{t.homeLayoutC}</span><button onClick={()=>upd({homeShowC:form.homeShowC!==true})} className={`w-10 h-6 rounded-full flex items-center px-0.5 transition-colors flex-shrink-0 ${form.homeShowC===true?'bg-amber-600 justify-end':'bg-white/[0.1] justify-start'}`}><span className="w-5 h-5 rounded-full bg-white block"></span></button></label>
-            <p className="text-[10px] text-gray-600">{t.homeLayoutHint}</p>
-        </div>
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.bizCutoffLabel}</label><input type="time" value={form.bizCutoff||'06:30'} onChange={e=>upd({bizCutoff:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500" style={{boxSizing:'border-box',maxWidth:'90%',minWidth:0}}/><p className="text-[11px] text-gray-500 mt-1">{t.bizCutoffHint}</p></div>
-        {(()=>{const ghLocal=getGHConfig();const hasConn=!!(ghLocal&&ghLocal.token);return(
-          <div className="space-y-2">
-            {(!HIDE_CERT_FOR_NEW||hasMyKey(settings.code))&&<CredentialCard t={t} settings={settings}/>}
-            {!HIDE_CERT_FOR_NEW&&!hasConn&&!connMode&&(<button onClick={()=>setConnMode('apply')} className="w-full py-2.5 rounded-xl bg-amber-600/20 border border-amber-500/30 text-amber-400 text-sm font-semibold active:bg-amber-600/30">{t.connApply}</button>)}
-            {connMode==='apply'&&(<div className="space-y-3 fi">
-              <div className="flex justify-center"><div className="bg-white p-2.5 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(settings.code+':'+devId)}`} alt="QR" className="w-40 h-40"/></div></div>
-              <p className="text-[10px] text-gray-600 text-center font-mono select-all break-all">{settings.code}:{devId}</p><button onClick={()=>{const link=buildReqLink(location.origin+location.pathname.replace(/index\.html$/,'')+'auth.html',genConnReq(settings.code,devId));sendTicketFlex('🔗 連線申請',t.lineConnReqPrefix,link,settings.lang==='vi'?T.vi.lineConnReqPrefix:'')}} className="w-full py-2.5 rounded-xl text-white text-sm font-bold bg-[#06C755] active:bg-[#05b34c]">{t.sendViaLine}</button>
-              <div><label className="text-xs text-gray-500 mb-1 block">{t.connCode}</label><textarea value={connInput} onChange={e=>setConnInput(e.target.value)} rows={2} placeholder={t.connInput} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none"/></div>
-              <div className="flex gap-2"><button onClick={()=>{setConnMode(null);setConnInput('');setConnStatus('')}} className="flex-1 py-2.5 bg-white/[0.04] rounded-xl text-gray-500 text-sm">{t.cancel}</button><button onClick={()=>{const ghCfg=verifyActToken(connInput.trim(),settings.code,devId);if(ghCfg){saveGHConfigLocal(ghCfg);setConnStatus(t.connOk);setConnMode(null);setConnInput('')}else{setConnStatus(t.connFail)}}} className="flex-1 py-2.5 bg-amber-600 rounded-xl text-white text-sm font-bold">{t.confirm}</button></div>
-              {connStatus&&<p className={`text-xs text-center ${connStatus.includes('✓')?'text-emerald-400':'text-red-400'}`}>{connStatus}</p>}
-            </div>)}
-          </div>
-        )})()}
-        {(()=>{const gh=getGHConfig();if(!(gh&&gh.token))return null;return(<div className="space-y-2 bg-white/[0.02] border border-emerald-500/20 rounded-xl p-3"><label className="text-xs text-emerald-400 font-semibold mb-1 block">{t.gasSettingTitle}</label><input value={form.gasUrl||''} onChange={e=>upd({gasUrl:e.target.value})} placeholder="https://script.google.com/.../exec" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-xs text-gray-100 focus:outline-none focus:border-emerald-500"/><button onClick={async()=>{if(form.gasUrl)setGasUrl(form.gasUrl);setGasTest('...');try{const r=await gasCall('ping',{});setGasTest(r&&r.ok?'ok':'fail')}catch(_e){setGasTest('fail')}setTimeout(()=>setGasTest(''),3000)}} className="w-full py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold active:bg-emerald-700">{gasTest==='...'?t.gasTesting:gasTest==='ok'?'✓ '+t.gasTestOk:gasTest==='fail'?'✗ '+t.gasTestFail:t.gasTestBtn}</button><p className="text-[11px] text-gray-500">{t.gasSettingHint}</p></div>)})()}
-        {(()=>{const gh=getGHConfig();if(!(gh&&gh.token)||!getGasUrl())return null;return(<div className="space-y-2 bg-white/[0.02] border border-emerald-500/20 rounded-xl p-3"><label className="text-xs text-emerald-400 font-semibold block">{t.keyGenTitle}</label><input value={keyAdminSec} onChange={e=>setKeyAdminSec(e.target.value)} type="password" placeholder={t.keyAdminSecPh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-xs text-gray-100 focus:outline-none focus:border-emerald-500"/><input value={keyGenCode} onChange={e=>setKeyGenCode(e.target.value)} placeholder={t.keyGenCodePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-xs text-gray-100 focus:outline-none focus:border-emerald-500"/><button onClick={async()=>{if(!keyGenCode.trim()||!keyAdminSec.trim())return;setKeyGenResult({loading:true});const r=await issueKey(keyGenCode.trim(),keyAdminSec.trim());setKeyGenResult(r)}} className="w-full py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold active:bg-emerald-700">{keyGenResult&&keyGenResult.loading?t.gasTesting:t.keyGenBtn}</button>{keyGenResult&&!keyGenResult.loading&&(keyGenResult.ok?(<div className="bg-emerald-500/10 rounded-lg p-2.5 space-y-1"><p className="text-[11px] text-gray-400">{t.keyClaimCode}：</p><p className="text-sm text-emerald-400 font-mono font-bold break-all select-all">{keyGenResult.claim}</p><p className="text-[10px] text-gray-500">{t.keyClaimHint}</p></div>):(<p className="text-[11px] text-red-400">✗ {keyGenResult.error||t.gasTestFail}</p>))}</div>)})()}
-        {!HIDE_CERT_FOR_NEW&&settings.code&&getGasUrl()&&!hasMyKey(settings.code)&&(<div className="space-y-2 bg-white/[0.02] border border-amber-500/20 rounded-xl p-3"><label className="text-xs text-amber-400 font-semibold block">{t.keyClaimTitle}</label><input value={claimInput} onChange={e=>setClaimInput(e.target.value.toUpperCase())} placeholder={t.keyClaimPh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono text-center focus:outline-none focus:border-amber-500"/><button onClick={async()=>{if(!claimInput.trim())return;setClaimMsg('...');const r=await claimMyKey(settings.code,claimInput.trim());setClaimMsg(r.ok?'ok':'fail');if(r.ok)setTimeout(()=>setClaimMsg(''),2000)}} className="w-full py-2 rounded-lg bg-amber-600 text-white text-xs font-semibold active:bg-amber-700">{claimMsg==='...'?t.gasTesting:claimMsg==='ok'?'✓ '+t.keyClaimOk:claimMsg==='fail'?'✗ '+t.keyClaimFail:t.keyClaimBtn}</button><p className="text-[11px] text-gray-500">{t.keyClaimTeacherHint}</p></div>)}
-        <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-3 space-y-2">
-          <p className="text-sm text-gray-300 font-semibold">{t.privacyTitle}</p>
-          <p className="text-[13px] text-gray-400 leading-relaxed">{t.privacyBody}</p>
-          <p className="text-[13px] text-gray-400 leading-relaxed">{t.browserNote}</p>
-          <p className="text-[13px] text-gray-400 leading-relaxed">{t.myBookingNote}</p>
-          <p className="text-[13px] text-red-400 leading-relaxed">{t.backupReminder}</p>
-        </div>
-        {/* v1.13-014:拿掉獨立的「LINE登出/換帳號」按鈕(一般使用者沒有真實用途——LINE內建瀏覽器裡本來就不可能換帳號,
-            非內建瀏覽器也沒有需要切換LINE帳號的情境,唯一用得到的只有開發排查畫面),改成併入下面這顆既有的「登出／切換帳號」
-            (換老師編號用):換帳號代表這台裝置接下來要給別人用,理當也一併清掉前一位的LINE綁定跟自動備份旗標,不然新的人進來
-            後舊的LINE身份還留在本機,容易搞混備份對象。doLineLogout本身保留(隱藏不刪除),這裡直接呼叫 */}
-        {onLogout&&(<div className="pt-2 border-t border-white/[0.06]">
-          <button onClick={()=>{if(logoutConfirm){doLineLogout();onLogout()}else{setLogoutConfirm(true);setTimeout(()=>setLogoutConfirm(false),3000)}}} className="w-full py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-gray-400 text-sm font-semibold">{logoutConfirm?t.logoutConfirmBtn:t.logoutBtn}</button>
-          <p className="text-[10px] text-gray-600 text-center mt-1.5">{t.logoutHint}</p>
-        </div>)}
-      </div>)}
-
-      {subTab==='basic'&&(<div className="space-y-4 fi">
-        <h2 className="text-lg font-bold text-gray-100">{t.secBasic}</h2>
-        {basicChanged&&<div className="bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5"><p className="text-xs text-red-400">❗ {t.needConfirm}</p></div>}
-        {permitExpiring&&<div className="bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5"><p className="text-xs text-red-400">❗ {t.permitExpiringSoon}{form.permitExpiry?'：'+form.permitExpiry:''}</p></div>}
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.teacherCode}</label><div className="bg-white/[0.04] rounded-xl px-3 py-2.5 text-base text-gray-300 font-mono">{settings.code}</div></div>
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.gender}<span className="text-red-400 ml-0.5">*</span></label>
-          <div className="grid grid-cols-2 gap-2">{[['M',t.genderM],['F',t.genderF]].map(([g,l])=>(<button key={g} onClick={()=>upd({gender:g})} className={`py-2.5 rounded-xl text-sm font-semibold ${form.gender===g?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div>
-        </div>
-        {fldP(t.nameZh,'nameZh',false,confirmedP)}
-        {fldP(t.nameVi,'nameVi',false,confirmedP)}
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.phone2}</label><input value={form.phone||''} onChange={e=>{let v=e.target.value.split('').filter(ch=>ch>='0'&&ch<='9').join('').slice(0,10);if(v.length>7)v=v.slice(0,4)+'-'+v.slice(4,7)+'-'+v.slice(7);else if(v.length>4)v=v.slice(0,4)+'-'+v.slice(4);upd({phone:v})}} inputMode="tel" placeholder="09xx-xxx-xxx" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>{prevHint(confirmedP,'phone',form.phone)}</div>
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.email}</label><input value={form.email||''} onChange={e=>upd({email:e.target.value})} inputMode="email" placeholder="example@mail.com" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>{prevHint(confirmedP,'email',form.email)}</div>
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.address}</label>
-          <div className="grid grid-cols-2 gap-2">
-            <div><span className="text-[10px] text-gray-400 mb-0.5 block">{t.city}<span className="text-red-400">*</span></span><select value={form.addrCity||''} onChange={e=>upd({addrCity:e.target.value,addrDist:''})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-2.5 text-xs text-gray-100 focus:outline-none focus:border-amber-500"><option value="">{t.selectCity}</option>{Object.keys(TW_REGIONS).map(c=><option key={c} value={c}>{c}</option>)}</select></div>
-            <div><span className="text-[10px] text-gray-400 mb-0.5 block">{t.district}<span className="text-red-400">*</span></span>{form.addrCity&&TW_REGIONS[form.addrCity]&&TW_REGIONS[form.addrCity].length>0?(<select value={form.addrDist||''} onChange={e=>upd({addrDist:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-2.5 text-xs text-gray-100 focus:outline-none focus:border-amber-500"><option value="">{t.selectDist}</option>{TW_REGIONS[form.addrCity].map(d=><option key={d} value={d}>{d}</option>)}</select>):(<input value={form.addrDist||''} onChange={e=>upd({addrDist:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-2.5 text-xs text-gray-100 focus:outline-none focus:border-amber-500"/>)}</div>
-          </div>
-          <div className="mt-2"><span className="text-[10px] text-gray-500 mb-0.5 block">{t.addrDetail}</span><input value={form.addrDetail||''} onChange={e=>upd({addrDetail:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>
-        </div>
-        {/* 外籍員工區 */}
-        <div className="bg-white/[0.02] border border-white/[0.08] rounded-xl p-3 space-y-3">
-          <p className="text-xs text-amber-400 font-semibold">{t.foreignSection}</p>
-          {fldP(t.permitNoLabel,'permitNo',false,confirmedP)}
-          <div className="grid grid-cols-2 gap-2">
-            <div><label className="text-[11px] text-gray-400 mb-1 block">{t.permitDate}</label><div className="flex gap-1"><input type="date" value={form.permitDate||''} onChange={e=>upd({permitDate:e.target.value})} className="flex-1 min-w-0 bg-white/[0.06] border border-white/[0.08] rounded-xl px-1 py-2 text-[10px] text-gray-100 focus:outline-none focus:border-amber-500" style={{colorScheme:'dark'}}/>{form.permitDate&&<button onClick={()=>upd({permitDate:''})} className="w-7 flex-shrink-0 rounded-lg bg-white/[0.06] text-gray-500 text-xs active:bg-red-500/20">✕</button>}</div></div>
-            <div><label className="text-[11px] text-gray-400 mb-1 block">{t.permitExpiry}</label><div className="flex gap-1"><input type="date" value={form.permitExpiry||''} onChange={e=>upd({permitExpiry:e.target.value})} className="flex-1 min-w-0 bg-white/[0.06] border border-white/[0.08] rounded-xl px-1 py-2 text-[10px] text-gray-100 focus:outline-none focus:border-amber-500" style={{colorScheme:'dark'}}/>{form.permitExpiry&&<button onClick={()=>upd({permitExpiry:''})} className="w-7 flex-shrink-0 rounded-lg bg-white/[0.06] text-gray-500 text-xs active:bg-red-500/20">✕</button>}</div></div>
-          </div>
-          {prevHint(confirmedP,'permitDate',form.permitDate)}
-          <div><label className="text-xs text-gray-400 mb-1 block">{t.permitOrgOpt}</label><select value={form.permitOrg||''} onChange={e=>upd({permitOrg:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"><option value="">—</option><option value={t.orgWDA}>{t.orgWDA}</option><option value={t.orgNIA}>{t.orgNIA}</option><option value={t.orgOther}>{t.orgOther}</option></select>{prevHint(confirmedP,'permitOrg',form.permitOrg)}</div>
-          <div><label className="text-xs text-gray-400 mb-1 block">{t.schoolType}</label><select value={form.schoolType||'uni'} onChange={e=>upd({schoolType:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"><option value="lang">{t.schoolTypeLang}</option><option value="uni">{t.schoolTypeUni}</option><option value="master">{t.schoolTypeMaster}</option><option value="phd">{t.schoolTypePhd}</option></select></div>
-          <div className="grid grid-cols-2 gap-2"><div>{fldP(t.school,'school',false,confirmedP)}</div><div>{fldP(t.major,'major',false,confirmedP)}</div></div>
-        </div>
-        <div className="pt-2 space-y-2">
-          <button onClick={()=>genCode('basic',{nameZh:form.nameZh,nameVi:form.nameVi,phone:form.phone,email:form.email,addrCity:form.addrCity,addrDist:form.addrDist,addrDetail:form.addrDetail,school:form.school,major:form.major,schoolType:form.schoolType,permitNo:form.permitNo,permitDate:form.permitDate,permitExpiry:form.permitExpiry,permitOrg:form.permitOrg,gender:form.gender},setBasicCode)} className="w-full py-3 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.basicUpdateCode}</button>
-          {reqErr&&<p className="text-xs text-red-400 text-center fi">{reqErr}</p>}
-          {basicCode&&(<div className="space-y-2 fi">
-            <div className="flex justify-center"><div className="bg-white p-2.5 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(basicCode)}`} alt="QR" className="w-44 h-44"/></div></div>
-            <div className="grid grid-cols-2 gap-2"><button onClick={()=>{navigator.clipboard.writeText(basicCode).catch(()=>{})}} className="py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.08] text-gray-300 text-sm font-medium">{t.copyBtn}</button><button onClick={()=>{const link=buildReqLink(location.origin+location.pathname.replace(/index\.html$/,'')+'auth.html',basicCode);sendTicketFlex('📝 審核通知',t.lineReqPrefix,link,settings.lang==='vi'?T.vi.lineReqPrefix:'')}} className="py-2.5 rounded-xl text-white text-sm font-bold bg-[#06C755] active:bg-[#05b34c]">{t.sendViaLine}</button></div>
-            <div><label className="text-xs text-gray-500 mb-1 block">{t.basicConfirmCode}</label><input value={confirmInput} onChange={e=>setConfirmInput(e.target.value)} placeholder={t.basicConfirmCode} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/></div>
-            <button onClick={()=>applyConfirm('basic',{nameZh:form.nameZh,nameVi:form.nameVi,phone:form.phone,email:form.email,addrCity:form.addrCity,addrDist:form.addrDist,addrDetail:form.addrDetail,school:form.school,major:form.major,schoolType:form.schoolType,permitNo:form.permitNo,permitDate:form.permitDate,permitExpiry:form.permitExpiry,permitOrg:form.permitOrg,gender:form.gender},'confirmedProfile')} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.confirm}</button>
-            {settings.lastSyncBasic&&<p className="text-[11px] text-gray-500 mt-1.5 text-center">{t.lastSyncAt}：{fmtSyncTime(settings.lastSyncBasic)}</p>}
-            {confirmMsg==='ok'&&<p className="text-xs text-center text-emerald-400 fi">✓ {t.confirmSuccess}</p>}
-            {confirmMsg==='fail'&&<p className="text-xs text-center text-red-400 fi">{t.confirmFail}</p>}
-          </div>)}
-        </div>
-      </div>)}
-
-      {subTab==='store'&&(<div className="space-y-4 fi">
-        <h2 className="text-lg font-bold text-gray-100">{t.secStore}</h2>
-        {storeChanged&&<div className="bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5"><p className="text-xs text-red-400">❗ {t.needConfirm}</p></div>}
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.teacherCode}</label><div className="bg-white/[0.04] rounded-xl px-3 py-2.5 text-base text-gray-300 font-mono">{settings.code}</div></div>
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.curStore}</label>
-          <select value={form.storeSel||settings.store||''} onChange={e=>upd({storeSel:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"><option value="">—</option>{stores.map(s=><option key={s} value={s}>{s}</option>)}</select>
-          {form.storeSel&&form.storeSel!==settings.store&&<p className="text-xs text-red-400 mt-1">{t.applyChange}：{form.storeSel}</p>}
-        </div>
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.shift}<span className="text-red-400 ml-0.5">*</span></label>
-          <div className="grid grid-cols-2 gap-2">{[['day',t.shiftDay],['night',t.shiftNight]].map(([s,l])=>(<button key={s} onClick={()=>upd({shift:s})} className={`py-2.5 rounded-xl text-sm font-semibold ${form.shift===s?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div>
-        </div>
-        <div className="grid grid-cols-5 gap-3">
-          <div className="col-span-2"><label className="text-xs text-gray-400 mb-1 block">{t.workStart}<span className="text-red-400 ml-0.5">*</span></label><select value={form.workStart?String(Number(form.workStart.split(':')[0])):''} onChange={e=>onWorkStartChange(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-1 py-2.5 text-sm text-center text-gray-100 focus:outline-none focus:border-amber-500"><option value="">--</option>{Array.from({length:24},(_,i)=><option key={i} value={i}>{String(i).padStart(2,'0')}:00</option>)}</select></div>
-          <div className="col-span-2 col-start-4"><label className="text-xs text-gray-400 mb-1 block">{t.workEnd}<span className="text-red-400 ml-0.5">*</span></label><select value={form.workEnd?String(Number(form.workEnd.split(':')[0])):''} onChange={e=>upd({workEnd:e.target.value===''?'':String(Number(e.target.value)).padStart(2,'0')+':00'})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-1 py-2.5 text-sm text-center text-gray-100 focus:outline-none focus:border-amber-500"><option value="">--</option>{Array.from({length:24},(_,i)=><option key={i} value={i}>{String(i).padStart(2,'0')}:00</option>)}</select></div>
-        </div>
-        {confirmedS&&((confirmedS.workStart||'')!==(form.workStart||'')||(confirmedS.workEnd||'')!==(form.workEnd||''))&&<p className="text-[11px] text-red-400">{t.prevConfirmed}：{confirmedS.workStart||'—'} ~ {confirmedS.workEnd||'—'}</p>}
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.workNote}<span className="text-[10px] text-gray-600 ml-1">({t.optional})</span></label><textarea value={form.workNote||''} onChange={e=>upd({workNote:e.target.value})} rows={2} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 resize-none"/>{prevHint(confirmedS,'workNote',form.workNote)}</div>
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.unitPrice}</label>
-          <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
-          <input type="number" inputMode="numeric" value={form.unitPrice} onChange={e=>upd({unitPrice:parseInt(e.target.value)||0})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl pl-8 pr-3 py-3 text-base text-gray-100 focus:outline-none focus:border-amber-500"/></div>
-        </div>
-        <div>
-          <label className="text-xs text-gray-400 mb-2 block">{t.skills}</label>
-          <div className="space-y-2">{SKILL_KEYS.map((k,i)=>({k,label:t[k],price:SKILL_PRICES[i]})).map(({k,label,price})=>{const checked=form.skills?.[k]||false;return(<button key={k} onClick={()=>upd({skills:{...(form.skills||{}),[k]:!checked}})} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${checked?'bg-white/[0.06] border border-amber-500/30':'bg-white/[0.02] border border-white/[0.06]'}`}><div className={`w-5 h-5 rounded flex items-center justify-center text-xs ${checked?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-700'}`}>{checked?'✓':''}</div><span className={`text-sm ${checked?'text-gray-200':'text-gray-500'}`}>{label}</span>{price!=null&&<span className="text-xs text-gray-600 ml-auto">${price}</span>}</button>)})}</div>
-        </div>
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.pregClient}<span className="text-red-400 ml-0.5">*</span></label><div className="grid grid-cols-2 gap-2">{[['yes',t.accept],['no',t.reject]].map(([v,l])=>(<button key={v} onClick={()=>upd({preg:v})} className={`py-2.5 rounded-xl text-sm font-semibold ${form.preg===v?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div></div>
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.oilLabel}<span className="text-red-400 ml-0.5">*</span></label><div className="grid grid-cols-2 gap-2">{[['yes',t.accept],['no',t.reject]].map(([v,l])=>(<button key={v} onClick={()=>upd({oil:v})} className={`py-2.5 rounded-xl text-sm font-semibold ${form.oil===v?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div></div>
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.techMentor}</label><input value={form.techMentor||''} onChange={e=>upd({techMentor:e.target.value})} placeholder={t.techMentorPlaceholder} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>{prevHint(confirmedS,'techMentor',form.techMentor)}</div>
-        <div><label className="text-xs text-gray-400 mb-1 block">{t.lockerNo}</label><select value={form.lockerNo||''} onChange={e=>upd({lockerNo:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-200 focus:outline-none focus:border-amber-500"><option value="">--</option>{Array.from({length:100},(_,i)=>i+1).map(n=><option key={n} value={n}>{n}{t===T.zh?'號':''}</option>)}</select>{prevHint(confirmedS,'lockerNo',form.lockerNo)}</div>
-        <div className="pt-2 space-y-2">
-          <button onClick={()=>genCode('store',{store:form.storeSel||settings.store,shift:form.shift,workStart:form.workStart,workEnd:form.workEnd,workNote:form.workNote,unitPrice:form.unitPrice,skills:form.skills,preg:form.preg,oil:form.oil,techMentor:form.techMentor,lockerNo:form.lockerNo},setStoreCode)} className="w-full py-3 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.storeUpdateCode}</button>
-          {reqErr&&<p className="text-xs text-red-400 text-center fi">{reqErr}</p>}
-          {storeCode&&(<div className="space-y-2 fi">
-            <div className="flex justify-center"><div className="bg-white p-2.5 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(storeCode)}`} alt="QR" className="w-44 h-44"/></div></div>
-            <div className="grid grid-cols-2 gap-2"><button onClick={()=>{navigator.clipboard.writeText(storeCode).catch(()=>{})}} className="py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.08] text-gray-300 text-sm font-medium">{t.copyBtn}</button><button onClick={()=>{const link=buildReqLink(location.origin+location.pathname.replace(/index\.html$/,'')+'auth.html',storeCode);sendTicketFlex('📝 審核通知',t.lineReqPrefix,link,settings.lang==='vi'?T.vi.lineReqPrefix:'')}} className="py-2.5 rounded-xl text-white text-sm font-bold bg-[#06C755] active:bg-[#05b34c]">{t.sendViaLine}</button></div>
-            <div><label className="text-xs text-gray-500 mb-1 block">{t.storeConfirmCode}</label><input value={confirmInput} onChange={e=>setConfirmInput(e.target.value)} placeholder={t.storeConfirmCode} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500"/></div>
-            <button onClick={()=>applyConfirm('store',{store:form.storeSel||settings.store,shift:form.shift,workStart:form.workStart,workEnd:form.workEnd,workNote:form.workNote,unitPrice:form.unitPrice,skills:form.skills,preg:form.preg,oil:form.oil,techMentor:form.techMentor,lockerNo:form.lockerNo},'confirmedStore')} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.confirm}</button>
-            {settings.lastSyncStore&&<p className="text-[11px] text-gray-500 mt-1.5 text-center">{t.lastSyncAt}：{fmtSyncTime(settings.lastSyncStore)}</p>}
-            {confirmMsg==='ok'&&<p className="text-xs text-center text-emerald-400 fi">✓ {t.confirmSuccess}</p>}
-            {confirmMsg==='fail'&&<p className="text-xs text-center text-red-400 fi">{t.confirmFail}</p>}
-          </div>)}
-        </div>
-      </div>)}
-
-      {subTab==='book'&&(<div className="space-y-4 fi">
-        <div className="sticky top-0 z-10 -mx-4 px-4 py-1 bg-gray-950 flex items-center justify-center"><h2 className="text-sm font-semibold text-gray-300">{t.myBooking2}</h2></div>
-        <BookingSection code={settings.code} t={t}/>
-      </div>)}
-
-      {subTab==='cust'&&<CustomerPage t={t} settings={settings} onClose={onClose}/>}
-      {subTab==='notice'&&<NoticeManagePage t={t} settings={settings} onClose={onClose} onLogout={onLogout}/>}
-      {subTab==='chart'&&<ChartPage t={t} settings={settings} onClose={onClose}/>}
-      {subTab==='suggest'&&<SuggestPage t={t} settings={settings} onClose={onClose}/>}
-      {subTab==='acupoint'&&<AcupointPage t={t} settings={settings}/>}
-
-      {subTab==='backup'&&(<div className="space-y-4 fi">
-        <div className="sticky top-0 z-10 -mx-4 px-4 py-1 bg-gray-950 flex items-center justify-center"><h2 className="text-sm font-semibold text-gray-300">{t.backupCenter}</h2></div>
-        <BackupSection settings={settings} t={t} onUpdate={onUpdate} lineUserId={lineUserId}/>
-      </div>)}
-
-      {subTab==='violation'&&(<div className="space-y-6 fi">
-        <div>
-          <div className="sticky top-0 z-10 -mx-4 px-4 py-1 bg-gray-950 flex items-center justify-center mb-2"><h2 className="text-sm font-semibold text-gray-300">{t.violationTitle}</h2></div>
-          <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl px-4 py-6 text-center"><p className="text-sm text-gray-500">{t.noViolation}</p></div>
-        </div>
-        <div className="space-y-2">
-          <p className="text-sm text-gray-400 font-medium">{t.violationCode}</p>
-          <textarea rows={2} placeholder={t.connInput} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none"/>
-          <div className="flex gap-2">
-            <button className="flex-1 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-gray-400 text-sm flex items-center justify-center gap-1"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M12 4v12m0 0l-4-4m4 4l4-4"/></svg></button>
-            <button className="flex-1 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-gray-400 text-sm">{t.pasteBtn}</button>
-          </div>
-          <button className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold active:bg-amber-700">{t.confirm}</button>
-        </div>
-        <div className="pt-4 border-t border-white/[0.06]">
-          <h2 className="text-lg font-bold text-gray-100 mb-3">{t.dutyTitle}</h2>
-          <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl px-4 py-6 text-center"><p className="text-sm text-gray-500">{t.noDuty}</p></div>
-        </div>
-      </div>)}
-
-      {subTab==='manage'&&(<div className="space-y-5 fi">
-        <h2 className="text-lg font-bold text-gray-100">{t.manageCenter}</h2>
-        {(()=>{const ghLocal=getGHConfig();const hasConn=!!(ghLocal&&ghLocal.token);return(
-          <div className="space-y-3">
-            <div className="flex items-center justify-between"><p className="text-sm text-gray-500 font-medium">{t.connection}</p><span className="text-xs">{hasConn?t.connOnline:t.connOffline}</span></div>
-            {!hasConn&&!connMode&&(<button onClick={()=>setConnMode('apply')} className="w-full py-3 rounded-xl bg-amber-600/20 border border-amber-500/30 text-amber-400 text-sm font-semibold active:bg-amber-600/30">{t.connApply}</button>)}
-            {connMode==='apply'&&(<div className="space-y-3 fi">
-              <div className="flex justify-center"><div className="bg-white p-2.5 rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(settings.code+':'+devId)}`} alt="QR" className="w-40 h-40"/></div></div>
-              <p className="text-[10px] text-gray-600 text-center font-mono select-all break-all">{settings.code}:{devId}</p><button onClick={()=>{const link=buildReqLink(location.origin+location.pathname.replace(/index\.html$/,'')+'auth.html',genConnReq(settings.code,devId));sendTicketFlex('🔗 連線申請',t.lineConnReqPrefix,link,settings.lang==='vi'?T.vi.lineConnReqPrefix:'')}} className="w-full py-2.5 rounded-xl text-white text-sm font-bold bg-[#06C755] active:bg-[#05b34c]">{t.sendViaLine}</button>
-              <div><label className="text-xs text-gray-500 mb-1 block">{t.connCode}</label><textarea value={connInput} onChange={e=>setConnInput(e.target.value)} rows={2} placeholder={t.connInput} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 resize-none"/></div>
-              <div className="flex gap-2"><button onClick={()=>{setConnMode(null);setConnInput('');setConnStatus('')}} className="flex-1 py-2.5 bg-white/[0.04] rounded-xl text-gray-500 text-sm">{t.cancel}</button><button onClick={()=>{const ghCfg=verifyActToken(connInput.trim(),settings.code,devId);if(ghCfg){saveGHConfigLocal(ghCfg);setConnStatus(t.connOk);setConnMode(null);setConnInput('')}else{setConnStatus(t.connFail)}}} className="flex-1 py-2.5 bg-amber-600 rounded-xl text-white text-sm font-bold">{t.confirm}</button></div>
-              {connStatus&&<p className={`text-xs text-center ${connStatus.includes('✓')?'text-emerald-400':'text-red-400'}`}>{connStatus}</p>}
-            </div>)}
-          </div>
-        )})()}
-        <div className="pt-4 border-t border-white/[0.06] space-y-2">
-          <button onClick={goAuth} disabled={goAuthChecking} className="w-full py-3.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-gray-300 text-sm font-semibold active:bg-white/[0.08] flex items-center justify-center gap-2 disabled:opacity-60">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-            {goAuthChecking?t.checking||'檢查中…':t.admin+' / '+t.supervisor}
-          </button>
-        </div>
-        <div className="text-[10px] text-gray-700 font-mono break-all">{t.deviceId}: {devId}</div>
-      </div>)}
-      </div>
-    </div>
-    </BottomSheetModal>
-  );
+    dd._migrated=1;
+    // total 重算為流水加總
+    dd.total=slipUnitsTotal(dd.slips);
+    return true;
+  }
+  return false;
 }
+// 遷移整月(每天)
+function migrateMonthGroups(md){if(!md||!md.days)return false;let changed=false;for(const d in md.days){if(migrateDayGroups(md.days[d]))changed=true}return changed}
+// 流水服務項目顯示:FB3+2 形式(無svc時退回支數+N)
+function slipSvcLabel(slip,lang){if(!slip)return '';const addWord=lang==='vi'?'thêm':'加';const parts=[];if(slip.svc)parts.push(slip.svc);if(slip.extra>0)parts.push(addWord+slip.extra);return parts.join(' ')}
+// 取流水的有效開始時間(修正過優先)
+function slipStartTime(slip){return slip.startAt||slip.createdAt}
+// 全店歷史標籤(本機,跨日重用)
+function loadTagHistory(code){return LS.get('tag-history-'+code)||[]}
+function addTagHistory(code,tag){if(!tag)return;const h=loadTagHistory(code);if(!h.includes(tag)){h.unshift(tag);LS.set('tag-history-'+code,h.slice(0,40))}}
+// 客群到訪統計:收集多個月day的流水,按開始時間的小時分0~23桶
+// daysList: [{y,m,d,day}], 回傳 {hours:[24], weekdays:[7], total}
+function visitStats(slipsWithTime){const hours=Array.from({length:24},()=>0);const weekdays=Array.from({length:7},()=>0);let total=0;slipsWithTime.forEach(({time,units})=>{const dt=new Date(time);hours[dt.getHours()]+=(units||1);weekdays[dt.getDay()]+=(units||1);total+=(units||1)});return{hours,weekdays,total}}
+// 從本機讀某老師某年月的所有流水(附帶開始時間)
+function collectSlips(code,year,month){const md=LS.get(dk(code,year,month));if(!md||!md.days)return[];const out=[];Object.values(md.days).forEach(dd=>{if(dd&&dd.slips)dd.slips.forEach(s=>{if(!s)return;out.push({time:slipStartTime(s),units:s.units,tags:s.tags||[]})})});return out}
+// 收集某老師「整年」所有流水(附完整資訊),供客管分頁用
+function collectAllSlips(code,year){const out=[];for(let m=1;m<=12;m++){const md=LS.get(dk(code,year,m));if(!md||!md.days)continue;Object.entries(md.days).forEach(([d,dd])=>{if(dd&&dd.slips)dd.slips.forEach(s=>{if(!s)return;out.push({...s,month:Number(m),day:Number(d),startTime:slipStartTime(s)})})})}return out}
+// 統計所有 hashtag → [{tag,count}] 依數量降序
+function tagStats(slips){const map={};(slips||[]).forEach(s=>{if(!s)return;(s.tags||[]).forEach(tag=>{map[tag]=(map[tag]||0)+1})});return Object.entries(map).map(([tag,count])=>({tag,count})).sort((a,b)=>b.count-a.count)}
+// 依姓名/稱謂/手機搜尋流水
+function searchSlips(slips,q){q=(q||'').trim().toLowerCase();if(!q)return[];return (slips||[]).filter(s=>{if(!s)return false;const name=(s.custName||'').toLowerCase();const phone=(s.custPhone||'').toLowerCase();const title=(s.custTitle||'').toLowerCase();return name.includes(q)||phone.includes(q)||title.includes(q)})}
+// ISO週數(週一為一週開始),回傳{year,week} — 用來判斷「本週」是否還沒過完,本週資料不計入跨週加總統計
+function _isoWeek(d){const date=new Date(d.getFullYear(),d.getMonth(),d.getDate());const day=(date.getDay()+6)%7;date.setDate(date.getDate()-day+3);const firstThu=new Date(date.getFullYear(),0,4);const diff=date-firstThu;const week=1+Math.round(diff/(7*86400000));return{year:date.getFullYear(),week}}
+function _weekKeyOf(ms){const d=new Date(ms);const{year,week}=_isoWeek(d);return year+'-W'+week}
+// 時段軸排序(處理晚班跨夜問題):輸入hasHour[24](某小時有沒有出現過流水),找出「資料實際出現的小時」裡最大的一段連續空檔
+// (circular,把0點跟23點視為相鄰),把這個最大空檔當成「沒在工作的那段」,從空檔結束後的小時開始排到空檔開始前的小時,
+// 這樣像晚班下午5點~凌晨3點這種跨夜班別,軸會自然排成17,18,...,23,0,1,2,3,而不是被minHour/maxHour簡單算成0~23
+// (那樣等於整天都算進去,等於沒有縮小範圍)。日班(例如8點~20點)的最大空檔自然會落在夜間那段,排序結果跟原本min~max一樣。
+// 這只決定「畫面上怎麼排列時段」,跟流水歸屬哪一天完全無關——歸屬哪一天永遠依流水本身的日期(dt.getDay())判定,
+// 不會因為橫跨午夜就自動算成下一天,這點在personalChartStats裡本來就是直接用該筆流水的原始日期算weekday,沒有做任何+1天的校正
+function _hourOrder(hasHour){
+  const present=[];
+  for(let h=0;h<24;h++)if(hasHour[h])present.push(h);
+  if(present.length===0)return[];
+  if(present.length===24)return Array.from({length:24},(_,i)=>i);
+  let maxGap=-1,gapIdx=0;
+  for(let i=0;i<present.length;i++){
+    const cur=present[i];
+    const next=present[(i+1)%present.length];
+    let diff=next-cur;if(diff<=0)diff+=24;
+    if(diff>maxGap){maxGap=diff;gapIdx=i}
+  }
+  const startIdx=(gapIdx+1)%present.length;
+  const order=[];
+  for(let i=0;i<present.length;i++)order.push(present[(startIdx+i)%present.length]);
+  return order;
+}
+// 個人資料圖表統計(1.13版圖表重構用):依流水的開始時間(slipStartTime)算出:
+// (1)依weekday×hour的熱力圖矩陣heat[7][24](weekday:0=日~6=六) (2)周幾單位數趨勢weekdayTotals[7]
+// (3)單日流水數分布extraDist(>=2筆的日子,依2/3/4/5+分組計次數) (4)hourOrder=資料實際出現的小時,依_hourOrder排好順序的陣列,
+// 給圖表動態決定時間軸範圍/排列用,不同時間區間(周/月/年)各自呼叫這個函式會得到各自的動態範圍,也各自正確處理跨夜排序。
+// 「本週」(含今天的這個ISO週,可能還沒過完)的資料另外歸在curWeek,不併入heat/weekdayTotals/extraDist這些跨週加總統計
+// (避免還沒發生的日子被誤判成「比較少客人」),但仍即時算出來給畫面即時顯示「本週目前」用,不會被整個隱藏看不到
+function personalChartStats(slipsWithTime){
+  const curWeekKey=_weekKeyOf(Date.now());
+  const heat=Array.from({length:7},()=>Array.from({length:24},()=>0));
+  const weekdayTotals=Array.from({length:7},()=>0);
+  const curHeat=Array.from({length:7},()=>Array.from({length:24},()=>0));
+  const curWeekdayTotals=Array.from({length:7},()=>0);
+  const hasHour=Array.from({length:24},()=>false);
+  const dayMap={};
+  let curWeekSlips=0;
+  (slipsWithTime||[]).forEach(s=>{
+    if(!s||!s.time)return;
+    const dt=new Date(s.time);
+    const h=dt.getHours();
+    const wd=dt.getDay(); // 依流水本身的日期算周幾,不因跨夜自動+1天
+    const u=s.units||1;
+    hasHour[h]=true;
+    const wk=_weekKeyOf(s.time);
+    const dstr=dt.getFullYear()+'-'+(dt.getMonth()+1)+'-'+dt.getDate();
+    if(!dayMap[dstr])dayMap[dstr]={slips:0,weekKey:wk};
+    dayMap[dstr].slips+=1;
+    if(wk===curWeekKey){curHeat[wd][h]+=u;curWeekdayTotals[wd]+=u;curWeekSlips+=1}
+    else{heat[wd][h]+=u;weekdayTotals[wd]+=u}
+  });
+  const extraDist={};let curWeekExtraDays=0,totalDaysWithData=0;
+  Object.values(dayMap).forEach(d=>{
+    if(d.weekKey===curWeekKey){if(d.slips>=2)curWeekExtraDays++;return}
+    totalDaysWithData++;
+    if(d.slips>=2){const key=d.slips>=5?'5+':String(d.slips);extraDist[key]=(extraDist[key]||0)+1}
+  });
+  return{
+    hourOrder:_hourOrder(hasHour),heat,weekdayTotals,extraDist,totalDaysWithData,
+    curWeek:{heat:curHeat,weekdayTotals:curWeekdayTotals,slips:curWeekSlips,extraDays:curWeekExtraDays,key:curWeekKey},
+    totalSlips:(slipsWithTime||[]).length,updatedAt:Date.now()
+  };
+}
+// ===== 翻綠(休息)計時,1.13版去公司化改成純本機記錄 =====
+// 原本這個功能會把翻綠/回牌動作打去GAS,寫進公司共用的雲端表格(BreakTickets),還會分享連結給櫃台確認——
+// 跟1.13系列「拿掉所有公司內部的東西,系統改造成老師自己用的純個人工具」這個核心決策不一致(詳見DEV_NOTES),
+// 這次改成完全本機:不打GAS、不分享連結給任何人確認,翻綠/回牌只存在自己手機的localStorage裡,單純當個人計時小工具用。
+// 算「今天」用哪一天當基準,跟GAS端原本的_breakDayKey同一套邏輯:如果上下工時間跨夜(下班時間<上班時間,例如晚班22:00~06:00),
+// 現在時間還沒到下班時間(例如凌晨3點),就算昨天(這樣凌晨翻綠的紀錄會跟前一晚的算在同一天,不會被切成兩段)
+function breakDayKey(workStart,workEnd){
+  const now=new Date();
+  const todayStr=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  if(!workStart||!workEnd)return todayStr;
+  const toMin=(s)=>{const p=String(s).split(':').map(Number);return(p[0]||0)*60+(p[1]||0)};
+  const startMin=toMin(workStart),endMin=toMin(workEnd),nowMin=now.getHours()*60+now.getMinutes();
+  if(endMin>=startMin)return todayStr;
+  if(nowMin<endMin){const d=new Date(now);d.setDate(d.getDate()-1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+  return todayStr;
+}
+// 讀「今天」的翻綠紀錄(跨日自動視為沒有資料,不會沿用到前一個工作日的狀態)
+function loadBreakStatus(code,workStart,workEnd){
+  const day=breakDayKey(workStart,workEnd);
+  const rec=LS.get('break-'+code);
+  if(!rec||rec.date!==day)return{exists:false,sessions:[],usedSeconds:0,isOpen:false,date:day};
+  const sessions=rec.sessions||[];
+  const nowMs=Date.now();let usedMs=0,isOpen=false;
+  sessions.forEach(s=>{if(s.greenAt&&s.whiteAt)usedMs+=(s.whiteAt-s.greenAt);else if(s.greenAt&&!s.whiteAt){usedMs+=(nowMs-s.greenAt);isOpen=true}});
+  return{exists:true,sessions,usedSeconds:Math.floor(usedMs/1000),isOpen,date:day};
+}
+function breakFlipGreenLocal(code,workStart,workEnd){
+  const day=breakDayKey(workStart,workEnd);
+  let rec=LS.get('break-'+code);
+  if(!rec||rec.date!==day)rec={date:day,sessions:[]};
+  if(rec.sessions.length>0&&!rec.sessions[rec.sessions.length-1].whiteAt)return{ok:false,error:'目前已經在翻綠狀態，請先回牌'};
+  rec.sessions.push({greenAt:Date.now(),whiteAt:0});
+  LS.set('break-'+code,rec);
+  return{ok:true};
+}
+function breakFlipWhiteLocal(code,workStart,workEnd){
+  const day=breakDayKey(workStart,workEnd);
+  const rec=LS.get('break-'+code);
+  if(!rec||rec.date!==day||!rec.sessions||!rec.sessions.length)return{ok:false,error:'查無此翻綠紀錄'};
+  const last=rec.sessions[rec.sessions.length-1];
+  if(last.whiteAt)return{ok:false,error:'目前沒有進行中的翻綠'};
+  last.whiteAt=Date.now();
+  LS.set('break-'+code,rec);
+  return{ok:true};
+}
+const calcSal=(day,unitPrice,enabledSkills)=>{let sal=day.total*unitPrice;const sk=day.skills||{};SKILL_KEYS.forEach((k,i)=>{if(enabledSkills?.[k])sal+=(sk[k]||0)*SKILL_PRICES[i]});return sal};
+// 依指定日期查對應單價:settings.unitPriceHistory是[{from:'YYYY-MM-DD',price:數字},...]分段紀錄,
+// 找「from<=目標日期」裡最晚生效的那一段;如果沒有分段紀錄(舊資料/從沒改過)或目標日期比所有分段都早,退回settings.unitPrice當底價
+function getUnitPriceForDate(settings,y,m,d){
+  const hist=settings.unitPriceHistory;
+  if(!hist||!hist.length)return settings.unitPrice;
+  const target=y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+  let best=null;
+  hist.forEach(h=>{if(h&&h.from&&h.from<=target){if(!best||h.from>=best.from)best=h}});
+  return best?best.price:settings.unitPrice;
+}
+const eMon=()=>{const d={};for(let i=1;i<=31;i++)d[i]=eDay();return{days:d}};
+// 找某老師某年有資料的頭尾月份 → {first,last} 或 null
+function dataMonthRange(code,year){let first=null,last=null;for(let m=1;m<=12;m++){const d=LS.get(dk(code,year,m));if(d&&d.days&&Object.keys(d.days).length>0){if(first===null)first=m;last=m}}return first?{first,last}:null}
+// 匯出有資料月份範圍的備份碼(多月,用換行串接)
+function encRange(code,year){const r=dataMonthRange(code,year);if(!r)return'';const lines=[];for(let m=r.first;m<=r.last;m++){const d=LS.get(dk(code,year,m));if(d)lines.push(encMonth(code,year,m,d))}return lines.join('\n')}
+// 解析多月備份碼(逐行 decBackup)→ [{code,year,month,data}]
+function decRange(str){const out=[];(str||'').split(/[\n;]+/).map(s=>s.trim()).filter(Boolean).forEach(line=>{const p=decBackup(line);if(p)out.push(p)});return out}
+function encMonth(code,y,m,data){let u="",l="",s="",sg="",sb="",sx="";for(let d=1;d<=31;d++){const day=d<=dim(y,m)&&data.days[d]?data.days[d]:eDay();const sk=day.skills||{};u+=toB36(day.total);l+=toB36(day.laodian);s+=day.status.toString();sg+=toB36(sk.guasha||0);sb+=toB36(sk.baguang||0);sx+=toB36(sk.xiujiao||0)}const hasSkills=sg.replace(/0/g,'')||sb.replace(/0/g,'')||sx.replace(/0/g,'');return`${code}-${y}-${String(m).padStart(2,'0')}:${u}:${l}:${s}${hasSkills?`:${sg}:${sb}:${sx}`:''}`}
+// ===== 個人完整備份(加密 JSON 檔)=====
+function exportPersonalData(code,year){
+  const out={settings:LS.get('app-settings')||null,theme:localStorage.getItem('app-theme')||'pink',months:{}};
+  for(let m=1;m<=12;m++){const d=LS.get(dk(code,year,m));if(d)out.months[m]=d}
+  // 自約(booking):修正一個長期存在的bug——這裡原本讀'booking-'+code(單數),但實際存取用的key是BOOK_KEY(code)='bookings-'+code(複數),
+  // 兩邊打不到,等於自約資料從來沒有真的被備份進去過。順便評估過沒必要整包備份:自約本質是「尚未發生的預約時段」,
+  // 一旦服務完成,真正有價值的紀錄(誰、做了什麼、多少支數)早就寫進每月流水/客戶資料庫(custdb,上面已經在備份)了,
+  // 老點客戶資訊本身也不會因為自約而獨立存在。所以只挑「還沒過期」的自約存進備份,過期的不帶,避免備份裡塞一堆已經沒用的歷史預約。
+  try{const allBk=LS.get(BOOK_KEY(code))||[];const now=Date.now();const upcoming=(Array.isArray(allBk)?allBk:[]).filter(b=>{if(!b)return false;const[,e]=bookRange(b);return e>=now});if(upcoming.length)out.booking=upcoming}catch(_e){}
+  const cdb=LS.get('custdb-'+code);if(cdb)out.custdb=cdb;
+  const th=LS.get('tag-history-'+code);if(th)out.tagHistory=th;
+  return out;
+}
+function makePersonalBackup(code,year){
+  const data=exportPersonalData(code,year);
+  const json=JSON.stringify(data);
+  const checksum=fnv(json).toString(16);
+  const payload=xEnc(encodeURIComponent(json));
+  return{_app:'massage-pay',_type:'personal-backup',_ver:1,_code:code,_year:year,_exportAt:Date.now(),_checksum:checksum,payload};
+}
+function parsePersonalBackup(obj){
+  try{
+    if(!obj||obj._app!=='massage-pay'||obj._type!=='personal-backup')return{ok:false,reason:'notBackup'};
+    if(!obj.payload)return{ok:false,reason:'broken'};
+    const json=decodeURIComponent(xDec(obj.payload));
+    if(!json)return{ok:false,reason:'broken'};
+    if(obj._checksum&&fnv(json).toString(16)!==obj._checksum)return{ok:false,reason:'modified'};
+    const data=JSON.parse(json);
+    return{ok:true,code:obj._code,year:obj._year,data};
+  }catch(e){return{ok:false,reason:'broken'}}
+}
+function restorePersonalBackup(parsed){
+  const {code,year,data}=parsed;let okN=0,failN=0;
+  try{if(data.settings){LS.set('app-settings',data.settings);okN++}}catch(_e){failN++}
+  try{if(data.theme){localStorage.setItem('app-theme',data.theme);okN++}}catch(_e){failN++}
+  if(data.months){Object.entries(data.months).forEach(([m,d])=>{try{LS.set(dk(code,year,Number(m)),d);okN++}catch(_e){failN++}})}
+  // 自約還原採「合併」而非整包覆蓋:備份內容(通常是另一台裝置的)跟本機現有的自約以id為準合併,同id以備份內容為主,
+  // 本機裝置自己其他未備份到的自約不會被洗掉(跟其他欄位的整包覆蓋邏輯不同,因為自約比較像「待辦時段清單」,覆蓋風險較高)
+  try{if(data.booking&&Array.isArray(data.booking)){const localBk=LS.get(BOOK_KEY(code))||[];const byId={};(Array.isArray(localBk)?localBk:[]).forEach(b=>{if(b&&b.id)byId[b.id]=b});data.booking.forEach(b=>{if(b&&b.id)byId[b.id]=b});LS.set(BOOK_KEY(code),Object.values(byId));okN++}}catch(_e){failN++}
+  try{if(data.custdb){LS.set('custdb-'+code,data.custdb);okN++}}catch(_e){failN++}
+  try{if(data.tagHistory){LS.set('tag-history-'+code,data.tagHistory);okN++}}catch(_e){failN++}
+  return{okN,failN};
+}
+// ===== Email雲端備份(1.13-034):填了Email才會每日自動把備份傳到雲端(GAS存Drive,以「編號+Email雜湊」分檔) =====
+function normEmail(s){return String(s||'').trim().toLowerCase()}
+function isValidEmail(s){const e=normEmail(s);return e.length>0&&e.length<=120&&/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)}
+async function gasEmailBackupSubmit(code,email,year,jsonData){
+  const r=await gasCallPost('emailBackupSubmit',{code,email:normEmail(email),year,jsonData},20000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// check/fetch也用POST,避免Email出現在網址(網址會進各種Log)
+async function gasEmailBackupCheck(code,email){
+  const r=await gasCallPost('emailBackupCheck',{code,email:normEmail(email)},10000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+async function gasEmailBackupFetch(code,email){
+  const r=await gasCallPost('emailBackupFetch',{code,email:normEmail(email)},20000);
+  return r||{ok:false,error:'GAS無回應'};
+}
+// 把目前本機資料備份到雲端;沒填(或格式錯)Email就略過。每日檢查、儲存Email時呼叫
+async function doEmailBackupNow(settings){
+  try{
+    if(!settings||!settings.code||!isValidEmail(settings.email))return{ok:false,skipped:true};
+    const year=settings.year||bizParts().y;
+    const obj=makePersonalBackup(settings.code,year);
+    return await gasEmailBackupSubmit(settings.code,settings.email,year,JSON.stringify(obj));
+  }catch(e){return{ok:false,error:String(e)}}
+}
+// 新裝置啟動時:用編號+Email把雲端備份拉下來還原到本機,回傳還原出來的settings(給呼叫端用來啟動)
+async function emailRestore(code,email){
+  try{
+    const r=await gasEmailBackupFetch(code,email);
+    if(!r||!r.ok)return{ok:false,error:(r&&r.error)||'還原失敗'};
+    let obj;try{obj=JSON.parse(r.jsonData)}catch(_e){return{ok:false,error:'備份內容毀損'}}
+    const parsed=parsePersonalBackup(obj);
+    if(!parsed.ok)return{ok:false,error:'備份內容毀損或被修改'};
+    restorePersonalBackup(parsed);
+    return{ok:true,settings:parsed.data.settings||null};
+  }catch(e){return{ok:false,error:String(e)}}
+}
+function decBackup(str){try{const c=str.replace(/^#/,'').trim();const parts=c.split(':');const hd=parts[0],units=parts[1],laodian=parts[2],status=parts[3];const sg=parts[4]||'',sb=parts[5]||'',sx=parts[6]||'';const p=hd.split('-');const m=parseInt(p.pop());const y=parseInt(p.pop());const code=p.join('-');if(!y||!m||m<1||m>12||!code)return null;const data=eMon();const dm=dim(y,m);for(let d=1;d<=dm;d++){const tot=fromB36(units?.[d-1]||'0');const lao=fromB36(laodian?.[d-1]||'0');const st=parseInt(status?.[d-1]||'0')||0;const slips=[];if(tot>0){const sp=newSlip(tot);sp.laodian=Math.min(lao,tot);sp.fromBackup=1;slips.push(sp)}data.days[d]={groups:[],total:tot,laodian:lao,status:st,slips:slips,skills:{guasha:fromB36(sg?.[d-1]||'0'),baguang:fromB36(sb?.[d-1]||'0'),xiujiao:fromB36(sx?.[d-1]||'0')}}}return{code,year:y,month:m,data}}catch(_e){return null}}
 
-/* ══════════ Icons ══════════ */
-const IC={
-  home:<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z"/></svg>,
-  monthly:<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>,
-  yearly:<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>,
-  settings:<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>,
+/* ══════════ 客戶 / 自約（本機，按老師代碼分 key） ══════════ */
+const CUST_KEY=c=>`customers-${c}`;
+const BOOK_KEY=c=>`bookings-${c}`;
+function getCustomers(code){return LS.get(CUST_KEY(code))||[]}
+function saveCustomers(code,list){LS.set(CUST_KEY(code),list)}
+function getBookings(code){return LS.get(BOOK_KEY(code))||[]}
+function saveBookings(code,list){LS.set(BOOK_KEY(code),list)}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function upsertCustomer(code,cust){const list=getCustomers(code);const i=cust.id?list.findIndex(x=>x.id===cust.id):-1;const now=Date.now();if(i>=0){list[i]={...list[i],...cust,updatedAt:now}}else{cust.id=uid();cust.createdAt=now;cust.updatedAt=now;list.push(cust)}saveCustomers(code,list);return cust.id}
+function normPhone(s){return(s||'').replace(/\D/g,'')}
+/* 搜尋本機客戶：手機(部分相符)、姓/名(含)、稱謂(精準) */
+function searchCustomers(code,q){const list=getCustomers(code);const raw=(q||'').trim();if(!raw)return list.slice().sort((a,b)=>(b.lastServedAt||b.updatedAt||0)-(a.lastServedAt||a.updatedAt||0));const digits=normPhone(raw);const low=raw.toLowerCase();return list.filter(c=>{const phoneHit=digits.length>=2&&normPhone(c.phone).includes(digits);const nameHit=(c.name||'').toLowerCase().includes(low);const titleHit=(c.title||'').toLowerCase()===low;return phoneHit||nameHit||titleHit}).sort((a,b)=>(b.lastServedAt||b.updatedAt||0)-(a.lastServedAt||a.updatedAt||0))}
+function addBooking(code,bk){const list=getBookings(code);bk.id=uid();bk.createdAt=Date.now();bk.confirmed=false;if(!bk.logs)bk.logs=[];bk.logs.push({ts:Date.now(),type:'create',msg:'新增本次自約'});list.push(bk);saveBookings(code,list);if(bk.customerId){const cs=getCustomers(code);const ci=cs.findIndex(x=>x.id===bk.customerId);if(ci>=0){cs[ci].lastServedAt=bk.datetime||Date.now();saveCustomers(code,cs)}}return bk.id}
+function updateBooking(code,id,patch,logEntry){const list=getBookings(code);const i=list.findIndex(b=>b.id===id);if(i<0)return false;const merged={...list[i],...patch};if(logEntry){if(!merged.logs)merged.logs=[];merged.logs.push({ts:Date.now(),...logEntry})}list[i]=merged;saveBookings(code,list);return true}
+function confirmBooking(code,id){return updateBooking(code,id,{confirmed:true,needReconfirm:false},{type:'confirm',msg:'與櫃台確認該時段'})}
+function deleteBooking(code,id){saveBookings(code,getBookings(code).filter(b=>b.id!==id))}
+const BOOK_TITLES=[{v:'sir',zh:'先生',vi:'Anh'},{v:'ms',zh:'小姐',vi:'Cô'},{v:'couple',zh:'情侶',vi:'Cặp đôi'},{v:'group',zh:'團客',vi:'Nhóm'}];
+// 穴道知識庫:改成外部JSON檔案(./data/acupoints.json),不再內嵌在common.js裡,方便單獨維護/擴充中越文內容
+// 用fetchAcupoints()動態載入,優先讀localStorage的永久本機快取(每日密碼通過+憑證確認有效那次才會寫入),
+// 沒有本機快取時才打網路抓,抓到後存進本機快取(時間永久,不會自動過期)。記憶體快取只是同一個session內再加速一層。
+const ACUPOINTS_CACHE_KEY='acupoints-local-cache';
+let _acupointsCache=null;
+async function fetchAcupoints(){
+  if(_acupointsCache)return _acupointsCache;
+  try{
+    const cached=localStorage.getItem(ACUPOINTS_CACHE_KEY);
+    if(cached){const parsed=JSON.parse(cached);_acupointsCache=parsed;return parsed}
+  }catch(_e){}
+  try{
+    const res=await fetch('./data/acupoints.json',{cache:'no-store'});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const data=await res.json();
+    _acupointsCache=data;
+    try{localStorage.setItem(ACUPOINTS_CACHE_KEY,JSON.stringify(data))}catch(_e){} // 永久寫入本機,下次不用再打網路
+    return data;
+  }catch(e){
+    return {bodyParts:[],points:[],error:String(e)};
+  }
+}
+// 憑證有效性檢查(跟notice-modal.js共用同一組localStorage快取key,一天只查一次GAS,兩邊互通不用重複查):
+// 沒有金鑰(還沒被核准過/新裝置)一律當有效,不擋,容錯優先;查詢失敗也不擋,避免離線時被誤傷
+// 憑證失效時呼叫,清空本機快取(記憶體+localStorage都清),下次要看穴道知識庫就會被擋在憑證檢查那關,不會漏看到舊快取內容
+function clearAcupointsCache(){
+  _acupointsCache=null;
+  try{localStorage.removeItem(ACUPOINTS_CACHE_KEY)}catch(_e){}
+}
+// 憑證有效性檢查(跟notice-modal.js共用同一組localStorage快取key,一天只查一次GAS,兩邊互通不用重複查):
+// 沒有金鑰(還沒被核准過/新裝置)一律當有效,不擋,容錯優先;查詢失敗也不擋,避免離線時被誤傷
+async function checkCredentialValid(code){
+  if(!code||!hasMyKey(code))return true;
+  try{
+    const today=new Date().toISOString().slice(0,10);
+    if(localStorage.getItem('key-check-date-'+code)===today){
+      return localStorage.getItem('key-check-result-'+code)==='ok';
+    }
+  }catch(_e){}
+  try{
+    const key=getMyKey(code);
+    const r=await gasVerifyKey(code,key);
+    const result=(r&&r.ok&&r.valid)?'ok':'invalid';
+    try{const today=new Date().toISOString().slice(0,10);localStorage.setItem('key-check-date-'+code,today);localStorage.setItem('key-check-result-'+code,result)}catch(_e){}
+    return result==='ok';
+  }catch(_e){return true} // 網路失敗容錯,不擋
+}
+function bookTitleName(v,lang){const o=BOOK_TITLES.find(x=>x.v===v);return o?(o[lang]||o.zh):(v||'')}
+/* 服務項目：code=顯示, base=基礎支數, min=時長(分) */
+const SERVICES=[{code:'F1',base:1,min:40},{code:'B1',base:1,min:35},{code:'F2',base:2,min:70},{code:'B2',base:2,min:70},{code:'FB2',base:2,min:70},{code:'F3',base:3,min:110},{code:'B3',base:3,min:110},{code:'FB3',base:3,min:120}];
+function svcByCode(code){return SERVICES.find(s=>s.code===code)||SERVICES[5]}
+/* 加鐘 extra：每 +1 = +30分 +1支 */
+function bookUnits(svcCode,extra){const s=svcByCode(svcCode);return s.base+(extra||0)}
+function bookMinutes(svcCode,extra){const s=svcByCode(svcCode);return s.min+(extra||0)*30}
+function bookLabel(svcCode,extra){return svcCode+((extra||0)>0?'+'+extra:'')}
+/* 自約的起訖（毫秒） */
+function bookRange(bk){const start=bk.datetime||0;const end=start+bookMinutes(bk.svc,bk.extra)*60000;return[start,end]}
+/* 衝突偵測：回傳與 bk 時間重疊的其他自約陣列（排除自己 id） */
+function findConflicts(code,bk,selfId){const[s1,e1]=bookRange(bk);if(!s1)return[];return getBookings(code).filter(o=>o.id!==selfId).filter(o=>{const[s2,e2]=bookRange(o);return s1<e2&&s2<e1})}
+/* 排休檢查：讀薪資 month data 的 status；2=病假? 依現有 SK 索引 sick/rest/personal 視為排休 */
+function dayOffStatus(code,ts){try{const d=new Date(ts);const y=d.getFullYear(),m=d.getMonth()+1,day=d.getDate();const md=LS.get(dk(code,y,m));if(!md||!md.days||!md.days[day])return 0;const st=md.days[day].status||0;/* SK=[normal,sick,late,rest,personal,early]；休假類:1病假,3休假,4事假 */return[1,3,4].includes(st)?st:0}catch(_e){return 0}}
+/* 自約 log */
+function bookLog(bk,msg){if(!bk.logs)bk.logs=[];bk.logs.push({ts:Date.now(),msg});return bk}
+const SK_NAMES={1:{zh:'病假',vi:'Nghỉ bệnh'},3:{zh:'休假',vi:'Nghỉ phép'},4:{zh:'事假',vi:'Nghỉ việc riêng'}};
+function skName(st,lang){const o=SK_NAMES[st];return o?(o[lang]||o.zh):''}
+
+/* ══════════ i18n ══════════ */
+// 台灣縣市/鄉鎮區:北北宜桃提供完整鄉鎮,其餘僅縣市(區自填)
+const LANG_SCHOOLS=["國立臺灣師範大學","淡江大學","國立政治大學","中國文化大學","國立臺灣大學","中原大學","輔仁大學"];
+const TW_REGIONS={
+  "臺北市":["中正區","大同區","中山區","松山區","大安區","萬華區","信義區","士林區","北投區","內湖區","南港區","文山區"],
+  "新北市":["板橋區","三重區","中和區","永和區","新莊區","新店區","樹林區","鶯歌區","三峽區","淡水區","汐止區","瑞芳區","土城區","蘆洲區","五股區","泰山區","林口區","深坑區","石碇區","坪林區","三芝區","石門區","八里區","平溪區","雙溪區","貢寮區","金山區","萬里區","烏來區"],
+  "桃園市":["桃園區","中壢區","平鎮區","八德區","楊梅區","蘆竹區","大溪區","龜山區","龍潭區","大園區","觀音區","新屋區","復興區"],
+  "宜蘭縣":["宜蘭市","羅東鎮","蘇澳鎮","頭城鎮","礁溪鄉","壯圍鄉","員山鄉","冬山鄉","五結鄉","三星鄉","大同鄉","南澳鄉"],
+  "基隆市":[],"新竹市":[],"新竹縣":[],"苗栗縣":[],"臺中市":[],"彰化縣":[],"南投縣":[],"雲林縣":[],"嘉義市":[],"嘉義縣":[],"臺南市":[],"高雄市":[],"屏東縣":[],"花蓮縣":[],"臺東縣":[],"澎湖縣":[],"金門縣":[],"連江縣":[]
 };
 
-/* ══════════ App ══════════ */
+const T={
+zh:{settings:"設定",yearly:"年度",monthly:"月份明細",custManage:"客戶管理",home:"首頁",unitPrice:"每支單價",teacherCode:"老師代碼",language:"語系",year:"年份",save:"儲存",saved:"已儲存 ✓",units:"支數",salary:"薪水",laodian:"老點",subtotal:"小計",prevPeriod:"上期",nextPeriod:"下期",monthTotal:"月合計",total:"合計",sick:"病假",late:"遲到",rest:"休假",normal:"正常",personal:"事假",early:"早退",dn:["日","一","二","三","四","五","六"],months:["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"],addGroup:"新增客組",directMode:"直接輸入",groupMode:"分組輸入",status:"狀態",done:"完成",cancel:"取消",exportUrl:"匯出備份碼",importUrl:"匯入備份碼",importOk:"匯入成功！",importFail:"格式錯誤",copyDone:"已複製",enterUrl:"貼上備份碼...",noData:"無資料",totalUnits:"總支數",groupLabel:"組",backup:"月薪資備份碼",fullBackup:"完整備份檔（JSON）",fullBackupDesc:"匯出包含基資、店資、流水、客管與全年薪資的完整加密檔案。換手機前請匯出並妥善保存（可傳給自己或存雲端）。",jsonExport:"⬇ 匯出完整備份檔",jsonImport:"⬆ 匯入備份檔（會覆蓋現有資料）",jsonExportDone:"已匯出，請妥善保存檔案",jsonExportFail:"匯出失敗，請重試",jsonImportDone:"匯入成功，即將重新載入…",jsonConfirmOverwrite:"匯入將覆蓋本機現有的所有資料，確定要繼續嗎？",jsonNotBackup:"這不是本系統的備份檔，請選擇正確的檔案",jsonBroken:"檔案不完整或已損毀，請重新匯出一次",jsonModified:"備份檔已被修改，無法匯入",jsonOtherPerson:"這是其他編號的備份檔",exportRangeCode:"匯出薪資備份碼",rangeHint:"備份範圍",jsonAndCodeDone:"已匯出備份檔，並產生薪資備份碼於下方。請兩者都妥善保存：備份檔含完整資料，備份碼可在備份檔遺失時救回薪資支數。",p1:"上半月 (1-15日)",p2:"下半月 (16日-月底)",yesterday:"昨日",lastRecord:"上一筆",todayDone:"今日已完成",startAdd:"開始新增本日的支數？",continueAdd:"繼續新增本日的支數？",addLaodian:"新增老點？",other:"其他",welcome:"歡迎使用薪資追蹤系統",enterCode:"請輸入老師編號",confirm:"確定",showQR:"請將 QR Code 提供給主管索取啟動碼",enterActivation:"輸入啟動碼",activationHint:"貼上管理者提供的啟動碼",activationFail:"啟動碼錯誤，請重新確認",copyToLine:"點此複製，傳 LINE 給管理者",adminWelcome:"管理員身分確認，自動啟動中...",admin:"管理",adminTitle:"管理頁面",genActivation:"產生啟動碼",pasteEncrypted:"貼上加密字串",resultCode:"啟動碼",adminFail:"無管理權限",encryptTool:"加密/解密工具",encryptLabel:"加密",decryptLabel:"解密",inputText:"輸入文字",deviceId:"裝置 ID",adminCheck:"檢查",adminEnter:"進入",adminApply:"申請主管",adminPending:"審核中",adminActivate:"啟動",adminApplyDesc:"申請主管權限",deviceName:"設備名稱（選填）",adminAppCode:"申請碼",adminAppCopy:"點此複製，傳 LINE 給管理者",adminActInput:"輸入管理啟動碼",adminActFail:"啟動碼錯誤",supervisor:"主管頁面",supervisorTitle:"主管頁面",supervisorApprove:"主管申請審核",supervisorApproveHint:"貼上申請碼",supervisorInfo:"申請人資訊",revoke:"取消主管權限",revokeHint:"請將此碼新增到 GitHub revoked.cfg",revokeCode:"撤銷碼",revokeInput:"輸入撤銷碼",revokeSuccess:"主管權限已取消",revokeFail:"撤銷碼錯誤",actionLog:"操作記錄",logGenUser:"生成{0}號啟動碼",logGenSup:"生成{0}號主管啟動碼({1})",logRevoke:"取消{0}號主管權限({1})",supervisorList:"主管名單",logTeacherActivate:"{0}號老師啟用主管權限({1})",revokeToAdmin:"請將此碼傳給管理者新增到 revoked.cfg",revokedList:"已撤銷",expired:"權限已過期",ok:"確認",ghConfig:"GitHub 設定",ghOwner:"帳號",ghRepo:"Repo 名稱",ghToken:"Personal Access Token",ghSave:"儲存",ghSaved:"已儲存 ✓",ghTest:"測試連線",ghOk:"連線成功 ✓",ghFail:"連線失敗",ghWriting:"寫入中...",ghWriteOk:"已寫入 GitHub ✓",ghWriteFail:"寫入失敗",ghAuto:"自動寫入 GitHub",ghEdit:"編輯",ghLocked:"設定已鎖定，按編輯可修改",keyConfig:"密鑰設定",keyFile:"檔案",keyStart:"起始位置",keyLen:"取幾字",keyTest:"測試密鑰",keyResult:"組合結果",keyMatch:"與現行密鑰一致 ✓",keyMismatch:"⚠️ 與現行密鑰不同",keySave:"儲存密鑰設定",keySaved:"密鑰設定已儲存 ✓",keyAddRule:"新增規則",keyDelRule:"刪除",keyFileOk:"{0} 存在",keyFileFail:"{0} 不存在",keyLenOk:"{0} 第1行 {1} 字 ≥ 需要 {2} 字",keyLenFail:"{0} 第1行僅 {1} 字，需至少 {2} 字",keyBuilt:"組合密鑰：{0} 字元",keyAdminOk:"admin.cfg 共 {0} 筆，全部符合",keyAdminPartial:"admin.cfg {0}/{1} 筆符合",keyAdminNone:"admin.cfg {0} 筆皆不符合",keyMigrate:"轉換為新密鑰",keyMigrating:"轉換中...",keyMigrateOk:"已轉換並寫入 GitHub ✓",keyMigrateFail:"轉換失敗",adminList:"管理者名單",adminAdd:"新增管理者",adminDel:"刪除",adminDelConfirm:"確定刪除此管理者？",adminDelLast:"至少需保留一位管理者",adminDelOk:"已從 GitHub 刪除 ✓",adminDelFail:"刪除失敗",adminAddHint:"請將此雜湊碼新增到 GitHub admin.cfg",adminCfg:"目前 admin.cfg",adminLocal:"本機新增",onlineApprove:"線上核准",approveTeacher:"核准老師",approveSupervisor:"核准主管",approveName:"姓名",approveLang:"語系",approveLevel:"主管等級",approveBtn:"核准",approving:"核准中...",approveOk:"已核准 ✓",approveFail:"核准失敗",approveMsg:"你的帳號已可使用了，再看看有沒有使用上的問題 😊",approveCopied:"已複製回覆訊息 ✓",waitApproval:"等待審核中",waitHint:"請將上方申請碼傳給管理者，核准後重開 App 即可使用",checkApproval:"重新檢查",checking:"檢查中...",approved:"已核准！",staffList:"員工名單",staffEmpty:"尚無員工資料",staffRole:"角色",staffStatus:"狀態",staffActive:"在職",staffRevoked:"已停用",logApproveTeacher:"核准老師 {0}({1})",logApproveSupervisor:"核准主管 {0}({1}) {2}",store:"所在店面",storeManage:"店面管理",storeAdd:"新增店面",storeDel:"刪除",storeEmpty:"尚無店面",storeSaved:"已儲存 ✓",teacherActivation:"老師啟動碼",supActivation:"主管啟動碼",sortByStore:"按店面",sortByCode:"按編號",sortByRole:"按職務",theme:"背景主題",themePink:"粉紅",themeBlack:"黑色",themeWhite:"白色",themeSmooth:"黑紫色",themeApple:"極簡白",themeNeon:"霓虹科技",themeForest:"森系植癒",themeSunset:"日落金",themeOcean:"海洋藍",themeQuiet:"靜謐灰調",bizCutoffLabel:"首頁換頁時間點",teacherCert:"老師專屬憑證",keyDiagTitle:"金鑰領取診斷",keyDiagPh:"輸入編號(如998)",keyDiagBtn:"測試領取",keyDiagHint:"輸入老師編號模擬領取，看成功或卡在哪。",certGot:"本機已領",certNone:"未領",gasSettingTitle:"GAS 後端網址",keyGenTitle:"產金鑰（管理者）",keyUpdateFound:"發現有新的更新檔，請點更新",latestNotices:"最新公告",noticeAdd:"新增公告",noticeEmpty:"目前沒有公告",suggestAdd:"新建議",suggestAnon:"發布人：隱藏",suggestTitle:"標題",suggestTitlePh:"一句話說明你的建議",suggestContent:"內容",suggestContentPh:"詳細說明你的想法…",suggestAnonOpt:"匿名發布（不顯示我的編號）",suggestSubmit:"送出建議",noticeManageHint:"點右上新增公告，只要打內容，AI 會自動分類、產標題摘要並翻譯越南文。",noticeContentLabel:"公告內容（中文）",noticeContentPh:"直接貼上或輸入公告內容，其他交給 AI…",noticeAIGen:"AI 產生（分類/標題/摘要/越南文）",noticeAIPreview:"AI 產生結果（可修改）",noticePublishBtn:"發布公告",oneStore:"單店公告",allStore:"全店公告",noticeRead:"我已閱讀",noticeReadDone:"已閱讀",noticeReadOk:"已記錄閱讀，感謝！",noticeReadMark:"已讀",noticeReadCount:"人已閱讀",noReaders:"尚無人閱讀",loading:"載入中…",noticeReaders:"閱讀人員",noticeUnread:"未閱讀人員",allRead:"全部已閱讀",noticeMore:"更多公告",noticeFeedback:"我有意見（匿名）",noticeFeatureWip:"功能建置中，敬請期待",noticeKeyGot:"已為你開通！互動功能即將開放",noticeKeyFail:"開通失敗，請稍後再試或聯繫主管",noticeKeyHint:"點上方按鈕即可開通互動功能",noticeKeyClaiming:"開通中…",noticePubTitle:"公告更新",noticeHomeN:"首頁筆數",noticeShowFields:"公開顯示欄位（預設不顯示，分類校正好再勾）：",noticeSubcat:"子分類",noticeTagsLabel:"標籤",noticeListN:"公告頁筆數",noticePubBtn:"從GAS抓最新2筆存GitHub",noticePubbing:"更新中…",noticePubOk:"已更新公告",noticePubFail:"更新失敗",noticePubHint:"按此把GAS最新2筆公告發布到GitHub，所有老師即可看到。",viewAll:"看全部",keyErrBatch:"領取碼不符或GAS未設定BATCH_CODE",keyErrNoKey:"管理者尚未幫你的編號產金鑰",keyErrRevoked:"金鑰已被停用",keyErrNetwork:"連不到GAS(網路或網址問題)",keyErrMissing:"缺編號或領取碼",keyUpdating:"更新中…",keyUpdateOk:"更新完成 ✓",keyUpdateFail:"更新失敗，請稍後再試",keyAdminSecPh:"GAS連線密碼",keyGenCodePh:"要產金鑰的老師編號",keyGenBtn:"產生金鑰",keyGenDone:"金鑰已產生",keyGenExisted:"金鑰已存在（沿用）",keyClaimCode:"領取碼（交給該老師）",keyClaimHint:"老師在自己手機的設定頁輸入此領取碼即可領金鑰。",keyClaimTitle:"領取金鑰",keyClaimPh:"輸入主管給的領取碼",keyClaimBtn:"領取金鑰",keyClaimOk:"領取成功",keyClaimFail:"領取失敗",keyClaimTeacherHint:"向主管索取領取碼後輸入，一次性領取，領到後存在本機。",gasSettingHint:"貼上 Google Apps Script 部署網址（管理者用）。設定後系統寫入將透過 GAS，Token 不再需要放前端。",gasTestBtn:"測試連線",gasTesting:"測試中…",gasTestOk:"連線成功",gasTestFail:"連線失敗",bizCutoffHint:"因應公司凌晨3點結帳，所以不一定是晚上12點就換成次日，可配合自己的習慣進行設定首頁換日的時間點。白班可以設定你下班時間，晚班可以設定3點，3點後做的都算次日，所以3點後系統自動換日，方便你記錄。（目前預設是早上6點半）",themeGray:"灰色",resetAll:"一鍵還原初始設定",resetAllConfirm:"確定還原？將清除所有員工與主管資料（保留管理員122、Token、記錄）",resetAllOk:"已還原初始設定 ✓",resetSup:"一鍵移除所有主管權限",resetSupConfirm:"確定移除所有主管權限？",resetSupOk:"已移除所有主管權限 ✓",resetApp:"重置申請",removeToken:"移除（轉離線）",removeSup:"取消主管權限",removeConfirm:"確定移除 {0}？",connection:"連線作業",connApply:"申請認證",connCode:"連線碼",connInput:"貼上連線碼",connOk:"連線成功 ✓",connFail:"連線碼錯誤",connExpired:"你的連線認證已逾期，請重新申請",connStatus:"連線狀態",connOnline:"已連線 ☁️",connOffline:"離線 📥",editStaff:"人員編輯",editStore:"所在店面",editDel:"刪除此員工",editDelConfirm:"確定刪除 {0}？",editDevices:"連線設備",editRevokeConn:"取消連線",editNoDevices:"無連線設備",genConn:"產生連線碼",genConnHint:"貼上老師的 編號:uuid",needConnFirst:"請先完成連線設定才能申請主管",skills:"老師技能",guasha:"刮痧",baguang:"拔罐",xiujiao:"修腳皮",gs:"刮",bg:"拔",xj:"修",clearAll:"一鍵清除",notice1:"⚠️ 資料只存在本機，不會上傳雲端。",notice2:"LINE 與手機內建瀏覽器的暫存是分開的，啟動碼會不同，請固定使用同一個瀏覽器。",notice3:"資料跟著手機走，換手機前請先到設定頁匯出備份。",authRedirectHint:"點擊後將前往管理頁面，完成後可按返回回到記薪資畫面。",manualGen:"手動發碼",manualGenBtn:"發碼",syncedStaff:"已寫入名單",syncFailStaff:"名單寫入失敗",manualGenHint:"直接輸入老師編號產生啟動碼（離線可用，不寫入雲端名單）",booking:"我的預約",bookingNew:"新增自約",bookingList:"自約清單",bookingEmpty:"目前沒有自約",custSearch:"搜尋客戶（手機/姓/稱謂）",custNew:"新客戶",custName:"姓名",custPhone:"手機",custTitle:"稱謂",custParts:"重點部位",custNote:"備註",custEval:"本次評價",bookDate:"預約日期",bookTime:"預約時間",bookSave:"儲存自約",bookCancel:"取消",bookDelete:"刪除自約",bookDeleteConfirm:"確定刪除這筆自約？",bookDeleteConfirm2:"確定刪除",selectCustomer:"選擇客戶",orNewCustomer:"或新增客戶",noMatch:"查無符合客戶",lastServed:"上次服務",bookStatus:"狀態",bookConfirmed:"已確認",bookDone:"已完成",bookNoShow:"未到",pickCustomerFirst:"請先選擇或新增客戶",needActivate:"請先在記薪資頁完成啟用",backToMain:"回記薪資",svcLabel:"服務項目",addHour:"加鐘",party:"同行人數",workStart:"上工時間",workEnd:"下工時間",workEndNeed:"已填上工，請一併填下工時間",gender:"性別",genderM:"男",genderF:"女",crossNightHint:"晚班跨夜：下工時間早於上工時間時，系統自動視為隔天（例如 17:00 上工、05:00 下工）。",email:"電子郵件",pregClient:"懷孕客人",oilLabel:"油壓",accept:"接",reject:"不接",techMentor:"技術指導老師",techMentorPlaceholder:"填寫技術指導老師號碼",lockerNo:"4樓置物櫃編號",teacherCode:"老師編號",teacherCodePlaceholder:"請輸入老師編號 ex:122",submitActivation:"送出啟動帳號",mustReadFirst:"需先閱讀以下說明",noticeTitle:"本系統記錄的資料說明",readConfirm:"我已閱讀以上說明",sendViaLine:"傳 LINE 給主管",sendLineToTeacher:"傳 LINE 給老師（碼）",sendLineLinkToTeacher:"傳連結給老師",sendLineToSup:"傳 LINE 給主管",lineConfirmPrefix:"資料已更新，確認碼如下，請於系統內輸入：",reqLinkTitle:"收到一個申請碼",reqLinkDesc:"系統偵測到申請碼。若您具有主管或管理權限，請先完成下方身分驗證，驗證後將自動帶入處理；若您是一般老師，則無需處理此碼。",lineActivatePrefix:"請協助 {code} 號老師帳號啟動",lineConnPrefix:"連線啟動碼如下，請複製使用：",lineActDonePrefix:"您的啟動碼如下，請於系統內輸入完成啟動：",lineReqPrefix:"基資／店資更新申請碼，請主管協助確認：",lineConnReqPrefix:"連線申請碼（請主管協助產生連線碼）：",reqMissing:"請完成必填欄位",addUnitTitle:"新增支數（每筆記為一位客人）",oldGroupData:"舊分組資料",slipUnits:"支數",editMoreInMonthly:"更多明細可到月份明細編輯",pressBody:"身體受力",pressFoot:"腳受力",pressLight:"輕",pressNormal:"普通",pressHeavy:"重",strengthParts:"加強部位",partHead:"頭",partShoulder:"肩膀",partUpperback:"上背",partLowerback:"下背",partWaist:"腰",partButt:"屁股",partThigh:"大腿",partCalf:"小腿",partArm:"手臂",clientReq:"客人要求",reqMale:"指男",reqFemale:"指女",reqTw:"指台",reqVn:"指越",reqCn:"指中",laodianOut:"老點出牌",shiftOut:"輪班出牌",teacherNoPlaceholder:"老師編號",custSearchHint:"搜尋客戶（姓/稱謂/手機/#標籤）",custMatch:"找到客戶",custNewHint:"查無此客戶，將建立新客戶",custNoRecent:"尚無客戶記錄",custEditTitle:"客戶資料編輯",custDelBtn:"刪除此客戶",custDelConfirm:"再按一次確認刪除（不影響流水紀錄）",rangeCodeNote:"此備份碼可快速救回每日支數與老點總數，缺點是無法還原每筆流水的明細（服務項目、客人、受力部位等），還原後每天會合併成一筆。需要完整明細請改用「完整備份檔（JSON）」。",
+tabBasic:"基資",tabStore:"店資",tabBook2:"自約",tabCust:"客管",tabNotice:"公告",tabSuggest:"建議",tabManage:"管理",
+secBasic:"基本資料",secStore:"在店資訊",nameZh:"中文姓名",nameVi:"越南姓名",address:"通訊地址",school:"就讀學校",major:"科系",permitDate:"工作證核發日期",permitOrg:"核發單位",optional:"選填",
+storeName:"店名",shift:"班別",shiftDay:"早班",shiftNight:"晚班",workNote:"特別上下工備註",
+skPregnant:"特殊客人（懷孕）",skOil:"油壓",
+custMgmt:"客戶管理",noticeCenter:"公司宣達事項",suggestBox:"提供建議",manageCenter:"管理中心",underConstruction:"施工中",
+confirmWithSup:"與主管確認",permitNo:"許可文號",permitExpiry:"到期日",permitOrgOpt:"核發單位",orgWDA:"勞動部勞動力發展署",orgNIA:"內政部移民署",orgOther:"其他",permitExpiringSoon:"工作證即將到期",phone2:"手機",city:"縣市",district:"區/鄉鎮市",addrDetail:"地址",selectCity:"選擇縣市",selectDist:"選擇區",myBookingNote:"「我的自約」非店家正式預約資料，僅供老師方便記錄使用。",partyMember:"同行第",assignTeacher:"指定老師",noAssign:"不指定",svcNote:"服務備註",calView:"日曆式",eventView:"事件序",totalPeople:"共",peopleUnit:"人",alsoAssign:"另指定",assignMode:"指定方式",noAssignTeacher:"不指定老師",assignTeacherMode:"指定老師",assignByCode:"指定編號",assignByCond:"指定條件",assignMale:"指男",assignFemale:"指女",assignTW:"指台",assignVN:"指越",assignOil:"油壓",confirmWithCounter:"跟櫃台確認",confirmWithAssigned:"跟指定老師確認",editBtn:"編輯",saveChange:"儲存變更",logConfirmCounter:"與櫃台確認該時段",logConfirmAssigned:"與指定老師{0}確認",logEditChange:"編輯：{0}",foreignSection:"外籍員工",permitNoLabel:"工作證許可文號",langSchool:"目前就讀語言學校",schoolType:"目前就讀",schoolTypeLang:"語言學校",schoolTypeUni:"大學",schoolTypeMaster:"研究所",schoolTypePhd:"博士班",selectLangSchool:"選擇語言學校",closeThis:"關閉此頁",confirmedAssignedToast:"已與{0}老師確認",confirmedCounterToast:"已與櫃台確認",statusUnconfirmed:"未確認",statusConfirmed:"已確認",statusAssignedConfirmed:"已跟指定老師確認",statusReconfirm:"自約變更，請重新確認",statusTeacherProgress:"已與老師確認 ({0}/{1})",confirmedTeacherToast:"已與老師確認 ({0}/{1})",hidePast:"隱藏已過期",workTimeEdit:"上下工時間",workStartH:"上工",workEndH:"下工",saveWorkTime:"儲存工時",internSup:"實習副理",confirmSuccess:"已確認，資料已更新",confirmFail:"確認碼錯誤或不符",scanReqEntry:"刷申請碼",reqBasic:"基資申請",reqStore:"店資申請",agreeWrite:"同意並寫入",disagree:"不同意",writeOk:"已寫入，確認碼：",giveConfirmCode:"請將確認碼給老師",logReqWritten:"寫入{0}申請：{1}",uuidBound:"已綁定裝置",uuidNew:"新裝置(將綁定)",workChartTitle:"上工人數統計",workChartOnline:"在線人數",workChartStart:"上工分布",workChartOnlineDesc:"各時段在線老師人數",workChartStartDesc:"各時間點上工的老師人數",allStores:"全部店家",tabChart:"圖表",chartShiftRatio:"班別比",chartGenderRatio:"性別比",chartAnalysis1:"分析1",chartAnalysis2:"分析2",chartWorkStart:"上工人數",chartOnline:"在線人數",chartWorkStartDesc:"各時間點上工的老師人數",chartOnlineDesc:"各時段在線老師人數（含跨夜）",peopleUnit2:"人",chartDayShift:"早班",chartNightShift:"晚班",chartMale:"男",chartFemale:"女",chartOther:"其他",chartUpdatedAt:"資料更新",chartNoData:"尚無統計資料，請待主管發布",chartSupOnly:"需主管權限",chartPublished:"已發布給成員",statTotal:"總人數",cardBtn:"名片",cardTitle:"名片",cardBrand:"館名",cardCode:"老師編號",cardWork:"上班時間",cardPhone:"訂位電話",cardAddr:"會館地址",cardAddrNote:"地址補充",cardMapUrl:"Google Maps 連結",cardAppleUrl:"Apple 地圖連結",cardSave:"存檔",cardShare:"分享給 LINE 好友",cardSaved:"已存檔",cardPersonal:"老師個人名片",cardAddrBtn:"地址",cardPhoneBtn:"電話",emailLabel:"Email（選填）",emailHint:"填寫後，系統會每天自動把備份存到雲端；日後換手機，輸入相同的編號與 Email 即可還原資料。不填則資料只存在本機。",emailInvalid:"Email 格式不正確",emailRestoreTitle:"找到雲端備份",emailRestoreBody:"找到此編號與 Email 的雲端備份（更新時間：{0}）。要還原嗎？",emailRestoreBtn:"還原備份",emailSkipBtn:"不還原，直接開始",emailRestoring:"還原中…",emailBackupTitle:"Email 雲端備份",emailBackupDesc:"填寫 Email 後，每天第一次開啟 App 會自動把備份存到雲端（以編號與 Email 區分）。換手機時在啟動頁輸入相同的編號與 Email 就能還原。只備份目前年度的資料。",emailSaveBtn:"儲存 Email",emailSavedMsg:"已儲存，並完成雲端備份",emailSavedFailMsg:"Email 已儲存，但雲端備份失敗：",emailClearedMsg:"已清除 Email，之後不再自動上傳雲端備份（雲端上已有的備份不會被刪除）",emailPrivacy:"另外，我們提供雲端備份服務，是否使用由您自己決定：若您填寫 Email，系統會以「編號＋Email」作為備份的依據，每天自動備份一次到系統的雲端空間（Google Drive），方便日後換手機還原。請注意：若他人知道您的編號與 Email，就有可能用它們讀取到您的備份資料，請勿公開您使用的 Email；不填 Email 則完全不會上傳。",chartUpdate:"更新",
+chartTabHeat:"熱力圖",chartTabWeekday:"周幾趨勢",chartTabExtra:"加訪趨勢",chartHeatDesc:"依資料實際出現的時間範圍，顯示周幾、幾點客人較集中（顏色越深代表支數越多）",chartWeekdayDesc:"依周幾加總各天的支數，看哪天客人較多／較少",chartExtraDesc:"當天流水超過1筆時，統計目前有幾天達到2／3／4／5筆以上",chartCurWeekNote:"本週（進行中，尚未計入上方統計）目前已有 {0} 支",chartExtraDaysUnit:"天",chartNoSlipData:"尚無流水資料，先記幾筆流水再回來看圖表",chartMockupHint:"（樣版）之後會加上可切換統計區間的功能",slipList:"流水紀錄",slipAuto:"自動",slipStartTime:"開始時間",slipDelete:"刪除此筆",slipTags:"客管標籤（選填）",slipTagsPlaceholder:"空格分隔，按 Enter 或 + 加入",slipTagHistory:"歷史標籤：",slipTagAdd:"加入",custTagStats:"標籤統計",custSearchBtn:"客戶管理",custNoTags:"尚無標籤，請在每日流水裡記錄",custSearchPlaceholder:"搜尋姓名 / 稱謂 / 手機",myBooking2:"我的自約",bookHistory:"歷史",collapseBtn:"收起",expandBtn:"展開",duplicateBtn:"複製為新的自約",bookNoCustHint:"請先搜尋或輸入老點姓名/手機",cancelWithCounter:"跟櫃台取消",cancelledCounterToast:"已取消與櫃台確認",logUnconfirm:"取消與櫃台確認",logUnconfirmAssigned:"取消與指定老師{0}確認",bookConfirmStatusLabel:"自約確認情形",
+tabHome2:"首設",tabBackup:"備份",homeSettings:"系統設定",backupCenter:"備份",
+curStore:"目前服務店家",applyChange:"申請更改",genBasicCode:"產生基資申請碼",genStoreCode:"產生店資申請碼",basicApplyCode:"基資申請碼",storeApplyCode:"店資申請碼",confirmCode2:"確認碼",copyBtn:"複製",lastSyncAt:"最後同步時間",fullStaffData:"完整資料",fullBasicData:"基資完整資料",fullStoreData:"店資完整資料",saveToStaff:"存回 staff",saved:"已存回",saveFailStaff:"存檔失敗",staffValueHint:"公司登記",
+syncStoreBooking:"同步店家預約資訊",syncBtn:"同步",pasteBtn:"貼上",noFuncYet:"（尚無功能）",tabViolation:"違規",violationTitle:"違規記錄",noViolation:"你目前尚未有違規記錄",violationCode:"違規確認碼",dutyTitle:"值日生記錄",noDuty:"目前無值日生記錄",prevConfirmed:"前次確認值",needConfirm:"請完成資料填寫後，向主管進行確認",serviceStatus:"本服務 本機／連線狀況",
+privacyTitle:"資料儲存說明",privacyBody:"本系統所有個人資料與薪資記錄，都只儲存在您手機的本機，系統不會主動上傳到雲端。若您沒有自行做手動備份或雲端備份，遇到手機遺失、損壞或換機時，店家與管理者都無法幫您救回任何資料。",browserNote:"用 LINE 開啟、用手機內建瀏覽器開啟、用相機掃描 QR Code 開啟，三者的暫存空間各自獨立，資料不會互通。換一種方式開啟時，系統會要求重新啟動，先前輸入的資料也不會出現。建議您固定使用同一種方式開啟。",
+backupReminder:"所有資料均只儲存於本機，更換手機後將無法復原。更換手機前，請先到「備份」頁匯出備份檔（JSON 檔）並妥善保存。",
+basicUpdateCode:"基資更新碼",storeUpdateCode:"店資更新碼",basicConfirmCode:"基資確認碼",storeConfirmCode:"店資確認碼",conflictWarn:"與 {0} {1} 衝突",dayOffWarn:"當天已排{0}",units:"支",partyUnit:"人",noWorkEnd:"尚未設定下工時間",bookEdit:"編輯",bookConfirmDesk:"與櫃台確定",bookConfirmed2:"已與櫃台確認",bookEditWarn:"變更時間後請再與櫃台確認",bookLogTitle:"異動記錄",logCreate:"新增本次自約",logConfirm:"與櫃台確認該時段",logChange:"自約變動",logConflict:"系統偵測到時段衝突仍建立",custEditTitle:"編輯客戶",custSave:"儲存",bookSaveEdit:"儲存變更",timeChanged:"時間 {0} → {1}",svcChanged:"服務 {0} → {1}",lockPwdTitle:"設定4位數解鎖密碼",lockPwdHint:"之後用於鎖屏解鎖，不可4碼相同或連續遞增/遞減",lockPwdConfirm:"再輸入一次確認",lockPwdMismatch:"兩次輸入不一致",lockPwdInvalid:"密碼不可4碼相同或連續數字",flowNew:"新老師啟動",flowLogin:"已有帳號，密碼登入",pwdLoginTitle:"密碼登入",pwdLoginHint:"輸入編號與密碼即可登入，不需再跟主管要啟動碼",pwdInputPh:"4位數密碼",pwdLoginBtn:"登入",pwdLoginFail:"編號或密碼錯誤",backToChoice:"返回選擇",forgotPwdLink:"忘記密碼？",forgotPwdTitle:"忘記密碼",forgotPwdHint:"系統會產生一組代碼，傳給主管確認身分後即可重設密碼",ticketCode:"代碼",ticketSend:"傳 LINE 給主管",ticketCheckBtn:"檢查核定情形",ticketChecking:"檢查中…",ticketPending:"尚未核准，請稍候",ticketApproved:"已核准！",ticketWaitCountdown:"請等待 {0} 秒後再檢查",setNewPwdTitle:"設定新密碼",shiftLabel:"班別",shiftDay:"早班",shiftNight:"晚班",lineTicketNewPrefix:"請協助{code}號老師核准新帳號啟動，代碼：",lineTicketForgotPrefix:"請協助{code}號老師核准忘記密碼申請，代碼：",ticketLookup:"查詢代碼",ticketLookupBtn:"查詢",ticketLookupPh:"貼上老師傳來的代碼",ticketNotFound:"查無此代碼",ticketAlreadyDone:"此申請已處理過",ticketApproveBtn:"核准",ticketApproveOk:"已核准 ✓",ticketApproveFail:"核准失敗",ticketInfoTeacher:"老師編號",ticketInfoStore:"店家",ticketInfoGender:"性別",ticketInfoWork:"上下班",ticketInfoShift:"班別",ticketTypeN:"新老師啟動",ticketTypeF:"忘記密碼",noticePwdSetupTitle:"設定4位數密碼",noticePwdSetupBody:"公告內容屬公司資料，為保障資料安全，請設定專屬4位數密碼。日後開啟公司相關資料時，系統將要求輸入密碼進行驗證（5分鐘內免重複輸入）。",noticePwdSetupBtn:"設定密碼",noticePwdLockedTitle:"請輸入密碼",noticePwdLockedBody:"公告為公司資料，請輸入密碼驗證身分",noticePwdUnlockBtn:"解鎖",noticePwdWrong:"密碼錯誤，請重新輸入",checkCodeBtn:"檢查",checkingCode:"檢查中…",codeExistsHint:"此編號已啟動過，請改用密碼登入",codeCheckFail:"檢查失敗，請重試",codeAvailHint:"編號可用，請繼續填寫",ticketPendingNewTitle:"新老師啟動申請中",ticketPendingForgotTitle:"忘記密碼申請中",newPwdTitle:"新密碼",newPwdHint:"密碼原則同申請時：不可4碼相同或連續遞增/遞減",ticketClearBtn:"清空",ticketNotifyBtn:"通知申請人 已核准",lineApprovedPrefix:"{code} 你好：你的帳號已啟動，請點擊網頁中的「檢查核定情形」來登入主頁，進行支數管理。有任何的建議，歡迎提供給我，祝您使用順心愉快！",ticketTypeA:"主管申請",lineTicketSupPrefix:"請協助{code}號老師核准主管申請，代碼：",ticketTypeB:"基資更新申請",ticketTypeS:"店資更新申請",lineTicketBasicPrefix:"請協助{code}號老師核准基資更新，代碼：",lineTicketStorePrefix:"請協助{code}號老師核准店資更新，代碼：",infoEditBtn:"編輯",infoSubmitBtn:"送出",infoCancelBtn:"取消",infoNoChange:"沒有變更任何欄位",infoChangedTitle:"本次變更的欄位",infoPwdSetupBasicBody:"此頁含有個人資訊，為保障資料安全，請設定專屬4位數密碼。日後開啟個人資料時，系統將要求輸入密碼進行驗證（5分鐘內免重複輸入）。",infoPwdSetupStoreBody:"店家資訊屬公司資料，為保障資料安全，請設定專屬4位數密碼。日後開啟公司相關資料時，系統將要求輸入密碼進行驗證（5分鐘內免重複輸入）。",infoPwdLockedBasicBody:"此頁含有個人資訊，請輸入密碼驗證身分",infoPwdLockedStoreBody:"店家資訊為公司資料，請輸入密碼驗證身分",lineApprovedForgotPrefix:"{code} 你好，你申請自訂密碼重設的申請已核准，請點擊網頁中的「檢查核定情形」來登入主頁，有任何的建議，歡迎提供給我，祝您使用順心愉快。",lineApprovedSupPrefix:"{code} 你好，你申請主管權限的申請已核准，請點擊網頁中的「檢查核定情形」完成啟用，有任何的建議，歡迎提供給我，祝您使用順心愉快。",lineApprovedBasicPrefix:"{code} 你好，你申請的基本資料更新已核准，請點擊網頁中的「檢查核定情形」完成同步，有任何的建議，歡迎提供給我，祝您使用順心愉快。",lineApprovedStorePrefix:"{code} 你好，你申請的店家資料更新已核准，請點擊網頁中的「檢查核定情形」完成同步，有任何的建議，歡迎提供給我，祝您使用順心愉快。",ticketInfoApplyTime:"申請時間",ticketInfoApproveTime:"核准時間",ticketInfoApprover:"核准人",revokeSupBtn:"撤銷主管權限",revokeSupConfirm:"確定要撤銷此人的主管權限嗎？",revokeSupOk:"已撤銷 ✓",revokeSupFail:"撤銷失敗",rejectBtn:"退回",rejectReasonPh:"退回原因(選填,讓老師知道要改什麼)",ticketRejected:"已退回",ticketRejectedReason:"退回原因",reeditBtn:"修改後重新送出",keyExpiredMsg:"憑證已過期，請聯繫主管處理",keyInvalidMsg:"憑證已失效，無法查看",keyInvalidEditMsg:"憑證已失效，無法送出變更，請聯繫主管處理",noticeListTextLabel:"列表文字用：",noticeListTitle:"標題",noticeListSummary:"摘要",noticeCountTypeLabel:"開啟次數顯示：",noticeCountPeople:"人數(不重複)",noticeCountVisits:"人次(全部)",credentialLabel:"憑證狀態",credentialOk:"正常",credentialExpired:"憑證已到期",leaveBtn:"離職",leaveConfirmTitle:"確定要離職嗎？",leaveConfirmMsg:"按下後帳號會走離職流程並留下記錄，公司相關資料(公告、店資)將無法再查看。你自己記錄過的支數資料仍會保留在本機，可自行運用。",leaveConfirmBtn:"確定離職",leaveOk:"已完成離職流程",leaveFail:"處理失敗，請稍後再試",ticketTypeE:"憑證展期申請",lineTicketRenewPrefix:"請協助{code}號老師核准憑證展期，代碼：",lineApprovedRenewPrefix:"{code} 你好，你申請的憑證展期已核准，請點擊網頁中的「檢查核定情形」完成展期，有任何的建議，歡迎提供給我，祝您使用順心愉快。",renewModalTitle:"憑證展期",renewModalBody:"你的憑證已到期，無法查看公司相關資料(公告、店資)。送出展期申請給主管，核准後即可恢復。",noticeOffBtn:"下架",noticeOnBtn:"上架",noticeOffConfirm:"確定要下架這則公告嗎？下架後一般老師看不到，但你仍會在清單看到(灰字)。",noticeOpenersTitle:"開啟人員",catTabAll:"全部",credentialInvalid:"無效",credentialExpiryLabel:"憑證期限",leftDateLabel:"離職日",expiredLabel:"已逾期",noticeLocalBadge:"本機",lockPwdSectionTitle:"保護密碼",disableHomePwdLabel:"關閉首頁的保護密碼要求",lockAutoTimeLabel:"保護密碼自動上鎖時間",lockAutoTimeHint:"分鐘(最小5分鐘)",homePwdPopupTitle:"請輸入保護密碼",homePwdPopupBody:"今天第一次開啟，請輸入密碼驗證身分",gloveSize:"手套尺寸",groupBuyBtn:"團購",groupBuyTitle:"團購列表",groupBuyTabList:"團購",groupBuyTabMine:"我登記的",groupBuyEmpty:"目前沒有進行中的團購",groupBuyMineEmpty:"你還沒參加任何團購",groupBuyJoinBtn:"登記",groupBuyJoinOk:"已登記 ✓",groupBuyCreateBtn:"發起團購",groupBuyCreateTitle:"發起手套團購",groupBuyDeadlineLabel:"截止日期",groupBuyPopupTitle:"手套團購",groupBuyPopupBody:"目前有進行中的手套團購，要加入嗎？",groupBuyPopupJoin:"加入",groupBuyPopupSkip:"暫不參加",groupBuyOrderCount:"人登記",drBtn:"回報",drTitle:"天災安全回報",drDateLabel:"日期",drTypeLabel:"天災別",drTypeEarthquake:"地震",drTypeTyphoon:"颱風",drTypeFlood:"淹水",drTypeLandslide:"土石流",drStatusLabel:"狀況",drSafe:"我很安全",drCantLeave:"無法出門",drVehicleDamaged:"交通工具受損",drSick:"身體不適",drNeedAddrHint:"回報前請先填寫所在通訊縣市、鄉鎮",drSubmitBtn:"送出回報",drSubmitOk:"已送出回報",drSubmitFail:"送出失敗，請重試",ticketTypeR:"復職申請",lineTicketReinstatePrefix:"請協助{code}號老師核准復職申請，代碼：",lineApprovedReinstatePrefix:"{code} 你好，你申請的復職已核准，請回到登入頁用原本密碼登入即可，有任何的建議，歡迎提供給我，祝您使用順心愉快。",accountLeftMsg:"此帳號已離職停用，如需復職請送出復職申請",reinstateBtn:"送出復職申請",reinstateHint:"送出後由主管核准，核准後請用原本密碼回登入頁登入即可，不用重設密碼。",reinstateApprovedMsg:"復職已核准，請用原本密碼登入",groupBuyItemLabel:"團購項目",groupBuyItemGlove:"手套",groupBuyItemCustom:"自訂項目",groupBuyCustomItemPh:"輸入項目名稱",groupBuyAmountLabel:"金額",groupBuyAmountPh:"每份金額",groupBuyScopeLabel:"通知範圍",groupBuyScopeStore:"單店主動通知",groupBuyScopeAll:"全店主動通知",groupBuyScopeNone:"不公告",groupBuyDeadline24hHint:"一般老師最多只能設定24小時內截止",groupBuyDeclineBtn:"不需要",groupBuyDeclinedOk:"已標記不需要",groupBuyCloseBtn:"提前結束",groupBuyCloseConfirm:"確定要提前結束這個團購嗎？",groupBuyClosedTag:"已結束",groupBuyViewJoined:"參加名單",groupBuyViewDeclined:"不需要名單",groupBuyViewOpens:"點開看過",drSurveyNameLabel:"天災名稱",drSurveyNamePh:"例如：0710強颱",drSurveyStartLabel:"安全回報開始日",drCreateSurveyBtn:"發起天災安全回報",drEndSurveyBtn:"結束回報調查",drSurveyEndedTag:"已結束",drNoActiveSurvey:"目前沒有進行中的天災回報",drOtherLabel:"其他",drOtherPh:"自行填寫狀況",drMyReportsTitle:"我的回報紀錄",drDayLabel:"第{0}天",drQueryDayTitle:"查詢回報狀況",drDidReport:"已回報",drNotReport:"未回報",drCopyNotReportBtn:"複製未回報名單",drCopiedMsg:"已複製",applying:"送出中…",drMessageLabel:"通知內容(選填,會出現在通報彈窗與複製訊息裡)",drMessagePh:"例如：請老師每日進行安全回報",drScopeLabel:"主動通報範圍(預設不主動通報)",drScopeStore:"單店主動通報",drScopeAll:"全店主動通報",drReportRecordTitle:"安全回報記錄",drTodayReported:"今日你已進行回報：",drAddMoreBtn:"新增一筆安全回報",drDeleteConfirm:"確定要刪除這筆已結束的調查嗎？",drQueryReportsBtn:"查詢回報情形",drSelectDayPh:"選擇天數",groupBuyTabCreated:"我發起的",groupBuyQtyLabel:"數量",groupBuyConfirmBtn:"完成",groupBuyDeclineCountLabel:"不需要的人數",groupBuyCreatedCount:"共有{0}人登記",groupBuySizeGroup:"尺寸{0} 共{1}人 分別是{2}",groupBuyMineCreatedEmpty:"你還沒發起任何團購",groupBuyEndedTitle:"已結束",groupBuyPaidBtn:"已交錢",groupBuyArrivedBtn:"已到貨",groupBuySubtotalLabel:"小計",homeLayoutTitle:"首頁版面顯示",homeLayoutA:"快速加支數（+1+2+3）",homeLayoutB:"今日流水列表",homeLayoutC:"狀態選擇（正常／事假／病假／休假）",homeLayoutHint:"關閉後，仍可以點今日日期那排進入編輯畫面操作，只是首頁不會直接顯示",blacklistTab:"拒接名單",blacklistCheck:"拒接",blacklistReasonHarass:"騷擾",blacklistReasonOther:"其他",blacklistReasonPh:"請輸入原因",blacklistNoCandidate:"目前沒有標記拒接的客人，請先在流水詳情勾選拒接",blacklistSubmitBtn:"送出拒接申請",blacklistReasonLabel:"拒接原因",blacklistSearchPh:"手機／姓名／稱謂／拒接老師編號",ticketTypeK:"拒接申請",gbStatusOpen:"進行中",gbStatusClosed:"已截止",gbStatusCollecting:"收錢中",gbStatusShipping:"貨運寄送中",gbStatusEnded:"已結束",gbChangeStatusLabel:"變更狀態（目前：{0}）",groupBuyByLabel:"由{0}發起",cloudBackupTitle:"☁️ 雲端備份",cloudBackupDesc:"換手機前先備份，登入新手機後查詢就能直接還原",cloudAutoBackupActiveMsg:"✓ 本裝置已用LINE登入，每日第一次開啟App時會自動備份一次",cloudBackupBtn:"備份到雲端",cloudBackupProcessing:"處理中…",cloudCheckBtn:"查詢雲端備份",cloudCheckWait:"請稍候 {0}s",cloudFoundLabel:"找到備份：{0}年，更新於 {1}",cloudRestoreBtn:"還原這份備份",cloudRestoreConfirm:"還原會覆蓋本機同年份的資料，確定嗎？",cloudRestoreDoing:"還原中…",cloudRestoreOk:"確定還原",cloudNotFound:"目前雲端還沒有這個編號的備份",cloudBackedUpMsg:"✓ 已備份到雲端（{0}年）",autoBackupLabel:"每日第一次登入驗證密碼後，自動在背景備份一次",blacklistTabHint:"符合條件才會出現在這個分頁：要在流水詳情輸入姓名、稱謂、手機，並勾選拒接及填寫原因",logoutBtn:"登出／切換帳號",logoutConfirmBtn:"再按一次確認登出／切換帳號",groupBuyGloveDefault:"手套團購",logoutHint:"只會登出目前帳號，本機資料（月報表、客戶資料）不會被刪除，換回同一個編號登入資料還在",gbGloveOngoingTag:"（進行中）",gbGloveOnlyOneHint:"同時間只能有一筆手套團購，請等進行中的結束後再發起",gbDeadlineTeacherHint:"預設明天23:59截止，只有主管可以自訂截止時間",acupointBtn:"穴道知識",monthlyCalendar:"月曆",todayBtn:"今日",acupointTitle:"穴道知識庫",acupointSearchPh:"搜尋穴道名稱或症狀關鍵字，如：腰痠",acupointNoResult:"查無符合的穴道，換個關鍵字試試",acupointLocation:"位置",acupointBenefit:"保健用途",acupointTechnique:"按摩手法",acupointCaution:"注意事項",acupointDisclaimer:"以上內容僅供保健參考，非醫療建議，如有不適請就醫",acupointAllMeridian:"全部經脈",acupointLoadFail:"讀取失敗，請檢查網路後重新整理",acupointRecentSearch:"最近搜尋：",acupointShareLine:"分享到LINE",acupointFavorite:"收藏，排到最上面",acupointFavoritedHint:"已收藏，排在此部位最上方",priceAskTitle:"單價生效範圍",priceAskDesc:"新單價要套用到所有月份的小計，還是只從指定日期開始生效？",priceAskAll:"全部月份都套用新單價",priceAskFromLabel:"從這天開始套用新單價",priceAskFromBtn:"從這天開始套用",liffChecking:"LINE身分驗證中...",liffNeedLogin:"需要先用LINE登入才能繼續",liffLoginBtn:"使用LINE登入",liffNeedReauth:"登入狀態需要重新授權才能取得身分資訊",liffReauthBtn:"重新授權",acupointNeedUnlock:"請先到公告頁面完成每日密碼驗證，再回來查看穴道知識庫",moreFuncBtn:"更多功能",moreFuncLeftMsg:"此區功能僅開放在職員工使用",dismissTitle:"辭退員工",dismissHint:"主管代為處理，非本人自願申請。辭退後該員工仍可自行送出復職申請。",dismissTargetPh:"輸入要辭退的老師編號",dismissNotFound:"查無此編號",dismissBtn:"辭退",dismissConfirmMsg:"確定要辭退這位員工嗎？此動作會立即停用其憑證，公司相關資料將無法再查看。",dismissConfirmBtn:"確定辭退",dismissOk:"已完成辭退處理",dismissFail:"處理失敗",preApproveTitle:"預先核准",preApproveHint:"已事先確認過的老師，1小時內送出的申請會直接自動核准，不用再手動審核一次。",dismissTargetPh2:"輸入老師編號",preApproveOk:"已設定，1小時內有效",preApproveFail:"設定失敗",preApproveActive:"目前生效中",preApproveExpiresAt:"到期時間",preApproveCancelBtn:"取消",preApproveBtn:"預先核准（1小時內有效）",backHomeBtn:"返回首頁",liffNoSupPerm:"目前登入的LINE帳號並未綁定主管權限",liffNeedCodeFirst:"請先到主程式用你的老師編號登入，再回來申請主管權限綁定。",liffGoLoginBtn:"前往登入老師編號",liffApplySupBtn:"申請此LINE帳號綁定主管權限",liffApplySupOk:"已送出申請，請等待主管核准",liffApplySupFail:"送出失敗，請確認編號是否正確",liffDiagToggle:"偵錯資訊",liffCheckFail:"身分驗證發生問題",preApproveBsWarn:"注意：勾選後，這類申請送出的內容不會經過審核就直接生效，請確認你信任申請人會填寫正確資料。",priceFutureApproved:"自 {0} 起調整為 ${1}（已核准）",priceFuturePending:"自 {0} 起調整為 ${1}（申請中）",infoSavedDirectMsg:"已儲存，立即生效",jsonExportTitle:"匯出備份檔案",jsonExportDesc:"下載一份本年度資料的JSON檔案，自行保存在手機或電腦，不上傳雲端。",jsonExportBtn:"匯出JSON檔案",jsonExportOk:"已匯出JSON檔案",jsonExportFail:"匯出失敗",lineLoginTitle:"LINE 登入",lineLoginDesc:"請先用LINE登入——這樣才能使用雲端備份，且能確保換手機或忘記密碼時，用LINE身份就能安全找回資料。",lineLoginBtn:"使用LINE登入",lineLoginBoundDesc:"已綁定LINE帳號，雲端備份會用這個身份存取。",lineLoginBoundLabel:"已綁定",lineLoginSwitchBtn:"登出／換帳號",liffLoggingIn:"登入中…",liffSdkFail:"LINE SDK載入失敗，請檢查網路",lineLoginRequiredMsg:"請先用LINE登入才能使用雲端備份",cloudBackupPausedMsg:"雲端備份暫停開放，測試穩定後會恢復",flowFirstUse:"第一次使用",startUseBtn:"開始使用",flowAlreadyUsed:"已經使用過",restoreChoiceHint:"選擇要用哪種方式找回你的資料",restoreImportBtn:"匯入備份檔",restoreLineBtn:"使用LINE登入",restorePwdBtn:"用密碼登入",restoreImportHint:"選擇你之前匯出的備份JSON檔案",restoreImportPick:"點此選擇檔案",restoreImporting:"處理中…",restoreLineHint:"請先用LINE登入，登入後會自動查詢有沒有雲端備份",restoreLineCheckHint:"已登入LINE，查詢雲端備份中",restoreLineCheckBtn:"查詢雲端備份",restoreLineNotFoundHint:"這個LINE帳號沒有查到雲端備份，將以全新畫面開始，之後記得記帳並定期備份",restoreLineFreshBtn:"繼續建立新資料",pwdLoginOkTitle:"密碼登入成功",pwdLoginBindWarn:"未來將取消密碼登入，請點擊LINE登入以進行綁定",pwdLoginTempNote:"（密碼登入為暫時選項，未來將移除）",usePwdLoginDataBtn:"使用密碼登入的資料繼續",restoreAskHint:"要不要還原之前的備份？",restoreAskYes:"是，我要還原",restoreAskNo:"不用，建立新資料",restoreSourceHint:"從哪裡還原？",restoreSourceCloudBtn:"雲端備份"},
+vi:{settings:"Cài đặt",yearly:"Năm",monthly:"Chi tiết",custManage:"Khách hàng",home:"Trang chủ",unitPrice:"Đơn giá",teacherCode:"Mã NV",language:"Ngôn ngữ",year:"Năm",save:"Lưu",saved:"Đã lưu ✓",units:"SL",salary:"Lương",laodian:"KH quen",subtotal:"Tổng",prevPeriod:"Kỳ trước",nextPeriod:"Kỳ sau",monthTotal:"Tổng tháng",total:"Tổng cộng",sick:"Nghỉ bệnh",late:"Đi trễ",rest:"Nghỉ phép",normal:"BT",personal:"Nghỉ việc riêng",early:"Về sớm",dn:["CN","T2","T3","T4","T5","T6","T7"],months:["Th1","Th2","Th3","Th4","Th5","Th6","Th7","Th8","Th9","Th10","Th11","Th12"],addGroup:"Thêm khách",directMode:"Nhập trực tiếp",groupMode:"Nhập theo nhóm",status:"Trạng thái",done:"Xong",cancel:"Hủy",exportUrl:"Xuất mã",importUrl:"Nhập mã",importOk:"Thành công!",importFail:"Sai định dạng",copyDone:"Đã chép",enterUrl:"Dán mã...",noData:"Không có",totalUnits:"Tổng SL",groupLabel:"Nhóm",backup:"Mã sao lưu lương tháng",fullBackup:"Tệp sao lưu đầy đủ (JSON)",fullBackupDesc:"Xuất tệp mã hóa đầy đủ gồm thông tin cơ bản, cửa hàng, lịch sử, khách hàng và lương cả năm. Trước khi đổi điện thoại hãy xuất và lưu giữ cẩn thận.",jsonExport:"⬇ Xuất tệp sao lưu",jsonImport:"⬆ Nhập tệp (sẽ ghi đè dữ liệu)",jsonExportDone:"Đã xuất, hãy lưu giữ tệp cẩn thận",jsonExportFail:"Xuất thất bại, thử lại",jsonImportDone:"Nhập thành công, đang tải lại…",jsonConfirmOverwrite:"Nhập sẽ ghi đè toàn bộ dữ liệu hiện có, tiếp tục?",jsonNotBackup:"Đây không phải tệp sao lưu của hệ thống",jsonBroken:"Tệp không đầy đủ hoặc hỏng, hãy xuất lại",jsonModified:"Tệp sao lưu đã bị sửa, không thể nhập",jsonOtherPerson:"Đây là tệp của mã khác",exportRangeCode:"Xuất mã sao lưu lương",rangeHint:"Phạm vi",jsonAndCodeDone:"Đã xuất tệp và tạo mã sao lưu bên dưới. Hãy lưu cả hai: tệp chứa dữ liệu đầy đủ, mã giúp khôi phục số lượng lương nếu mất tệp.",p1:"Nửa đầu (1-15)",p2:"Nửa sau (16-cuối)",yesterday:"Hôm qua",lastRecord:"Lần trước",todayDone:"Hôm nay đã xong",startAdd:"Thêm SL hôm nay?",continueAdd:"Tiếp tục thêm?",addLaodian:"Thêm KH quen?",other:"Khác",welcome:"Chào mừng",enterCode:"Nhập mã nhân viên",confirm:"Xác nhận",showQR:"Đưa mã QR cho quản lý để nhận mã kích hoạt",enterActivation:"Nhập mã kích hoạt",activationHint:"Dán mã kích hoạt từ quản lý",activationFail:"Sai mã kích hoạt",copyToLine:"Nhấn để sao chép, gửi LINE cho quản lý",adminWelcome:"Xác nhận quản lý, tự động kích hoạt...",admin:"Quản lý",adminTitle:"Trang quản lý",genActivation:"Tạo mã kích hoạt",pasteEncrypted:"Dán chuỗi mã hóa",resultCode:"Mã kích hoạt",adminFail:"Không có quyền",encryptTool:"Mã hóa/Giải mã",encryptLabel:"Mã hóa",decryptLabel:"Giải mã",inputText:"Nhập văn bản",deviceId:"Mã thiết bị",adminCheck:"Kiểm tra",adminEnter:"Vào",adminApply:"Đăng ký quản lý",adminPending:"Đang xét duyệt",adminActivate:"Kích hoạt",adminApplyDesc:"Đăng ký quyền quản lý",deviceName:"Tên thiết bị (tùy chọn)",adminAppCode:"Mã đăng ký",adminAppCopy:"Nhấn để sao chép, gửi LINE cho quản lý",adminActInput:"Nhập mã kích hoạt quản lý",adminActFail:"Sai mã kích hoạt",adminFail:"Không có quyền",supervisor:"Trang quản lý",supervisorTitle:"Trang quản lý",supervisorApprove:"Duyệt đăng ký quản lý",supervisorApproveHint:"Dán mã đăng ký",supervisorInfo:"Thông tin người đăng ký",revoke:"Hủy quyền quản lý",revokeHint:"Thêm mã này vào GitHub revoked.cfg",revokeCode:"Mã hủy",revokeInput:"Nhập mã hủy",revokeSuccess:"Đã hủy quyền quản lý",revokeFail:"Sai mã hủy",actionLog:"Nhật ký",logGenUser:"Tạo mã kích hoạt #{0}",logGenSup:"Tạo mã quản lý #{0}({1})",logRevoke:"Hủy quyền #{0}({1})",supervisorList:"Danh sách quản lý",logTeacherActivate:"NV #{0} kích hoạt quyền quản lý({1})",revokeToAdmin:"Gửi mã này cho quản trị viên để thêm vào revoked.cfg",revokedList:"Đã hủy",expired:"Quyền đã hết hạn",ok:"OK",ghConfig:"Cài đặt GitHub",ghOwner:"Tài khoản",ghRepo:"Tên Repo",ghToken:"Personal Access Token",ghSave:"Lưu",ghSaved:"Đã lưu ✓",ghTest:"Thử kết nối",ghOk:"Kết nối OK ✓",ghFail:"Kết nối thất bại",ghWriting:"Đang ghi...",ghWriteOk:"Đã ghi GitHub ✓",ghWriteFail:"Ghi thất bại",ghAuto:"Tự động ghi GitHub",ghEdit:"Sửa",ghLocked:"Đã khóa, nhấn Sửa để chỉnh",keyConfig:"Cài đặt khóa",keyFile:"Tệp",keyStart:"Vị trí",keyLen:"Số ký tự",keyTest:"Thử khóa",keyResult:"Kết quả",keyMatch:"Khớp khóa hiện tại ✓",keyMismatch:"⚠️ Khác khóa hiện tại",keySave:"Lưu cài đặt khóa",keySaved:"Đã lưu ✓",keyAddRule:"Thêm quy tắc",keyDelRule:"Xóa",keyFileOk:"{0} tồn tại",keyFileFail:"{0} không tồn tại",keyLenOk:"{0} dòng 1: {1} ký tự ≥ cần {2}",keyLenFail:"{0} dòng 1: chỉ {1} ký tự, cần ≥ {2}",keyBuilt:"Khóa: {0} ký tự",keyAdminOk:"admin.cfg {0} mục, tất cả khớp",keyAdminPartial:"admin.cfg {0}/{1} khớp",keyAdminNone:"admin.cfg {0} mục không khớp",keyMigrate:"Chuyển sang khóa mới",keyMigrating:"Đang chuyển...",keyMigrateOk:"Đã chuyển và ghi GitHub ✓",keyMigrateFail:"Chuyển thất bại",adminList:"Danh sách quản lý",adminAdd:"Thêm quản lý",adminDel:"Xóa",adminDelConfirm:"Xác nhận xóa quản lý?",adminDelLast:"Cần giữ ít nhất một quản lý",adminDelOk:"Đã xóa khỏi GitHub ✓",adminDelFail:"Xóa thất bại",adminAddHint:"Thêm mã hash này vào GitHub admin.cfg",adminCfg:"admin.cfg hiện tại",adminLocal:"Thêm cục bộ",onlineApprove:"Duyệt online",approveTeacher:"Duyệt NV",approveSupervisor:"Duyệt quản lý",approveName:"Họ tên",approveLang:"Ngôn ngữ",approveLevel:"Cấp bậc",approveBtn:"Duyệt",approving:"Đang duyệt...",approveOk:"Đã duyệt ✓",approveFail:"Duyệt thất bại",approveMsg:"Tài khoản của bạn đã sẵn sàng, hãy thử và cho mình biết nếu có vấn đề gì nhé 😊",approveCopied:"Đã copy tin nhắn ✓",waitApproval:"Đang chờ duyệt",waitHint:"Gửi mã trên cho quản lý, mở lại app sau khi được duyệt",checkApproval:"Kiểm tra lại",checking:"Đang kiểm tra...",approved:"Đã duyệt!",staffList:"Danh sách NV",staffEmpty:"Chưa có dữ liệu",staffRole:"Vai trò",staffStatus:"Trạng thái",staffActive:"Đang làm",staffRevoked:"Đã nghỉ",logApproveTeacher:"Duyệt NV {0}({1})",logApproveSupervisor:"Duyệt QL {0}({1}) {2}",store:"Chi nhánh",storeManage:"Quản lý CN",storeAdd:"Thêm CN",storeDel:"Xóa",storeEmpty:"Chưa có CN",storeSaved:"Đã lưu ✓",teacherActivation:"Mã kích hoạt NV",supActivation:"Mã kích hoạt QL",sortByStore:"Theo CN",sortByCode:"Theo mã",sortByRole:"Theo chức vụ",theme:"Giao diện",themePink:"Hồng",themeBlack:"Đen",themeWhite:"Trắng",themeSmooth:"Đen Tím",themeApple:"Trắng Tối Giản",themeNeon:"Neon Công Nghệ",themeForest:"Rừng Xanh",themeSunset:"Hoàng Hôn Vàng",themeOcean:"Xanh Đại Dương",themeQuiet:"Xám Tĩnh Lặng",bizCutoffLabel:"Giờ chuyển ngày",teacherCert:"Chứng chỉ riêng GV",keyDiagTitle:"Chẩn đoán nhận khóa",keyDiagPh:"Nhập mã",keyDiagBtn:"Kiểm tra",keyDiagHint:"Nhập mã GV để mô phỏng nhận khóa.",certGot:"Đã nhận",certNone:"Chưa nhận",gasSettingTitle:"Địa chỉ GAS",keyGenTitle:"Tạo khóa (QL)",keyUpdateFound:"Có bản cập nhật mới, bấm để cập nhật",latestNotices:"Thông báo mới",noticeAdd:"Thêm thông báo",noticeEmpty:"Chưa có thông báo",suggestAdd:"Góp ý mới",suggestAnon:"Người gửi: ẩn",suggestTitle:"Tiêu đề",suggestTitlePh:"Một câu tóm tắt góp ý",suggestContent:"Nội dung",suggestContentPh:"Nói rõ ý kiến của bạn…",suggestAnonOpt:"Gửi ẩn danh (không hiện mã)",suggestSubmit:"Gửi góp ý",noticeManageHint:"Bấm thêm thông báo, chỉ cần nhập nội dung, AI sẽ tự phân loại, tạo tiêu đề tóm tắt và dịch tiếng Việt.",noticeContentLabel:"Nội dung (tiếng Trung)",noticeContentPh:"Dán hoặc nhập nội dung, phần còn lại để AI…",noticeAIGen:"AI tạo (phân loại/tiêu đề/dịch)",noticeAIPreview:"Kết quả AI (có thể sửa)",noticePublishBtn:"Đăng thông báo",oneStore:"TB một cửa hàng",allStore:"TB toàn hệ thống",noticeRead:"Tôi đã đọc",noticeReadDone:"Đã đọc",noticeReadOk:"Đã ghi nhận, cảm ơn!",noticeReadMark:"Đã đọc",noticeReadCount:"người đã đọc",noReaders:"Chưa có ai đọc",loading:"Đang tải…",noticeReaders:"Người đã đọc",noticeUnread:"Người chưa đọc",allRead:"Tất cả đã đọc",noticeMore:"Thêm thông báo",noticeFeedback:"Tôi có ý kiến (ẩn danh)",noticeFeatureWip:"Tính năng đang xây dựng",noticeKeyGot:"Đã kích hoạt cho bạn! Tính năng sắp mở",noticeKeyFail:"Kích hoạt thất bại, thử lại sau",noticeKeyHint:"Bấm nút trên để kích hoạt tính năng tương tác",noticeKeyClaiming:"Đang kích hoạt…",noticePubTitle:"Cập nhật thông báo",noticeHomeN:"Số tin trang chính",noticeShowFields:"Trường hiển thị công khai:",noticeSubcat:"Phân loại phụ",noticeTagsLabel:"Nhãn",noticeListN:"Số tin trang TB",noticePubBtn:"Lấy 2 tin mới nhất từ GAS lưu GitHub",noticePubbing:"Đang cập nhật…",noticePubOk:"Đã cập nhật",noticePubFail:"Thất bại",noticePubHint:"Bấm để đăng thông báo lên GitHub cho mọi người xem.",viewAll:"Xem tất cả",keyErrBatch:"Mã không đúng hoặc GAS chưa đặt BATCH_CODE",keyErrNoKey:"Quản lý chưa tạo khóa cho mã của bạn",keyErrRevoked:"Khóa đã bị vô hiệu",keyErrNetwork:"Không kết nối được GAS",keyErrMissing:"Thiếu mã",keyUpdating:"Đang cập nhật…",keyUpdateOk:"Hoàn tất ✓",keyUpdateFail:"Thất bại, thử lại sau",keyAdminSecPh:"Mật khẩu GAS",keyGenCodePh:"Mã GV cần tạo khóa",keyGenBtn:"Tạo khóa",keyGenDone:"Đã tạo khóa",keyGenExisted:"Khóa đã có (dùng lại)",keyClaimCode:"Mã nhận (đưa cho GV)",keyClaimHint:"GV nhập mã này ở trang cài đặt để nhận khóa.",keyClaimTitle:"Nhận khóa",keyClaimPh:"Nhập mã nhận",keyClaimBtn:"Nhận khóa",keyClaimOk:"Thành công",keyClaimFail:"Thất bại",keyClaimTeacherHint:"Xin mã nhận từ quản lý rồi nhập.",gasSettingHint:"Dán link Google Apps Script (dành cho quản lý).",gasTestBtn:"Kiểm tra kết nối",gasTesting:"Đang kiểm tra…",gasTestOk:"Kết nối OK",gasTestFail:"Kết nối thất bại",bizCutoffHint:"Công ty chốt sổ lúc 3 giờ sáng, nên có thể chỉnh giờ chuyển ngày của trang chủ theo thói quen của bạn. Ca ngày đặt giờ tan làm, ca đêm có thể đặt 3 giờ; sau 3 giờ tính là ngày hôm sau, tiện ghi chép. Mặc định hiện tại là 6 giờ 30, ca đêm tan làm muộn nhất là 6 giờ.",themeGray:"Xám",resetAll:"Khôi phục mặc định",resetAllConfirm:"Xác nhận? Sẽ xóa tất cả NV và QL (giữ admin 122, Token, log)",resetAllOk:"Đã khôi phục ✓",resetSup:"Xóa tất cả quyền QL",resetSupConfirm:"Xác nhận xóa tất cả quyền QL?",resetSupOk:"Đã xóa ✓",resetApp:"Đặt lại đơn",removeToken:"Xóa (offline)",removeSup:"Hủy quyền QL",removeConfirm:"Xác nhận xóa {0}?",connection:"Kết nối",connApply:"Yêu cầu xác thực",connCode:"Mã kết nối",connInput:"Dán mã kết nối",connOk:"Kết nối OK ✓",connFail:"Sai mã kết nối",connExpired:"Xác thực đã hết hạn, vui lòng yêu cầu lại",connStatus:"Trạng thái",connOnline:"Online ☁️",connOffline:"Offline 📥",editStaff:"Chỉnh sửa NV",editStore:"Chi nhánh",editDel:"Xóa NV",editDelConfirm:"Xác nhận xóa {0}?",editDevices:"Thiết bị",editRevokeConn:"Ngắt kết nối",editNoDevices:"Không có thiết bị",genConn:"Tạo mã kết nối",genConnHint:"Dán mã:uuid của NV",needConnFirst:"Cần kết nối trước khi yêu cầu quyền QL",skills:"Kỹ năng",guasha:"Cạo gió",baguang:"Giác hơi",xiujiao:"Sửa da chân",gs:"C",bg:"G",xj:"S",clearAll:"Xóa tất cả",notice1:"⚠️ Dữ liệu chỉ lưu trên máy, không tải lên đám mây.",notice2:"Trình duyệt LINE và trình duyệt mặc định lưu riêng, mã kích hoạt sẽ khác nhau. Hãy dùng cùng một trình duyệt.",notice3:"Dữ liệu gắn với điện thoại. Trước khi đổi máy, hãy xuất sao lưu trong Cài đặt.",authRedirectHint:"Nhấn để vào trang quản lý, xong có thể bấm quay lại màn hình ghi lương.",manualGen:"Tạo mã thủ công",manualGenHint:"Nhập mã nhân viên để tạo mã kích hoạt (dùng offline, không ghi vào danh sách đám mây)",booking:"Lịch hẹn",bookingNew:"Thêm lịch hẹn",bookingList:"Danh sách hẹn",bookingEmpty:"Chưa có lịch hẹn",custSearch:"Tìm khách (SĐT/tên/xưng hô)",custNew:"Khách mới",custName:"Tên",custPhone:"SĐT",custTitle:"Xưng hô",custParts:"Vùng trọng điểm",custNote:"Ghi chú",custEval:"Đánh giá",bookDate:"Ngày hẹn",bookTime:"Giờ hẹn",bookSave:"Lưu lịch hẹn",bookCancel:"Hủy",bookDelete:"Xóa lịch hẹn",bookDeleteConfirm:"Xác nhận xóa lịch hẹn này?",bookDeleteConfirm2:"Xác nhận xóa",selectCustomer:"Chọn khách",orNewCustomer:"Hoặc thêm khách",noMatch:"Không tìm thấy khách",lastServed:"Lần phục vụ trước",bookStatus:"Trạng thái",bookConfirmed:"Đã xác nhận",bookDone:"Hoàn thành",bookNoShow:"Không đến",pickCustomerFirst:"Vui lòng chọn hoặc thêm khách",needActivate:"Vui lòng kích hoạt ở trang ghi lương trước",backToMain:"Về ghi lương",svcLabel:"Dịch vụ",addHour:"Thêm giờ",party:"Số người đi cùng",workStart:"Giờ vào làm",workEnd:"Giờ tan làm",workEndNeed:"Đã điền giờ vào, vui lòng điền giờ tan",gender:"Giới tính",genderM:"Nam",genderF:"Nữ",crossNightHint:"Ca đêm qua ngày: khi giờ tan sớm hơn giờ vào, hệ thống tự tính sang ngày hôm sau.",email:"Email",pregClient:"Khách mang thai",oilLabel:"Dầu nóng",accept:"Nhận",reject:"Không nhận",techMentor:"GV hướng dẫn",techMentorPlaceholder:"Nhập số GV hướng dẫn",lockerNo:"Số tủ đồ tầng 4",teacherCode:"Mã giáo viên",teacherCodePlaceholder:"Nhập mã GV vd:122",submitActivation:"Gửi kích hoạt tài khoản",mustReadFirst:"Vui lòng đọc hướng dẫn bên dưới",noticeTitle:"Giải thích về dữ liệu do hệ thống ghi lại",readConfirm:"Tôi đã đọc các hướng dẫn trên",sendViaLine:"Gửi LINE cho QL",sendLineToTeacher:"Gửi LINE cho GV (mã)",sendLineLinkToTeacher:"Gửi liên kết cho GV",sendLineToSup:"Gửi LINE cho QL",lineConfirmPrefix:"Dữ liệu đã cập nhật, mã xác nhận như sau:",reqLinkTitle:"Đã nhận một mã yêu cầu",reqLinkDesc:"Hệ thống phát hiện mã yêu cầu. Nếu bạn có quyền quản lý, hãy xác minh danh tính bên dưới; nếu là giáo viên thường, không cần xử lý mã này.",lineActivatePrefix:"Vui lòng kích hoạt tài khoản GV số {code}",lineConnPrefix:"Mã kết nối như sau, vui lòng sao chép sử dụng:",lineActDonePrefix:"Mã kích hoạt của bạn như sau, nhập vào hệ thống để hoàn tất:",lineReqPrefix:"Mã cập nhật thông tin, vui lòng QL xác nhận:",lineConnReqPrefix:"Mã xin kết nối (nhờ QL tạo mã kết nối):",reqMissing:"Vui lòng điền đủ mục bắt buộc",addUnitTitle:"Thêm SL (mỗi lần = 1 khách)",oldGroupData:"Dữ liệu nhóm cũ",slipUnits:"SL",editMoreInMonthly:"Chi tiết thêm sửa ở Chi tiết tháng",pressBody:"Lực thân",pressFoot:"Lực chân",pressLight:"Nhẹ",pressNormal:"Vừa",pressHeavy:"Mạnh",strengthParts:"Vùng cần tăng cường",partHead:"Đầu",partShoulder:"Vai",partUpperback:"Lưng trên",partLowerback:"Lưng dưới",partWaist:"Eo",partButt:"Mông",partThigh:"Đùi",partCalf:"Bắp chân",partArm:"Cánh tay",clientReq:"Yêu cầu khách",reqMale:"Chỉ định nam",reqFemale:"Chỉ định nữ",reqTw:"Chỉ định Đài",reqVn:"Chỉ định Việt",reqCn:"Chỉ định Hoa",laodianOut:"KH quen ra bài",shiftOut:"Xoay ca ra bài",teacherNoPlaceholder:"Mã GV",custSearchHint:"Tìm khách (tên/xưng hô/SĐT/#tag)",custMatch:"Tìm thấy khách",custNewHint:"Không tìm thấy, sẽ tạo khách mới",custNoRecent:"Chưa có khách hàng",custEditTitle:"Sửa thông tin khách",custDelBtn:"Xóa khách này",custDelConfirm:"Bấm lần nữa để xóa",rangeCodeNote:"Mã này khôi phục nhanh tổng số chi và khách quen mỗi ngày, nhược điểm là không khôi phục được chi tiết từng lượt (dịch vụ, khách, vùng lực…), mỗi ngày sẽ gộp thành một dòng. Cần chi tiết đầy đủ hãy dùng「Tệp sao lưu đầy đủ (JSON)」.",
+tabBasic:"Hồ sơ",tabStore:"Cửa hàng",tabBook2:"Lịch hẹn",tabCust:"Khách",tabNotice:"Thông báo",tabSuggest:"Góp ý",tabManage:"Quản lý",
+secBasic:"Thông tin cơ bản",secStore:"Thông tin cửa hàng",nameZh:"Tên tiếng Trung",nameVi:"Tên tiếng Việt",address:"Địa chỉ",school:"Trường học",major:"Ngành học",permitDate:"Ngày cấp giấy phép LĐ",permitOrg:"Đơn vị cấp",optional:"Tùy chọn",
+storeName:"Tên cửa hàng",shift:"Ca làm",shiftDay:"Ca sáng",shiftNight:"Ca đêm",workNote:"Ghi chú giờ làm đặc biệt",
+skPregnant:"Khách đặc biệt (mang thai)",skOil:"Massage dầu",
+custMgmt:"Quản lý khách",noticeCenter:"Thông báo công ty",suggestBox:"Góp ý",manageCenter:"Trung tâm quản lý",underConstruction:"Đang xây dựng",
+confirmWithSup:"Xác nhận với quản lý",permitNo:"Số giấy phép",permitExpiry:"Ngày hết hạn",permitOrgOpt:"Đơn vị cấp",orgWDA:"Cục Phát triển Lực lượng LĐ",orgNIA:"Cục Di trú",orgOther:"Khác",permitExpiringSoon:"Giấy phép sắp hết hạn",phone2:"Điện thoại",city:"Tỉnh/Thành",district:"Quận/Huyện",addrDetail:"Địa chỉ",selectCity:"Chọn tỉnh/thành",selectDist:"Chọn quận",myBookingNote:"Lịch hẹn của tôi không phải dữ liệu đặt chỗ chính thức, chỉ để giáo viên ghi chú.",partyMember:"Người đi cùng thứ ",assignTeacher:"Chỉ định GV",noAssign:"Không chỉ định",svcNote:"Ghi chú dịch vụ",calView:"Lịch",eventView:"Sự kiện",totalPeople:"Tổng ",peopleUnit:" người",alsoAssign:"chỉ định thêm",assignMode:"Cách chỉ định",noAssignTeacher:"Không chỉ định GV",assignTeacherMode:"Chỉ định GV",assignByCode:"Theo mã số",assignByCond:"Theo điều kiện",assignMale:"GV nam",assignFemale:"GV nữ",assignTW:"GV Đài",assignVN:"GV Việt",assignOil:"Massage dầu",confirmWithCounter:"Xác nhận với quầy",confirmWithAssigned:"Xác nhận với GV",editBtn:"Sửa",saveChange:"Lưu thay đổi",logConfirmCounter:"Đã xác nhận giờ với quầy",logConfirmAssigned:"Đã xác nhận với GV {0}",logEditChange:"Sửa: {0}",foreignSection:"Nhân viên nước ngoài",permitNoLabel:"Số giấy phép làm việc",langSchool:"Trường ngôn ngữ đang học",schoolType:"Đang học",schoolTypeLang:"Trường ngôn ngữ",schoolTypeUni:"Đại học",schoolTypeMaster:"Thạc sĩ",schoolTypePhd:"Tiến sĩ",selectLangSchool:"Chọn trường",closeThis:"Đóng trang",confirmedAssignedToast:"Đã xác nhận với GV {0}",confirmedCounterToast:"Đã xác nhận với quầy",statusUnconfirmed:"Chưa xác nhận",statusConfirmed:"Đã xác nhận",statusAssignedConfirmed:"Đã xác nhận với GV chỉ định",statusReconfirm:"Lịch hẹn đã đổi, xác nhận lại",statusTeacherProgress:"Đã xác nhận GV ({0}/{1})",confirmedTeacherToast:"Đã xác nhận GV ({0}/{1})",hidePast:"Ẩn đã qua",workTimeEdit:"Giờ làm việc",workStartH:"Vào ca",workEndH:"Tan ca",saveWorkTime:"Lưu giờ",internSup:"Phó QL thực tập",confirmSuccess:"Đã xác nhận, dữ liệu cập nhật",confirmFail:"Mã xác nhận sai",scanReqEntry:"Quét mã yêu cầu",reqBasic:"YC hồ sơ",reqStore:"YC cửa hàng",agreeWrite:"Đồng ý & ghi",disagree:"Không đồng ý",writeOk:"Đã ghi, mã XN: ",giveConfirmCode:"Đưa mã XN cho GV",logReqWritten:"Đã ghi YC {0}: {1}",uuidBound:"Đã gắn thiết bị",uuidNew:"Thiết bị mới",workChartTitle:"Thống kê giờ làm",workChartOnline:"Đang làm",workChartStart:"Giờ vào ca",workChartOnlineDesc:"Số GV đang làm theo giờ",workChartStartDesc:"Số GV vào ca theo giờ",allStores:"Tất cả CH",tabChart:"Biểu đồ",chartShiftRatio:"Tỷ lệ ca",chartGenderRatio:"Tỷ lệ giới",chartAnalysis1:"Phân tích 1",chartAnalysis2:"Phân tích 2",chartWorkStart:"Số vào ca",chartOnline:"Đang làm",chartWorkStartDesc:"Số GV vào ca theo giờ",chartOnlineDesc:"Số GV đang làm theo giờ (gồm qua đêm)",peopleUnit2:"người",chartDayShift:"Ca sáng",chartNightShift:"Ca tối",chartMale:"Nam",chartFemale:"Nữ",chartOther:"Khác",chartUpdatedAt:"Cập nhật",chartNoData:"Chưa có dữ liệu, chờ QL công bố",chartSupOnly:"Cần quyền QL",chartPublished:"Đã công bố",statTotal:"Tổng số",cardBtn:"Danh thiếp",cardTitle:"Danh thiếp",cardBrand:"Tên spa",cardCode:"Mã KTV",cardWork:"Giờ làm việc",cardPhone:"SĐT đặt chỗ",cardAddr:"Địa chỉ",cardAddrNote:"Ghi chú địa chỉ",cardMapUrl:"Liên kết Google Maps",cardAppleUrl:"Liên kết Apple Maps",cardSave:"Lưu",cardShare:"Chia sẻ cho bạn LINE",cardSaved:"Đã lưu",cardPersonal:"Danh thiếp cá nhân",cardAddrBtn:"Địa chỉ",cardPhoneBtn:"Gọi",emailLabel:"Email (không bắt buộc)",emailHint:"Nếu điền, hệ thống sẽ tự động lưu bản sao lưu lên đám mây mỗi ngày; khi đổi điện thoại, nhập cùng mã số và Email để khôi phục dữ liệu. Không điền thì dữ liệu chỉ lưu trên máy.",emailInvalid:"Email không hợp lệ",emailRestoreTitle:"Tìm thấy bản sao lưu trên đám mây",emailRestoreBody:"Tìm thấy bản sao lưu của mã số và Email này (cập nhật: {0}). Bạn có muốn khôi phục không?",emailRestoreBtn:"Khôi phục",emailSkipBtn:"Không khôi phục, bắt đầu luôn",emailRestoring:"Đang khôi phục…",emailBackupTitle:"Sao lưu đám mây bằng Email",emailBackupDesc:"Sau khi điền Email, lần mở ứng dụng đầu tiên mỗi ngày sẽ tự động sao lưu lên đám mây (phân biệt theo mã số và Email). Khi đổi điện thoại, nhập cùng mã số và Email ở màn hình khởi động để khôi phục. Chỉ sao lưu dữ liệu của năm hiện tại.",emailSaveBtn:"Lưu Email",emailSavedMsg:"Đã lưu và sao lưu lên đám mây",emailSavedFailMsg:"Đã lưu Email nhưng sao lưu đám mây thất bại: ",emailClearedMsg:"Đã xóa Email, sẽ không tự động sao lưu lên đám mây nữa (bản sao lưu đã có trên đám mây không bị xóa)",emailPrivacy:"Ngoài ra, chúng tôi cung cấp dịch vụ sao lưu đám mây, dùng hay không do bạn tự quyết định: nếu bạn điền Email, hệ thống sẽ lấy \"mã số + Email\" làm căn cứ sao lưu, mỗi ngày tự động sao lưu một lần lên không gian đám mây của hệ thống (Google Drive) để bạn khôi phục khi đổi điện thoại. Lưu ý: nếu người khác biết mã số và Email của bạn, họ có thể dùng chúng để đọc dữ liệu sao lưu của bạn, vì vậy đừng công khai Email bạn dùng; không điền Email thì hoàn toàn không tải lên.",chartUpdate:"Cập nhật",
+chartTabHeat:"Bản đồ nhiệt",chartTabWeekday:"Xu hướng theo ngày",chartTabExtra:"Xu hướng khách thêm",chartHeatDesc:"Theo khoảng thời gian thực tế trong dữ liệu, hiển thị ngày/giờ nào đông khách (màu đậm = nhiều lượt hơn)",chartWeekdayDesc:"Tổng lượt theo từng ngày trong tuần, xem ngày nào đông/vắng khách hơn",chartExtraDesc:"Khi một ngày có hơn 1 lượt, thống kê hiện có bao nhiêu ngày đạt 2/3/4/5+ lượt",chartCurWeekNote:"Tuần này (đang diễn ra, chưa tính vào thống kê trên) hiện có {0} lượt",chartExtraDaysUnit:"ngày",chartNoSlipData:"Chưa có dữ liệu lượt khách, hãy ghi vài lượt rồi xem lại biểu đồ",chartMockupHint:"(Bản mẫu) Sắp tới sẽ thêm tính năng chọn khoảng thời gian",slipList:"Lịch sử",slipAuto:"Tự động",slipStartTime:"Giờ bắt đầu",slipDelete:"Xóa mục này",slipTags:"Nhãn KH (tùy chọn)",slipTagsPlaceholder:"Cách bằng dấu cách, Enter hoặc +",slipTagHistory:"Nhãn cũ:",slipTagAdd:"Thêm",custTagStats:"Thống kê nhãn",custSearchBtn:"Quản lý khách",custNoTags:"Chưa có nhãn, hãy ghi ở lịch sử mỗi ngày",custSearchPlaceholder:"Tìm tên / xưng hô / SĐT",myBooking2:"Lịch hẹn của tôi",bookHistory:"Lịch sử",collapseBtn:"Thu gọn",expandBtn:"Mở rộng",duplicateBtn:"Sao chép thành lịch hẹn mới",bookNoCustHint:"Vui lòng tìm hoặc nhập tên/SĐT khách",cancelWithCounter:"Hủy xác nhận với quầy",cancelledCounterToast:"Đã hủy xác nhận với quầy",logUnconfirm:"Hủy xác nhận với quầy",logUnconfirmAssigned:"Hủy xác nhận với GV {0}",bookConfirmStatusLabel:"Tình trạng xác nhận lịch hẹn",
+tabHome2:"Trang chính",tabBackup:"Sao lưu",homeSettings:"Cài đặt hệ thống",backupCenter:"Sao lưu",
+curStore:"Cửa hàng hiện tại",applyChange:"Xin đổi",genBasicCode:"Tạo mã hồ sơ",genStoreCode:"Tạo mã cửa hàng",basicApplyCode:"Mã hồ sơ",storeApplyCode:"Mã cửa hàng",confirmCode2:"Mã xác nhận",copyBtn:"Sao chép",lastSyncAt:"Đồng bộ lần cuối",fullStaffData:"Dữ liệu đầy đủ",fullBasicData:"Hồ sơ cơ bản",fullStoreData:"Hồ sơ cửa hàng",saveToStaff:"Lưu vào staff",saved:"Đã lưu",saveFailStaff:"Lưu thất bại",staffValueHint:"Công ty ghi",
+syncStoreBooking:"Đồng bộ lịch hẹn cửa hàng",syncBtn:"Đồng bộ",pasteBtn:"Dán",noFuncYet:"(Chưa có chức năng)",tabViolation:"Vi phạm",violationTitle:"Hồ sơ vi phạm",noViolation:"Bạn chưa có ghi nhận vi phạm",violationCode:"Mã xác nhận vi phạm",dutyTitle:"Trực nhật",noDuty:"Chưa có ghi nhận trực nhật",prevConfirmed:"Giá trị xác nhận trước",needConfirm:"Vui lòng hoàn tất thông tin rồi xác nhận với quản lý",serviceStatus:"Trạng thái máy/kết nối",
+privacyTitle:"Lưu trữ dữ liệu",privacyBody:"Mọi thông tin cá nhân và bảng lương chỉ được lưu trên thiết bị của bạn, hệ thống không tự động tải lên đám mây. Nếu bạn không tự sao lưu thủ công hoặc sao lưu đám mây, khi mất máy, hỏng máy hoặc đổi điện thoại, cửa hàng và quản lý đều không thể khôi phục lại bất kỳ dữ liệu nào cho bạn.",browserNote:"Bộ nhớ tạm khi mở bằng LINE, bằng trình duyệt điện thoại và khi quét QR bằng camera là riêng biệt, dữ liệu không dùng chung. Mỗi cách mở khác nhau, hệ thống sẽ yêu cầu kích hoạt lại và dữ liệu đã nhập trước đó sẽ không hiển thị. Nên luôn dùng cùng một cách mở.",
+backupReminder:"Mọi dữ liệu chỉ lưu trên máy, đổi điện thoại sẽ không khôi phục được. Trước khi đổi máy, hãy vào trang Sao lưu để xuất tệp sao lưu (JSON) và lưu giữ cẩn thận.",
+basicUpdateCode:"Mã cập nhật hồ sơ",storeUpdateCode:"Mã cập nhật cửa hàng",basicConfirmCode:"Mã xác nhận hồ sơ",storeConfirmCode:"Mã xác nhận cửa hàng",conflictWarn:"Trùng với {0} {1}",dayOffWarn:"Hôm đó đã nghỉ {0}",units:"suất",partyUnit:"người",noWorkEnd:"Chưa đặt giờ tan làm",bookEdit:"Sửa",bookConfirmDesk:"Xác nhận quầy",bookConfirmed2:"Đã xác nhận với quầy",bookEditWarn:"Sau khi đổi giờ hãy xác nhận lại với quầy",bookLogTitle:"Lịch sử thay đổi",logCreate:"Tạo lịch hẹn",logConfirm:"Xác nhận với quầy",logChange:"Thay đổi lịch hẹn",logConflict:"Hệ thống phát hiện trùng giờ vẫn tạo",custEditTitle:"Sửa khách",custSave:"Lưu",bookSaveEdit:"Lưu thay đổi",timeChanged:"Giờ {0} → {1}",svcChanged:"DV {0} → {1}",lockPwdTitle:"Đặt mật khẩu mở khóa 4 số",lockPwdHint:"Dùng để mở khóa màn hình sau này, không được 4 số giống nhau hoặc liên tiếp tăng/giảm",lockPwdConfirm:"Nhập lại để xác nhận",lockPwdMismatch:"Hai lần nhập không khớp",lockPwdInvalid:"Mật khẩu không được 4 số giống nhau hoặc liên tiếp",flowNew:"Kích hoạt NV mới",flowLogin:"Đã có tài khoản, đăng nhập mật khẩu",pwdLoginTitle:"Đăng nhập mật khẩu",pwdLoginHint:"Nhập mã và mật khẩu để đăng nhập, không cần xin mã kích hoạt từ quản lý",pwdInputPh:"Mật khẩu 4 số",pwdLoginBtn:"Đăng nhập",pwdLoginFail:"Sai mã hoặc mật khẩu",backToChoice:"Quay lại lựa chọn",forgotPwdLink:"Quên mật khẩu?",forgotPwdTitle:"Quên mật khẩu",forgotPwdHint:"Hệ thống sẽ tạo mã, gửi cho quản lý xác nhận rồi mới đặt lại được mật khẩu",ticketCode:"Mã",ticketSend:"Gửi LINE cho QL",ticketCheckBtn:"Kiểm tra tình trạng duyệt",ticketChecking:"Đang kiểm tra…",ticketPending:"Chưa được duyệt, vui lòng chờ",ticketApproved:"Đã duyệt!",ticketWaitCountdown:"Vui lòng chờ {0} giây rồi kiểm tra lại",setNewPwdTitle:"Đặt mật khẩu mới",shiftLabel:"Ca làm",shiftDay:"Ca ngày",shiftNight:"Ca đêm",lineTicketNewPrefix:"Nhờ duyệt kích hoạt tài khoản mới cho NV #{code}, mã:",lineTicketForgotPrefix:"Nhờ duyệt yêu cầu quên mật khẩu của NV #{code}, mã:",ticketLookup:"Tra cứu mã",ticketLookupBtn:"Tra cứu",ticketLookupPh:"Dán mã NV gửi tới",ticketNotFound:"Không tìm thấy mã",ticketAlreadyDone:"Yêu cầu này đã được xử lý",ticketApproveBtn:"Duyệt",ticketApproveOk:"Đã duyệt ✓",ticketApproveFail:"Duyệt thất bại",ticketInfoTeacher:"Mã NV",ticketInfoStore:"Cửa hàng",ticketInfoGender:"Giới tính",ticketInfoWork:"Giờ làm",ticketInfoShift:"Ca làm",ticketTypeN:"Kích hoạt NV mới",ticketTypeF:"Quên mật khẩu",noticePwdSetupTitle:"Đặt mật khẩu 4 số",noticePwdSetupBody:"Nội dung thông báo là dữ liệu công ty. Để bảo mật, vui lòng đặt mật khẩu riêng 4 số. Sau này khi mở dữ liệu công ty, hệ thống sẽ yêu cầu nhập mật khẩu xác nhận (trong 5 phút không cần nhập lại).",noticePwdSetupBtn:"Đặt mật khẩu",noticePwdLockedTitle:"Nhập mật khẩu",noticePwdLockedBody:"Thông báo là dữ liệu công ty, vui lòng nhập mật khẩu để xác nhận",noticePwdUnlockBtn:"Mở khóa",noticePwdWrong:"Sai mật khẩu, vui lòng nhập lại",checkCodeBtn:"Kiểm tra",checkingCode:"Đang kiểm tra…",codeExistsHint:"Mã này đã kích hoạt, vui lòng đăng nhập bằng mật khẩu",codeCheckFail:"Kiểm tra thất bại, thử lại",codeAvailHint:"Mã hợp lệ, vui lòng điền tiếp",ticketPendingNewTitle:"Đang chờ duyệt kích hoạt NV mới",ticketPendingForgotTitle:"Đang chờ duyệt quên mật khẩu",newPwdTitle:"Mật khẩu mới",newPwdHint:"Nguyên tắc như lúc đăng ký: không được 4 số giống nhau hoặc liên tiếp",ticketClearBtn:"Xóa",ticketNotifyBtn:"Báo cho người đăng ký đã duyệt",lineApprovedPrefix:"{code} Xin chào: Tài khoản của bạn đã được kích hoạt, vui lòng bấm 'Kiểm tra tình trạng duyệt' trên trang web để đăng nhập vào trang chính và quản lý số lượng công việc. Nếu có góp ý gì, xin vui lòng cho tôi biết, chúc bạn sử dụng vui vẻ!",ticketTypeA:"Đăng ký quản lý",lineTicketSupPrefix:"Nhờ duyệt đăng ký quản lý cho NV #{code}, mã:",ticketTypeB:"Đăng ký cập nhật hồ sơ",ticketTypeS:"Đăng ký cập nhật cửa hàng",lineTicketBasicPrefix:"Nhờ duyệt cập nhật hồ sơ cho NV #{code}, mã:",lineTicketStorePrefix:"Nhờ duyệt cập nhật cửa hàng cho NV #{code}, mã:",infoEditBtn:"Sửa",infoSubmitBtn:"Gửi",infoCancelBtn:"Hủy",infoNoChange:"Không có thay đổi nào",infoChangedTitle:"Các mục đã thay đổi",infoPwdSetupBasicBody:"Trang này chứa thông tin cá nhân. Để bảo mật, vui lòng đặt mật khẩu riêng 4 số. Sau này khi mở thông tin cá nhân, hệ thống sẽ yêu cầu nhập mật khẩu xác nhận (trong 5 phút không cần nhập lại).",infoPwdSetupStoreBody:"Thông tin cửa hàng là dữ liệu công ty. Để bảo mật, vui lòng đặt mật khẩu riêng 4 số. Sau này khi mở dữ liệu công ty, hệ thống sẽ yêu cầu nhập mật khẩu xác nhận (trong 5 phút không cần nhập lại).",infoPwdLockedBasicBody:"Trang này chứa thông tin cá nhân, vui lòng nhập mật khẩu để xác nhận",infoPwdLockedStoreBody:"Thông tin cửa hàng là dữ liệu công ty, vui lòng nhập mật khẩu để xác nhận",lineApprovedForgotPrefix:"{code} Xin chào, yêu cầu đặt lại mật khẩu của bạn đã được duyệt, vui lòng bấm 'Kiểm tra tình trạng duyệt' trên trang web để đăng nhập. Nếu có góp ý gì, xin vui lòng cho tôi biết, chúc bạn sử dụng vui vẻ.",lineApprovedSupPrefix:"{code} Xin chào, yêu cầu đăng ký quyền quản lý của bạn đã được duyệt, vui lòng bấm 'Kiểm tra tình trạng duyệt' để hoàn tất kích hoạt. Nếu có góp ý gì, xin vui lòng cho tôi biết, chúc bạn sử dụng vui vẻ.",lineApprovedBasicPrefix:"{code} Xin chào, yêu cầu cập nhật hồ sơ của bạn đã được duyệt, vui lòng bấm 'Kiểm tra tình trạng duyệt' để hoàn tất đồng bộ. Nếu có góp ý gì, xin vui lòng cho tôi biết, chúc bạn sử dụng vui vẻ.",lineApprovedStorePrefix:"{code} Xin chào, yêu cầu cập nhật cửa hàng của bạn đã được duyệt, vui lòng bấm 'Kiểm tra tình trạng duyệt' để hoàn tất đồng bộ. Nếu có góp ý gì, xin vui lòng cho tôi biết, chúc bạn sử dụng vui vẻ.",ticketInfoApplyTime:"Thời gian đăng ký",ticketInfoApproveTime:"Thời gian duyệt",ticketInfoApprover:"Người duyệt",revokeSupBtn:"Thu hồi quyền quản lý",revokeSupConfirm:"Xác nhận thu hồi quyền quản lý của người này?",revokeSupOk:"Đã thu hồi ✓",revokeSupFail:"Thu hồi thất bại",rejectBtn:"Trả lại",rejectReasonPh:"Lý do trả lại (tùy chọn, để NV biết cần sửa gì)",ticketRejected:"Đã trả lại",ticketRejectedReason:"Lý do trả lại",reeditBtn:"Sửa rồi gửi lại",keyExpiredMsg:"Chứng chỉ đã hết hạn, vui lòng liên hệ quản lý",keyInvalidMsg:"Chứng chỉ không hợp lệ, không thể xem",keyInvalidEditMsg:"Chứng chỉ không hợp lệ, không thể gửi thay đổi, vui lòng liên hệ quản lý",noticeListTextLabel:"Văn bản danh sách dùng:",noticeListTitle:"Tiêu đề",noticeListSummary:"Tóm tắt",noticeCountTypeLabel:"Hiển thị số lần mở:",noticeCountPeople:"Số người (không trùng)",noticeCountVisits:"Số lượt (tất cả)",credentialLabel:"Trạng thái chứng chỉ",credentialOk:"Bình thường",credentialExpired:"Chứng chỉ đã hết hạn",leaveBtn:"Nghỉ việc",leaveConfirmTitle:"Xác nhận nghỉ việc?",leaveConfirmMsg:"Sau khi bấm, tài khoản sẽ vào quy trình nghỉ việc và lưu lại hồ sơ. Dữ liệu công ty (thông báo, cửa hàng) sẽ không xem được nữa. Số liệu công việc bạn đã ghi vẫn được giữ trên máy, bạn có thể tự sử dụng.",leaveConfirmBtn:"Xác nhận nghỉ việc",leaveOk:"Đã hoàn tất quy trình nghỉ việc",leaveFail:"Xử lý thất bại, thử lại sau",ticketTypeE:"Đăng ký gia hạn chứng chỉ",lineTicketRenewPrefix:"Nhờ duyệt gia hạn chứng chỉ cho NV #{code}, mã:",lineApprovedRenewPrefix:"{code} Xin chào, yêu cầu gia hạn chứng chỉ của bạn đã được duyệt, vui lòng bấm 'Kiểm tra tình trạng duyệt' để hoàn tất gia hạn. Nếu có góp ý gì, xin vui lòng cho tôi biết, chúc bạn sử dụng vui vẻ.",renewModalTitle:"Gia hạn chứng chỉ",renewModalBody:"Chứng chỉ của bạn đã hết hạn, không thể xem dữ liệu công ty (thông báo, cửa hàng). Gửi yêu cầu gia hạn cho quản lý, sau khi duyệt sẽ khôi phục.",noticeOffBtn:"Gỡ xuống",noticeOnBtn:"Đăng lại",noticeOffConfirm:"Xác nhận gỡ thông báo này? Sau khi gỡ, nhân viên thường sẽ không thấy, nhưng bạn vẫn thấy trong danh sách (chữ xám).",noticeOpenersTitle:"Người đã mở",catTabAll:"Tất cả",credentialInvalid:"Không hợp lệ",credentialExpiryLabel:"Hạn chứng chỉ",leftDateLabel:"Ngày nghỉ việc",expiredLabel:"Đã hết hạn",noticeLocalBadge:"Máy này",lockPwdSectionTitle:"Mật khẩu bảo vệ",disableHomePwdLabel:"Tắt yêu cầu mật khẩu bảo vệ ở trang chủ",lockAutoTimeLabel:"Thời gian tự khóa mật khẩu bảo vệ",lockAutoTimeHint:"phút (tối thiểu 5 phút)",homePwdPopupTitle:"Vui lòng nhập mật khẩu bảo vệ",homePwdPopupBody:"Lần đầu mở hôm nay, vui lòng nhập mật khẩu xác nhận",gloveSize:"Cỡ găng tay",groupBuyBtn:"Mua chung",groupBuyTitle:"Danh sách mua chung",groupBuyTabList:"Mua chung",groupBuyTabMine:"Đăng ký của tôi",groupBuyEmpty:"Hiện không có đợt mua chung nào",groupBuyMineEmpty:"Bạn chưa tham gia đợt mua chung nào",groupBuyJoinBtn:"Đăng ký",groupBuyJoinOk:"Đã đăng ký ✓",groupBuyCreateBtn:"Phát động mua chung",groupBuyCreateTitle:"Phát động mua chung găng tay",groupBuyDeadlineLabel:"Ngày kết thúc",groupBuyPopupTitle:"Mua chung găng tay",groupBuyPopupBody:"Hiện có đợt mua chung găng tay, bạn có muốn tham gia?",groupBuyPopupJoin:"Tham gia",groupBuyPopupSkip:"Chưa tham gia",groupBuyOrderCount:"người đăng ký",drBtn:"Báo cáo",drTitle:"Báo cáo an toàn thiên tai",drDateLabel:"Ngày",drTypeLabel:"Loại thiên tai",drTypeEarthquake:"Động đất",drTypeTyphoon:"Bão",drTypeFlood:"Ngập lụt",drTypeLandslide:"Sạt lở đất",drStatusLabel:"Tình trạng",drSafe:"Tôi an toàn",drCantLeave:"Không thể ra ngoài",drVehicleDamaged:"Phương tiện bị hư hỏng",drSick:"Không khỏe",drNeedAddrHint:"Vui lòng điền tỉnh/thành và quận/huyện liên lạc trước khi báo cáo",drSubmitBtn:"Gửi báo cáo",drSubmitOk:"Đã gửi báo cáo",drSubmitFail:"Gửi thất bại, thử lại",ticketTypeR:"Đăng ký phục chức",lineTicketReinstatePrefix:"Nhờ duyệt phục chức cho NV #{code}, mã:",lineApprovedReinstatePrefix:"{code} Xin chào, yêu cầu phục chức của bạn đã được duyệt, vui lòng quay lại trang đăng nhập dùng mật khẩu cũ để đăng nhập. Nếu có góp ý gì, xin vui lòng cho tôi biết, chúc bạn sử dụng vui vẻ.",accountLeftMsg:"Tài khoản này đã nghỉ việc, nếu cần phục chức vui lòng gửi yêu cầu",reinstateBtn:"Gửi yêu cầu phục chức",reinstateHint:"Sau khi gửi, quản lý sẽ duyệt. Sau khi duyệt, dùng mật khẩu cũ quay lại trang đăng nhập, không cần đặt lại mật khẩu.",reinstateApprovedMsg:"Phục chức đã được duyệt, vui lòng dùng mật khẩu cũ đăng nhập",groupBuyItemLabel:"Mặt hàng mua chung",groupBuyItemGlove:"Găng tay",groupBuyItemCustom:"Mặt hàng tự chọn",groupBuyCustomItemPh:"Nhập tên mặt hàng",groupBuyAmountLabel:"Số tiền",groupBuyAmountPh:"Số tiền mỗi phần",groupBuyScopeLabel:"Phạm vi thông báo",groupBuyScopeStore:"Thông báo 1 cửa hàng",groupBuyScopeAll:"Thông báo toàn hệ thống",groupBuyScopeNone:"Không thông báo",groupBuyDeadline24hHint:"Nhân viên thường chỉ đặt được hạn tối đa 24 giờ",groupBuyDeclineBtn:"Không cần",groupBuyDeclinedOk:"Đã đánh dấu không cần",groupBuyCloseBtn:"Kết thúc sớm",groupBuyCloseConfirm:"Xác nhận kết thúc sớm đợt mua chung này?",groupBuyClosedTag:"Đã kết thúc",groupBuyViewJoined:"DS tham gia",groupBuyViewDeclined:"DS không cần",groupBuyViewOpens:"Đã xem",drSurveyNameLabel:"Tên thiên tai",drSurveyNamePh:"VD: Bão 0710",drSurveyStartLabel:"Ngày bắt đầu báo cáo",drCreateSurveyBtn:"Phát động báo cáo an toàn",drEndSurveyBtn:"Kết thúc khảo sát",drSurveyEndedTag:"Đã kết thúc",drNoActiveSurvey:"Hiện không có khảo sát thiên tai nào",drOtherLabel:"Khác",drOtherPh:"Tự điền tình trạng",drMyReportsTitle:"Báo cáo của tôi",drDayLabel:"Ngày thứ {0}",drQueryDayTitle:"Tra cứu tình trạng báo cáo",drDidReport:"Đã báo cáo",drNotReport:"Chưa báo cáo",drCopyNotReportBtn:"Sao chép DS chưa báo cáo",drCopiedMsg:"Đã sao chép",applying:"Đang gửi…",drMessageLabel:"Nội dung thông báo (tùy chọn, hiện trong popup và tin sao chép)",drMessagePh:"VD: Vui lòng báo cáo an toàn mỗi ngày",drScopeLabel:"Phạm vi chủ động thông báo (mặc định không thông báo)",drScopeStore:"Chủ động thông báo 1 cửa hàng",drScopeAll:"Chủ động thông báo toàn hệ thống",drReportRecordTitle:"Nhật ký báo cáo an toàn",drTodayReported:"Hôm nay bạn đã báo cáo:",drAddMoreBtn:"Thêm 1 báo cáo an toàn",drDeleteConfirm:"Xác nhận xóa khảo sát đã kết thúc này?",drQueryReportsBtn:"Tra cứu tình trạng báo cáo",drSelectDayPh:"Chọn ngày thứ mấy",groupBuyTabCreated:"Do tôi phát động",groupBuyQtyLabel:"Số lượng",groupBuyConfirmBtn:"Hoàn tất",groupBuyDeclineCountLabel:"Số người không cần",groupBuyCreatedCount:"Có {0} người đăng ký",groupBuySizeGroup:"Cỡ {0} có {1} người: {2}",groupBuyMineCreatedEmpty:"Bạn chưa phát động đợt mua chung nào",groupBuyEndedTitle:"Đã kết thúc",groupBuyPaidBtn:"Đã trả tiền",groupBuyArrivedBtn:"Đã nhận hàng",groupBuySubtotalLabel:"Tổng cộng",homeLayoutTitle:"Hiển thị bố cục trang chủ",homeLayoutA:"Thêm suất nhanh（+1+2+3）",homeLayoutB:"Danh sách công việc hôm nay",homeLayoutC:"Chọn trạng thái（Bình thường／Việc riêng／Ốm／Nghỉ）",homeLayoutHint:"Sau khi tắt, vẫn có thể bấm vào ngày hôm nay để vào màn hình chỉnh sửa, chỉ là trang chủ sẽ không hiển thị trực tiếp",blacklistTab:"DS từ chối phục vụ",blacklistCheck:"Từ chối",blacklistReasonHarass:"Quấy rối",blacklistReasonOther:"Khác",blacklistReasonPh:"Nhập lý do",blacklistNoCandidate:"Hiện chưa có khách nào được đánh dấu từ chối, vui lòng tick chọn trong chi tiết công việc trước",blacklistSubmitBtn:"Gửi yêu cầu từ chối",blacklistReasonLabel:"Lý do từ chối",blacklistSearchPh:"SĐT／Tên／Xưng hô／Mã NV từ chối",ticketTypeK:"Yêu cầu từ chối khách",gbStatusOpen:"Đang diễn ra",gbStatusClosed:"Đã kết thúc sớm",gbStatusCollecting:"Đang thu tiền",gbStatusShipping:"Đang giao hàng",gbStatusEnded:"Đã hoàn tất",gbChangeStatusLabel:"Đổi trạng thái (hiện tại: {0})",groupBuyByLabel:"Do {0} phát động",gbDayUnit:"ngày",gbHourUnit:"giờ",gbMinUnit:"phút",cloudBackupTitle:"☁️ Sao lưu đám mây",cloudBackupDesc:"Sao lưu trước khi đổi máy, đăng nhập máy mới rồi tra là khôi phục được ngay",cloudAutoBackupActiveMsg:"✓ Thiết bị này đã đăng nhập LINE, sẽ tự động sao lưu mỗi khi mở App lần đầu trong ngày",cloudBackupBtn:"Sao lưu lên đám mây",cloudBackupProcessing:"Đang xử lý…",cloudCheckBtn:"Tra bản sao lưu đám mây",cloudCheckWait:"Chờ {0}s",cloudFoundLabel:"Tìm thấy bản sao lưu: năm {0}, cập nhật lúc {1}",cloudRestoreBtn:"Khôi phục bản sao lưu này",cloudRestoreConfirm:"Khôi phục sẽ ghi đè dữ liệu cùng năm trên máy, bạn chắc chứ?",cloudRestoreDoing:"Đang khôi phục…",cloudRestoreOk:"Xác nhận khôi phục",cloudNotFound:"Hiện chưa có bản sao lưu nào cho mã này trên đám mây",cloudBackedUpMsg:"✓ Đã sao lưu lên đám mây (năm {0})",autoBackupLabel:"Tự động sao lưu nền sau khi xác thực mật khẩu lần đầu mỗi ngày",blacklistTabHint:"Điều kiện để hiện trong mục này: cần nhập tên, xưng hô, SĐT trong chi tiết công việc, đồng thời tick từ chối và ghi lý do",logoutBtn:"Đăng xuất／Đổi tài khoản",logoutConfirmBtn:"Bấm lần nữa để xác nhận đăng xuất／đổi tài khoản",groupBuyGloveDefault:"Mua chung găng tay",logoutHint:"Chỉ đăng xuất tài khoản hiện tại, dữ liệu trên máy (bảng lương, khách hàng) sẽ không bị xóa, đăng nhập lại cùng mã dữ liệu vẫn còn",gbGloveOngoingTag:"（Đang diễn ra）",gbGloveOnlyOneHint:"Cùng lúc chỉ được 1 đợt mua chung găng tay, vui lòng đợi đợt đang diễn ra kết thúc rồi phát động tiếp",gbDeadlineTeacherHint:"Mặc định kết thúc lúc 23:59 ngày mai, chỉ quản lý mới tự đặt được hạn",acupointBtn:"Kiến thức huyệt vị",monthlyCalendar:"Lịch tháng",todayBtn:"Hôm nay",acupointTitle:"Kho kiến thức huyệt vị",acupointSearchPh:"Tìm tên huyệt hoặc từ khóa triệu chứng, VD: đau lưng",acupointNoResult:"Không tìm thấy huyệt phù hợp, thử từ khóa khác",acupointLocation:"Vị trí",acupointBenefit:"Công dụng bảo vệ sức khỏe",acupointTechnique:"Cách massage",acupointCaution:"Lưu ý",acupointDisclaimer:"Nội dung trên chỉ mang tính tham khảo bảo vệ sức khỏe, không phải lời khuyên y tế, nếu khó chịu vui lòng đi khám",acupointAllMeridian:"Tất cả kinh mạch",acupointLoadFail:"Tải thất bại, vui lòng kiểm tra mạng rồi tải lại trang",acupointRecentSearch:"Tìm kiếm gần đây：",acupointShareLine:"Chia sẻ lên LINE",acupointFavorite:"Yêu thích, xếp lên đầu",acupointFavoritedHint:"Đã yêu thích, xếp đầu danh sách vùng này",priceAskTitle:"Phạm vi áp dụng đơn giá",priceAskDesc:"Đơn giá mới áp dụng cho tất cả các tháng, hay chỉ áp dụng từ ngày chỉ định?",priceAskAll:"Áp dụng cho tất cả các tháng",priceAskFromLabel:"Áp dụng đơn giá mới từ ngày này",priceAskFromBtn:"Áp dụng từ ngày này",liffChecking:"Đang xác thực danh tính LINE...",liffNeedLogin:"Cần đăng nhập LINE để tiếp tục",liffLoginBtn:"Đăng nhập bằng LINE",liffNeedReauth:"Trạng thái đăng nhập cần cấp quyền lại để lấy thông tin danh tính",liffReauthBtn:"Cấp quyền lại",acupointNeedUnlock:"Vui lòng đến trang thông báo hoàn tất xác thực mật khẩu hàng ngày trước, rồi quay lại xem kho kiến thức huyệt vị",moreFuncBtn:"Thêm chức năng",moreFuncLeftMsg:"Khu vực này chỉ dành cho nhân viên đang làm việc",dismissTitle:"Cho nghỉ việc",dismissHint:"Quản lý xử lý thay, không phải NV tự nguyện đăng ký. Sau khi cho nghỉ, NV vẫn có thể tự gửi yêu cầu phục chức.",dismissTargetPh:"Nhập mã NV cần cho nghỉ việc",dismissNotFound:"Không tìm thấy mã này",dismissBtn:"Cho nghỉ việc",dismissConfirmMsg:"Xác nhận cho nhân viên này nghỉ việc? Thao tác này sẽ ngay lập tức vô hiệu hóa chứng chỉ, không thể xem dữ liệu công ty nữa.",dismissConfirmBtn:"Xác nhận cho nghỉ",dismissOk:"Đã hoàn tất xử lý cho nghỉ việc",dismissFail:"Xử lý thất bại",preApproveTitle:"Duyệt trước",preApproveHint:"Với NV đã xác nhận trước, yêu cầu gửi trong vòng 1 giờ sẽ tự động được duyệt ngay, không cần duyệt thủ công lại.",dismissTargetPh2:"Nhập mã nhân viên",preApproveOk:"Đã thiết lập, có hiệu lực trong 1 giờ",preApproveFail:"Thiết lập thất bại",preApproveActive:"Đang có hiệu lực",preApproveExpiresAt:"Thời gian hết hạn",preApproveCancelBtn:"Hủy",preApproveBtn:"Duyệt trước（hiệu lực 1 giờ）",backHomeBtn:"Về trang chủ",liffNoSupPerm:"Tài khoản LINE hiện tại chưa liên kết quyền quản lý",liffNeedCodeFirst:"Vui lòng đến ứng dụng chính đăng nhập bằng mã nhân viên trước, rồi quay lại đăng ký liên kết quyền quản lý.",liffGoLoginBtn:"Đi đăng nhập mã nhân viên",liffApplySupBtn:"Đăng ký liên kết tài khoản LINE này với quyền quản lý",liffApplySupOk:"Đã gửi yêu cầu, vui lòng chờ quản lý duyệt",liffApplySupFail:"Gửi thất bại, vui lòng kiểm tra lại mã",liffDiagToggle:"Thông tin chẩn đoán",liffCheckFail:"Xác thực danh tính gặp sự cố",preApproveBsWarn:"Lưu ý: Sau khi chọn, nội dung của loại đăng ký này sẽ có hiệu lực ngay mà không qua duyệt, hãy đảm bảo bạn tin tưởng người đăng ký sẽ điền đúng thông tin.",priceFutureApproved:"Từ {0} điều chỉnh thành ${1}（Đã duyệt）",priceFuturePending:"Từ {0} điều chỉnh thành ${1}（Đang chờ duyệt）",infoSavedDirectMsg:"Đã lưu, có hiệu lực ngay",jsonExportTitle:"Xuất file sao lưu",jsonExportDesc:"Tải xuống file JSON dữ liệu năm nay, tự lưu trên điện thoại hoặc máy tính, không tải lên đám mây.",jsonExportBtn:"Xuất file JSON",jsonExportOk:"Đã xuất file JSON",jsonExportFail:"Xuất thất bại",lineLoginTitle:"Đăng nhập LINE",lineLoginDesc:"Vui lòng đăng nhập LINE trước——như vậy mới dùng được sao lưu đám mây, và đảm bảo khi đổi máy hoặc quên mật khẩu, có thể dùng danh tính LINE để lấy lại dữ liệu an toàn.",lineLoginBtn:"Đăng nhập bằng LINE",lineLoginBoundDesc:"Đã liên kết tài khoản LINE, sao lưu đám mây sẽ dùng danh tính này.",lineLoginBoundLabel:"Đã liên kết",lineLoginSwitchBtn:"Đăng xuất／Đổi tài khoản",liffLoggingIn:"Đang đăng nhập…",liffSdkFail:"Tải LINE SDK thất bại, vui lòng kiểm tra mạng",lineLoginRequiredMsg:"Vui lòng đăng nhập LINE trước để dùng sao lưu đám mây",cloudBackupPausedMsg:"Sao lưu đám mây tạm ngừng, sẽ khôi phục sau khi thử nghiệm ổn định",flowFirstUse:"Lần đầu sử dụng",startUseBtn:"Bắt đầu sử dụng",flowAlreadyUsed:"Đã từng sử dụng",restoreChoiceHint:"Chọn cách để lấy lại dữ liệu của bạn",restoreImportBtn:"Nhập file sao lưu",restoreLineBtn:"Đăng nhập bằng LINE",restorePwdBtn:"Đăng nhập bằng mật khẩu",restoreImportHint:"Chọn file JSON sao lưu bạn đã xuất trước đó",restoreImportPick:"Nhấn để chọn file",restoreImporting:"Đang xử lý…",restoreLineHint:"Vui lòng đăng nhập LINE trước, sau khi đăng nhập sẽ tự động kiểm tra sao lưu đám mây",restoreLineCheckHint:"Đã đăng nhập LINE, đang kiểm tra sao lưu đám mây",restoreLineCheckBtn:"Kiểm tra sao lưu đám mây",restoreLineNotFoundHint:"Tài khoản LINE này chưa có sao lưu đám mây, sẽ bắt đầu với màn hình mới, nhớ ghi chép và sao lưu định kỳ",restoreLineFreshBtn:"Tiếp tục tạo dữ liệu mới",pwdLoginOkTitle:"Đăng nhập mật khẩu thành công",pwdLoginBindWarn:"Trong tương lai sẽ hủy đăng nhập mật khẩu, vui lòng nhấn đăng nhập LINE để liên kết",pwdLoginTempNote:"（Đăng nhập mật khẩu là tạm thời, sẽ bị loại bỏ trong tương lai）",usePwdLoginDataBtn:"Tiếp tục với dữ liệu đăng nhập mật khẩu",restoreAskHint:"Bạn có muốn khôi phục bản sao lưu trước đó không？",restoreAskYes:"Có, tôi muốn khôi phục",restoreAskNo:"Không, tạo dữ liệu mới",restoreSourceHint:"Khôi phục từ đâu？",restoreSourceCloudBtn:"Sao lưu đám mây"}};
 
-// 掛到全域供 index.html 的 App 取用
-window.__V=Object.assign(window.__V||{},{ChartPage,CustomerPage,BackupSection,SettingsPage});
+/* ══════════ Export to global (window.MP) ══════════ */
+window.MP={
+  LS,
+  // crypto
+  getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,
+  adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,
+  encWithKey,decWithKey,actKey,normCode,lockPwdCred,genActWithToken,verifyActToken,genUUID,getDeviceId,
+  genReqCode,parseReqCode,decReqCode,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,REQ_CAT,identifyReqCode,buildReqLink,AUTH_LIFF_BASE,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,sendTicketFlex,
+  // sup levels
+  SUP_LEVELS,supLevelName,effSupLevel,
+  // github
+  getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,
+  // staff/stores/approval
+  readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,checkApproved,writeApproval,loadStores,saveStores,computeStats,publishStats,loadStats,
+  getApproved,saveApproved,addApproved,
+  // logs
+  addLog,getLogs,fmtLog,fmtDate,
+  // theme
+  THEMES,
+  // data helpers
+  SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,
+  toB36,fromB36,dim,dow,bizDate,bizParts,BIZ_CUTOFF_MIN,getBizCutoff,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,
+  newSlip,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,saveCustDB,getCust,getGasUrl,setGasUrl,getBuiltinGasUrl,shouldClaimKey,autoClaimKey,diagClaimKey,gasCall,gasCallPost,gasWarmup,getNoticesLocal,saveNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,getNoticeListText,getNoticeCountType,getNoticeMainCats,publishNotices,noticeBody,noticeTitle,noticeSummary,noticeCats,noticeTags,getMyKey,setMyKey,hasMyKey,HIDE_COMPANY_FEATURES,DISABLE_GH_DATA_FETCH,INDEX_LIFF_ID,getMyLineUserId,setMyLineUserId,clearMyLineUserId,getLineLogoutFlag,setLineLogoutFlag,clearLineLogoutFlag,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,getNoticeUnread,gasTranslate,gasAnalyze,gasUsage,gasAddNotice,gasEditNotice,gasSubmitAction,gasCheckAction,gasApproveAction,gasBlacklistSubmit,gasBlacklistCheck,gasBlacklistApprove,gasBlacklistSearch,gasBackupSubmit,gasBackupCheck,gasBackupFetch,gasSfGetPendingDetail,gasSfApprovePendingRegistration,gasUpdatePwd,gasLoginPwd,gasSetInitialPwd,gasResetLockPwd,gasSyncProfile,gasCheckCode,gasCheckStaffCode,gasAuthStaffList,gasGetGHConfigForSupervisor,gasRevokeSup,gasRejectAction,gasVerifyKey,gasLogNoticeOpen,gasLeaveTeacher,gasPreApprove,gasGetPreApprove,gasCancelPreApprove,gasToggleNoticeStatus,gasSubmitSuggestion,gasListSuggestions,gasPushNoticeFlexToMe,gasLogDailyCheck,gasLogFlowEnter,gasDebugEcho,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasSubmitDisasterReport,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasCloseGroupBuy,gasGroupBuyDetail,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasCreateDisasterSurvey,gasEndDisasterSurvey,gasDeleteDisasterSurvey,gasListDisasterSurveys,gasMyDisasterReports,gasDisasterDayStatus,getAdminSecret,setAdminSecret,hasAdminSecret,issueKey,claimMyKey,upsertCust,deleteCust,searchCustDB,recentCust,custLastSlip,migrateDayGroups,migrateMonthGroups,slipSvcLabel,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,personalChartStats,normEmail,isValidEmail,gasEmailBackupCheck,doEmailBackupNow,emailRestore,CARD_STORE_DEFAULTS,loadCardStores,CARD_BRAND,getCardData,sendCardFlex,breakDayKey,loadBreakStatus,breakFlipGreenLocal,breakFlipWhiteLocal,
+  getCustomers,saveCustomers,getBookings,saveBookings,uid,upsertCustomer,normPhone,searchCustomers,addBooking,updateBooking,deleteBooking,confirmBooking,BOOK_TITLES,bookTitleName,fetchAcupoints,clearAcupointsCache,checkCredentialValid,
+  SERVICES,svcByCode,bookUnits,bookMinutes,bookLabel,bookRange,findConflicts,dayOffStatus,bookLog,skName,
+  TW_REGIONS,LANG_SCHOOLS,
+  // i18n
+  T
+};
+
+})(window);
