@@ -656,6 +656,7 @@ function MgrInner({me,needReg}){
       <Btn onClick={()=>go('s2=mnew')}>＋ 建立新回報並分享</Btn>
       <Btn color="bg-gray-800 text-white border border-gray-600" onClick={()=>go('s2=mine&pick=1')}>目前的安全回報調查（查看名單／分享）</Btn>
       <Btn color="bg-gray-800 text-white border border-gray-600" onClick={()=>go('n2=l')}>📢 公司公告（發布／已讀情況）</Btn>
+      <Btn color="bg-gray-800 text-white border border-gray-600" onClick={()=>go('b2=l')}>🚫 拒接名單（查詢／核准）</Btn>
       <ShareFlexBtn label="📖 分享「回報教學」給好友" altText="如何做安全回報(教學)" build={buildTutorialFlex}/>
       <ShareFlexBtn label="🚫 分享「老師不要在大群回文」字卡" altText="老師不要在大群回文" build={buildNoReplyFlex}/>
       <ShareFlexBtn label="🛡️ 分享「主管功能」邀請" altText="主管功能" build={buildMgrInviteFlex}/>
@@ -708,6 +709,7 @@ function Safety2App({liffId}){
 }
 function Safety2Routes(){
   const q=new URLSearchParams(location.search);
+  if(q.has('b2')&&window.Blacklist2Routes){const B2=window.Blacklist2Routes;return <B2/>;} // 拒接名單 2.0(blacklist2.js)
   if(q.has('n2')&&window.Notice2Routes){const N2=window.Notice2Routes;return <N2/>;} // 公司公告 2.0(notice2.js):人員/權限/暫存都共用這支,頁面獨立
   const p=q.get('s2')||'';const sid=q.get('sid')||'';
   if(p==='r')return sid?<ReportPage sid={sid}/>:<Msg text="缺少回報代碼"/>;
@@ -721,7 +723,8 @@ function Safety2Routes(){
   if(p==='my')return <MyReportsPage/>;
   if(p==='staff')return <StaffPage/>;
   if(p==='apv')return <ApvPage rid={q.get('rid')||''}/>;
-  return <Msg text="不支援的頁面"/>;
+  const dbg='參數: '+(location.search||'(空)')+' ｜ 拒接模組:'+(window.Blacklist2Routes?'已載入':'未載入')+' ｜ 公告模組:'+(window.Notice2Routes?'已載入':'未載入');
+  return <div className="space-y-2"><Msg text="不支援的頁面"/><p className="text-xs text-gray-500 break-all px-2">{dbg}</p></div>;
 }
 // 匯出給 notice2.js(公司公告)共用:API、暫存、版面元件、人員註冊流程
 window.S2Core={Chip,api,useLoad,Box,Card,Btn,Loading,Msg,Spinner,NeedUser,go,copyText,barOf,cclear,cput,ckey,peek,CACHEABLE,WRITE_CLEAR,STORES};
