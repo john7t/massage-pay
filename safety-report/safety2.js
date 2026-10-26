@@ -711,10 +711,22 @@ function ApvPage({rid}){
 }
 
 // ───────── 入口 ─────────
+// 網頁標題:員工專區 - <目前功能> v版號。LIFF 頂端會顯示;版號從原本 <title> 讀(底部版本列/錯誤畫面也讀這裡)
+const S2_BASE_VER=(document.title.match(/v\d+\.\d+-\d+/)||[''])[0];
+function s2PageName(){
+  const q=new URLSearchParams(location.search);
+  if(q.has('sp'))return q.get('sp')==='early'?'早鳥夜貓':'價目表';
+  if(q.has('b2')){const v=q.get('b2')||'l';return v==='new'?'新增拒接':v==='set'?'拒接名單設定':'拒接名單';}
+  if(q.has('n2')){const v=q.get('n2')||'l';return ({v:'公告內容',new:'發布公告',edit:'編輯公告',r:'已讀情況',set:'設定'})[v]||'公司公告';}
+  const v=q.get('s2')||'';
+  return ({mgr:'主管專區',staff:'人員管理',apv:'主管審核',mine:'我的通報',my:'我的回報',new:'發起通報',mnew:'發起通報',share:'分享通報',today:'今日回報',r:'安全回報',l:'通報名單'})[v]||'';
+}
+function s2SetTitle(){try{const n=s2PageName();document.title='員工專區'+(n?' - '+n:'')+(S2_BASE_VER?' '+S2_BASE_VER:'');}catch(_e){}}
 function Safety2App({liffId}){
   window.__S2_LIFF_ID=liffId||window.__S2_LIFF_ID||'';
   const[,setN]=useState(0);
-  useEffect(()=>{const h=()=>setN(n=>n+1);window.addEventListener('s2nav',h);window.addEventListener('popstate',h);return()=>{window.removeEventListener('s2nav',h);window.removeEventListener('popstate',h);};},[]);
+  useEffect(()=>{s2SetTitle();},[location.search]);
+  useEffect(()=>{const h=()=>{setN(n=>n+1);s2SetTitle();};window.addEventListener('s2nav',h);window.addEventListener('popstate',h);return()=>{window.removeEventListener('s2nav',h);window.removeEventListener('popstate',h);};},[]);
   return(<React.Fragment key={location.search+'|'+window.__s2nonce}><Safety2Routes/></React.Fragment>);
 }
 function Safety2Routes(){
