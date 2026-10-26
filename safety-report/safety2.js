@@ -652,37 +652,47 @@ function MgrInner({me,needReg}){
   const setLevel=(m,lv)=>act(()=>api('s2MgrSet',{targetId:m.lineUserId,level:lv}));
   return(<Box {...barOf(st,()=>{cclear(['s2Me']);reload();},'zh')}>
     <Card><h1 className="text-lg font-bold text-white">🛡️ 主管功能</h1><p className="text-sm text-gray-400 mt-1">你的職級：{d.level}　{d.all?'（可看所有店）':'（僅限本店）'}</p></Card>
-    <Card className="space-y-3"><p className="font-bold text-white">📤 分享（僅主管）</p>
-      <Btn onClick={()=>go('s2=mnew')}>＋ 建立新回報並分享</Btn>
-      <Btn color="bg-gray-800 text-white border border-gray-600" onClick={()=>go('s2=mine&pick=1')}>目前的安全回報調查（查看名單／分享）</Btn>
-      <Btn color="bg-gray-800 text-white border border-gray-600" onClick={()=>go('n2=l')}>📢 公司公告（發布／已讀情況）</Btn>
-      <Btn color="bg-gray-800 text-white border border-gray-600" onClick={()=>go('b2=l')}>🚫 拒接名單（查詢／核准）</Btn>
-      <ShareFlexBtn label="📖 分享「回報教學」給好友" altText="如何做安全回報(教學)" build={buildTutorialFlex}/>
-      <ShareFlexBtn label="🚫 分享「老師不要在大群回文」字卡" altText="老師不要在大群回文" build={buildNoReplyFlex}/>
-      <ShareFlexBtn label="🛡️ 分享「主管功能」邀請" altText="主管功能" build={buildMgrInviteFlex}/>
-      <p className="text-xs text-gray-500">Flex 傳到群組後無法收回，請確認標題與對象再分享。</p></Card>
-    <StaffCard/>
-    {d.canSetOpen&&(<Card className="space-y-3"><p className="font-bold text-white">👁 公開給成員（僅限本店）</p>
-      {[['detail','詳細頁（回報時間、說明）',d.detailOpen],['missing','未回報名單',d.missingOpen]].map(x=>(<div key={x[0]} className="flex items-center justify-between"><span className="text-gray-200">{x[1]}</span>
-        <button disabled={busy} className={'px-4 py-1 rounded-full text-sm '+(x[2]?'bg-emerald-600 text-white':'bg-gray-700 text-gray-300')} onClick={()=>act(()=>api('s2OpenSet',{which:x[0],on:!x[2]}))}>{x[2]?'公開':'僅主管'}</button></div>))}
-      <p className="text-xs text-gray-500">「僅主管」＝只有發起人、本店主管、區經理以上與管理者能看。</p></Card>)}
-    <Card className="space-y-3">
-      {d.level!=='櫃台組長'&&(<div className="flex items-center justify-between"><span className="text-gray-200">🔔 接收主管申請通知</span>
-        <button disabled={busy} className={'px-4 py-1 rounded-full text-sm '+(d.notify?'bg-emerald-600 text-white':'bg-gray-700 text-gray-300')} onClick={()=>act(()=>api('s2MgrNotify',{on:!d.notify}))}>{d.notify?'開':'關'}</button></div>)}
-      {d.admin&&(<div className="flex items-center justify-between"><span className="text-gray-200">👁 已刪除項目對我也隱藏</span>
-        <button disabled={busy} className={'px-4 py-1 rounded-full text-sm '+(d.hideAdmin?'bg-emerald-600 text-white':'bg-gray-700 text-gray-300')} onClick={()=>act(()=>api('s2AdminHide',{on:!d.hideAdmin}))}>{d.hideAdmin?'開':'關'}</button></div>)}
-    </Card>
     {d.pending.length>0&&(<Card className="space-y-3"><p className="font-bold text-white">待審核申請</p>
       {d.pending.map(p=>(<div key={p.reqId} className="border-t border-gray-800 pt-2"><p className="text-gray-200">{p.store} {p.label}　申請：{p.level}</p>
         <div className="grid grid-cols-2 gap-2 mt-2"><Btn disabled={busy} color="bg-emerald-600 text-white" onClick={()=>act(()=>api('s2MgrApprove',{rid:p.reqId,approve:true}))}>核准</Btn><Btn disabled={busy} color="bg-gray-700 text-white" onClick={()=>act(()=>api('s2MgrApprove',{rid:p.reqId,approve:false}))}>拒絕</Btn></div></div>))}</Card>)}
+    <p className="text-sm font-bold text-violet-300 px-1 pt-3">👥 人員與權限</p>
+    <StaffCard/>
+    <Card className="space-y-3">
+      {d.level!=='櫃台組長'&&(<div className="flex items-center justify-between"><span className="text-gray-200">🔔 接收主管申請通知</span>
+        <button disabled={busy} className={'px-4 py-1 rounded-full text-sm '+(d.notify?'bg-emerald-600 text-white':'bg-gray-700 text-gray-300')} onClick={()=>act(()=>api('s2MgrNotify',{on:!d.notify}))}>{d.notify?'開':'關'}</button></div>)}
+    </Card>
     <Card className="space-y-3"><p className="font-bold text-white">主管名單（調整職級）</p>
       <p className="text-xs text-gray-500">只能調整「職級比自己低」的人；同級或更高職級僅供查看。</p>
       {d.mgrs.length===0&&<p className="text-gray-500 text-sm">目前沒有主管</p>}
       {d.mgrs.map(m=>(<div key={m.lineUserId} className="border-t border-gray-800 pt-2"><p className="text-gray-200">{m.store} {m.label}　<span className="text-violet-300">{m.level}</span></p>
         {m.canEdit&&(<div className="flex flex-wrap gap-2 mt-2">{d.levels.filter(l=>(d.settable||[]).indexOf(l)>=0).map(l=>(<Chip key={l} on={m.level===l} onClick={()=>m.level!==l&&setLevel(m,l)}>{l}</Chip>))}<button className="px-3 py-2 rounded-full border border-red-500 text-red-400 text-sm" onClick={()=>window.confirm('取消「'+m.label+'」的主管職？')&&setLevel(m,'')}>取消主管</button></div>)}</div>))}
     </Card>
+    <p className="text-sm font-bold text-violet-300 px-1 pt-3">🛡️ 安全回報</p>
+    <Card className="space-y-3">
+      <Btn onClick={()=>go('s2=mnew')}>＋ 建立新回報並分享</Btn>
+      <Btn color="bg-gray-800 text-white border border-gray-600" onClick={()=>go('s2=mine&pick=1')}>目前的安全回報調查（查看名單／分享）</Btn>
+      <Btn color="bg-gray-800 text-gray-200 border border-gray-600" onClick={()=>go('s2=mine')}>我發起的清單</Btn>
+      {d.admin&&(<div className="flex items-center justify-between"><span className="text-gray-200">👁 已刪除項目對我也隱藏</span>
+        <button disabled={busy} className={'px-4 py-1 rounded-full text-sm '+(d.hideAdmin?'bg-emerald-600 text-white':'bg-gray-700 text-gray-300')} onClick={()=>act(()=>api('s2AdminHide',{on:!d.hideAdmin}))}>{d.hideAdmin?'開':'關'}</button></div>)}
+    </Card>
+    {d.canSetOpen&&(<Card className="space-y-3"><p className="font-bold text-white">👁 公開給成員（僅限本店）</p>
+      {[['detail','詳細頁（回報時間、說明）',d.detailOpen],['missing','未回報名單',d.missingOpen]].map(x=>(<div key={x[0]} className="flex items-center justify-between"><span className="text-gray-200">{x[1]}</span>
+        <button disabled={busy} className={'px-4 py-1 rounded-full text-sm '+(x[2]?'bg-emerald-600 text-white':'bg-gray-700 text-gray-300')} onClick={()=>act(()=>api('s2OpenSet',{which:x[0],on:!x[2]}))}>{x[2]?'公開':'僅主管'}</button></div>))}
+      <p className="text-xs text-gray-500">「僅主管」＝只有發起人、本店主管、區經理以上與管理者能看。</p></Card>)}
+    <p className="text-sm font-bold text-violet-300 px-1 pt-3">📢 公告與 🚫 拒接名單</p>
+    <Card className="space-y-3">
+      <Btn color="bg-gray-800 text-white border border-gray-600" onClick={()=>go('n2=l')}>📢 公司公告（發布／已讀情況）</Btn>
+      <Btn color="bg-gray-800 text-gray-200 border border-gray-600" onClick={()=>go('n2=set')}>⚙ 公告設定（測試模式、推播、LINE 額度）</Btn>
+      <Btn color="bg-gray-800 text-white border border-gray-600" onClick={()=>go('b2=l')}>🚫 拒接名單（查詢／核准）</Btn>
+      <Btn color="bg-gray-800 text-gray-200 border border-gray-600" onClick={()=>go('b2=set')}>⚙ 拒接名單設定（直接錄入模式、顯示）</Btn>
+    </Card>
+    <p className="text-sm font-bold text-violet-300 px-1 pt-3">📤 分享工具</p>
+    <Card className="space-y-3">
+      <ShareFlexBtn label="📖 分享「回報教學」給好友" altText="如何做安全回報(教學)" build={buildTutorialFlex}/>
+      <ShareFlexBtn label="🚫 分享「老師不要在大群回文」字卡" altText="老師不要在大群回文" build={buildNoReplyFlex}/>
+      <ShareFlexBtn label="🛡️ 分享「主管功能」邀請" altText="主管功能" build={buildMgrInviteFlex}/>
+      <p className="text-xs text-gray-500">Flex 傳到群組後無法收回，請確認標題與對象再分享。</p></Card>
     {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
-    <Btn color="bg-gray-800 text-gray-200" onClick={()=>go('s2=mine')}>我發起的清單</Btn>
   </Box>);
 }
 
