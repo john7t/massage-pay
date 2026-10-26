@@ -719,6 +719,7 @@ function Safety2App({liffId}){
 }
 function Safety2Routes(){
   const q=new URLSearchParams(location.search);
+  if(q.has('sp')&&window.ShopRoutes){const SP=window.ShopRoutes;return <SP/>;} // 價目表/早鳥夜貓(shop2.js),公開資訊
   if(q.has('b2')&&window.Blacklist2Routes){const B2=window.Blacklist2Routes;return <B2/>;} // 拒接名單 2.0(blacklist2.js)
   if(q.has('n2')&&window.Notice2Routes){const N2=window.Notice2Routes;return <N2/>;} // 公司公告 2.0(notice2.js):人員/權限/暫存都共用這支,頁面獨立
   const p=q.get('s2')||'';const sid=q.get('sid')||'';
