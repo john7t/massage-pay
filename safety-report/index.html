@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>安全回報 v1.13-038</title>
+<title>安全回報 v1.13-039</title>
 <meta property="og:title" content="天然災害每日安全回報中心">
 <meta property="og:description" content="請點擊連結進行安全回報">
 <meta property="og:type" content="website">
@@ -49,9 +49,10 @@
 </div>
 
 <script src="../common.js"></script>
-<script type="text/babel" src="./safety2.js?v=1.13-024"></script>
+<script type="text/babel" src="./safety2.js?v=1.13-025"></script>
 <script type="text/babel" src="./notice2.js?v=1.0-013"></script>
 <script type="text/babel" src="./blacklist2.js?v=1.0-004"></script>
+<script type="text/babel" src="./shop2.js?v=1.0-001"></script>
 <script type="text/babel">
 (function(){
 const{useState,useEffect,useMemo}=React;
@@ -1100,6 +1101,7 @@ function App(){
   const flexTitle=new URLSearchParams(location.search).get('flexTitle')||''; // 通用行為代碼Flex分享,標題/內文/連結三個參數
   const flexBody=new URLSearchParams(location.search).get('flexBody')||'';
   const flexLink=new URLSearchParams(location.search).get('flexLink')||'';
+  const spp=new URLSearchParams(location.search).get('sp')||''; // 價目表/早鳥夜貓(shop2.js)
   const b2p=new URLSearchParams(location.search).get('b2'); // 拒接名單 2.0(blacklist2.js)
   const n2p=new URLSearchParams(location.search).get('n2'); // 公司公告 2.0(notice2.js):n2=l/v/new/edit/r/set;跟 s2 一樣由 GAS 驗證 accessToken
   const s2p=new URLSearchParams(location.search).get('s2')||''; // 安全回報2.0(safety2.js):s2=r/l/mine/new/share/mgr/apv
@@ -1113,7 +1115,7 @@ function App(){
       setLiffId(id);
       return liff.init({liffId:id}).then(()=>{
         if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return} // 明確帶目前完整網址(含?sid=...),避免LINE登入導轉過程弄丟參數
-        if(s2p||n2p!==null||b2p!==null){setPhase('s2');return} // 安全回報2.0:不走舊的登記/審核流程,身分由 GAS 用 accessToken 驗證
+        if(s2p||spp||n2p!==null||b2p!==null){setPhase('s2');return} // 安全回報2.0:不走舊的登記/審核流程,身分由 GAS 用 accessToken 驗證
         if(cardShare){setPhase('cardShare');return}
         if(flexTitle&&flexLink){setPhase('ticketFlex');return} // 通用行為代碼分享,不用先查有沒有登記過,直接進分享流程
         if(backupView){setPhase('backupView');return} // 備份專頁,不用先查有沒有登記過,直接進備份流程
