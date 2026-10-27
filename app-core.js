@@ -1,6 +1,7 @@
-// app-core.js v1.13-052 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-053 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
+// v1.13-053 / 團購橫幅改版:第一行「龍山寺店手套團購進行中（由96號發起）」(拿掉日期);第二行左「收單中，目標 1/4 箱」、右「點此進入」(越南語同步)。
 // v1.13-052 / 團購橫幅箱數改成「目標1/4箱」(越南語 Mục tiêu 1/4 thùng)。
 // v1.13-051 / 手套團購橫幅:第一行改「手套團購進行中（龍山寺店 96號 於10/27發起）」、狀態文字靠右、加越南語(依 settings.lang)。
 // v1.13-050 / 手套團購橫幅:先畫整個首頁、用本機上次的內容(離線可看,3 天內),400ms 後才去抓 GitHub 最新 data/gloves.json,抓到才更新並存起來。
@@ -1456,11 +1457,12 @@ function GloveBanner({settings}){
   return(<div className="mt-4 space-y-2">{show.map(o=>(<a key={o.id} href={GLOVE_LIFF} className="block bg-white/[0.04] border border-white/[0.08] rounded-2xl px-4 py-3 active:bg-white/[0.08]">
     {(()=>{const vi=settings&&settings.lang==='vi';const num=/^\d+$/.test(String(o.who||''));
       const SVI={collecting:'Đang nhận đơn',closed:'Chốt sớm',paying:'Đang thu tiền',shipping:'Đang vận chuyển',arrived:'Đã đến nơi'};
-      const line1=vi?('Mua chung găng tay đang diễn ra ('+(o.store||'')+(o.who?' KTV '+o.who:'')+' khởi tạo ngày '+o.md+')')
-                    :('手套團購進行中（'+(o.store||'')+(o.who?' '+o.who+(num?'號':'')+' ':' ')+'於'+o.md+'發起）');
+      const who=o.who?String(o.who)+(num?'號':''):'';
+      const line1=vi?('Mua chung găng tay '+(o.store||'')+' đang diễn ra'+(o.who?' (do KTV '+o.who+' khởi tạo)':''))
+                    :((o.store||'')+'手套團購進行中'+(who?'（由'+who+'發起）':''));
       const st=vi?(SVI[o.status]||o.statusLabel):o.statusLabel;
       return(<><p className="text-sm text-gray-100 font-semibold">🧤 {line1}</p>
-        <div className="flex items-center justify-between gap-2 mt-0.5 text-[11px] text-gray-500"><span>{vi?'Mục tiêu ':'目標'}{o.boxes}/{o.threshold}{vi?' thùng':'箱'}　{vi?'Bấm để vào':'點此進入'}</span><span className="shrink-0">{st}</span></div></>);})()}
+        <div className="flex items-center justify-between gap-2 mt-0.5 text-[11px] text-gray-500"><span>{st}{vi?', mục tiêu ':'，目標 '}{o.boxes}/{o.threshold}{vi?' thùng':' 箱'}</span><span className="shrink-0">{vi?'Bấm để vào':'點此進入'}</span></div></>);})()}
   </a>))}</div>);
 }
 const HIDE_CHART=true; // 圖表功能:使用者要求移除(隱藏不刪:ChartPage 與 settings 的 chart 子頁保留,只是首頁不再有入口圖示;要恢復改成 false)
