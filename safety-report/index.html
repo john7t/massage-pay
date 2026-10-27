@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>員工專區 v1.13-041</title>
-<meta property="og:title" content="天然災害每日安全回報中心">
-<meta property="og:description" content="請點擊連結進行安全回報">
+<title>員工專區 v1.13-043</title>
+<meta property="og:title" content="員工專區">
+<meta property="og:description" content="公告、安全回報、拒接名單、手套團購、價目表等功能入口與說明">
 <meta property="og:type" content="website">
 <script>
   // ══════════ 全域錯誤攔截(白畫面診斷用,比照專案裡其他頁面的做法) ══════════
@@ -49,9 +49,10 @@
 </div>
 
 <script src="../common.js"></script>
-<script type="text/babel" src="./safety2.js?v=1.13-027"></script>
-<script type="text/babel" src="./notice2.js?v=1.0-013"></script>
+<script type="text/babel" src="./safety2.js?v=1.13-028"></script>
+<script type="text/babel" src="./notice2.js?v=1.0-014"></script>
 <script type="text/babel" src="./blacklist2.js?v=1.0-004"></script>
+<script type="text/babel" src="./gloves2.js?v=1.0-001"></script>
 <script type="text/babel" src="./shop2.js?v=1.0-001"></script>
 <script type="text/babel">
 (function(){
@@ -1086,8 +1087,35 @@ function ApproveRegFlow({reqId,profile}){
   </div>);
 }
 
+// ══════════ 員工專區 功能說明頁(網址沒帶任何參數時顯示;第一版「安全回報列表」已從預設入口移除,程式保留未刪) ══════════
+function IntroPage(){
+  const items=[
+    {ic:'📢',n:'公司公告',d:'看公司與各店發布的公告,會記錄已讀。主管可發布、設定推播。',q:'n2=l',who:'老師・櫃台・主管'},
+    {ic:'🛡️',n:'安全回報',d:'天然災害等事件發生時,回報自己平安或需要協助;主管可發起並看名單。',q:'s2=my',who:'老師・櫃台・主管'},
+    {ic:'🚫',n:'拒接名單',d:'查詢與新增拒接客人,跨店只看到手機、姓、稱謂,其他資料需原店同意才可看。',q:'b2=l',who:'老師・櫃台・主管'},
+    {ic:'🧤',n:'手套團購',d:'各店湊箱數叫貨:選顏色、尺寸、箱數報名;達標後由認領人收錢、叫貨並更新狀態。',q:'gb2=l',who:'老師・櫃台・主管'},
+    {ic:'💰',n:'價目表',d:'各店服務價目。',q:'sp=price',who:'公開'},
+    {ic:'🌙',n:'早鳥夜貓',d:'早鳥、夜貓優惠說明。',q:'sp=early',who:'公開'},
+    {ic:'👔',n:'主管專區',d:'人員管理、公告設定、拒接名單設定等(需有主管權限)。',q:'s2=mgr',who:'主管'}
+  ];
+  const ver=(document.title.match(/v\d+\.\d+-\d+/)||[''])[0];
+  return(<div className="min-h-screen px-4 py-6"><div className="max-w-md mx-auto space-y-4">
+    <div className="text-center space-y-1"><h1 className="text-2xl font-bold text-white">員工專區</h1><p className="text-sm text-gray-400">功能說明與入口</p></div>
+    <div className="rounded-2xl bg-gray-900 border border-gray-800 p-4 text-sm text-gray-300 space-y-1.5">
+      <p>• 平常請從 LINE 聊天室下方的選單進入各功能。</p>
+      <p>• 第一次使用需先完成人員登記(角色、店別、編號),之後會自動辨識。</p>
+      <p>• 下列按鈕也可直接點入。</p></div>
+    <div className="space-y-3">{items.map(x=>(<a key={x.q} href={'?'+x.q} className="block rounded-2xl bg-gray-900 border border-gray-800 p-4 active:bg-gray-800">
+      <div className="flex items-start gap-3"><span className="text-2xl">{x.ic}</span>
+        <div className="flex-1 min-w-0"><div className="flex items-center justify-between gap-2"><p className="font-bold text-white">{x.n}</p><span className="text-[11px] text-gray-500 shrink-0">{x.who}</span></div>
+          <p className="text-sm text-gray-400 mt-1">{x.d}</p></div><span className="text-gray-600 self-center">›</span></div></a>))}</div>
+    <p className="text-center text-[10px] text-gray-600 pb-6 select-all">{ver}</p>
+  </div></div>);
+}
+
 function App(){
-  const[phase,setPhase]=useState('liffInit'); // liffInit/loading/register/main/error
+  const noParam=!location.search||/^\?\s*$/.test(location.search)||(()=>{try{return Array.from(new URLSearchParams(location.search).keys()).every(k=>/^(liff\.|utm_|fbclid)/.test(k)||k==='openExternalBrowser');}catch(_e){return false;}})(); // 沒帶任何功能參數 → 說明頁(LINE 自己加的 liff.* 參數不算)
+  const[phase,setPhase]=useState(noParam?'intro':'liffInit'); // intro/liffInit/loading/register/main/error
   const[profile,setProfile]=useState(null);
   const[userProfile,setUserProfile]=useState(null);
   const[liffErr,setLiffErr]=useState('');
@@ -1103,6 +1131,7 @@ function App(){
   const flexLink=new URLSearchParams(location.search).get('flexLink')||'';
   const spp=new URLSearchParams(location.search).get('sp')||''; // 價目表/早鳥夜貓(shop2.js)
   const b2p=new URLSearchParams(location.search).get('b2'); // 拒接名單 2.0(blacklist2.js)
+  const gb2p=new URLSearchParams(location.search).get('gb2'); // 手套團購 2.0(gloves2.js)
   const n2p=new URLSearchParams(location.search).get('n2'); // 公司公告 2.0(notice2.js):n2=l/v/new/edit/r/set;跟 s2 一樣由 GAS 驗證 accessToken
   const s2p=new URLSearchParams(location.search).get('s2')||''; // 安全回報2.0(safety2.js):s2=r/l/mine/new/share/mgr/apv
   const cardShare=new URLSearchParams(location.search).get('cardShare')||''; // 老師名片Flex分享(index.html的名片彈窗借這裡發)
@@ -1111,11 +1140,12 @@ function App(){
   const backupYear=new URLSearchParams(location.search).get('year')||'';
 
   useEffect(()=>{
+    if(noParam)return; // 說明頁不需要登入 LIFF
     const initLiff=(id)=>{
       setLiffId(id);
       return liff.init({liffId:id}).then(()=>{
         if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return} // 明確帶目前完整網址(含?sid=...),避免LINE登入導轉過程弄丟參數
-        if(s2p||spp||n2p!==null||b2p!==null){setPhase('s2');return} // 安全回報2.0:不走舊的登記/審核流程,身分由 GAS 用 accessToken 驗證
+        if(s2p||spp||n2p!==null||b2p!==null||gb2p!==null){setPhase('s2');return} // 安全回報2.0:不走舊的登記/審核流程,身分由 GAS 用 accessToken 驗證
         if(cardShare){setPhase('cardShare');return}
         if(flexTitle&&flexLink){setPhase('ticketFlex');return} // 通用行為代碼分享,不用先查有沒有登記過,直接進分享流程
         if(backupView){setPhase('backupView');return} // 備份專頁,不用先查有沒有登記過,直接進備份流程
@@ -1144,6 +1174,7 @@ function App(){
     }).catch(err=>{setLiffErr(String(err&&err.message||err));setPhase('error')});
   },[]);
 
+  if(phase==='intro')return(<IntroPage/>);
   if(phase==='error')return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{liffErr}</p></div>);
   if(phase==='liffInit'||phase==='loading')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><div className="text-amber-500"><Spinner size={40}/></div><p className="text-base text-gray-400">載入中…</p></div>);
   if(phase==='share')return(<ShareFlow sid={sid} liffId={liffId}/>);
