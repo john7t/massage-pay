@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>員工專區 v1.13-043</title>
+<title>員工專區 v1.13-044</title>
 <meta property="og:title" content="員工專區">
 <meta property="og:description" content="公告、安全回報、拒接名單、手套團購、價目表等功能入口與說明">
 <meta property="og:type" content="website">
@@ -1114,7 +1114,7 @@ function IntroPage(){
 }
 
 function App(){
-  const noParam=!location.search||/^\?\s*$/.test(location.search)||(()=>{try{return Array.from(new URLSearchParams(location.search).keys()).every(k=>/^(liff\.|utm_|fbclid)/.test(k)||k==='openExternalBrowser');}catch(_e){return false;}})(); // 沒帶任何功能參數 → 說明頁(LINE 自己加的 liff.* 參數不算)
+  const noParam=!location.search||/^\?\s*$/.test(location.search)||(()=>{try{return Array.from(new URLSearchParams(location.search).keys()).every(k=>(/^(liff\.|utm_|fbclid)/.test(k)&&k!=='liff.state')||k==='openExternalBrowser');}catch(_e){return false;}})(); // 沒帶任何功能參數 → 說明頁(LINE 自己加的 liff.* 參數不算)
   const[phase,setPhase]=useState(noParam?'intro':'liffInit'); // intro/liffInit/loading/register/main/error
   const[profile,setProfile]=useState(null);
   const[userProfile,setUserProfile]=useState(null);
@@ -1145,6 +1145,7 @@ function App(){
       setLiffId(id);
       return liff.init({liffId:id}).then(()=>{
         if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return} // 明確帶目前完整網址(含?sid=...),避免LINE登入導轉過程弄丟參數
+        {const sp0=new URLSearchParams(location.search);if(sp0.get('liff.state'))return;} // LIFF 帶 liff.state 進來(從 liff.line.me/ID?參數 開):SDK 會自己導向真正網址,這裡不要先判斷成說明頁
         if(s2p||spp||n2p!==null||b2p!==null||gb2p!==null){setPhase('s2');return} // 安全回報2.0:不走舊的登記/審核流程,身分由 GAS 用 accessToken 驗證
         if(cardShare){setPhase('cardShare');return}
         if(flexTitle&&flexLink){setPhase('ticketFlex');return} // 通用行為代碼分享,不用先查有沒有登記過,直接進分享流程
@@ -1152,6 +1153,7 @@ function App(){
         if(approveReg){return liff.getProfile().then(p=>{setProfile(p);setPhase('approveReg')})} // 審核模式:不用先查有沒有登記過,直接進審核流程(裡面自己檢查主管權限)
         if(breakShare){setPhase('breakShare');return} // 翻綠計時器分享,不用先查有沒有登記過,直接進分享流程
         if(action==='share'){setPhase('share');return} // 分享模式不用先查有沒有登記過,直接進分享流程
+        if(!sid&&!action&&!approveReg&&!breakShare&&!cardShare&&!flexTitle&&!backupView){setPhase('intro');return} // 沒有任何功能參數 → 說明頁(第一版列表已移除)
         return liff.getProfile().then(p=>{
           setProfile(p);
           setPhase('loading');
