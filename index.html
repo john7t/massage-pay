@@ -67,6 +67,23 @@ input[type=number]{-moz-appearance:textfield}
 .arrow-blink{animation:arrowBlink 1s ease-in-out infinite}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .fi{animation:fadeIn .2s ease-out}.su{animation:slideUp .25s ease-out}
+/* 骨架載入 Skeleton Shimmer:亮帶 background-size:300% 由左掃到右;顏色用變數,跟著主題(淺色主題在 [data-light] 覆寫) */
+:root{--sk-base:rgba(255,255,255,0.05);--sk-shine:rgba(255,255,255,0.14)}
+[data-light]{--sk-base:rgba(80,30,100,0.07);--sk-shine:rgba(255,255,255,0.75)}
+@keyframes skShimmer{0%{background-position:100% 0}100%{background-position:0 0}}
+.sk{background:linear-gradient(100deg,var(--sk-base) 35%,var(--sk-shine) 50%,var(--sk-base) 65%);background-size:300% 100%;animation:skShimmer 1.4s ease-in-out infinite;border-radius:.5rem}
+.sk-wrap{display:flex;flex-direction:column;gap:.75rem;padding:.25rem 0}
+.sk-card{background:var(--sk-base);border-radius:.75rem;padding:.75rem;display:flex;flex-direction:column;gap:.75rem}
+.sk-row{display:flex;align-items:center;gap:.75rem}.sk-col{flex:1;display:flex;flex-direction:column;gap:.5rem}
+.sk-avatar{width:2.5rem;height:2.5rem;border-radius:9999px;flex:none}
+.sk-line{height:.75rem}.sk-line-s{height:.625rem}
+.sk-block{height:7rem;border-radius:.625rem}
+.sk-stage{position:relative}
+.sk-in{animation:skIn .45s ease-out both}
+.sk-out{position:absolute;inset:0;pointer-events:none;animation:skOut .3s ease-out forwards}
+@keyframes skIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes skOut{from{opacity:1}to{opacity:0}}
+@media (prefers-reduced-motion:reduce){.sk{animation:none}.sk-in{animation:fadeIn .01s}}
 .pinGateBackdrop{background-color:#000000!important;opacity:1!important}
 .pinGateBtn{background-color:rgba(255,255,255,0.12)!important;color:#f3f4f6!important}
 .pinGateTitle{color:#f9fafb!important}
@@ -527,10 +544,10 @@ html[data-theme="apple"] [data-light] [class*="accent-amber"]{accent-color:#0066
   </div>
 </div>
 <style>@keyframes fbspin{to{transform:rotate(360deg)}}@keyframes fbpulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
-<script src="./common.js?v=1.13-039"></script>
+<script src="./common.js?v=1.13-040"></script>
 <script type="text/babel" src="./notice-modal.js?v=1.12-047"></script>
-<script type="text/babel" src="./settings.js?v=1.13-020"></script>
-<script type="text/babel" src="./app-core.js?v=1.13-046"></script>
+<script type="text/babel" src="./settings.js?v=1.13-021"></script>
+<script type="text/babel" src="./app-core.js?v=1.13-047"></script>
 <script type="text/babel">
 const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,DISABLE_GH_DATA_FETCH,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,hasMyKey,isNoticeRead,getNoticeReadCount,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
