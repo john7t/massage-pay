@@ -1,4 +1,4 @@
-/* gloves2.js — 手套團購 2.0 前端(v1.0-003)
+/* gloves2.js — 手套團購 2.0 前端(v1.0-004)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 gb2:
      ?gb2=l   團購首頁(預設)   ?gb2=h  歷史/我的紀錄   ?gb2=set  設定(主管:達標箱數、收單時限、各店推播用量)
    人員/權限共用 window.S2Core(safety2.js)。後端:gas-gloves2.gs.txt(gb2List/gb2Join/gb2Start/gb2ItemSet/gb2ItemDel/gb2Claim/gb2Status/gb2Paid/gb2Vendor/gb2Settings/gb2SettingsSet) */
@@ -80,6 +80,7 @@ function OrderCard({o,t,lang,last,reload,showForm,setShowForm}){
         <div className="flex items-center justify-between gap-2"><p className="text-sm text-white">{pp.label}{pp.mine&&' ⭐'}{pp.proxy&&<span className="ml-1 text-[11px] text-sky-300">（{t.proxyTag}）</span>}</p>
           {o.canAdmin&&o.status!=='cancelled'?(<label className="flex items-center gap-1.5 text-xs text-gray-300"><input type="checkbox" disabled={busy} checked={pp.paid} onChange={e=>run('gb2Paid',{itemId:pp.firstItem,paid:e.target.checked})}/>{t.paid}</label>)
             :(<span className={'text-xs '+(pp.paid?'text-emerald-400':'text-gray-500')}>{pp.paid?'✓ '+t.paid:t.unpaid}</span>)}</div>
+        {pp.paid&&pp.paidAt&&<p className="text-[11px] text-emerald-400/80 mt-0.5">✓ {t.paid} {pp.paidAt}</p>}
         <div className="mt-1 space-y-1">{pp.lines.map(ln=>editId===ln.id?(<ItemForm key={ln.id} t={t} lang={lang} init={ln} busy={busy} submitText={t.save} onCancel={()=>setEditId('')}
             onSubmit={async v=>{const r=await run('gb2ItemSet',Object.assign({itemId:ln.id},v),false);if(r)setEditId('');}}/>)
           :(<div key={ln.id} className="flex items-center justify-between text-sm text-gray-300"><span>{cLabel(ln.color,lang)}　{ln.size} × {ln.boxes}</span>
@@ -101,6 +102,25 @@ function OrderCard({o,t,lang,last,reload,showForm,setShowForm}){
           {o.status==='closed'&&<button disabled={busy} onClick={()=>changeStatus('collecting')} className="rounded-lg py-2 text-sm border border-amber-700 text-amber-300">{sLabel('collecting',lang)}</button>}</div></>)}
     </div>)}
     {msg&&<p className="text-center text-sm text-gray-300 whitespace-pre-wrap">{msg}</p>}
+  </Card>);
+}
+
+// ───────── 歷史訂單(預設收合,點開看明細)─────────
+function HistoryCard({o,t,lang}){
+  const[open,setOpen]=useState(false);
+  return(<Card className="space-y-2">
+    <button className="w-full flex items-center justify-between gap-2 text-left" onClick={()=>setOpen(!open)}>
+      <span className="text-sm text-gray-300">{o.createdAt.slice(0,10)}　{o.boxes} {t.boxes}　<span className={STATUS_TONE[o.status]}>{sLabel(o.status,lang)}</span></span>
+      <span className="text-gray-500 text-sm">{open?'▲':'▼'}</span></button>
+    {open&&(<div className="space-y-2 pt-1">
+      {o.claimer&&<p className="text-xs text-gray-500">{t.claimer}：{o.claimer}</p>}
+      {o.people.map((pp,i)=>(<div key={i} className={'rounded-xl px-3 py-2 '+(pp.mine?'bg-violet-950/40 border border-violet-700/50':'bg-gray-800/60')}>
+        <div className="flex items-center justify-between gap-2"><p className="text-sm text-white">{pp.label}{pp.mine&&' ⭐'}{pp.proxy&&<span className="ml-1 text-[11px] text-sky-300">（{t.proxyTag}）</span>}</p>
+          <span className={'text-xs '+(pp.paid?'text-emerald-400':'text-gray-500')}>{pp.paid?'✓ '+t.paid:t.unpaid}</span></div>
+        {pp.paid&&pp.paidAt&&<p className="text-[11px] text-emerald-400/80 mt-0.5">✓ {t.paid} {pp.paidAt}</p>}
+        <div className="mt-1 space-y-0.5">{pp.lines.map(ln=><p key={ln.id} className="text-sm text-gray-300">{cLabel(ln.color,lang)}　{ln.size} × {ln.boxes}</p>)}</div></div>))}
+      {o.people.length===0&&<p className="text-xs text-gray-500">—</p>}
+    </div>)}
   </Card>);
 }
 
@@ -131,8 +151,7 @@ function MainPage({me,tab}){
     {tab==='h'&&(<>
       <Card className="space-y-2"><p className="text-sm font-semibold text-white">{t.mine}</p>
         {d.mine.length===0?<p className="text-sm text-gray-500">—</p>:d.mine.map((m,i)=>(<div key={i} className="flex justify-between text-sm text-gray-300"><span>{m.at}　{cLabel(m.color,lang)} {m.size} × {m.boxes}</span><span className="text-xs text-gray-500">{m.status}{m.paid?' ✓':''}</span></div>))}</Card>
-      {d.history.map(o=>(<Card key={o.id}><div className="flex justify-between text-sm"><span className="text-gray-300">{o.createdAt.slice(0,10)}　{o.boxes} {t.boxes}</span><span className={STATUS_TONE[o.status]}>{sLabel(o.status,lang)}</span></div>
-        {o.claimer&&<p className="text-xs text-gray-500 mt-1">{t.claimer}：{o.claimer}</p>}</Card>))}
+      {d.history.map(o=><HistoryCard key={o.id} o={o} t={t} lang={lang}/>)}
     </>)}
   </Box>);
 }
