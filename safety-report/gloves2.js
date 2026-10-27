@@ -1,4 +1,4 @@
-/* gloves2.js — 手套團購 2.0 前端(v1.0-005)
+/* gloves2.js — 手套團購 2.0 前端(v1.0-006)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 gb2:
      ?gb2=l   團購首頁(預設)   ?gb2=h  歷史/我的紀錄   ?gb2=set  設定(主管:達標箱數、收單時限、各店推播用量)
    人員/權限共用 window.S2Core(safety2.js)。後端:gas-gloves2.gs.txt(gb2List/gb2Join/gb2Start/gb2ItemSet/gb2ItemDel/gb2Claim/gb2Status/gb2Paid/gb2Vendor/gb2Settings/gb2SettingsSet) */
@@ -84,10 +84,10 @@ function OrderCard({o,t,lang,last,reload,showForm,setShowForm}){
         <div className="flex items-center justify-between gap-2"><p className="text-sm text-white">{pp.label}{pp.mine&&' ⭐'}{pp.proxy&&<span className="ml-1 text-[11px] text-sky-300">（{t.proxyTag}）</span>}</p>
           {o.canAdmin&&o.status!=='cancelled'?(<label className="flex items-center gap-1.5 text-xs text-gray-300"><input type="checkbox" disabled={busy} checked={pp.paid} onChange={e=>run('gb2Paid',{itemId:pp.firstItem,paid:e.target.checked})}/>{t.paid}</label>)
             :(<span className={'text-xs '+(pp.paid?'text-emerald-400':'text-gray-500')}>{pp.paid?'✓ '+t.paid:t.unpaid}</span>)}</div>
-        {pp.paid&&pp.paidAt&&<p className="text-[11px] text-emerald-400/80 mt-0.5">✓ {t.paid} {pp.paidAt}</p>}
-        <div className="mt-1 space-y-1">{pp.lines.map(ln=>editId===ln.id?(<ItemForm key={ln.id} t={t} lang={lang} init={ln} busy={busy} submitText={t.save} onCancel={()=>setEditId('')}
+        <div className="mt-1 space-y-1">{pp.lines.map((ln,li)=>editId===ln.id?(<ItemForm key={ln.id} t={t} lang={lang} init={ln} busy={busy} submitText={t.save} onCancel={()=>setEditId('')}
             onSubmit={async v=>{const r=await run('gb2ItemSet',Object.assign({itemId:ln.id},v),false);if(r)setEditId('');}}/>)
-          :(<div key={ln.id} className="flex items-center justify-between text-sm text-gray-300"><span>{cLabel(ln.color,lang)}　{ln.size} × {ln.boxes}</span>
+          :(<div key={ln.id} className="flex items-center justify-between gap-2 text-sm text-gray-300"><span>{cLabel(ln.color,lang)}　{ln.size} × {ln.boxes}</span>
+            {li===0&&pp.paid&&pp.paidAt&&<span className="ml-auto text-[11px] text-gray-500">{pp.paidAt}</span>}
             {ln.editable&&collecting&&<span className="space-x-3 text-xs"><button className="text-violet-300" onClick={()=>setEditId(ln.id)}>{t.edit}</button><button className="text-red-400" onClick={()=>{if(window.confirm(t.del+'?'))run('gb2ItemDel',{itemId:ln.id},false);}}>{t.del}</button></span>}</div>))}</div>
       </div>))}</div>)}
     {collecting&&!o.expired&&(showForm?(<div className="rounded-xl border border-gray-700 p-3"><ItemForm t={t} lang={lang} init={last||{}} busy={busy} submitText={t.submit} onCancel={()=>setShowForm(false)}
@@ -121,8 +121,7 @@ function HistoryCard({o,t,lang}){
       {o.people.map((pp,i)=>(<div key={i} className={'rounded-xl px-3 py-2 '+(pp.mine?'bg-violet-950/40 border border-violet-700/50':'bg-gray-800/60')}>
         <div className="flex items-center justify-between gap-2"><p className="text-sm text-white">{pp.label}{pp.mine&&' ⭐'}{pp.proxy&&<span className="ml-1 text-[11px] text-sky-300">（{t.proxyTag}）</span>}</p>
           <span className={'text-xs '+(pp.paid?'text-emerald-400':'text-gray-500')}>{pp.paid?'✓ '+t.paid:t.unpaid}</span></div>
-        {pp.paid&&pp.paidAt&&<p className="text-[11px] text-emerald-400/80 mt-0.5">✓ {t.paid} {pp.paidAt}</p>}
-        <div className="mt-1 space-y-0.5">{pp.lines.map(ln=><p key={ln.id} className="text-sm text-gray-300">{cLabel(ln.color,lang)}　{ln.size} × {ln.boxes}</p>)}</div></div>))}
+        <div className="mt-1 space-y-0.5">{pp.lines.map((ln,li)=><div key={ln.id} className="flex items-center justify-between gap-2 text-sm text-gray-300"><span>{cLabel(ln.color,lang)}　{ln.size} × {ln.boxes}</span>{li===0&&pp.paid&&pp.paidAt&&<span className="text-[11px] text-gray-500">{pp.paidAt}</span>}</div>)}</div></div>))}
       {o.people.length===0&&<p className="text-xs text-gray-500">—</p>}
     </div>)}
   </Card>);
