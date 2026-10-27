@@ -716,6 +716,7 @@ const S2_BASE_VER=(document.title.match(/v\d+\.\d+-\d+/)||[''])[0];
 function s2PageName(){
   const q=new URLSearchParams(location.search);
   if(q.has('sp'))return q.get('sp')==='early'?'早鳥夜貓':'價目表';
+  if(q.has('gb2')){const v=q.get('gb2')||'l';return v==='set'?'手套團購設定':'手套團購';}
   if(q.has('b2')){const v=q.get('b2')||'l';return v==='new'?'新增拒接':v==='set'?'拒接名單設定':'拒接名單';}
   if(q.has('n2')){const v=q.get('n2')||'l';return ({v:'公告內容',new:'發布公告',edit:'編輯公告',r:'已讀情況',set:'設定'})[v]||'公司公告';}
   const v=q.get('s2')||'';
@@ -732,6 +733,7 @@ function Safety2App({liffId}){
 function Safety2Routes(){
   const q=new URLSearchParams(location.search);
   if(q.has('sp')&&window.ShopRoutes){const SP=window.ShopRoutes;return <SP/>;} // 價目表/早鳥夜貓(shop2.js),公開資訊
+  if(q.has('gb2')&&window.Gloves2Routes){const G2=window.Gloves2Routes;return <G2/>;} // 手套團購 2.0(gloves2.js)
   if(q.has('b2')&&window.Blacklist2Routes){const B2=window.Blacklist2Routes;return <B2/>;} // 拒接名單 2.0(blacklist2.js)
   if(q.has('n2')&&window.Notice2Routes){const N2=window.Notice2Routes;return <N2/>;} // 公司公告 2.0(notice2.js):人員/權限/暫存都共用這支,頁面獨立
   const p=q.get('s2')||'';const sid=q.get('sid')||'';
@@ -746,7 +748,7 @@ function Safety2Routes(){
   if(p==='my')return <MyReportsPage/>;
   if(p==='staff')return <StaffPage/>;
   if(p==='apv')return <ApvPage rid={q.get('rid')||''}/>;
-  const dbg='參數: '+(location.search||'(空)')+' ｜ 拒接模組:'+(window.Blacklist2Routes?'已載入':'未載入')+' ｜ 公告模組:'+(window.Notice2Routes?'已載入':'未載入');
+  const dbg='參數: '+(location.search||'(空)')+' ｜ 拒接模組:'+(window.Blacklist2Routes?'已載入':'未載入')+' ｜ 公告模組:'+(window.Notice2Routes?'已載入':'未載入')+' ｜ 團購模組:'+(window.Gloves2Routes?'已載入':'未載入');
   return <div className="space-y-2"><Msg text="不支援的頁面"/><p className="text-xs text-gray-500 break-all px-2">{dbg}</p></div>;
 }
 // 匯出給 notice2.js(公司公告)共用:API、暫存、版面元件、人員註冊流程
