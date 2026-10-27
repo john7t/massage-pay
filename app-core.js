@@ -1,6 +1,7 @@
-// app-core.js v1.13-045 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-047 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
+// v1.13-047 / 團購詳情/列表/我的、災害問卷的「載入中…」改成骨架載入(MP.SkReveal),載入後內容淡入微上滑。
 // v1.13-045 / (1)首頁「更多功能」移除圖表入口圖示(HIDE_CHART=true,隱藏不刪,ChartPage 保留);(2)新增自約存檔時呼叫 window.__logUse('booking_add'),背景記錄一次使用,用來統計有多少人在用自約。
 // v1.13-044 / Email雲端備份:啟動頁加Email(選填)+有備份時詢問還原;首頁每日檢查時有Email就自動備份到雲端;說明文字加雲端例外聲明。
 // v1.13-043 / Log加店別:pwdLogin/lineLoginBind/lineUidObtained/newDeviceSetup/dailyCredCheck呼叫都多帶store。
@@ -122,6 +123,7 @@
 // index.html加yearlyYear state記住要顯示哪一年,onGotoYear callback改成接收年份參數。加todayBtn翻譯key | 前: v1.13-020
 const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,DISABLE_GH_DATA_FETCH,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,hasMyKey,isNoticeRead,getNoticeReadCount,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,svcByCode,bookUnits,bookMinutes,bookLabel,bookRange,findConflicts,dayOffStatus,skName,getBookings,addBooking,updateBooking,deleteBooking,confirmBooking,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,normEmail,isValidEmail,gasEmailBackupCheck,doEmailBackupNow,emailRestore,getCardData,sendCardFlex,loadCardStores,CARD_STORE_DEFAULTS,CARD_BRAND,loadBreakStatus,breakFlipGreenLocal,breakFlipWhiteLocal,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,gasBackupSubmit,getMyLineUserId,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
+const{SkReveal}=window.MP;
 
 
 function NoticeBox({t,agreed,setAgreed,email,setEmail}){return(<div className="mt-6 space-y-3"><p className="text-[15px] text-gray-200 font-bold">{t.noticeTitle||'本系統記錄的資料說明'}</p><div className="space-y-2.5 text-sm text-gray-400 leading-relaxed"><p>{t.privacyBody}</p><p className="text-amber-300/90">{t.emailPrivacy}</p><p>{t.browserNote}</p><p className="text-red-400/90">{t.backupReminder}</p></div><button onClick={()=>setAgreed(!agreed)} className="flex items-center gap-2 w-full text-left pt-1"><span className={`w-5 h-5 rounded flex items-center justify-center text-xs flex-shrink-0 ${agreed?'bg-amber-600 text-white':'bg-white/[0.06] border border-white/[0.12] text-transparent'}`}>✓</span><span className="text-sm text-gray-200 font-semibold">{t.readConfirm}</span></button>{setEmail&&<div className="pt-2 space-y-1.5"><label className="text-sm text-gray-300 font-semibold block">{t.emailLabel}</label><input type="email" inputMode="email" autoComplete="email" autoCapitalize="none" value={email||''} onChange={e=>setEmail(e.target.value)} placeholder="name@example.com" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/><p className="text-xs text-gray-500 leading-relaxed">{t.emailHint}</p></div>}</div>)}
@@ -1111,7 +1113,7 @@ function GroupBuyModal({t,settings,onClose}){
       <button onClick={()=>setDetailBuy(null)} className="text-xs text-gray-500">← {t.backToChoice||'返回'}</button>
       <p className="text-sm text-gray-200 font-medium">{detailBuy.title}（{fmtBy(detailBuy.creator,t)}）</p>
       <p className="text-xs text-gray-500">{t.groupBuyAmountLabel}：{detailBuy.amount}｜{fmtCountdown(detailBuy.deadline,t)}{detailBuy.status!=='open'?'・'+t.groupBuyClosedTag:''}</p>
-      {detail===null?<p className="text-xs text-gray-600 text-center py-4">{t.loading||'載入中…'}</p>:(<>
+      {detail===null?<SkReveal ready={false} variant="card" rows={1}/>:(<div className="sk-in space-y-3">
         {isCreator?(<>
           <p className="text-sm text-amber-400 font-semibold">{fmtLog(t.groupBuyCreatedCount,[String(detail.joined.length)])}</p>
           {detailBuy.item==='glove'?(()=>{
@@ -1136,7 +1138,7 @@ function GroupBuyModal({t,settings,onClose}){
             <button onClick={()=>toggleOrderStatus('arrived')} disabled={statusBusy==='arrived'} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold disabled:opacity-50 flex items-center justify-center gap-1.5 ${mine.arrived?'bg-emerald-600/20 text-emerald-400':'bg-white/[0.06] text-gray-400'}`}>{statusBusy==='arrived'&&<Spinner size={11}/>}{mine.arrived?'✓ ':''}{t.groupBuyArrivedBtn||'已到貨'}</button>
           </div>);})()}
         </>)}
-      </>)}
+      </div>)}
     </div>):(<>
     <div className="flex gap-2 p-3 pb-0"><button onClick={()=>setTab('list')} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${tab==='list'?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-400'}`}>{t.groupBuyTabList}</button><button onClick={()=>setTab('mine')} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${tab==='mine'?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-400'}`}>{t.groupBuyTabMine}</button><button onClick={()=>setTab('created')} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${tab==='created'?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-400'}`}>{t.groupBuyTabCreated}</button></div>
     <div className="p-4 space-y-3">
@@ -1151,7 +1153,7 @@ function GroupBuyModal({t,settings,onClose}){
           <button onClick={doCreate} disabled={createBusy} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50">{createBusy?'…':t.groupBuyCreateBtn}</button>
         </div>)}
         {listErr&&<p className="text-xs text-red-400 text-center">{listErr}</p>}
-        {list===null?<p className="text-xs text-gray-600 text-center py-4">{t.loading||'載入中…'}</p>:(<>
+        {list===null?<SkReveal ready={false} variant="card" rows={3}/>:(<div className="sk-in space-y-3">
         {list.filter(g=>g.status==='open').length===0?<p className="text-xs text-gray-600 text-center py-4">{t.groupBuyEmpty}</p>:list.filter(g=>g.status==='open').map(g=>(
           <div key={g.id} className="bg-white/[0.03] rounded-xl p-3 space-y-2">
             <div onClick={()=>openDetail(g)} className="flex items-center justify-between gap-2 cursor-pointer"><p className="text-sm text-gray-200 font-medium flex items-center gap-1.5"><span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-mono flex-shrink-0">{g.id}</span>{g.title}（{fmtBy(g.creator,t)}）</p><span className="text-xs text-amber-400 font-semibold flex-shrink-0">{fmtCountdown(g.deadline,t)}</span></div>
@@ -1169,9 +1171,9 @@ function GroupBuyModal({t,settings,onClose}){
           <button onClick={()=>setShowEnded(v=>!v)} className="text-xs text-gray-500 flex items-center gap-1">{t.groupBuyEndedTitle||'已結束'}（{ended.length}）{showEnded?'▲':'▼'}</button>
           {showEnded&&ended.map(g=>(<div key={g.id} onClick={()=>openDetail(g)} className="bg-white/[0.02] rounded-lg px-3 py-2 mt-2 cursor-pointer"><p className="text-xs text-gray-500 flex items-center gap-1.5"><span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-gray-500 font-mono flex-shrink-0">{g.id}</span>{g.title}（{fmtBy(g.creator,t)}）</p></div>))}
         </div>);})()}
-        </>)}
+        </div>)}
       </>)}
-      {tab==='mine'&&(mine===null?<p className="text-xs text-gray-600 text-center py-4">{t.loading||'載入中…'}</p>:(mine.filter(o=>o.response!=='decline').length===0)?<p className="text-xs text-gray-600 text-center py-4">{t.groupBuyMineEmpty}</p>:(()=>{
+      {tab==='mine'&&(mine===null?<SkReveal ready={false} variant="card" rows={3}/>:(mine.filter(o=>o.response!=='decline').length===0)?<p className="text-xs text-gray-600 text-center py-4">{t.groupBuyMineEmpty}</p>:(()=>{
         const buckets=groupBySection(mine.filter(o=>o.response!=='decline'),o=>o.status);
         return SECTION_ORDER.filter(k=>buckets[k].length>0).map(k=>(
           <div key={k} className="space-y-1.5"><p className={`text-[11px] font-semibold ${SECTION_META[k].color}`}>{SECTION_META[k].label}（{buckets[k].length}）</p>
@@ -1264,7 +1266,7 @@ function DisasterReportModal({t,settings,onClose,onSaved}){
   };
   return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}><div className="bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
     <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{showForm?(survey?survey.name:t.drTitle):t.drReportRecordTitle}</h3><button onClick={onClose} className="text-gray-500 text-sm">✕</button></div>
-    {survey===undefined?<p className="p-8 text-xs text-gray-600 text-center">{t.loading||'載入中…'}</p>:!survey?(
+    {survey===undefined?<div className="p-4"><SkReveal ready={false} variant="card" rows={2}/></div>:!survey?(
       <p className="p-8 text-sm text-gray-500 text-center">{t.drNoActiveSurvey}</p>
     ):!showForm?(<div className="p-4 space-y-4">
       {survey.message&&<p className="text-xs text-gray-400 bg-white/[0.03] rounded-lg p-2.5">{survey.message}</p>}
