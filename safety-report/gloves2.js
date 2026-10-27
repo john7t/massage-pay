@@ -1,7 +1,7 @@
-/* gloves2.js — 手套團購 2.0 前端(v1.0-001)
+/* gloves2.js — 手套團購 2.0 前端(v1.0-003)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 gb2:
      ?gb2=l   團購首頁(預設)   ?gb2=h  歷史/我的紀錄   ?gb2=set  設定(主管:達標箱數、收單時限、各店推播用量)
-   人員/權限共用 window.S2Core(safety2.js)。後端:gas-gloves2.gs.txt(gb2List/gb2Join/gb2ItemSet/gb2ItemDel/gb2Claim/gb2Status/gb2Paid/gb2Vendor/gb2Settings/gb2SettingsSet) */
+   人員/權限共用 window.S2Core(safety2.js)。後端:gas-gloves2.gs.txt(gb2List/gb2Join/gb2Start/gb2ItemSet/gb2ItemDel/gb2Claim/gb2Status/gb2Paid/gb2Vendor/gb2Settings/gb2SettingsSet) */
 (function(){
 const{useState,useEffect}=React;
 const C=window.S2Core;
@@ -13,12 +13,12 @@ const SIZES=['XS','S','M','L','XL'];
 const L={
   zh:{title:'手套團購',plus:'我要 +1',need:'我有需求',noOrder:'目前沒有收單中的團購',noOrderHint:'有需求就按「我有需求」,會發起本店新團購',
       color:'顏色',size:'尺寸',boxes:'箱數',submit:'送出',save:'儲存',cancel:'取消',edit:'修改',del:'刪除',claim:'我來認領',release:'放棄認領',claimer:'認領人',none:'尚無',
-      progress:'達標進度',noClaimerWarn:'已達標,還沒有認領人!',people:'訂購名單',paid:'已交錢',unpaid:'未交錢',copyVendor:'複製廠商訂購單',copied:'已複製',
+      startClaim:'我來發起並認領（自己先不買）',proxyTitle:'代老師記錄（單純記事，不會推播）',proxyCode:'老師編號',proxyAdd:'記錄',proxyTag:'記事',progress:'達標進度',noClaimerWarn:'已達標,還沒有認領人!',people:'訂購名單',paid:'已交錢',unpaid:'未交錢',copyVendor:'複製廠商訂購單',copied:'已複製',
       admin:'認領人專區',history:'歷史',mine:'我的紀錄',back:'返回',set:'設定',store:'店別',expired:'已超過收單時限',claimHint:'認領人負責收錢、叫貨並更新狀態(老師或主管皆可)',
       changeTo:'變更狀態',mergeCopy:'合併複製(各店截止/收錢中)',failed:'失敗',pushed:'已推播給',ppl:'人',pushBlock:'(LINE 額度不足,未推播)',confirm:'確定要變更成「{0}」嗎?'},
   vi:{title:'Mua chung găng tay',plus:'Tôi +1',need:'Tôi có nhu cầu',noOrder:'Hiện chưa có đơn đang nhận',noOrderHint:'Có nhu cầu hãy bấm "Tôi có nhu cầu" để tạo đơn mới cho chi nhánh',
       color:'Màu',size:'Size',boxes:'Số thùng',submit:'Gửi',save:'Lưu',cancel:'Hủy',edit:'Sửa',del:'Xóa',claim:'Tôi nhận phụ trách',release:'Bỏ nhận',claimer:'Người phụ trách',none:'Chưa có',
-      progress:'Tiến độ',noClaimerWarn:'Đủ số lượng, chưa có người phụ trách!',people:'Danh sách đặt',paid:'Đã nộp tiền',unpaid:'Chưa nộp',copyVendor:'Sao chép đơn gửi nhà cung cấp',copied:'Đã sao chép',
+      startClaim:'Tôi khởi tạo và phụ trách (không mua)',proxyTitle:'Ghi hộ KTV (chỉ ghi chú, không gửi thông báo)',proxyCode:'Số KTV',proxyAdd:'Ghi',proxyTag:'ghi chú',progress:'Tiến độ',noClaimerWarn:'Đủ số lượng, chưa có người phụ trách!',people:'Danh sách đặt',paid:'Đã nộp tiền',unpaid:'Chưa nộp',copyVendor:'Sao chép đơn gửi nhà cung cấp',copied:'Đã sao chép',
       admin:'Dành cho người phụ trách',history:'Lịch sử',mine:'Của tôi',back:'Quay lại',set:'Cài đặt',store:'Chi nhánh',expired:'Đã quá hạn nhận đơn',claimHint:'Người phụ trách thu tiền, đặt hàng và cập nhật trạng thái',
       changeTo:'Đổi trạng thái',mergeCopy:'Gộp & sao chép',failed:'Thất bại',pushed:'Đã gửi thông báo cho',ppl:'người',pushBlock:'(Hết hạn mức LINE, chưa gửi)',confirm:'Đổi thành "{0}"?'}
 };
@@ -53,7 +53,7 @@ function ItemForm({t,lang,init,onSubmit,onCancel,busy,submitText}){
 
 // ───────── 一張訂單 ─────────
 function OrderCard({o,t,lang,last,reload,showForm,setShowForm}){
-  const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');const[editId,setEditId]=useState('');
+  const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');const[editId,setEditId]=useState('');const[pcode,setPcode]=useState('');
   const run=async(action,params,okMsg)=>{setBusy(true);setMsg('');const r=await api(action,params);setBusy(false);
     if(!r.ok){setMsg(r.error||t.failed);return null;}
     if(okMsg!==false){const m=[];if(r.pushed)m.push(t.pushed+' '+r.pushed+' '+t.ppl);if(r.pushBlocked)m.push(t.pushBlock);if(m.length)setMsg(m.join(' '));}
@@ -77,17 +77,22 @@ function OrderCard({o,t,lang,last,reload,showForm,setShowForm}){
     {!o.claimer&&<p className="text-[11px] text-gray-500">{t.claimHint}</p>}
     {o.people.length>0&&(<div className="space-y-2"><p className="text-xs text-gray-500">{t.people}（{o.peopleCount}）</p>
       {o.people.map((pp,i)=>(<div key={i} className={'rounded-xl px-3 py-2 '+(pp.mine?'bg-violet-950/40 border border-violet-700/50':'bg-gray-800/60')}>
-        <div className="flex items-center justify-between gap-2"><p className="text-sm text-white">{pp.label}{pp.mine&&' ⭐'}</p>
+        <div className="flex items-center justify-between gap-2"><p className="text-sm text-white">{pp.label}{pp.mine&&' ⭐'}{pp.proxy&&<span className="ml-1 text-[11px] text-sky-300">（{t.proxyTag}）</span>}</p>
           {o.canAdmin&&o.status!=='cancelled'?(<label className="flex items-center gap-1.5 text-xs text-gray-300"><input type="checkbox" disabled={busy} checked={pp.paid} onChange={e=>run('gb2Paid',{itemId:pp.firstItem,paid:e.target.checked})}/>{t.paid}</label>)
             :(<span className={'text-xs '+(pp.paid?'text-emerald-400':'text-gray-500')}>{pp.paid?'✓ '+t.paid:t.unpaid}</span>)}</div>
         <div className="mt-1 space-y-1">{pp.lines.map(ln=>editId===ln.id?(<ItemForm key={ln.id} t={t} lang={lang} init={ln} busy={busy} submitText={t.save} onCancel={()=>setEditId('')}
             onSubmit={async v=>{const r=await run('gb2ItemSet',Object.assign({itemId:ln.id},v),false);if(r)setEditId('');}}/>)
           :(<div key={ln.id} className="flex items-center justify-between text-sm text-gray-300"><span>{cLabel(ln.color,lang)}　{ln.size} × {ln.boxes}</span>
-            {ln.mine&&collecting&&<span className="space-x-3 text-xs"><button className="text-violet-300" onClick={()=>setEditId(ln.id)}>{t.edit}</button><button className="text-red-400" onClick={()=>{if(window.confirm(t.del+'?'))run('gb2ItemDel',{itemId:ln.id},false);}}>{t.del}</button></span>}</div>))}</div>
+            {ln.editable&&collecting&&<span className="space-x-3 text-xs"><button className="text-violet-300" onClick={()=>setEditId(ln.id)}>{t.edit}</button><button className="text-red-400" onClick={()=>{if(window.confirm(t.del+'?'))run('gb2ItemDel',{itemId:ln.id},false);}}>{t.del}</button></span>}</div>))}</div>
       </div>))}</div>)}
     {collecting&&!o.expired&&(showForm?(<div className="rounded-xl border border-gray-700 p-3"><ItemForm t={t} lang={lang} init={last||{}} busy={busy} submitText={t.submit} onCancel={()=>setShowForm(false)}
         onSubmit={async v=>{const r=await run('gb2Join',Object.assign({orderId:o.id},v),false);if(r)setShowForm(false);}}/></div>)
       :<Btn onClick={()=>setShowForm(true)}>{t.plus}</Btn>)}
+    {o.canAdmin&&collecting&&(<div className="rounded-xl border border-sky-700/40 p-3 space-y-2">
+      <p className="text-xs text-sky-300">{t.proxyTitle}</p>
+      <input value={pcode} onChange={e=>setPcode(e.target.value.slice(0,12))} placeholder={t.proxyCode} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white"/>
+      {pcode.trim()&&<ItemForm t={t} lang={lang} init={last||{}} busy={busy} submitText={t.proxyAdd} onSubmit={async v=>{const r=await run('gb2Join',Object.assign({orderId:o.id,forCode:pcode.trim()},v),false);if(r)setPcode('');}}/>}
+    </div>)}
     {o.canAdmin&&(<div className="rounded-xl border border-amber-700/40 p-3 space-y-2">
       <p className="text-xs text-amber-300">{t.admin}</p>
       <Btn color="bg-gray-800 text-gray-100 border border-gray-600" loading={busy} onClick={copyVendor}>📋 {t.copyVendor}</Btn>
@@ -135,10 +140,11 @@ function MainPage({me,tab}){
 // ───────── 設定(主管)─────────
 function SetPage({me}){
   const[st,reload]=useLoad('gb2Settings',{});
-  const[th,setTh]=useState('');const[hr,setHr]=useState('');const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');
+  const[stSel,setStSel]=useState('');const[th,setTh]=useState('');const[hr,setHr]=useState('');const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');
   useEffect(()=>{if(st.data&&st.data.ok&&th===''){setTh(String(st.data.cfg.threshold));setHr(String(st.data.cfg.hours));}},[st.data]);
   if(st.loading&&!st.data)return(<Loading/>);
   const d=st.data;if(!d||!d.ok)return(<Msg text={(d&&d.error)||'失敗'}/>);
+  const startOrder=async()=>{setBusy(true);const r=await api('gb2Start',{store:stSel||d.myStore});setBusy(false);if(r.ok)go('gb2=l');else setMsg(r.error||'失敗');};
   const save=async()=>{setBusy(true);const r=await api('gb2SettingsSet',{threshold:th,hours:hr});setBusy(false);setMsg(r.ok?'已儲存':(r.error||'失敗'));if(r.ok)reload();};
   return(<Box {...barOf(st,reload,'zh')}>
     <button className="text-sm text-violet-300" onClick={()=>go('gb2=l')}>← 返回</button>
@@ -148,6 +154,10 @@ function SetPage({me}){
       <div><p className="text-xs text-gray-400 mb-1">收單時限（小時；0 = 不限）</p><input value={hr} inputMode="decimal" onChange={e=>setHr(e.target.value.replace(/[^\d.]/g,''))} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white"/></div>
       <Btn loading={busy} onClick={save}>儲存</Btn>{msg&&<p className="text-center text-sm text-gray-300">{msg}</p>}
     </Card>
+    <Card className="space-y-2"><p className="text-sm font-semibold text-white">主管發起（自己先不買）</p>
+      <p className="text-xs text-gray-400">建立一筆新的收單，並由你直接成為認領人；之後可在團購頁幫老師輸入編號記事。</p>
+      {d.stores.length>1&&<div className="flex flex-wrap gap-2">{d.stores.map(s=><Chip key={s} on={(stSel||d.myStore)===s} onClick={()=>setStSel(s)}>{s}</Chip>)}</div>}
+      <Btn loading={busy} disabled={!!d.collecting[stSel||d.myStore]} onClick={startOrder}>{d.collecting[stSel||d.myStore]?'本店已有收單中的訂單':'發起並認領'}</Btn></Card>
     <Card className="space-y-2"><p className="text-sm font-semibold text-white">本月（{d.month}）手套團購推播用量</p>
       {d.usage.map(u=>(<div key={u.store} className="flex justify-between text-sm text-gray-300"><span>{u.store}</span><span>{u.msgs} 則（{u.times} 次）</span></div>))}
       <div className="flex justify-between text-sm text-white border-t border-gray-700 pt-2"><span>合計</span><span>{d.total} 則</span></div>
