@@ -1,6 +1,8 @@
-// app-core.js v1.13-048 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-050 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
+// v1.13-050 / 手套團購橫幅:先畫整個首頁、用本機上次的內容(離線可看,3 天內),400ms 後才去抓 GitHub 最新 data/gloves.json,抓到才更新並存起來。
+// v1.13-049 / 手套團購橫幅改成不分店:全店都看得到各店的進行中團購(每店 1 排、最多 4 排,自己的店排最前面,顯示店名)。
 // v1.13-048 / (1)首頁最下方新增「手套團購」橫幅(GloveBanner):讀 data/gloves.json,顯示『XXX於M/D發起的手套團購進行中』,點了開 LIFF 團購頁;(2)翻綠區塊隱藏(HIDE_BREAK=true,隱藏不刪)。
 // v1.13-047 / 團購詳情/列表/我的、災害問卷的「載入中…」改成骨架載入(MP.SkReveal),載入後內容淡入微上滑。
 // v1.13-045 / (1)首頁「更多功能」移除圖表入口圖示(HIDE_CHART=true,隱藏不刪,ChartPage 保留);(2)新增自約存檔時呼叫 window.__logUse('booking_add'),背景記錄一次使用,用來統計有多少人在用自約。
@@ -1438,16 +1440,19 @@ const HIDE_BREAK=true; // 翻綠(休息)計時區塊:使用者要求移除(隱�
 // ───────── 手套團購橫幅:讀 GitHub 上的 data/gloves.json(GAS 在團購變動時同步寫入),不用連 GAS ─────────
 const GLOVE_LIFF='https://liff.line.me/2010673151-kemVP4Pi/?gb2=l';
 function GloveBanner({settings}){
-  const[orders,setOrders]=useState([]);
+  // 先用本機上次存的內容(離線也看得到;超過 3 天就不用),整個首頁畫完後再去抓 GitHub 的最新檔,抓到才更新並存起來
+  const[orders,setOrders]=useState(()=>{try{const c=JSON.parse(localStorage.getItem('gloves-cache')||'null');if(c&&Array.isArray(c.orders)&&Date.now()-c.t<3*86400e3)return c.orders}catch(_e){}return[]});
   useEffect(()=>{let dead=false;
-    (async()=>{try{const r=await fetch('./data/gloves.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();if(!dead&&j&&Array.isArray(j.orders))setOrders(j.orders)}catch(_e){}})();
-    return()=>{dead=true};},[]);
+    const id=setTimeout(async()=>{try{const r=await fetch('./data/gloves.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();if(dead||!j||!Array.isArray(j.orders))return;setOrders(j.orders);try{localStorage.setItem('gloves-cache',JSON.stringify({t:Date.now(),orders:j.orders}))}catch(_e){}}catch(_e){}},400);
+    return()=>{dead=true;clearTimeout(id)};},[]);
   const my=String((settings&&(settings.storeSel||settings.store))||'');
-  const mine=orders.filter(o=>o&&o.status!=='ended'&&o.status!=='cancelled');
-  const show=my&&mine.some(o=>o.store===my)?mine.filter(o=>o.store===my):(my?[]:mine); // 知道自己的店就只看本店;不知道就全部
+  // 不分店:全店都看得到各店的團購(變相宣傳,有人訂其他人就知道可以訂)。每店最多 1 排(收單中優先,否則取最新),最多 4 排;自己的店排最前面
+  const ORDER=['龍山寺店','東門店','古亭店','公館店'];
+  const byStore={};orders.forEach(o=>{if(!o||o.status==='ended'||o.status==='cancelled')return;const k=o.store||'';const c=byStore[k];if(!c||(o.status==='collecting'&&c.status!=='collecting'))byStore[k]=o;else if(c.status===o.status||(o.status!=='collecting'&&c.status!=='collecting'))byStore[k]=o;});
+  const show=Object.keys(byStore).sort((x,y)=>(x===my?-1:y===my?1:0)||((ORDER.indexOf(x)<0?9:ORDER.indexOf(x))-(ORDER.indexOf(y)<0?9:ORDER.indexOf(y)))).map(k=>byStore[k]).slice(0,4);
   if(!show.length)return null;
   return(<div className="mt-4 space-y-2">{show.map(o=>(<a key={o.id} href={GLOVE_LIFF} className="block bg-white/[0.04] border border-white/[0.08] rounded-2xl px-4 py-3 active:bg-white/[0.08]">
-    <p className="text-sm text-gray-100 font-semibold">🧤 {(!my&&o.store?o.store+' ':'')}{o.who?o.who+'於':''}{o.md}發起的手套團購進行中</p>
+    <p className="text-sm text-gray-100 font-semibold">🧤 {o.store?o.store+' ':''}{o.who?o.who+'於':''}{o.md}發起的手套團購進行中</p>
     <p className="text-[11px] text-gray-500 mt-0.5">{o.statusLabel}　{o.boxes}/{o.threshold} 箱　點此進入</p></a>))}</div>);
 }
 const HIDE_CHART=true; // 圖表功能:使用者要求移除(隱藏不刪:ChartPage 與 settings 的 chart 子頁保留,只是首頁不再有入口圖示;要恢復改成 false)
