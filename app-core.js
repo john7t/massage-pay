@@ -1,6 +1,7 @@
-// app-core.js v1.13-047 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-048 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
+// v1.13-048 / (1)首頁最下方新增「手套團購」橫幅(GloveBanner):讀 data/gloves.json,顯示『XXX於M/D發起的手套團購進行中』,點了開 LIFF 團購頁;(2)翻綠區塊隱藏(HIDE_BREAK=true,隱藏不刪)。
 // v1.13-047 / 團購詳情/列表/我的、災害問卷的「載入中…」改成骨架載入(MP.SkReveal),載入後內容淡入微上滑。
 // v1.13-045 / (1)首頁「更多功能」移除圖表入口圖示(HIDE_CHART=true,隱藏不刪,ChartPage 保留);(2)新增自約存檔時呼叫 window.__logUse('booking_add'),背景記錄一次使用,用來統計有多少人在用自約。
 // v1.13-044 / Email雲端備份:啟動頁加Email(選填)+有備份時詢問還原;首頁每日檢查時有Email就自動備份到雲端;說明文字加雲端例外聲明。
@@ -1433,6 +1434,22 @@ function NameCardModal({t,settings,onClose,onUpdateSettings}){
   </BottomSheetModal>);
 }
 
+const HIDE_BREAK=true; // 翻綠(休息)計時區塊:使用者要求移除(隱藏不刪:BreakTimerSection 與 common.js 的翻綠函式保留,只是首頁不再顯示)
+// ───────── 手套團購橫幅:讀 GitHub 上的 data/gloves.json(GAS 在團購變動時同步寫入),不用連 GAS ─────────
+const GLOVE_LIFF='https://liff.line.me/2010673151-kemVP4Pi/?gb2=l';
+function GloveBanner({settings}){
+  const[orders,setOrders]=useState([]);
+  useEffect(()=>{let dead=false;
+    (async()=>{try{const r=await fetch('./data/gloves.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();if(!dead&&j&&Array.isArray(j.orders))setOrders(j.orders)}catch(_e){}})();
+    return()=>{dead=true};},[]);
+  const my=String((settings&&(settings.storeSel||settings.store))||'');
+  const mine=orders.filter(o=>o&&o.status!=='ended'&&o.status!=='cancelled');
+  const show=my&&mine.some(o=>o.store===my)?mine.filter(o=>o.store===my):(my?[]:mine); // 知道自己的店就只看本店;不知道就全部
+  if(!show.length)return null;
+  return(<div className="mt-4 space-y-2">{show.map(o=>(<a key={o.id} href={GLOVE_LIFF} className="block bg-white/[0.04] border border-white/[0.08] rounded-2xl px-4 py-3 active:bg-white/[0.08]">
+    <p className="text-sm text-gray-100 font-semibold">🧤 {(!my&&o.store?o.store+' ':'')}{o.who?o.who+'於':''}{o.md}發起的手套團購進行中</p>
+    <p className="text-[11px] text-gray-500 mt-0.5">{o.statusLabel}　{o.boxes}/{o.threshold} 箱　點此進入</p></a>))}</div>);
+}
 const HIDE_CHART=true; // 圖表功能:使用者要求移除(隱藏不刪:ChartPage 與 settings 的 chart 子頁保留,只是首頁不再有入口圖示;要恢復改成 false)
 function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,onGotoChart,onGotoSuggest,onGotoAcupoint,onGotoViolation,onGotoBackup,onGotoManage,onGotoMonthly,onGotoMonthlyCalendar,onGotoCustomers,onGotoSettings,settingsAlert,onUpdateSettings,onLogout}){
   const now=bizDate();const bp=bizParts();const ty=settings.year||bp.y,tm=bp.m,td=bp.d;
@@ -1697,8 +1714,9 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
       {!HIDE_COMPANY_FEATURES&&<button onClick={()=>setShowGroupBuy(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></span><span className="text-[10px] text-gray-500">{t.groupBuyBtn}</span></button>}
       {!HIDE_COMPANY_FEATURES&&<button onClick={()=>setShowDisasterReport(true)} className="flex flex-col items-center gap-1"><span className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg></span><span className="text-[10px] text-gray-500">{t.drBtn}</span></button>}
       </div>
-      <BreakTimerSection settings={settings}/>
+      {!HIDE_BREAK&&<BreakTimerSection settings={settings}/>}
     </>)}
+    <GloveBanner settings={settings}/>
     {!HIDE_COMPANY_FEATURES&&<SupervisorSection t={t} settings={settings}/>}
     {showGroupBuy&&<GroupBuyModal t={t} settings={settings} onClose={()=>setShowGroupBuy(false)}/>}
     {showCard&&<NameCardModal t={t} settings={settings} onClose={()=>setShowCard(false)} onUpdateSettings={onUpdateSettings}/>}
