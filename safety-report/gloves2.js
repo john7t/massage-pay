@@ -1,4 +1,4 @@
-/* gloves2.js — 手套團購 2.0 前端(v1.0-004)
+/* gloves2.js — 手套團購 2.0 前端(v1.0-005)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 gb2:
      ?gb2=l   團購首頁(預設)   ?gb2=h  歷史/我的紀錄   ?gb2=set  設定(主管:達標箱數、收單時限、各店推播用量)
    人員/權限共用 window.S2Core(safety2.js)。後端:gas-gloves2.gs.txt(gb2List/gb2Join/gb2Start/gb2ItemSet/gb2ItemDel/gb2Claim/gb2Status/gb2Paid/gb2Vendor/gb2Settings/gb2SettingsSet) */
@@ -6,7 +6,11 @@
 const{useState,useEffect}=React;
 const C=window.S2Core;
 if(!C){window.Gloves2Routes=()=>React.createElement('div',{className:'p-6 text-center text-red-400'},'載入失敗:缺少 safety2.js');return;}
-const{api,useLoad,Box,Card,Btn,Loading,Msg,NeedUser,go,copyText,barOf}=C;
+const{api,useLoad,Box,Card,Btn,Loading,Msg,NeedUser,go,copyText,barOf,peek,CACHEABLE,WRITE_CLEAR}=C;
+// 本機暫存:切分頁不重讀;寫入(報名/認領/改狀態…)成功會自動清掉;按「重新整理」才強制重讀。每次開頁面有暫存時,背景更新一次
+['gb2List','gb2Settings'].forEach(a=>{if(CACHEABLE.indexOf(a)<0)CACHEABLE.push(a);});
+['gb2Join','gb2Start','gb2ItemSet','gb2ItemDel','gb2Claim','gb2Status','gb2Paid'].forEach(a=>{WRITE_CLEAR[a]=['gb2List','gb2Settings'];});
+WRITE_CLEAR.gb2SettingsSet=['gb2Settings'];
 
 const COLORS=['白色','藍色','均可'];
 const SIZES=['XS','S','M','L','XL'];
@@ -128,7 +132,12 @@ function HistoryCard({o,t,lang}){
 function MainPage({me,tab}){
   const lang=me.user.lang==='vi'?'vi':'zh';const t=L[lang];
   const[store,setStore]=useState('');
-  const[st,reload]=useLoad('gb2List',store?{store:store}:{});
+  const lp=store?{store:store}:{};
+  const[st,reload]=useLoad('gb2List',lp);
+  useEffect(()=>{ // 有暫存就先顯示,每次開團購頁在背景更新一次(切分頁不再重讀)
+    if(!window.__gb2Synced&&st.data&&st.data.ok&&st.data._at&&Date.now()-st.data._at>2000){window.__gb2Synced=1;reload();}
+    else if(st.data&&st.data.ok)window.__gb2Synced=1;
+  },[]);
   const[showForm,setShowForm]=useState(false);const[need,setNeed]=useState(false);const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');
   if(st.loading&&!st.data)return(<Loading/>);
   const d=st.data;if(!d||!d.ok)return(<Msg text={(d&&d.error)||t.failed}/>);
@@ -147,10 +156,10 @@ function MainPage({me,tab}){
           :<Btn onClick={()=>setNeed(true)}>{t.need}</Btn>}</Card>)}
       {d.isMgr&&<Btn color="bg-gray-800 text-gray-100 border border-gray-600" loading={busy} onClick={mergeCopy}>📋 {t.mergeCopy}</Btn>}
       {msg&&<p className="text-center text-sm text-gray-300 whitespace-pre-wrap">{msg}</p>}
-    </>)}
-    {tab==='h'&&(<>
       <Card className="space-y-2"><p className="text-sm font-semibold text-white">{t.mine}</p>
         {d.mine.length===0?<p className="text-sm text-gray-500">—</p>:d.mine.map((m,i)=>(<div key={i} className="flex justify-between text-sm text-gray-300"><span>{m.at}　{cLabel(m.color,lang)} {m.size} × {m.boxes}</span><span className="text-xs text-gray-500">{m.status}{m.paid?' ✓':''}</span></div>))}</Card>
+    </>)}
+    {tab==='h'&&(<>
       {d.history.map(o=><HistoryCard key={o.id} o={o} t={t} lang={lang}/>)}
     </>)}
   </Box>);
