@@ -1,6 +1,7 @@
-// app-core.js v1.13-050 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-051 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
+// v1.13-051 / 手套團購橫幅:第一行改「手套團購進行中（龍山寺店 96號 於10/27發起）」、狀態文字靠右、加越南語(依 settings.lang)。
 // v1.13-050 / 手套團購橫幅:先畫整個首頁、用本機上次的內容(離線可看,3 天內),400ms 後才去抓 GitHub 最新 data/gloves.json,抓到才更新並存起來。
 // v1.13-049 / 手套團購橫幅改成不分店:全店都看得到各店的進行中團購(每店 1 排、最多 4 排,自己的店排最前面,顯示店名)。
 // v1.13-048 / (1)首頁最下方新增「手套團購」橫幅(GloveBanner):讀 data/gloves.json,顯示『XXX於M/D發起的手套團購進行中』,點了開 LIFF 團購頁;(2)翻綠區塊隱藏(HIDE_BREAK=true,隱藏不刪)。
@@ -1452,8 +1453,14 @@ function GloveBanner({settings}){
   const show=Object.keys(byStore).sort((x,y)=>(x===my?-1:y===my?1:0)||((ORDER.indexOf(x)<0?9:ORDER.indexOf(x))-(ORDER.indexOf(y)<0?9:ORDER.indexOf(y)))).map(k=>byStore[k]).slice(0,4);
   if(!show.length)return null;
   return(<div className="mt-4 space-y-2">{show.map(o=>(<a key={o.id} href={GLOVE_LIFF} className="block bg-white/[0.04] border border-white/[0.08] rounded-2xl px-4 py-3 active:bg-white/[0.08]">
-    <p className="text-sm text-gray-100 font-semibold">🧤 {o.store?o.store+' ':''}{o.who?o.who+'於':''}{o.md}發起的手套團購進行中</p>
-    <p className="text-[11px] text-gray-500 mt-0.5">{o.statusLabel}　{o.boxes}/{o.threshold} 箱　點此進入</p></a>))}</div>);
+    {(()=>{const vi=settings&&settings.lang==='vi';const num=/^\d+$/.test(String(o.who||''));
+      const SVI={collecting:'Đang nhận đơn',closed:'Chốt sớm',paying:'Đang thu tiền',shipping:'Đang vận chuyển',arrived:'Đã đến nơi'};
+      const line1=vi?('Mua chung găng tay đang diễn ra ('+(o.store||'')+(o.who?' KTV '+o.who:'')+' khởi tạo ngày '+o.md+')')
+                    :('手套團購進行中（'+(o.store||'')+(o.who?' '+o.who+(num?'號':'')+' ':' ')+'於'+o.md+'發起）');
+      const st=vi?(SVI[o.status]||o.statusLabel):o.statusLabel;
+      return(<><p className="text-sm text-gray-100 font-semibold">🧤 {line1}</p>
+        <div className="flex items-center justify-between gap-2 mt-0.5 text-[11px] text-gray-500"><span>{o.boxes}/{o.threshold} {vi?'thùng':'箱'}　{vi?'Bấm để vào':'點此進入'}</span><span className="shrink-0">{st}</span></div></>);})()}
+  </a>))}</div>);
 }
 const HIDE_CHART=true; // 圖表功能:使用者要求移除(隱藏不刪:ChartPage 與 settings 的 chart 子頁保留,只是首頁不再有入口圖示;要恢復改成 false)
 function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,onGotoChart,onGotoSuggest,onGotoAcupoint,onGotoViolation,onGotoBackup,onGotoManage,onGotoMonthly,onGotoMonthlyCalendar,onGotoCustomers,onGotoSettings,settingsAlert,onUpdateSettings,onLogout}){
