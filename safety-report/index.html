@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>員工專區 v1.13-049</title>
+<title>員工專區 v1.13-051</title>
 <meta property="og:title" content="員工專區">
 <meta property="og:description" content="公告、安全回報、拒接名單、手套團購、價目表等功能入口與說明">
 <meta property="og:type" content="website">
@@ -51,7 +51,7 @@
 <script src="../common.js"></script>
 <script type="text/babel" src="./safety2.js?v=1.13-028"></script>
 <script type="text/babel" src="./notice2.js?v=1.0-014"></script>
-<script type="text/babel" src="./blacklist2.js?v=1.0-004"></script>
+<script type="text/babel" src="./blacklist2.js?v=1.0-006"></script>
 <script type="text/babel" src="./gloves2.js?v=1.0-006"></script>
 <script type="text/babel" src="./shop2.js?v=1.0-001"></script>
 <script type="text/babel">
@@ -1092,7 +1092,7 @@ function IntroPage(){
   const items=[
     {ic:'📢',n:'公司公告',d:'看公司與各店發布的公告,會記錄已讀。主管可發布、設定推播。',q:'n2=l',who:'老師・櫃台・主管'},
     {ic:'🛡️',n:'安全回報',d:'天然災害等事件發生時,回報自己平安或需要協助;主管可發起並看名單。',q:'s2=my',who:'老師・櫃台・主管'},
-    {ic:'🚫',n:'拒接名單',d:'查詢與新增拒接客人,跨店只看到手機、姓、稱謂,其他資料需原店同意才可看。',q:'b2=l',who:'老師・櫃台・主管'},
+    {ic:'🚫',n:'拒接名單',d:'櫃台・主管查詢與新增拒接客人(跨店只看到手機、姓、稱謂);老師可新增申請(待主管核准),並看到「拒接老師編號」含自己的名單。',q:'b2=l',who:'老師・櫃台・主管'},
     {ic:'🧤',n:'手套團購',d:'各店湊箱數叫貨:選顏色、尺寸、箱數報名;達標後由認領人收錢、叫貨並更新狀態。',q:'gb2=l',who:'老師・櫃台・主管'},
     {ic:'💰',n:'價目表',d:'各店服務價目。',q:'sp=price',who:'公開'},
     {ic:'🌙',n:'早鳥夜貓',d:'早鳥、夜貓優惠說明。',q:'sp=early',who:'公開'},
