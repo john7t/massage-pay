@@ -13,7 +13,7 @@ const Chip=C.Chip||(({on,children,onClick})=>(<button onClick={onClick} classNam
 const titleName=(v)=>{try{return (window.MP&&window.MP.bookTitleName)?window.MP.bookTitleName(v,'zh'):(v||'');}catch(_e){return v||'';}};
 
 if(CACHEABLE.indexOf('b2List')<0)CACHEABLE.push('b2List'); // 切頁預設用本機名單;每次開頁面同步一次
-['b2Add','b2Decide','b2Revoke','b2StoreBlock','b2AskDetail','b2AnswerDetail'].forEach(a=>{WRITE_CLEAR[a]=['b2List'];});
+['b2Add','b2Edit','b2Decide','b2Revoke','b2StoreBlock','b2AskDetail','b2AnswerDetail'].forEach(a=>{WRITE_CLEAR[a]=['b2List'];});
 
 // ───────── 搜尋(本機) ─────────
 // 數字部分:手機開頭(09…)或末幾碼;文字部分:姓名/稱謂/原因/老師編號。順序、空白不拘:「林 870」「870 林」「0912林」都可以。
@@ -65,9 +65,36 @@ const fmtPhone=(ph,mask)=>{const d=String(ph||'').replace(/\D/g,'');
   return mask?d.slice(0,4)+'-'+'*'.repeat(Math.max(d.length-4,0)):(d||String(ph||''));};
 const fmtUntil=(ms)=>{const d=new Date(ms);const p=n=>String(n).padStart(2,'0');return (d.getMonth()+1)+'/'+d.getDate()+' '+p(d.getHours())+':'+p(d.getMinutes());};
 
+function EditForm({r,onClose,onSaved}){
+  const[phone,setPhone]=useState(r.custPhone||'');const[name,setName]=useState(r.custName||'');const[title,setTitle]=useState(r.custTitle||'');
+  const[reason,setReason]=useState(r.reason||'');const[svc,setSvc]=useState(r.svc||'');const[startAt,setStartAt]=useState(r.startAt||'');
+  const[codes,setCodes]=useState(splitCodes(r.teacherCode));const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
+  const titles=(window.MP&&window.MP.BOOK_TITLES)||[];
+  const save=async()=>{
+    setErr('');const digits=phone.replace(/\D/g,'');
+    if(!/^\d{8,12}$/.test(digits)){setErr('請輸入正確的手機號碼');return;}
+    setBusy(true);const x=await api('b2Edit',{reqId:r.reqId,phone:digits,custName:name.trim(),custTitle:title,reason:reason.trim(),svc:svc.trim(),startAt:startAt.trim(),teacherCodes:codes.join(',')});setBusy(false);
+    if(x&&x.ok)onSaved();else setErr((x&&x.error)||'儲存失敗');
+  };
+  const inp="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white";
+  return(<div className="space-y-2 rounded-xl border border-violet-700 p-3">
+    <p className="text-sm font-bold text-white">✏️ 編輯</p>
+    <input value={phone} onChange={e=>setPhone(e.target.value)} inputMode="tel" placeholder="手機" className={inp}/>
+    <div className="flex gap-2"><input value={name} onChange={e=>setName(e.target.value)} maxLength={30} placeholder="姓名" className={inp+" flex-1 min-w-0"}/>
+      <div className="flex gap-1">{titles.filter(x=>x.v==='sir'||x.v==='ms').map(x=>(<Chip key={x.v} on={title===x.v} onClick={()=>setTitle(title===x.v?'':x.v)}>{x.zh}</Chip>))}</div></div>
+    <textarea value={reason} onChange={e=>setReason(e.target.value)} rows={3} maxLength={200} placeholder="拒接原因" className={inp}/>
+    <p className="text-xs text-gray-400">拒接老師編號</p>
+    <CodeInput list={codes} setList={setCodes}/>
+    <input value={svc} onChange={e=>setSvc(e.target.value)} placeholder="服務項目" className={inp}/>
+    <input value={startAt} onChange={e=>setStartAt(e.target.value)} placeholder="事發時段" className={inp}/>
+    {err&&<p className="text-xs text-red-400">{err}</p>}
+    <div className="flex gap-2"><Btn loading={busy} onClick={save}>儲存</Btn><Btn color="bg-gray-700 text-white" onClick={onClose}>取消</Btn></div>
+  </div>);
+}
+
 function ListPage({me}){
   const[st,reload]=useLoad('b2List',{});
-  const[open,setOpen]=useState('');const mask=getMask();const[tab,setTab]=useState('approved');const[q,setQ]=useState('');const[busy,setBusy]=useState('');const[err,setErr]=useState('');
+  const[open,setOpen]=useState('');const mask=getMask();const[editing,setEditing]=useState('');const[tab,setTab]=useState('approved');const[q,setQ]=useState('');const[busy,setBusy]=useState('');const[err,setErr]=useState('');
   if(st.loading&&!st.data)return(<Loading/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
   const d=st.data;
@@ -96,6 +123,7 @@ function ListPage({me}){
     {r.detail!==false&&(r.svc||r.startAt)&&<p className="text-xs text-gray-500">服務項目：{r.svc||'—'}　事發時段：{r.startAt||'—'}</p>}
     <p className="text-xs text-gray-500">{r.status==='pending'?'申請時間：'+r.createdAt+'　':''}{r.teacherCode?'拒接老師編號：'+r.teacherCode+'　':''}{r.status==='approved'?(r.addedBy?'新增者：'+r.addedBy:'同意主管：'+r.approvedBy):''}</p>
     {r.storeBlockAt&&<p className="text-xs text-red-300">全店拒接時間：{r.storeBlockAt}　操作主管：{r.storeBlockBy}</p>}
+    {r.manage&&r.detail!==false&&(editing===r.reqId?<EditForm r={r} onClose={()=>setEditing('')} onSaved={()=>{setEditing('');reload();}}/>:<button onClick={()=>setEditing(r.reqId)} className="w-full py-2 rounded-xl text-sm border border-gray-600 text-gray-200">✏️ 編輯</button>)}
     {r.manage&&r.status==='approved'&&(<div className="flex gap-2 pt-1">
       <button disabled={busy===r.reqId} onClick={()=>run(r.reqId,'b2StoreBlock',{reqId:r.reqId,on:!r.storeBlockAt},r.storeBlockAt?'要取消「全店拒接」嗎?':'要標記為「全店拒接」嗎?')} className={'flex-1 py-2 rounded-xl text-sm font-bold disabled:opacity-50 '+(r.storeBlockAt?'bg-gray-700 text-gray-200':'bg-red-600 text-white')}>{r.storeBlockAt?'取消全店拒接':'標記全店拒接'}</button>
       <button disabled={busy===r.reqId} onClick={()=>run(r.reqId,'b2Revoke',{reqId:r.reqId},'要撤銷這筆拒接嗎?(資料會保留,但不再出現在名單)')} className="px-4 py-2 rounded-xl text-sm border border-gray-600 text-gray-300 disabled:opacity-50">撤銷</button></div>)}
@@ -122,7 +150,8 @@ function ListPage({me}){
       <Chip on={tab==='approved'} onClick={()=>setTab('approved')}>生效中（{d.approved.length}）</Chip>
       {(d.canAct||d.isTeacher)&&<Chip on={tab==='pending'} onClick={()=>setTab('pending')}>待核准（{d.pending.length}）</Chip>}
       {d.canAct&&<Chip on={tab==='inbox'} onClick={()=>setTab('inbox')}>詳情查詢（{inbox.length}）</Chip>}</div>
-    {tab!=='inbox'&&<input value={q} onChange={e=>setQ(e.target.value)} placeholder="手機（09開頭或末3碼）、姓名，例：林 870" className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-white"/>}
+    {tab!=='inbox'&&<div className="relative"><input value={q} onChange={e=>setQ(e.target.value)} placeholder="手機（09開頭或末3碼）、姓名，例：林 870" className="w-full rounded-xl bg-gray-800 border border-gray-700 pl-3 pr-10 py-3 text-white"/>
+      {q&&<button type="button" aria-label="清除" onClick={()=>setQ('')} className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-gray-600 text-white text-sm leading-7">×</button>}</div>}
     {q&&tab!=='inbox'&&<p className="text-xs text-gray-500">找到 {list.length} 筆</p>}
     {list.length===0&&<Card><p className="text-center text-gray-500">{q?'查無符合的資料':(tab==='approved'?'目前沒有拒接名單':tab==='inbox'?'沒有待處理的詳情查詢':'沒有待核准的申請')}</p></Card>}
     {list.map(tab==='inbox'?inboxCard:card)}
@@ -131,10 +160,24 @@ function ListPage({me}){
 }
 
 // ───────── 新增 ─────────
+// 拒接老師編號輸入:輸入一個編號按 Enter（或逗號）就列在下面，點 × 移除
+function CodeInput({list,setList,fixed,placeholder}){
+  const[v,setV]=useState('');
+  const add=()=>{const parts=v.split(/[\s,，、;；]+/).map(x=>x.trim()).filter(Boolean);if(!parts.length)return;
+    const n=list.slice();parts.forEach(c=>{if(n.indexOf(c)<0&&c!==fixed)n.push(c);});setList(n);setV('');};
+  return(<div className="space-y-2">
+    <input value={v} onChange={e=>setV(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'||e.key===','){e.preventDefault();add();}}} onBlur={add} inputMode="numeric" placeholder={placeholder||'輸入老師編號後按 Enter'} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/>
+    {(fixed||list.length>0)&&<div className="flex flex-wrap gap-2">
+      {fixed&&<span className="text-sm bg-violet-900 text-violet-200 rounded-full px-3 py-1">{fixed}（自己）</span>}
+      {list.map(c=>(<span key={c} className="text-sm bg-gray-700 text-white rounded-full pl-3 pr-1 py-1 flex items-center gap-1">{c}<button type="button" onClick={()=>setList(list.filter(x=>x!==c))} className="w-5 h-5 rounded-full bg-gray-600 text-xs leading-5">×</button></span>))}</div>}
+  </div>);
+}
+const splitCodes=(s)=>String(s||'').split(/[\s,，、;；]+/).map(x=>x.trim()).filter(Boolean);
+
 function AddPage(){
   const[st,reload]=useLoad('b2List',{});
   const[phone,setPhone]=useState('');const[name,setName]=useState('');const[title,setTitle]=useState('');const[reason,setReason]=useState('');
-  const[more,setMore]=useState(false);const[svc,setSvc]=useState('');const[startAt,setStartAt]=useState('');const[codes,setCodes]=useState('');
+  const[more,setMore]=useState(false);const[svc,setSvc]=useState('');const[startAt,setStartAt]=useState('');const[codes,setCodes]=useState([]);
   const[busy,setBusy]=useState(false);const[err,setErr]=useState('');const[ok,setOk]=useState('');
   if(st.loading&&!st.data)return(<Loading/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
@@ -147,9 +190,9 @@ function AddPage(){
     if(!/^\d{8,12}$/.test(digits)){setErr('請輸入正確的手機號碼');return;}
     if(!quick&&!reason.trim()){setErr('請填拒接原因');return;}
     setBusy(true);
-    const r=await api('b2Add',{phone:digits,custName:name.trim(),custTitle:title,reason:reason.trim(),svc:svc.trim(),startAt:startAt.trim(),teacherCodes:codes.trim()});
+    const r=await api('b2Add',{phone:digits,custName:name.trim(),custTitle:title,reason:reason.trim(),svc:svc.trim(),startAt:startAt.trim(),teacherCodes:codes.join(',')});
     setBusy(false);
-    if(r&&r.ok){setOk(r.pending?'已送出 '+digits+'，等主管核准後生效':'已新增 '+digits);setCodes('');setPhone('');setName('');setTitle('');setReason('');setSvc('');setStartAt('');reload();}
+    if(r&&r.ok){setOk(r.pending?'已送出 '+digits+'，等主管核准後生效':'已新增 '+digits);setCodes([]);setPhone('');setName('');setTitle('');setReason('');setSvc('');setStartAt('');reload();}
     else setErr((r&&r.error)||'新增失敗');
   };
   const titles=(window.MP&&window.MP.BOOK_TITLES)||[];
@@ -168,7 +211,7 @@ function AddPage(){
         <div><p className="text-sm text-gray-300 mb-1">拒接原因{!quick&&<span className="text-red-400"> *</span>}</p>
           <textarea value={reason} onChange={e=>setReason(e.target.value)} rows={3} maxLength={200} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/></div>
         <div><p className="text-sm text-gray-300 mb-1">拒接老師編號（選填）</p>
-          <input value={codes} onChange={e=>setCodes(e.target.value)} placeholder={d.isTeacher?'已自動包含你的編號 '+d.myCode+'，其他老師用逗號分隔':'例：122,96（填了的老師才看得到這筆，不受全店拒接影響）'} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/></div>
+          <CodeInput list={codes} setList={setCodes} fixed={d.isTeacher?d.myCode:''} placeholder="輸入編號按 Enter，填了的老師才看得到這筆"/></div>
         <input value={svc} onChange={e=>setSvc(e.target.value)} placeholder="服務項目（選填）" className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/>
         <input value={startAt} onChange={e=>setStartAt(e.target.value)} placeholder="事發時段（選填）例:2026-10-24 20:00" className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/>
       </div>)}
