@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>員工專區 v1.13-054</title>
+<title>員工專區 v1.13-058</title>
 <meta property="og:title" content="員工專區">
 <meta property="og:description" content="公告、安全回報、拒接名單、手套團購、價目表等功能入口與說明">
 <meta property="og:type" content="website">
@@ -53,6 +53,7 @@
 <script type="text/babel" src="./notice2.js?v=1.0-014"></script>
 <script type="text/babel" src="./blacklist2.js?v=1.0-009"></script>
 <script type="text/babel" src="./gloves2.js?v=1.0-006"></script>
+<script type="text/babel" src="./leave2.js?v=1.0-004"></script>
 <script type="text/babel" src="./shop2.js?v=1.0-001"></script>
 <script type="text/babel">
 (function(){
@@ -1093,6 +1094,7 @@ function IntroPage(){
     {ic:'📢',n:'公司公告',d:'看公司與各店發布的公告,會記錄已讀。主管可發布、設定推播。',q:'n2=l',who:'老師・櫃台・主管'},
     {ic:'🛡️',n:'安全回報',d:'天然災害等事件發生時,回報自己平安或需要協助;主管可發起並看名單。',q:'s2=my',who:'老師・櫃台・主管'},
     {ic:'🚫',n:'拒接名單',d:'櫃台・主管查詢與新增拒接客人(跨店只看到手機、姓、稱謂);老師可新增申請(待主管核准),並看到「拒接老師編號」含自己的名單;名單可依拒接級距／老師分群。',q:'b2=l',who:'老師・櫃台・主管'},
+    {ic:'🏖️',n:'預排休假',d:'每月 10~12 日登記下個月休假（免審批，個人超過 6 天需主管簽字）；早晚班分開統計，每月各 6 天、各店平日每班 6 人（週六日 0 人，可設定）；可提前 2 個月先暫存；另可申請長假（回越南）或課業固定上班日，總休表會列出。',q:'lv2=l',who:'老師・主管'},
     {ic:'🧤',n:'手套團購',d:'各店湊箱數叫貨:選顏色、尺寸、箱數報名;達標後由認領人收錢、叫貨並更新狀態。',q:'gb2=l',who:'老師・櫃台・主管'},
     {ic:'💰',n:'價目表',d:'各店服務價目。',q:'sp=price',who:'公開'},
     {ic:'🌙',n:'早鳥夜貓',d:'早鳥、夜貓優惠說明。',q:'sp=early',who:'公開'},
@@ -1131,6 +1133,7 @@ function App(){
   const flexLink=new URLSearchParams(location.search).get('flexLink')||'';
   const spp=new URLSearchParams(location.search).get('sp')||''; // 價目表/早鳥夜貓(shop2.js)
   const b2p=new URLSearchParams(location.search).get('b2'); // 拒接名單 2.0(blacklist2.js)
+  const lv2p=new URLSearchParams(location.search).get('lv2'); // 預排休假 2.0(leave2.js)
   const gb2p=new URLSearchParams(location.search).get('gb2'); // 手套團購 2.0(gloves2.js)
   const n2p=new URLSearchParams(location.search).get('n2'); // 公司公告 2.0(notice2.js):n2=l/v/new/edit/r/set;跟 s2 一樣由 GAS 驗證 accessToken
   const s2p=new URLSearchParams(location.search).get('s2')||''; // 安全回報2.0(safety2.js):s2=r/l/mine/new/share/mgr/apv
@@ -1146,7 +1149,7 @@ function App(){
       return liff.init({liffId:id}).then(()=>{
         if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return} // 明確帶目前完整網址(含?sid=...),避免LINE登入導轉過程弄丟參數
         {const sp0=new URLSearchParams(location.search);if(sp0.get('liff.state'))return;} // LIFF 帶 liff.state 進來(從 liff.line.me/ID?參數 開):SDK 會自己導向真正網址,這裡不要先判斷成說明頁
-        if(s2p||spp||n2p!==null||b2p!==null||gb2p!==null){setPhase('s2');return} // 安全回報2.0:不走舊的登記/審核流程,身分由 GAS 用 accessToken 驗證
+        if(s2p||spp||n2p!==null||b2p!==null||gb2p!==null||lv2p!==null){setPhase('s2');return} // 安全回報2.0:不走舊的登記/審核流程,身分由 GAS 用 accessToken 驗證
         if(cardShare){setPhase('cardShare');return}
         if(flexTitle&&flexLink){setPhase('ticketFlex');return} // 通用行為代碼分享,不用先查有沒有登記過,直接進分享流程
         if(backupView){setPhase('backupView');return} // 備份專頁,不用先查有沒有登記過,直接進備份流程
