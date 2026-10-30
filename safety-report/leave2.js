@@ -75,7 +75,7 @@ function buildPromoFlex(){
     if(i===n-1)b.footer={type:'box',layout:'vertical',paddingAll:'lg',contents:[{type:'button',style:'primary',color:'#6d4aa8',height:'sm',action:{type:'uri',label:'開啟預排休假 / Mở Nghỉ phép',uri:base+'?lv2=l'}}]};
     return b;})};
 }
-const LV2_PITCH=[["📝", "#4B5563", "#6B7280", "現況:紙本排休的痛點", "每月一張紙,人工抄寫、核對、統計。", "· 同一天誰排了、滿了沒,要翻紙才知道\n· 超過名額要人工數、人工通知改休\n· 主管不能同時休,靠記憶或事後發現\n· 字跡、塗改、補章難辨識,月底還要重抄成總表"], ["📱", "#6D5DFC", "#46C2CB", "提案:排休改線上", "手機直接排,系統自動算。", "員工用 LINE 開啟預排休假,在月曆點選早/晚班;名額、順序、超額由系統即時計算,主管在手機上簽核。"], ["⚙️", "#3CB7A0", "#3B82C4", "線上做到的事", "把紙本上人工做的事自動化。", "· 依申請順序排名額,超額自動標示\n· 主管互斥組別(如 79/161)送出時自動擋下\n· 長假、固定休、固定隔日休、假日可休、兼職各有規則\n· 一鍵產生 A4 總休表 PDF,可列印張貼"], ["⚖️", "#B469E0", "#6D7BF0", "公平與透明", "每個人看到的資訊剛好夠用。", "· 老師只看到自己的編號與空位,不會看到別人排誰\n· 超額會明確標示「請改休」或「主管已核假」\n· 每筆申請、簽核留有紀錄,事後可查\n· 主管有完整總休表、可搜尋編號與已休天數"], ["⏰", "#F6A04D", "#F0627A", "排休流程", "先預填,到期再送出。", "· 老師可先在線上預填後 2 個月的休假日,但無法送出\n· 每月 10 日 00:00 ~ 12 日 23:59 開放送出,進入預排休階段\n· 已申請並核准的固定休排在最前面,不佔 6 位名額"], ["🤝", "#3CB7A0", "#3B82C4", "導入方式:紙本與線上並行", "初期不取消紙本,風險最低。", "第 1 階段:紙本照舊,線上同步上線。以紙本為準,主櫃只要把紙本上的順序編號填進系統;老師可在「我的」自行綁定已有的資料。\n第 2 階段:老師習慣後,以線上為主、紙本當備查。\n第 3 階段:全面線上,不再收紙本。"], ["🗓️", "#4B8DE0", "#5A6BD8", "試辦時程", "先看介面,再小範圍試辦。", "· 11 月:先把 11 月紙本資料導入系統,大家先看看介面與資料是否正確\n· 12 月:正式試辦,紙本與線上並行\n· 權限依角色區分(老師/主櫃/主管),老師不熟時主櫃可代為登記\n· 試辦期間資料皆有保留,隨時可回到紙本作業"], ["✅", "#2F9E6F", "#1F7A8C", "需要公司支持的事", "請同意試辦,並指定教學窗口。", "1. 同意 12 月起「紙本＋線上」並行試辦\n2. 公告通知同仁\n3. 責成實習副理負責教學老師使用\n4. 技術與系統介面調整,由我提供協助\n5. 試辦後檢討,再決定是否全面線上"]];
+const LV2_PITCH=[["📝", "#4B5563", "#6B7280", "現況:紙本排休的痛點", "每月一張紙,人工抄寫、核對、統計。", "· 同一天誰排了、滿了沒,要翻紙才知道\n· 超過名額要人工數、人工通知改休\n· 主管不能同時休,靠記憶或事後發現\n· 字跡、塗改、補章難辨識,月底還要重抄成總表"], ["📱", "#6D5DFC", "#46C2CB", "提案:排休改線上", "手機直接排,系統自動算。", "員工用 LINE 開啟預排休假,在月曆點選早/晚班;名額、順序、超額由系統即時計算,主管在手機上簽核。"], ["⚙️", "#3CB7A0", "#3B82C4", "線上做到的事", "把紙本上人工做的事自動化。", "· 依申請順序排名額,超額自動標示\n· 主管互斥組別(如 79/161)送出時自動擋下\n· 可新增設定長假、固定休、每週休一天假日等特殊規則\n· 一鍵產生 A4 總休表 PDF,可列印張貼"], ["⚖️", "#B469E0", "#6D7BF0", "公平與透明", "每個人看到的資訊剛好夠用。", "· 老師只看到自己的編號與空位,不會看到別人排誰\n· 超額會明確標示「請改休」或「主管已核假」\n· 每筆申請、簽核留有紀錄,事後可查\n· 提供主管與櫃台完整的休假總表"], ["⏰", "#F6A04D", "#F0627A", "排休流程", "先預填,到期再送出。", "· 老師可先在線上預填後 2 個月的休假日,但無法送出\n· 每月 10 日 00:00 ~ 12 日 23:59 開放送出,進入預排休階段\n· 已申請並核准的固定休排在最前面,不佔 6 位名額\n· 老師查看總休表時,只看到當天剩餘可休名額,可提前選擇可休日期,減少主管事後因超休再協調的工作"], ["🤝", "#3CB7A0", "#3B82C4", "導入方式:紙本與線上並行", "初期不取消紙本,風險最低。", "第 1 階段:紙本照舊,線上同步上線。以紙本為準,主櫃只要把紙本上的順序編號填進系統;老師可在「我的」自行綁定已有的資料。\n第 2 階段:老師習慣後,以線上為主、紙本當備查。\n第 3 階段:全面線上,不再收紙本。"], ["🗓️", "#4B8DE0", "#5A6BD8", "試辦時程", "先看介面,再小範圍試辦。", "· 11 月:先把 11 月紙本資料導入系統,大家先看看介面與資料是否正確\n· 12 月:正式試辦,紙本與線上並行\n· 老師不熟手機操作時,可遞紙本,由主管/櫃台代老師新增排休\n· 試辦期間資料皆有保留,隨時可回到紙本作業"], ["✅", "#2F9E6F", "#1F7A8C", "需要公司支持的事", "請同意試辦,並指定教學窗口。", "1. 同意 12 月起「紙本＋線上」並行試辦\n2. 公告通知同仁\n3. 責成實習副理負責教學老師使用\n4. 技術與系統介面調整,由我提供協助\n5. 試辦後檢討,再決定是否全面線上"]];
 function buildPitchFlex(){
   const base='https://liff.line.me/'+window.__S2_LIFF_ID;const n=LV2_PITCH.length;
   return{type:'carousel',contents:LV2_PITCH.map((p,i)=>{
@@ -322,6 +322,10 @@ function LeavePage({me}){
       {d.state!=='draft'&&<Btn loading={busy} onClick={()=>canSubmit?save(true):null} color={canSubmit?undefined:'bg-gray-800 text-gray-500'}>{t.submit}</Btn>}</div>}
     {msg&&<p className="text-center text-sm text-emerald-400">✅ {msg}</p>}
     {err&&<p className="text-center text-sm text-red-400">{err}</p>}
+    {d.mine.length>0&&<Card className="space-y-1">
+      <p className="text-sm font-bold text-white">{t.mineList}</p>
+      {d.mine.slice().sort((a,b)=>a.date<b.date?-1:1).map(x=>(<p key={x.id} className="text-sm text-gray-300">{x.date.slice(5)}　{t[x.shift]}　<span className={x.status==='approved'?'text-emerald-400':x.status==='pending'?'text-amber-300':'text-gray-400'}>{t['s_'+x.status]||x.status}</span>{x.over?<span className="text-xs text-orange-400">　{t.overTag}</span>:null}{x.signBy?<span className="text-xs text-gray-400">　{fmt(t.signedBy,{c:x.signBy})}</span>:null}{x.flags&&x.status==='pending'?<span className="text-xs text-gray-500">　（{flagText(x.flags)}）</span>:null}</p>))}
+    </Card>}
     {d.isMgr&&<Card className="space-y-2">
       <p className="text-sm font-bold text-white">{t.pendingTitle}（{d.pending.length}）</p>
       {d.pending.length===0&&<p className="text-xs text-gray-500">{t.noPending}</p>}
@@ -395,7 +399,7 @@ function LeavePage({me}){
         return(<div key={date} className={'border-t border-gray-800 pt-1.5 flex gap-3 '+(date<today?'opacity-40':date===today?'rounded-xl ring-1 ring-violet-500 bg-violet-950/30 px-1 ':'')}>
           <div className="w-12 shrink-0 text-center"><div className="text-xs font-bold text-violet-300">{parseInt(date.slice(5,7),10)}/{parseInt(date.slice(8),10)}</div>
             <span className={'inline-block text-[10px] rounded-full px-2 '+(wkend?'bg-red-950 text-red-300':'bg-gray-800 text-gray-400')}>{t.wk[dow]}</span>
-            {date===today&&<div className="text-[9px] bg-violet-600 text-white rounded px-1 inline-block mt-0.5">{lang==='vi'?'Nay':'今天'}</div>}<div className="text-[10px] text-gray-500 mt-0.5">{(()=>{const n=(a)=>a.filter(x=>!x.m&&!x.f).length;const ne=n(ro.early),nl=n(ro.late),cp=capOf(date);return <span><span className={cp>0&&ne>=cp?'text-red-400':''}>{ne}</span>/<span className={cp>0&&nl>=cp?'text-red-400':''}>{nl}</span></span>;})()}</div></div>
+            {date===today&&<div className="text-[9px] bg-violet-600 text-white rounded px-1 inline-block mt-0.5">{lang==='vi'?'Nay':'今天'}</div>}<div className="text-[10px] text-gray-500 mt-0.5"><span>{ro.early.length}/{ro.late.length}</span></div></div>
           <div className="flex-1 min-w-0 space-y-1">{line('early')}{line('late')}{total===0&&<span className="text-[11px] text-gray-600">—</span>}</div></div>);})}
       {rosterDates.length===0&&<p className="text-xs text-gray-500">{t.empty}</p>}
       {rosterDates.length>0&&<div className="flex items-center justify-center gap-4 pt-1">
@@ -488,10 +492,6 @@ function LeavePage({me}){
             <button onClick={()=>{let a=gDraft.slice();if(gCode&&a.indexOf(gCode)<0)a.push(gCode);if(a.length<2){setGErr(t.grpMin);return;}setGErr('');setCf({...cv,groups:grs.concat([a])});setGDraft([]);setGCode('');}} className="px-3 py-1 rounded-lg text-xs bg-violet-700 text-white">{t.grpAdd}</button></div>
           {gErr&&<p className="text-xs text-red-400">{gErr}</p>}</div>
         <Btn loading={busy} onClick={()=>run(async()=>{const r=await api('lv2SettingsSet',{store:d.store,wd:cv.wd,we:cv.we,seqMode:cv.mode,groups:JSON.stringify(grs)});if(r&&r.ok){setMsg(t.setOk);setCf(null);reload();}else setErr((r&&r.error)||t.fail);})}>{t.setSave}</Btn></Card>);})()}
-    {d.mine.length>0&&<Card className="space-y-1">
-      <p className="text-sm font-bold text-white">{t.mineList}</p>
-      {d.mine.slice().sort((a,b)=>a.date<b.date?-1:1).map(x=>(<p key={x.id} className="text-sm text-gray-300">{x.date.slice(5)}　{t[x.shift]}　<span className={x.status==='approved'?'text-emerald-400':x.status==='pending'?'text-amber-300':'text-gray-400'}>{t['s_'+x.status]||x.status}</span>{x.over?<span className="text-xs text-orange-400">　{t.overTag}</span>:null}{x.signBy?<span className="text-xs text-gray-400">　{fmt(t.signedBy,{c:x.signBy})}</span>:null}{x.flags&&x.status==='pending'?<span className="text-xs text-gray-500">　（{flagText(x.flags)}）</span>:null}</p>))}
-    </Card>}
     {d.isMgr&&<Card className="space-y-2"><p className="text-sm font-bold text-white">📤 {t.promoT}</p><p className="text-xs text-gray-500">{t.promoHint}</p>
       <Btn color="bg-blue-600 text-white" onClick={async()=>{try{if(!liff.isApiAvailable('shareTargetPicker')){setErr(t.shareNo);return;}
         const r=await liff.shareTargetPicker([{type:'flex',altText:'🏖️ 預排休假上線了 / Lịch nghỉ phép trước',contents:buildPromoFlex()}]);if(r)setMsg(t.shared);}catch(e){setErr('錯誤:'+String(e&&e.message||e));}}}>{t.promoBtn}</Btn>
