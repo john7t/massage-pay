@@ -1,5 +1,6 @@
 /* ════════════════════════════════════════════════════════════
    common.js — 薪資追蹤系統 共用工具
+   v1.13-041 / gasCallPost 失敗時把原因記在 window.__gasErr(逾時秒數/HTTP 狀態/回傳格式/網路錯誤),讓畫面顯示「連不上伺服器(原因)」。
    v1.13-040 / 新增骨架載入元件 SkReveal(window.MP.SkReveal),樣式在 index.html .sk-*。
    v1.13-039 / gasLogDailyCheck、gasLogFlowEnter 也帶 env/os(Log 工作表新增 env、os 欄)。
    v1.13-038 / logUse 多送 env(pwa/line/chrome/safari/edge/firefox/other)與 os(ios/android/desktop),只看 userAgent。
@@ -363,15 +364,22 @@ function gasWarmup(){try{if(getGasUrl())gasCall('ping',{})}catch(_e){}}
 // POST版(JSON body,不塞網址):給資料量大的動作用(如staff整包陣列),GET網址長度會爆
 // 刻意不設Content-Type header(讓瀏覽器預設text/plain),避免觸發CORS預檢請求導致GAS網頁應用失敗
 async function gasCallPost(action,params,timeoutMs){
-  const url=getGasUrl();if(!url)return null;
+  window.__gasErr=''; // 最近一次失敗原因(給畫面顯示,方便分辨是逾時、網路、HTTP 狀態或回傳格式)
+  const url=getGasUrl();if(!url){window.__gasErr='未設定 GAS 網址';return null;}
+  const t0=Date.now();
   try{
     const ctrl=new AbortController();const to=setTimeout(()=>ctrl.abort(),timeoutMs||15000);
     const body=Object.assign({action:action},params||{});
     const res=await fetch(url,{method:'POST',body:JSON.stringify(body),signal:ctrl.signal});
     clearTimeout(to);
-    if(!res.ok)return null;
-    return await res.json();
-  }catch(_e){return null}
+    if(!res.ok){window.__gasErr='HTTP '+res.status;return null;}
+    const txt=await res.text();
+    try{return JSON.parse(txt);}catch(_e){window.__gasErr='回傳格式錯誤:'+txt.replace(/\s+/g,' ').slice(0,80);return null;}
+  }catch(e){
+    const sec=Math.round((Date.now()-t0)/1000);
+    window.__gasErr=(e&&e.name==='AbortError')?('逾時 '+sec+' 秒(超過 '+Math.round((timeoutMs||15000)/1000)+' 秒沒回應)'):('網路錯誤:'+String(e&&e.message||e).slice(0,80));
+    return null;
+  }
 }
 // 功能使用統計(只記「某功能被按了一次」):背景送 GAS、不等回應、失敗無所謂。只送:功能名、匿名裝置代號(本機隨機產生,不是老師編號)、版本、語系;不送任何姓名/編號/客戶資料。
 function __getInstallId(){try{let v=localStorage.getItem('mp-install-id');if(!v){v=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():('i'+Date.now().toString(36)+Math.random().toString(36).slice(2,10));localStorage.setItem('mp-install-id',v)}return v}catch(_e){return ''}}
