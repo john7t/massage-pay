@@ -244,7 +244,7 @@ function ViewPage({me,nid}){
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||t.fail}/>);
   const d=st.data;const n=d.notice;
   const hasVi=!!(n.titleVi||n.bodyVi);
-  const act=async(action,p)=>{setBusy(true);const r=await api(action,Object.assign({id:nid},p));setBusy(false);if(r.ok)reload();else alert(r.error||'失敗');};
+  const act=async(action,p)=>{setBusy(true);const r=await api(action,Object.assign({id:nid},p));setBusy(false);if(r.ok){if(action==='n2Delete'&&p&&p.deleted)go('n2=l');else reload();}else alert(r.error||'失敗');}; // 刪除成功 → 回公告列表
   const doShare=async(alt,contents)=>{
     try{if(!liff.isApiAvailable('shareTargetPicker')){setRes('此環境不支援分享,請在 LINE 內開啟');return;}
       const r=await liff.shareTargetPicker([{type:'flex',altText:alt,contents:contents}]);setRes(r?'已分享 ✅':'已取消');}catch(e){setRes('錯誤:'+String(e&&e.message||e));}
@@ -298,6 +298,7 @@ function EditPage({me,nid}){
   const[push,setPush]=useState(false);const[cnt,setCnt]=useState(null);const[isTest,setIsTest]=useState(null);const[testTo,setTestTo]=useState('self'); // isTest:null=還沒決定(新公告依設定預設)
   const[busy,setBusy]=useState('');const[err,setErr]=useState('');const[aiMsg,setAiMsg]=useState('');const[aiErr,setAiErr]=useState('');const[aiUsed,setAiUsed]=useState(null);
   useEffect(()=>{let dead=false;api('n2AiUsage',{}).then(r=>{if(!dead&&r&&r.ok)setAiUsed(r.count);});return()=>{dead=true;};},[]);
+  const[asUid,setAsUid]=useState('');const[pubAt,setPubAt]=useState('');const pubAt0=useRef('');
   const[ready,setReady]=useState(false);const[restored,setRestored]=useState('');const baseRef=useRef(null);
   const dkey='n2draft:'+((()=>{try{return(liff.getContext()||{}).userId||'';}catch(_e){return '';}})())+':'+(nid||'new');
   const pack=(o)=>JSON.stringify({title:o.title,body:o.body,titleVi:o.titleVi,bodyVi:o.bodyVi,tagsTxt:o.tagsTxt,tagsViTxt:o.tagsViTxt,cat:o.cat,stores:o.stores,roles:o.roles,pinned:!!o.pinned,endDate:o.endDate,isTest:o.isTest,testTo:o.testTo,push:!!o.push});
@@ -315,7 +316,7 @@ function EditPage({me,nid}){
       if(dead)return;
       if(!r.ok){setG(false);setErr(r.error||'失敗');return;}
       const n=r.notice;setG(n);setTitle(n.title);setBody(n.body);setTitleVi(n.titleVi);setBodyVi(n.bodyVi);
-      setTagsTxt(n.tags.join(' '));setTagsViTxt(n.tagsVi.join(' '));setCat(n.cat);setStores(n.stores);setRoles(n.roles);setPinned(n.pinned);setEndDate(n.endDate);setIsTest(!!n.test);setTestTo(n.testTo==='mgr'?'mgr':'self');
+      setTagsTxt(n.tags.join(' '));setTagsViTxt(n.tagsVi.join(' '));setCat(n.cat);setStores(n.stores);setRoles(n.roles);setPinned(n.pinned);setEndDate(n.endDate);setIsTest(!!n.test);setTestTo(n.testTo==='mgr'?'mgr':'self');if(n.creatorId)setAsUid(n.creatorId);{const pv=String(n.createdAt||'').slice(0,16).replace(' ','T');setPubAt(pv);pubAt0.current=pv;}
       baseRef.current=pack({title:n.title,body:n.body,titleVi:n.titleVi,bodyVi:n.bodyVi,tagsTxt:n.tags.join(' '),tagsViTxt:n.tagsVi.join(' '),cat:n.cat,stores:n.stores,roles:n.roles,pinned:n.pinned,endDate:n.endDate,isTest:!!n.test,testTo:n.testTo==='mgr'?'mgr':'self',push:false});
       restoreDraft();setReady(true);
     });return()=>{dead=true;};
@@ -360,7 +361,7 @@ function EditPage({me,nid}){
     if(status==='published'&&!nid&&!testOn&&push&&cfg.push){if(!window.confirm('發布後會推播給 '+(cnt==null?'對象':cnt+' 位')+'同事,確定發布嗎?'))return;}
     setBusy(status);
     const r=await api('n2Save',{id:nid||undefined,title:title.trim(),body:body.trim(),titleVi:titleVi,bodyVi:bodyVi,tags:tagsTxt,tagsVi:tagsViTxt,cat:cat,
-      stores:d.all?stores:[d.myStore],roles:roles,pinned:pinned,endDate:endDate,status:status,push:push&&!nid&&!testOn,test:testOn&&showTest,testTo:testTo});
+      stores:d.all?stores:[d.myStore],roles:roles,pinned:pinned,endDate:endDate,status:status,push:push&&!nid&&!testOn,test:testOn&&showTest,testTo:testTo,asUid:d.isAdmin?asUid:undefined,pubAt:(d.isAdmin&&pubAt&&pubAt!==pubAt0.current)?pubAt:undefined});
     setBusy('');
     if(!r.ok){setErr(r.error||'失敗');return;}
     try{localStorage.removeItem(dkey);}catch(_e){}
@@ -396,6 +397,16 @@ function EditPage({me,nid}){
       <textarea value={bodyVi} onChange={e=>setBodyVi(e.target.value)} rows={6} placeholder="Nội dung" className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/>
       <input value={tagsViTxt} onChange={e=>setTagsViTxt(e.target.value)} placeholder="Thẻ (cùng thứ tự với thẻ tiếng Trung)" className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/>
     </Card>
+    {d.isAdmin&&<Card className="space-y-3">
+      <p className="text-sm text-gray-300">發布人與時間 <span className="text-xs text-gray-500">(系統管理者專用;不選＝以你自己、現在時間發布)</span></p>
+      <select value={asUid} onChange={e=>setAsUid(e.target.value)} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white">
+        <option value="">（我自己）</option>
+        {(d.publishers||[]).map(x=>(<option key={x.uid} value={x.uid}>{x.store?x.store+' ':''}{x.label}（{x.level}）</option>))}
+      </select>
+      <div className="flex items-center gap-2"><input type="datetime-local" value={pubAt} onChange={e=>setPubAt(e.target.value)} className="flex-1 rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/>
+        {pubAt&&pubAt!==pubAt0.current&&<button type="button" onClick={()=>setPubAt(pubAt0.current)} className="text-xs text-gray-400 underline">{nid?'還原':'清除'}</button>}</div>
+      <p className="text-[11px] text-gray-500">發布日期時間只影響公告顯示的日期與排序；推播仍是按下發布的當下送出。</p>
+    </Card>}
     <Card className="space-y-3">
       {storeBox}
       <div><p className="text-sm text-gray-300 mb-2">對象角色 <span className="text-xs text-gray-500">(都不選＝老師與櫃台)</span></p>
@@ -514,6 +525,7 @@ function SettingsPage({me,editInfo}){
           const r=await liff.shareTargetPicker([{type:'flex',altText:'📢 使用公告系統的好處',contents:buildIntroFlex()}]);setErr(r?'':'已取消');}catch(e){setErr('錯誤:'+String(e&&e.message||e));}}}>分享「使用公告系統」</Btn></Card>
       <QuotaCard canSet={!!d.canSet}/>
     </div>)}
+    {window.B2SettingsBlock&&React.createElement(window.B2SettingsBlock)}
     {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
   </Box>);
 }
