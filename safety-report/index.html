@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>員工專區 v1.13-070</title>
+<title>員工專區 v1.13-071</title>
 <meta property="og:title" content="員工專區">
 <meta property="og:description" content="公告、安全回報、拒接名單、手套團購、價目表等功能入口與說明">
 <meta property="og:type" content="website">
@@ -49,11 +49,12 @@
 </div>
 
 <script src="../common.js"></script>
-<script type="text/babel" src="./safety2.js?v=1.13-029"></script>
+<script type="text/babel" src="./safety2.js?v=1.13-030"></script>
 <script type="text/babel" src="./notice2.js?v=1.0-014"></script>
 <script type="text/babel" src="./blacklist2.js?v=1.0-009"></script>
 <script type="text/babel" src="./gloves2.js?v=1.0-006"></script>
 <script type="text/babel" src="./leave2.js?v=1.0-015"></script>
+<script type="text/babel" src="./my2.js?v=1.0-001"></script>
 <script type="text/babel" src="./shop2.js?v=1.0-001"></script>
 <script type="text/babel">
 (function(){
@@ -1133,6 +1134,7 @@ function App(){
   const flexLink=new URLSearchParams(location.search).get('flexLink')||'';
   const spp=new URLSearchParams(location.search).get('sp')||''; // 價目表/早鳥夜貓(shop2.js)
   const b2p=new URLSearchParams(location.search).get('b2'); // 拒接名單 2.0(blacklist2.js)
+  const my2p=new URLSearchParams(location.search).get('my2');
   const lv2p=new URLSearchParams(location.search).get('lv2'); // 預排休假 2.0(leave2.js)
   const gb2p=new URLSearchParams(location.search).get('gb2'); // 手套團購 2.0(gloves2.js)
   const n2p=new URLSearchParams(location.search).get('n2'); // 公司公告 2.0(notice2.js):n2=l/v/new/edit/r/set;跟 s2 一樣由 GAS 驗證 accessToken
@@ -1149,7 +1151,7 @@ function App(){
       return liff.init({liffId:id}).then(()=>{
         if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return} // 明確帶目前完整網址(含?sid=...),避免LINE登入導轉過程弄丟參數
         {const sp0=new URLSearchParams(location.search);if(sp0.get('liff.state'))return;} // LIFF 帶 liff.state 進來(從 liff.line.me/ID?參數 開):SDK 會自己導向真正網址,這裡不要先判斷成說明頁
-        if(s2p||spp||n2p!==null||b2p!==null||gb2p!==null||lv2p!==null){setPhase('s2');return} // 安全回報2.0:不走舊的登記/審核流程,身分由 GAS 用 accessToken 驗證
+        if(s2p||spp||n2p!==null||b2p!==null||gb2p!==null||lv2p!==null||my2p!==null){setPhase('s2');return} // 安全回報2.0:不走舊的登記/審核流程,身分由 GAS 用 accessToken 驗證
         if(cardShare){setPhase('cardShare');return}
         if(flexTitle&&flexLink){setPhase('ticketFlex');return} // 通用行為代碼分享,不用先查有沒有登記過,直接進分享流程
         if(backupView){setPhase('backupView');return} // 備份專頁,不用先查有沒有登記過,直接進備份流程
