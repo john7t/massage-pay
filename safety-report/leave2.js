@@ -112,8 +112,8 @@ const PDF_W=794,PDF_H=1123; // A4 @96dpi
 const loadScript=(src)=>new Promise((res,rej)=>{if(document.querySelector('script[src="'+src+'"]'))return res();const s=document.createElement('script');s.src=src;s.onload=()=>res();s.onerror=()=>rej(new Error('load '+src));document.head.appendChild(s);});
 function PdfCell({x}){
   // 向上對齊:號碼在上、批准人小字在號碼正下方(不用 vertical-align / sup,html2canvas 在 iPhone 上會跑到底部)
-  return(<td style={{border:'1px solid #999',padding:0,height:26,textAlign:'center',verticalAlign:'top',whiteSpace:'nowrap',overflow:'hidden'}}>{x?<div><div style={{fontSize:12,lineHeight:'15px',height:15,textDecoration:x.o?'underline':'none',fontWeight:x.o?700:400}}>{x.c}{x.p?'*':''}</div>
-    <div style={{fontSize:8,lineHeight:'9px',height:9,color:'#d00',fontWeight:400}}>{x.s?x.s:'\u00a0'}</div></div>:null}</td>);
+  return(<td style={{border:'1px solid #999',padding:0,height:26,textAlign:'center',verticalAlign:'top',whiteSpace:'nowrap',overflow:'visible'}}>{x?<div style={{position:'relative',top:-2}}><div style={{fontSize:12,lineHeight:'13px',height:13,textDecoration:x.o?'underline':'none',fontWeight:x.o?700:400}}>{x.c}{x.p?'*':''}</div>
+    <div style={{fontSize:8,lineHeight:'11px',height:11,color:'#d00',fontWeight:400}}>{x.s?x.s:'\u00a0'}</div></div>:null}</td>);
 }
 function PdfPageSheet({title,sub,days,roster,month,longBoard,pageNo,pages,genAt}){
   const wkz=['日','一','二','三','四','五','六'];
