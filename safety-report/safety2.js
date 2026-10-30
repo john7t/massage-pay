@@ -58,11 +58,12 @@ function peek(action,params){ // 同步取暫存(沒有就 null),讓有暫存的
   if(CACHEABLE.indexOf(action)<0)return null;
   return cget(ckey(action,params));
 }
+const S2_TIMEOUT={n2Analyze:90000}; // AI 分析(Gemini 產生標籤+越南文翻譯)比較久,放寬到 90 秒
 async function api(action,params,force){
   const cacheable=CACHEABLE.indexOf(action)>=0;const k=cacheable?ckey(action,params):'';
   if(cacheable&&!force){const c=cget(k);if(c)return c;}
   let tok='';try{tok=liff.getAccessToken()||'';}catch(_e){}
-  const r=(await gasCallPost(action,Object.assign({},params||{},{accessToken:tok}),20000))||{ok:false,error:'連不上伺服器,請稍後再試'};
+  const r=(await gasCallPost(action,Object.assign({},params||{},{accessToken:tok}),S2_TIMEOUT[action]||20000))||{ok:false,error:'連不上伺服器,請稍後再試'+(window.__gasErr?'（'+window.__gasErr+'）':'')};
   if(r.ok){ r._at=Date.now(); if(cacheable)cput(k,r); else if(WRITE_CLEAR[action])cclear(WRITE_CLEAR[action]); }
   return r;
 }
