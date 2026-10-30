@@ -6,14 +6,17 @@
 const{useState,useEffect}=React;
 const C=window.S2Core;
 if(!C){window.Leave2Routes=()=>React.createElement('div',{className:'p-6 text-center text-red-400'},'載入失敗:缺少 safety2.js');return;}
-const{api,useLoad,Box,Card,Btn,Loading,Msg,NeedUser,barOf,go}=C;
+const{api,useLoad,Box,Card,Btn,Loading,Msg,NeedUser,barOf,go,CACHEABLE,WRITE_CLEAR}=C;
+// 本機暫存:讀過的月份存手機,切換月份不重讀;點上方「🔄 重新整理」才重讀(12 小時後也會自動重讀);任何寫入動作成功後自動清掉
+if(CACHEABLE.indexOf('lv2Month')<0)CACHEABLE.push('lv2Month');
+['lv2Save','lv2Cancel','lv2Decide','lv2Sign','lv2Notify','lv2SeqSet','lv2SettingsSet','lv2LongSave','lv2LongEnd','lv2LongCancel','lv2LongDecide','lv2Claim'].forEach(x=>{WRITE_CLEAR[x]=['lv2Month'];});
 const Chip=C.Chip||(({on,children,onClick})=>(<button onClick={onClick} className={'px-4 py-2 rounded-full border text-sm '+(on?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-300')}>{children}</button>));
 
 const L={
   zh:{title:'預排休假',early:'早班',late:'晚班',shift:'登記班別',tapHint:'點日期登記休假（目前：{s}）；點已登記的日期可取消',
     draft:'暫存',submit:'送出休假單',saved:'已暫存 {n} 天',sent:'已送出：{a} 天生效，{p} 天待主管簽核',fail:'失敗',
-    st_tooEarly:'還不能暫存（最早可提前 2 個月暫存）',st_draft:'尚未開放送出，可先排好暫存；{o} 起可送出，期間免審批',
-    st_open:'登記期間中（到 {c} 前）：送出免審批，超休需主管簽字',st_late:'已超過免審批期間：送出後需主管審批',st_past:'這個月已過',
+    st_tooEarly:'還不能暫存（最早可提前 2 個月暫存）',st_draft:'尚未開放送出，可先排好並暫存；{o} 起可送出，進入公司排休階段',
+    st_open:'登記期間中（到 {c} 前）：送出免審批，超休需主管簽字',st_late:'已超過送排休期間：目前送出後需主管審批',st_past:'這個月已過',
     used:'已排',days:'天',over:'超過 {n} 天，超休需主管簽字',full:'當日已滿 {n} 人，需主管簽字',
     cancelAsk:'要取消這天的休假嗎？',submitAsk:'確定送出這些休假嗎？',submitOver:'其中有超休，需主管簽字後才生效。',
     fullWarn:'你申請 {d} 這幾天當天已排休超過 6 人，你的申請可能會被調整。現在調整會比之後通知調整時有更多選擇。\n是否仍要送出申請？',
@@ -262,7 +265,7 @@ function LeavePage({me}){
   const[y,m]=[parseInt(month.slice(0,4),10),parseInt(month.slice(5,7),10)];
   const first=new Date(y,m-1,1).getDay();const nd=new Date(y,m,0).getDate();
   const cells=[];for(let i=0;i<first;i++)cells.push(null);for(let i=1;i<=nd;i++)cells.push(month+'-'+p2(i));
-  const banner={tooEarly:t.st_tooEarly,draft:fmt(t.st_draft,{o:(d.opens||'').slice(5)}),open:fmt(t.st_open,{c:(d.closes||'').slice(5)}),late:t.st_late,past:t.st_past}[d.state];
+  const banner={tooEarly:t.st_tooEarly,draft:fmt(t.st_draft,{o:(d.opens||'').slice(5).replace('-','/')}),open:fmt(t.st_open,{c:(d.closes||'').slice(5)}),late:t.st_late,past:t.st_past}[d.state];
   const bannerCls=d.state==='open'?'border-emerald-700 bg-emerald-950/40 text-emerald-300':d.state==='late'?'border-amber-700 bg-amber-950/40 text-amber-300':'border-gray-700 bg-gray-900 text-gray-300';
   const flagText=(f)=>String(f||'').split(',').filter(Boolean).map(x=>t['flag_'+x]).join('、');
   const canEdit=d.canLeave&&(d.state==='draft'||d.state==='open'||d.state==='late');
