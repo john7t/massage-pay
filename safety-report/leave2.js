@@ -193,11 +193,13 @@ function LeavePage({me}){
   if(!d)return(<Loading/>);
   const today=todayStr();const lim=d.limits;
   const holOk=(date)=>{const dw=new Date(parseInt(date.slice(0,4),10),parseInt(date.slice(5,7),10)-1,parseInt(date.slice(8),10)).getDay();return d.long.mine.some(r=>r.kind==='holiday'&&r.status==='approved'&&String(r.days).split(',').indexOf(String(dw))>=0&&r.start<=date&&(!r.end||r.end>=date));};
-  const slotOf=(date,sh)=>{
+  const slotOf0=(date,sh)=>{
     if(d.anon)return (d.slots&&d.slots[date]&&d.slots[date][sh])||{o:0,me:'',over:0,sign:'',h:0};
     const arr=((d.roster&&d.roster[date])||{})[sh]||[];const my=String((d.me&&d.me.code)||'');let o=0,me='',over=0,sign='',h=0;
     arr.forEach(x=>{if(x.m)return;if(my&&String(x.c)===my){me=my;over=x.x?1:0;sign=x.x?(x.s||''):'';h=(x.h||x.f)?1:0;}else if(!x.x&&!x.f&&!x.h)o++;});
     return {o:o,me:me,over:over,sign:sign,h:h};};
+  const slotOf=(date,sh)=>{const x=slotOf0(date,sh);if(x.me)return x;const mc=String((d.me&&d.me.code)||'');
+    if(mc&&(selHas(date,sh)||d.mine.some(m=>m.date===date&&m.shift===sh&&m.status!=='rejected'&&m.status!=='cancelled')))return Object.assign({},x,{me:mc});return x;};
   const capOf=(date)=>{const dow=new Date(parseInt(date.slice(0,4),10),parseInt(date.slice(5,7),10)-1,parseInt(date.slice(8),10)).getDay();return (dow===0||dow===6)?lim.weekend:lim.weekday;};
   const mineBy={};d.mine.forEach(x=>{if(x.status!=='draft')(mineBy[x.date]=mineBy[x.date]||[]).push(x);});
   const selHas=(date,sh)=>sel.some(x=>x.date===date&&x.shift===sh);
@@ -283,8 +285,8 @@ function LeavePage({me}){
                 const cls=mm?(mm.status==='pending'?'border border-dashed border-white/70 ':'')+SH_COLOR[s]+' text-white':'border border-dashed '+(s==='early'?'border-amber-400 text-amber-300':'border-indigo-400 text-indigo-300');
                 return <span key={s} className={'text-[10px] leading-4 px-1 rounded '+cls}>{s==='early'?'早':'晚'}{mm?(mm.status==='pending'?'⏳':'✓'):''}</span>;})}
             </span>
-            <span className="mt-auto text-[9px] leading-3 text-gray-500">
-              <span className={c.early>=capOf(date)?'text-red-400':''}>{c.early}</span>/<span className={c.late>=capOf(date)?'text-red-400':''}>{c.late}</span></span>
+            {capOf(date)>0&&new Date(parseInt(date.slice(0,4),10),parseInt(date.slice(5,7),10)-1,parseInt(date.slice(8),10)).getDay()%6!==0&&<span className="mt-auto text-[9px] leading-3 text-gray-500">
+              <span className={c.early>=capOf(date)?'text-red-400':''}>{c.early}</span>/<span className={c.late>=capOf(date)?'text-red-400':''}>{c.late}</span></span>}
           </button>);})}
       </div>
       <p className="text-[11px] text-gray-500">{lang==='vi'?'Số nhỏ: ca sáng/ca tối của chi nhánh (tối đa '+lim.weekday+')':'小字：本店 早班/晚班 已休人數（平日每班上限 '+lim.weekday+' 人）'}</p>
@@ -298,6 +300,25 @@ function LeavePage({me}){
       {d.state!=='draft'&&<Btn loading={busy} onClick={()=>canSubmit?save(true):null} color={canSubmit?undefined:'bg-gray-800 text-gray-500'}>{t.submit}</Btn>}</div>}
     {msg&&<p className="text-center text-sm text-emerald-400">✅ {msg}</p>}
     {err&&<p className="text-center text-sm text-red-400">{err}</p>}
+    {d.isMgr&&<Card className="space-y-2">
+      <p className="text-sm font-bold text-white">{t.pendingTitle}（{d.pending.length}）</p>
+      {d.pending.length===0&&<p className="text-xs text-gray-500">{t.noPending}</p>}
+      {d.pending.map(x=>(<div key={x.id} className="rounded-xl border border-gray-700 p-2 space-y-1">
+        <p className="text-sm text-white">{x.store}　{x.code} 號　{x.date.slice(5)}　{t[x.shift]}</p>
+        <p className="text-xs text-amber-300">{flagText(x.flags)}</p>
+        <div className="flex gap-2"><button disabled={busy} onClick={()=>decide(x.id,true)} className="flex-1 py-2 rounded-xl text-sm font-bold bg-emerald-600 text-white disabled:opacity-50">{t.ok}</button>
+          <button disabled={busy} onClick={()=>decide(x.id,false)} className="flex-1 py-2 rounded-xl text-sm font-bold bg-gray-700 text-gray-200 disabled:opacity-50">{t.rej}</button></div>
+      </div>))}
+    </Card>}
+    {d.isMgr&&d.long.pending.length>0&&<Card className="space-y-2">
+      <p className="text-sm font-bold text-white">{t.longTitle} · {t.pendingTitle}（{d.long.pending.length}）</p>
+      {d.long.pending.map(x=>(<div key={x.id} className="rounded-xl border border-gray-700 p-2 space-y-1">
+        <p className="text-sm text-white">{x.store}　{x.code} 號　{x.kind==='leave'?t.kLeave:longText(x,t)}　{periodText(x,t)}</p>
+        {x.reason&&<p className="text-xs text-gray-400">{x.reason}</p>}
+        <div className="flex gap-2"><button disabled={busy} onClick={()=>longAct('lv2LongDecide',{id:x.id,approve:true})} className="flex-1 py-2 rounded-xl text-sm font-bold bg-emerald-600 text-white disabled:opacity-50">{t.ok}</button>
+          <button disabled={busy} onClick={()=>longAct('lv2LongDecide',{id:x.id,approve:false})} className="flex-1 py-2 rounded-xl text-sm font-bold bg-gray-700 text-gray-200 disabled:opacity-50">{t.rej}</button></div>
+      </div>))}
+    </Card>}
     <Card className="space-y-2">
       <div className="flex items-center justify-between"><p className="text-sm font-bold text-white">🗓️ {t.rosterTitle}</p>
         {isV&&vMode==='mgr'&&<button onClick={()=>go('lv2=pdf&month='+month+(store?'&store='+encodeURIComponent(store):''))} className="text-xs border border-gray-600 text-gray-200 rounded-xl px-3 py-1.5">📄 PDF</button>}</div>
@@ -352,7 +373,7 @@ function LeavePage({me}){
         return(<div key={date} className={'border-t border-gray-800 pt-1.5 flex gap-3 '+(date<today?'opacity-40':date===today?'rounded-xl ring-1 ring-violet-500 bg-violet-950/30 px-1 ':'')}>
           <div className="w-12 shrink-0 text-center"><div className="text-xs font-bold text-violet-300">{parseInt(date.slice(5,7),10)}/{parseInt(date.slice(8),10)}</div>
             <span className={'inline-block text-[10px] rounded-full px-2 '+(wkend?'bg-red-950 text-red-300':'bg-gray-800 text-gray-400')}>{t.wk[dow]}</span>
-            {date===today&&<div className="text-[9px] bg-violet-600 text-white rounded px-1 inline-block mt-0.5">{lang==='vi'?'Nay':'今天'}</div>}<div className="text-[10px] text-gray-500 mt-0.5">{fmt(t.leaveN,{n:total})}</div></div>
+            {date===today&&<div className="text-[9px] bg-violet-600 text-white rounded px-1 inline-block mt-0.5">{lang==='vi'?'Nay':'今天'}</div>}<div className="text-[10px] text-gray-500 mt-0.5">{(()=>{const n=(a)=>a.filter(x=>!x.m&&!x.f).length;const ne=n(ro.early),nl=n(ro.late),cp=capOf(date);return <span><span className={cp>0&&ne>=cp?'text-red-400':''}>{ne}</span>/<span className={cp>0&&nl>=cp?'text-red-400':''}>{nl}</span></span>;})()}</div></div>
           <div className="flex-1 min-w-0 space-y-1">{line('early')}{line('late')}{total===0&&<span className="text-[11px] text-gray-600">—</span>}</div></div>);})}
       {rosterDates.length===0&&<p className="text-xs text-gray-500">{t.empty}</p>}
       {rosterDates.length>0&&<div className="flex items-center justify-center gap-4 pt-1">
@@ -448,25 +469,6 @@ function LeavePage({me}){
     {d.mine.length>0&&<Card className="space-y-1">
       <p className="text-sm font-bold text-white">{t.mineList}</p>
       {d.mine.slice().sort((a,b)=>a.date<b.date?-1:1).map(x=>(<p key={x.id} className="text-sm text-gray-300">{x.date.slice(5)}　{t[x.shift]}　<span className={x.status==='approved'?'text-emerald-400':x.status==='pending'?'text-amber-300':'text-gray-400'}>{t['s_'+x.status]||x.status}</span>{x.over?<span className="text-xs text-orange-400">　{t.overTag}</span>:null}{x.signBy?<span className="text-xs text-gray-400">　{fmt(t.signedBy,{c:x.signBy})}</span>:null}{x.flags&&x.status==='pending'?<span className="text-xs text-gray-500">　（{flagText(x.flags)}）</span>:null}</p>))}
-    </Card>}
-    {d.isMgr&&<Card className="space-y-2">
-      <p className="text-sm font-bold text-white">{t.pendingTitle}（{d.pending.length}）</p>
-      {d.pending.length===0&&<p className="text-xs text-gray-500">{t.noPending}</p>}
-      {d.pending.map(x=>(<div key={x.id} className="rounded-xl border border-gray-700 p-2 space-y-1">
-        <p className="text-sm text-white">{x.store}　{x.code} 號　{x.date.slice(5)}　{t[x.shift]}</p>
-        <p className="text-xs text-amber-300">{flagText(x.flags)}</p>
-        <div className="flex gap-2"><button disabled={busy} onClick={()=>decide(x.id,true)} className="flex-1 py-2 rounded-xl text-sm font-bold bg-emerald-600 text-white disabled:opacity-50">{t.ok}</button>
-          <button disabled={busy} onClick={()=>decide(x.id,false)} className="flex-1 py-2 rounded-xl text-sm font-bold bg-gray-700 text-gray-200 disabled:opacity-50">{t.rej}</button></div>
-      </div>))}
-    </Card>}
-    {d.isMgr&&d.long.pending.length>0&&<Card className="space-y-2">
-      <p className="text-sm font-bold text-white">{t.longTitle} · {t.pendingTitle}（{d.long.pending.length}）</p>
-      {d.long.pending.map(x=>(<div key={x.id} className="rounded-xl border border-gray-700 p-2 space-y-1">
-        <p className="text-sm text-white">{x.store}　{x.code} 號　{x.kind==='leave'?t.kLeave:longText(x,t)}　{periodText(x,t)}</p>
-        {x.reason&&<p className="text-xs text-gray-400">{x.reason}</p>}
-        <div className="flex gap-2"><button disabled={busy} onClick={()=>longAct('lv2LongDecide',{id:x.id,approve:true})} className="flex-1 py-2 rounded-xl text-sm font-bold bg-emerald-600 text-white disabled:opacity-50">{t.ok}</button>
-          <button disabled={busy} onClick={()=>longAct('lv2LongDecide',{id:x.id,approve:false})} className="flex-1 py-2 rounded-xl text-sm font-bold bg-gray-700 text-gray-200 disabled:opacity-50">{t.rej}</button></div>
-      </div>))}
     </Card>}
   </Box>);
 }
