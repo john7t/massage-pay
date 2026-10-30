@@ -735,6 +735,7 @@ function Safety2Routes(){
   const q=new URLSearchParams(location.search);
   if(q.has('sp')&&window.ShopRoutes){const SP=window.ShopRoutes;return <SP/>;} // 價目表/早鳥夜貓(shop2.js),公開資訊
   if(q.has('gb2')&&window.Gloves2Routes){const G2=window.Gloves2Routes;return <G2/>;} // 手套團購 2.0(gloves2.js)
+  if(q.has('my2')&&window.My2Routes){const M2=window.My2Routes;return <M2/>;} // 「我的」頁面(my2.js)
   if(q.has('lv2')&&window.Leave2Routes){const L2=window.Leave2Routes;return <L2/>;} // 預排休假 2.0(leave2.js)
   if(q.has('b2')&&window.Blacklist2Routes){const B2=window.Blacklist2Routes;return <B2/>;} // 拒接名單 2.0(blacklist2.js)
   if(q.has('n2')&&window.Notice2Routes){const N2=window.Notice2Routes;return <N2/>;} // 公司公告 2.0(notice2.js):人員/權限/暫存都共用這支,頁面獨立
@@ -750,7 +751,7 @@ function Safety2Routes(){
   if(p==='my')return <MyReportsPage/>;
   if(p==='staff')return <StaffPage/>;
   if(p==='apv')return <ApvPage rid={q.get('rid')||''}/>;
-  const mods=[['safety2.js',true],['notice2.js',!!window.Notice2Routes],['blacklist2.js',!!window.Blacklist2Routes],['gloves2.js',!!window.Gloves2Routes],['leave2.js',!!window.Leave2Routes],['shop2.js',!!window.ShopRoutes]];
+  const mods=[['safety2.js',true],['notice2.js',!!window.Notice2Routes],['blacklist2.js',!!window.Blacklist2Routes],['gloves2.js',!!window.Gloves2Routes],['leave2.js',!!window.Leave2Routes],['my2.js',!!window.My2Routes],['shop2.js',!!window.ShopRoutes]];
   const vers=mods.map(([n,ok])=>{let v='未引入';try{const el=[].slice.call(document.querySelectorAll('script[src]')).find(x=>(x.getAttribute('src')||'').indexOf('/'+n)>=0);if(el){const m=(el.getAttribute('src')||'').match(/v=([\w.-]+)/);v=m?m[1]:'無版本';}}catch(e){}return n+' '+v+(ok?' ✅已載入':' ❌未載入');});
   const dbg='參數: '+(location.search||'(空)')+' ｜ 頁面:'+(document.title||'');
   return <div className="space-y-2"><Msg text="不支援的頁面"/><p className="text-xs text-gray-500 break-all px-2">{dbg}</p>
