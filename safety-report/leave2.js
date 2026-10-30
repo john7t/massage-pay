@@ -117,7 +117,7 @@ function PdfCell({x}){
 }
 function PdfPageSheet({title,sub,days,roster,month,longBoard,pageNo,pages,genAt}){
   const wkz=['日','一','二','三','四','五','六'];
-  const th={border:'1px solid #999',background:'#eee',fontSize:12,padding:'3px 4px',textAlign:'center'};
+  const th={border:'1px solid #999',background:'#eee',fontSize:12,padding:0,height:24,lineHeight:'24px',verticalAlign:'middle',textAlign:'center'};
   const td={border:'1px solid #999',padding:'2px 4px',verticalAlign:'middle'};
   const wkS=(x)=>String(x.days||'').split(',').filter(Boolean).map(i=>wkz[parseInt(i,10)]).join('');
   const shT=(x)=>x.shift==='early'?'（早）':x.shift==='late'?'（晚）':'';
@@ -128,7 +128,7 @@ function PdfPageSheet({title,sub,days,roster,month,longBoard,pageNo,pages,genAt}
       <span style={{fontSize:18,fontWeight:700}}>{title}</span><span style={{fontSize:12}}>{sub}　第 {pageNo} / {pages} 頁</span></div>
     <table style={{width:'100%',borderCollapse:'collapse',tableLayout:'fixed'}}>
       <colgroup><col style={{width:46}}/><col style={{width:26}}/>{N.map((_,i)=><col key={'e'+i}/>)}{N.map((_,i)=><col key={'l'+i}/>)}</colgroup>
-      <thead><tr><th style={th} rowSpan={1}>日期</th><th style={th}>週</th><th style={th} colSpan={PER}>早班休假（每格 1 人，一排 6 格）</th><th style={th} colSpan={PER}>晚班休假（每格 1 人，一排 6 格）</th></tr></thead>
+      <thead><tr><th style={th} rowSpan={1}>日期</th><th style={th}>週</th><th style={th} colSpan={PER}>早班休假</th><th style={th} colSpan={PER}>晚班休假</th></tr></thead>
       <tbody>{days.map(dd=>{
         const date=month+'-'+String(dd).padStart(2,'0');const ro=roster[date]||{early:[],late:[]};
         const dow=new Date(parseInt(month.slice(0,4),10),parseInt(month.slice(5,7),10)-1,dd).getDay();const wk=dow===0||dow===6;
@@ -142,13 +142,13 @@ function PdfPageSheet({title,sub,days,roster,month,longBoard,pageNo,pages,genAt}
           {N.map((_,i)=><PdfCell key={'l'+i} x={ro.late[r*PER+i]}/>)}</tr>));})}
       </tbody></table>
     <div style={{position:'absolute',left:30,right:30,bottom:30}}>
-      <div style={{fontSize:13,fontWeight:700,borderBottom:'1px solid #000',marginBottom:3}}>長假／固定上班日（已核准）</div>
+      <div style={{fontSize:13,fontWeight:700,borderBottom:'1px solid #000',marginBottom:3,lineHeight:'18px',paddingBottom:3}}>長假／固定上班日（已核准）</div>
       {longBoard.length===0?<div style={{fontSize:11,color:'#555'}}>本月無</div>:(()=>{
         const md=(d)=>String(d).slice(5).replace('-','/').replace(/\/0/,'/').replace(/^0/,'');
         const sh=(x)=>x.shift==='early'?'早':x.shift==='late'?'晚':'';
         const item=(x)=>{const e=x.end?'~'+md(x.end):'';
           if(x.kind==='leave')return x.code+'('+md(x.start)+(x.end?'~'+md(x.end):'~')+')';
-          if(x.kind==='fixed')return x.code+'('+wkS(x)+sh(x)+e+')';
+          if(x.kind==='fixed')return x.code+'('+wkS(x)+e+')';
           if(x.kind==='alt')return x.code+'('+(x.days==='odd'?'單':'雙')+sh(x)+e+')';
           if(x.kind==='holiday')return x.code+'('+wkS(x)+(x.quota||String(x.days||'').split(',').length)+'天'+sh(x)+e+')';
           return x.code;};
