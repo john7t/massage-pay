@@ -85,7 +85,6 @@ function buildPitchFlex(){
     const b={type:'bubble',size:'mega',
       hero:{type:'box',layout:'vertical',height:'110px',justifyContent:'center',alignItems:'center',background:{type:'linearGradient',angle:'135deg',startColor:p[1],endColor:p[2]},contents:[{type:'text',text:p[0],size:'4xl',align:'center'},{type:'box',layout:'vertical',position:'absolute',offsetTop:'10px',offsetEnd:'12px',backgroundColor:'#00000040',cornerRadius:'10px',paddingTop:'2px',paddingBottom:'2px',paddingStart:'9px',paddingEnd:'9px',contents:[{type:'text',text:(i+1)+'/'+n,size:'xs',color:'#FFFFFF'}]}]},
       body:{type:'box',layout:'vertical',paddingAll:'18px',contents:[{type:'text',text:p[3],weight:'bold',size:'lg',color:'#111111',wrap:true},{type:'text',text:p[4],size:'xs',color:'#888888',wrap:true,margin:'xs'},{type:'text',text:p[5],size:'sm',color:'#333333',wrap:true,margin:'lg'}]}};
-    if(i===n-1)b.footer={type:'box',layout:'vertical',paddingAll:'lg',contents:[{type:'button',style:'primary',color:'#6d4aa8',height:'sm',action:{type:'uri',label:'看看預排休假',uri:base+'?lv2=l'}}]};
     return b;})};
 }
 const periodText=(x,t)=>x.start.slice(5).replace('-','/')+' ~ '+(x.end?x.end.slice(5).replace('-','/'):t.pendingEnd);
@@ -152,6 +151,7 @@ function PdfPage({me}){
   const cur=todayStr().slice(0,7);const month=q.get('month')||addMonth(cur,1);const store=q.get('store')||'';
   const[st,reload]=useLoad('lv2Month',store?{month:month,store:store}:{month:month});
   const[busy,setBusy]=useState(false);const[err,setErr]=useState('');const[cap,setCap]=useState(false);
+  const[pdfFile,setPdfFile]=useState(null);const[pdfUrl,setPdfUrl]=useState('');const[pdfImgs,setPdfImgs]=useState([]);
   const[scale,setScale]=useState(()=>Math.min(1,(Math.max(320,window.innerWidth||390)-24)/PDF_W));
   const d=st.data&&st.data.ok&&st.data.month===month?st.data:null;
   if(!d&&st.loading)return(<Loading/>);
@@ -170,21 +170,34 @@ function PdfPage({me}){
       await new Promise(r=>setTimeout(r,80));
       const pages=[].slice.call(document.querySelectorAll('.pdfpage'));
       const pdf=new window.jspdf.jsPDF({unit:'pt',format:'a4',orientation:'portrait'});
+      const imgs=[];
       for(let i=0;i<pages.length;i++){
         const cv=await window.html2canvas(pages[i],{scale:2,backgroundColor:'#ffffff',useCORS:true});
         if(i>0)pdf.addPage();
-        pdf.addImage(cv.toDataURL('image/jpeg',0.92),'JPEG',0,0,595.28,841.89);
+        const du=cv.toDataURL('image/jpeg',0.92);imgs.push(du);
+        pdf.addImage(du,'JPEG',0,0,595.28,841.89);
       }
-      pdf.save('休假總表_'+d.store+'_'+month+'.pdf');
-    }catch(e){setErr('產生 PDF 失敗（LINE 內建瀏覽器可能不支援下載，請按「用瀏覽器開啟」再下載）');}
+      // 不直接 save(LINE 內建瀏覽器常常不能下載):產生後讓使用者再按一次「分享」(iPhone 原生分享表,可存到檔案/AirDrop/傳 LINE),並附圖片版可長按存相簿
+      const fname='休假總表_'+d.store+'_'+month+'.pdf';
+      const blob=pdf.output('blob');
+      let f=null;try{f=new File([blob],fname,{type:'application/pdf'});}catch(_e){}
+      setPdfFile(f);setPdfUrl(URL.createObjectURL(blob));setPdfImgs(imgs);
+    }catch(e){setErr('產生 PDF 失敗：'+String(e&&e.message||e).slice(0,120)+'（可改用下方圖片版長按儲存，或按「用瀏覽器開啟」）');}
     setCap(false);setBusy(false);
   };
   const external=()=>{try{if(window.liff&&window.liff.openWindow){window.liff.openWindow({url:location.href,external:true});return;}}catch(_e){}window.open(location.href,'_blank');};
   return(<div className="p-3 space-y-3">
     <style>{'@media print{.nop{display:none!important}.pdfwrap{transform:none!important;height:auto!important}.pdfpage{page-break-after:always}.pdfpage{height:1122px!important;overflow:hidden}.pdfpage:last-child{page-break-after:auto}@page{size:A4 portrait;margin:0}body{background:#fff!important}}'}</style>
     <div className="nop flex items-center justify-between"><button className="text-sm text-violet-300" onClick={()=>go('lv2=l')}>← 返回</button><h1 className="text-base font-bold text-white">📄 休假總表 PDF</h1><span/></div>
-    <div className="nop flex gap-2"><Btn loading={busy} onClick={download}>下載 PDF（2 頁）</Btn><Btn color="bg-gray-800 text-gray-200 border border-gray-600" onClick={external}>用瀏覽器開啟</Btn></div>
+    <div className="nop flex gap-2"><Btn loading={busy} onClick={download}>{pdfFile||pdfUrl?'重新產生 PDF':'產生 PDF（2 頁）'}</Btn><Btn color="bg-gray-800 text-gray-200 border border-gray-600" onClick={external}>用瀏覽器開啟</Btn></div>
     {err&&<p className="nop text-sm text-red-400 text-center">{err}</p>}
+    {(pdfUrl||pdfImgs.length>0)&&<div className="nop rounded-xl border border-emerald-700 p-3 space-y-2">
+      <p className="text-sm text-emerald-300 font-bold">✅ PDF 已產生</p>
+      {pdfFile&&navigator.canShare&&navigator.canShare({files:[pdfFile]})&&<Btn color="bg-emerald-600 text-white" onClick={async()=>{setErr('');try{await navigator.share({files:[pdfFile],title:pdfFile.name});}catch(e){if(!e||e.name!=='AbortError')setErr('分享失敗：'+String(e&&e.message||e).slice(0,100));}}}>📤 用手機分享／儲存</Btn>}
+      {pdfUrl&&<a href={pdfUrl} download={'休假總表_'+d.store+'_'+month+'.pdf'} className="block text-center rounded-xl bg-gray-800 border border-gray-600 text-gray-200 text-sm py-2.5">下載 PDF 檔</a>}
+      <p className="text-[11px] text-gray-400">若「分享」或「下載」沒反應：長按下面的圖片 →「加入照片」或「儲存影像」。</p>
+      {pdfImgs.map((u,i)=>(<img key={i} src={u} alt={'第 '+(i+1)+' 頁'} className="w-full rounded border border-gray-700"/>))}
+    </div>}
     <p className="nop text-xs text-gray-500">第 1 頁：1~15 日；第 2 頁：16~{nd} 日。每天兩排：每格 1 人（格線等寬），第一排 1~10 位，第二排 11~20 位。長假／固定上班日（已核准）兩頁最下方都有列出。</p>
     <div className="pdfwrap" style={{transform:cap?'none':'scale('+scale+')',transformOrigin:'top left',width:PDF_W,height:cap?'auto':(PDF_H*2+16)*scale/scale,marginBottom:cap?0:-(PDF_H*2+16)*(1-scale)}}>
       <PdfPageSheet {...sheetProps} days={p1} pageNo={1} sub={'1~15 日'}/>
