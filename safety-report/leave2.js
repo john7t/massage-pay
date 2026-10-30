@@ -17,7 +17,7 @@ const L={
     used:'已排',days:'天',over:'超過 {n} 天，超休需主管簽字',full:'當日已滿 {n} 人，需主管簽字',
     cancelAsk:'要取消這天的休假嗎？',submitAsk:'確定送出這些休假嗎？',submitOver:'其中有超休，需主管簽字後才生效。',
     fullWarn:'你申請 {d} 這幾天當天已排休超過 6 人，你的申請可能會被調整。現在調整會比之後通知調整時有更多選擇。\n是否仍要送出申請？',
-    ovAsk:'超額排休，請改休',ovSigned:'超額排休，主管{c}已核假',notOpen:'未開放排休',slotFull:'已滿',slotLeft:'尚有 {n} 名額',legendAnon:'✦ 已有人排休　✧ 尚有名額　紫色＝我',grpTitle:'主管不能同時排休的組別',grpHint:'輸入編號按 Enter 加入，再按「加入此組」。同組的人同一天（不分早晚班）不能同時排休；一個人可在多組，例：13 175 一組、175 79 161 一組 → 175 與 13、79、161 都不能同天，13 與 79、161 無關。',grpPh:'編號 + Enter',grpAdd:'加入此組',grpMin:'一組至少要 2 個編號',paperT:'找到紙本匯入的休假',paperTxt:'系統有 {n} 筆編號 {c} 號、{m} 月的紙本休假（{l}）。若這是你的，請按「綁定到我的帳號」，之後就能在這裡查看與管理。',paperBtn:'這是我的，綁定到我的帳號',paperAsk:'確定把這些紙本匯入的休假綁定到你的帳號嗎？',paperOk:'已綁定 {n} 筆',rosterTitle:'總休表（依申請順序）',rosterHint:'每班別平日名額 {w} 人、週六日 {e} 人（可在設定調整）。白色＝名額內，橘色＝超出名額、需主管協調改假；主管排休不佔名額。已簽核保留的人，號碼下方以紅色小字標註批准主管編號。',mgrTag:'主管',
+    modeMgr:'主管模式',modeTeacher:'老師模式',seqToggleOpen:'展開 ▼',seqToggleClose:'收合 ▲',ovAsk:'超額排休，請改休',ovSigned:'超額排休，主管{c}已核假',notOpen:'未開放排休',slotFull:'已滿',slotLeft:'尚有 {n} 名額',legendAnon:'✦ 已有人排休　✧ 尚有名額　紫色＝我',grpTitle:'主管不能同時排休的組別',grpHint:'輸入編號按 Enter 加入，再按「加入此組」。同組的人同一天（不分早晚班）不能同時排休；一個人可在多組，例：13 175 一組、175 79 161 一組 → 175 與 13、79、161 都不能同天，13 與 79、161 無關。',grpPh:'編號 + Enter',grpAdd:'加入此組',grpMin:'一組至少要 2 個編號',paperT:'找到紙本匯入的休假',paperTxt:'系統有 {n} 筆編號 {c} 號、{m} 月的紙本休假（{l}）。若這是你的，請按「綁定到我的帳號」，之後就能在這裡查看與管理。',paperBtn:'這是我的，綁定到我的帳號',paperAsk:'確定把這些紙本匯入的休假綁定到你的帳號嗎？',paperOk:'已綁定 {n} 筆',rosterTitle:'總休表（依申請順序）',rosterHint:'每班別平日名額 {w} 人、週六日 {e} 人（可在設定調整）。白色＝名額內，橘色＝超出名額、需主管協調改假；主管排休不佔名額。已簽核保留的人，號碼下方以紅色小字標註批准主管編號。',mgrTag:'主管',
     leaveN:'排休 {n}人',adjTitle:'休假調整表',adjHint:'推播＝通知同仁改休其他天；若口頭確認該天確實需要休假，按「同意簽核」保留，總休表會在號碼下方以紅色小字標註批准主管編號。',
     notifyAll:'全部推播通知',notify:'推播通知',notifyAgain:'再次通知',sign:'同意簽核',unsignSure:'確定撤銷簽核？',adjDone:'已處理',adjTodo:'未處理',adjAll:'全部展開',adjNone2:'全部收合',seqBy:'排序',seqByOrder:'依順序',seqByCode:'依編號',seqSearch:'搜尋編號',unsign:'撤銷簽核',notified:'已通知 {t}',signedBy:'已簽核 {c}',pos:'第 {n} 位（超額 {k}）',adjNone:'沒有需要調整的人',
     notifyAsk:'要推播通知這些人改休其他天嗎？',signAsk:'確定同意這位同仁保留這天休假嗎？',overTag:'超額，待主管協調',
@@ -45,7 +45,7 @@ const L={
     notifyAsk:'Gửi thông báo cho những người này đổi sang ngày khác?',signAsk:'Đồng ý cho giữ ngày nghỉ này?',overTag:'Vượt mức, chờ quản lý điều phối',
     seqTitle:'Số thứ tự đơn giấy',seqHint:'Giai đoạn đầu dùng đơn giấy: nhập theo thứ tự quầy nhận đơn, bảng tổng hợp sắp xếp theo số này; người chưa nhập xếp sau.',seqSave:'Lưu',seqMine:'Số thứ tự của tôi',seqWait:'Chờ quầy nhập',seqDays:'{n} ngày',
     setTitle:'Cài đặt hạn mức & thứ tự ({s})',wdQ:'Hạn mức ngày thường mỗi ca',weQ:'Hạn mức T7/CN',seqModeL:'Căn cứ thứ tự đăng ký',seqPaper:'Số thứ tự đơn giấy',seqTime:'Thời gian gửi trên hệ thống',setSave:'Lưu cài đặt',setOk:'Đã lưu',
-    ovAsk:'Vượt hạn mức, vui lòng đổi ngày',ovSigned:'Vượt hạn mức, QL {c} đã duyệt',notOpen:'Không mở đăng ký',slotFull:'Đã đủ',slotLeft:'Còn {n} chỗ',legendAnon:'✦ đã có người nghỉ  ✧ còn chỗ  tím = tôi',grpTitle:'Nhóm quản lý không được nghỉ cùng ngày',grpHint:'Nhập mã rồi Enter, sau đó bấm "Thêm nhóm".',grpPh:'Mã + Enter',grpAdd:'Thêm nhóm',grpMin:'Mỗi nhóm cần ít nhất 2 mã',paperT:'Tìm thấy ngày nghỉ nhập từ bản giấy',paperTxt:'Có {n} ngày nghỉ bản giấy của số {c}, tháng {m} ({l}). Nếu là của bạn, bấm "Liên kết".',paperBtn:'Của tôi, liên kết vào tài khoản',paperAsk:'Liên kết các ngày nghỉ này vào tài khoản của bạn?',paperOk:'Đã liên kết {n} ngày',rosterTitle:'Bảng nghỉ tổng hợp (theo thứ tự đăng ký)',rosterHint:'Hạn mức mỗi ca: ngày thường {w} người, T7/CN {e} người (có thể chỉnh trong cài đặt). Màu trắng = trong hạn mức, màu cam = vượt, cần quản lý điều phối; nghỉ của quản lý không tính hạn mức. Người đã được ký giữ lại có mã quản lý chữ đỏ nhỏ dưới số.',mgrTag:'QL',
+    modeMgr:'Chế độ quản lý',modeTeacher:'Chế độ KTV',seqToggleOpen:'Mở ▼',seqToggleClose:'Thu gọn ▲',ovAsk:'Vượt hạn mức, vui lòng đổi ngày',ovSigned:'Vượt hạn mức, QL {c} đã duyệt',notOpen:'Không mở đăng ký',slotFull:'Đã đủ',slotLeft:'Còn {n} chỗ',legendAnon:'✦ đã có người nghỉ  ✧ còn chỗ  tím = tôi',grpTitle:'Nhóm quản lý không được nghỉ cùng ngày',grpHint:'Nhập mã rồi Enter, sau đó bấm "Thêm nhóm".',grpPh:'Mã + Enter',grpAdd:'Thêm nhóm',grpMin:'Mỗi nhóm cần ít nhất 2 mã',paperT:'Tìm thấy ngày nghỉ nhập từ bản giấy',paperTxt:'Có {n} ngày nghỉ bản giấy của số {c}, tháng {m} ({l}). Nếu là của bạn, bấm "Liên kết".',paperBtn:'Của tôi, liên kết vào tài khoản',paperAsk:'Liên kết các ngày nghỉ này vào tài khoản của bạn?',paperOk:'Đã liên kết {n} ngày',rosterTitle:'Bảng nghỉ tổng hợp (theo thứ tự đăng ký)',rosterHint:'Hạn mức mỗi ca: ngày thường {w} người, T7/CN {e} người (có thể chỉnh trong cài đặt). Màu trắng = trong hạn mức, màu cam = vượt, cần quản lý điều phối; nghỉ của quản lý không tính hạn mức. Người đã được ký giữ lại có mã quản lý chữ đỏ nhỏ dưới số.',mgrTag:'QL',
     flag_late:'Quá thời gian không cần duyệt',flag_person:'Vượt 6 ngày/tháng',flag_day:'Ngày đã đủ 6 người',
     s_approved:'Có hiệu lực',s_pending:'Chờ ký',s_draft:'Lưu tạm',s_rejected:'Bị từ chối',
     pendingTitle:'Chờ ký',noPending:'Không có đơn chờ ký',ok:'Ký đồng ý',rej:'Từ chối',roster:'Danh sách trong ngày (* = chờ ký)',none:'Không có',
@@ -180,7 +180,7 @@ function LeavePage({me}){
   const lsSet=(k,v)=>{try{localStorage.setItem(k,v);}catch(e){}};
   const[rMode,setRMode]=useState(()=>lsGet('lv2RosterMode','all'));
   const[showSign,setShowSign]=useState(()=>lsGet('lv2ShowSign','1')!=='0');
-  const[rq,setRq]=useState('');const[rPg,setRPg]=useState(null);const[adjOpen,setAdjOpen]=useState({});const[armed,setArmed]=useState('');const[gDraft,setGDraft]=useState([]);const[gCode,setGCode]=useState('');const[seqSort,setSeqSort]=useState('order');const[seqQ,setSeqQ]=useState('');const[lgOpen,setLgOpen]=useState(false);
+  const[rq,setRq]=useState('');const[rPg,setRPg]=useState(null);const[adjOpen,setAdjOpen]=useState({});const[armed,setArmed]=useState('');const[vMode,setVMode]=useState(()=>lsGet('lv2ViewMode','mgr')==='teacher'?'teacher':'mgr');const[seqOpen,setSeqOpen]=useState(false);const[gDraft,setGDraft]=useState([]);const[gCode,setGCode]=useState('');const[seqSort,setSeqSort]=useState('order');const[seqQ,setSeqQ]=useState('');const[lgOpen,setLgOpen]=useState(false);
   const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');const[err,setErr]=useState('');
   const[lf,setLf]=useState(null); // 長假/課業申請表單
   const[seqIn,setSeqIn]=useState({});const[cf,setCf]=useState(null);const[adjShift,setAdjShift]=useState((me.user&&me.user.shift)==='late'?'late':'early');
@@ -193,6 +193,11 @@ function LeavePage({me}){
   if(!d)return(<Loading/>);
   const today=todayStr();const lim=d.limits;
   const holOk=(date)=>{const dw=new Date(parseInt(date.slice(0,4),10),parseInt(date.slice(5,7),10)-1,parseInt(date.slice(8),10)).getDay();return d.long.mine.some(r=>r.kind==='holiday'&&r.status==='approved'&&String(r.days).split(',').indexOf(String(dw))>=0&&r.start<=date&&(!r.end||r.end>=date));};
+  const slotOf=(date,sh)=>{
+    if(d.anon)return (d.slots&&d.slots[date]&&d.slots[date][sh])||{o:0,me:'',over:0,sign:'',h:0};
+    const arr=((d.roster&&d.roster[date])||{})[sh]||[];const my=String((d.me&&d.me.code)||'');let o=0,me='',over=0,sign='',h=0;
+    arr.forEach(x=>{if(x.m)return;if(my&&String(x.c)===my){me=my;over=x.x?1:0;sign=x.x?(x.s||''):'';h=(x.h||x.f)?1:0;}else if(!x.x&&!x.f&&!x.h)o++;});
+    return {o:o,me:me,over:over,sign:sign,h:h};};
   const capOf=(date)=>{const dow=new Date(parseInt(date.slice(0,4),10),parseInt(date.slice(5,7),10)-1,parseInt(date.slice(8),10)).getDay();return (dow===0||dow===6)?lim.weekend:lim.weekday;};
   const mineBy={};d.mine.forEach(x=>{if(x.status!=='draft')(mineBy[x.date]=mineBy[x.date]||[]).push(x);});
   const selHas=(date,sh)=>sel.some(x=>x.date===date&&x.shift===sh);
@@ -242,7 +247,8 @@ function LeavePage({me}){
   const isV=!!(d.isMgr||d.canSeq);
   const seqView=(()=>{let l=d.seqList.slice();if(seqSort==='code')l.sort((a,b)=>(parseInt(a.code,10)||1e9)-(parseInt(b.code,10)||1e9));if(seqQ)l=l.filter(x=>String(x.code).indexOf(seqQ)===0);return l;})();
   const allDays=cells.filter(Boolean);
-  const rosterDates=allDays.filter(dt=>!(isV&&rMode==='future')||dt>=today);
+  const anonView=!!(d.anon||(isV&&vMode==='teacher'));
+  const rosterDates=allDays.filter(dt=>!(isV&&vMode==='mgr'&&rMode==='future')||dt>=today);
   const PGN=5;const pgCount=Math.max(1,Math.ceil(rosterDates.length/PGN));
   const autoPg=(()=>{const i=rosterDates.indexOf(today);return i<0?0:Math.floor(i/PGN);})();
   const pg=Math.min(pgCount-1,Math.max(0,rPg===null?autoPg:rPg));
@@ -294,9 +300,10 @@ function LeavePage({me}){
     {err&&<p className="text-center text-sm text-red-400">{err}</p>}
     <Card className="space-y-2">
       <div className="flex items-center justify-between"><p className="text-sm font-bold text-white">🗓️ {t.rosterTitle}</p>
-        {(d.isMgr||d.canSeq)&&<button onClick={()=>go('lv2=pdf&month='+month+(store?'&store='+encodeURIComponent(store):''))} className="text-xs border border-gray-600 text-gray-200 rounded-xl px-3 py-1.5">📄 PDF</button>}</div>
-      <p className="text-[11px] text-gray-500">{d.anon?t.legendAnon:fmt(t.rosterHint,{w:lim.weekday,e:lim.weekend})}</p>
-      {isV&&<div className="space-y-2">
+        {isV&&vMode==='mgr'&&<button onClick={()=>go('lv2=pdf&month='+month+(store?'&store='+encodeURIComponent(store):''))} className="text-xs border border-gray-600 text-gray-200 rounded-xl px-3 py-1.5">📄 PDF</button>}</div>
+      <p className="text-[11px] text-gray-500">{anonView?t.legendAnon:fmt(t.rosterHint,{w:lim.weekday,e:lim.weekend})}</p>
+      {isV&&<div className="flex gap-2"><Chip on={vMode==='mgr'} onClick={()=>{setVMode('mgr');lsSet('lv2ViewMode','mgr');setRPg(null);}}>{t.modeMgr}</Chip><Chip on={vMode==='teacher'} onClick={()=>{setVMode('teacher');lsSet('lv2ViewMode','teacher');setRPg(null);}}>{t.modeTeacher}</Chip></div>}
+      {isV&&vMode==='mgr'&&<div className="space-y-2">
         <div className="flex gap-2 flex-wrap items-center">
           <Chip on={rMode==='all'} onClick={()=>{setRPg(null);setRMode('all');lsSet('lv2RosterMode','all');}}>{'全月 1~'+nd+' 號'}</Chip>
           <Chip on={rMode==='future'} onClick={()=>{setRPg(null);setRMode('future');lsSet('lv2RosterMode','future');}}>今天起</Chip>
@@ -312,8 +319,8 @@ function LeavePage({me}){
             <p><span className="text-[11px] rounded px-1 text-white bg-indigo-500">晚</span> {hit.late.length} 天：{fm(hit.late)}</p></div>);})()}
       </div>}
       {pageDates.map(date=>{
-        if(d.anon){
-          const sl=(d.slots&&d.slots[date])||{};const cap=capOf(date);const open=cap>0;
+        if(anonView){
+          const sl={early:slotOf(date,'early'),late:slotOf(date,'late')};const cap=capOf(date);const open=cap>0;
           const dw=new Date(parseInt(date.slice(0,4),10),parseInt(date.slice(5,7),10)-1,parseInt(date.slice(8),10)).getDay();const wkd=dw===0||dw===6;
           const aLine=(sh)=>{const x=sl[sh]||{o:0,me:'',over:0,sign:'',h:0};
             const inQ=!!(x.me&&!x.over&&!x.h);const N=open?cap:Math.max(lim.weekday,1);
@@ -359,6 +366,29 @@ function LeavePage({me}){
         {(lgOpen?d.long.board:d.long.board.slice(0,1)).map(x=>(<p key={x.id} className="text-sm text-gray-200 border-b border-gray-900 py-0.5"><span className="font-bold text-violet-300">{x.code}</span>{lang==='vi'?'':' 號'}　<span className={'text-xs rounded-full px-2 py-0.5 text-white '+(KIND_CLS[x.kind]||'bg-gray-600')}>{kindName(x.kind,t)}</span>{x.kind!=='leave'&&x.kind!=='part'&&x.kind!=='note'?<span className="text-xs text-gray-300">　{longText(x,t)}</span>:null}{x.kind!=='fixed'&&x.kind!=='alt'&&x.kind!=='holiday'||x.end?<span>　{periodText(x,t)}</span>:null}{x.reason?<span className="text-xs text-gray-500">　{x.reason}</span>:null}{d.staff&&(x.kind==='part'||x.kind==='note')?<span className="text-[10px] text-gray-600">　{t.staffOnly}</span>:null}{d.staff?<button onClick={()=>longAct('lv2LongCancel',{id:x.id},t.delAsk)} className="text-gray-500 text-xs ml-2">✕</button>:null}</p>))}
         {!lgOpen&&d.long.board.length>1&&<button onClick={()=>setLgOpen(true)} className="text-[11px] text-gray-500">{lang==='vi'?'Bấm để xem '+(d.long.board.length-1)+' mục còn lại':'點此展開其餘 '+(d.long.board.length-1)+' 筆'}</button>}</div>
     </Card>
+    {(d.isTeacher||d.staff)&&<Card className="space-y-2">
+      <p className="text-sm font-bold text-white">{t.longTitle}</p>
+      {!lf&&<p className="text-xs text-gray-500">{t.longHint}</p>}
+      {!lf&&<Btn color="bg-gray-800 text-gray-200 border border-gray-600" onClick={()=>setLf({kind:'leave',start:'',end:'',days:[],alt:'odd',quota:'',shift:(d.me&&d.me.shift)||'early',code:'',reason:''})}>{t.longBtn}</Btn>}
+      {lf&&<div className="space-y-2">
+        <div className="flex gap-2 flex-wrap">{(d.staff?['leave','fixed','alt','holiday','part','note']:['leave','fixed','alt','holiday']).map(k=>(<Chip key={k} on={lf.kind===k} onClick={()=>setLf({...lf,kind:k,days:[],quota:''})}>{kindName(k,t)}</Chip>))}</div>
+        {d.staff&&<div><p className="text-xs text-gray-400 mb-1">{t.forCode}{lf.kind==='part'||lf.kind==='note'?' *':''}</p><input value={lf.code} inputMode="numeric" onChange={e=>setLf({...lf,code:e.target.value.replace(/\D/g,'').slice(0,4)})} placeholder={d.isTeacher&&lf.kind!=='part'&&lf.kind!=='note'?'（留空＝我自己）':'例：139'} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/></div>}
+        {(lf.kind==='fixed'||lf.kind==='alt'||lf.kind==='holiday')&&<div><p className="text-xs text-gray-400 mb-1">{t.shiftL}</p><div className="flex gap-2">{['early','late'].map(sh=><Chip key={sh} on={lf.shift===sh} onClick={()=>setLf({...lf,shift:sh})}>{t[sh]}</Chip>)}</div></div>}
+        {lf.kind==='fixed'&&<div><p className="text-xs text-gray-400 mb-1">{t.kFixed}</p><div className="flex gap-1 flex-wrap">{t.wk.map((w,i)=>(<Chip key={i} on={lf.days.indexOf(String(i))>=0} onClick={()=>setLf({...lf,days:lf.days.indexOf(String(i))>=0?lf.days.filter(x=>x!==String(i)):lf.days.concat([String(i)])})}>{w}</Chip>))}</div></div>}
+        {lf.kind==='alt'&&<div className="flex gap-2"><Chip on={lf.alt==='odd'} onClick={()=>setLf({...lf,alt:'odd'})}>{t.oddD}</Chip><Chip on={lf.alt==='even'} onClick={()=>setLf({...lf,alt:'even'})}>{t.evenD}</Chip></div>}
+        {lf.kind==='holiday'&&<div className="space-y-2"><div><p className="text-xs text-gray-400 mb-1">{t.holDays}</p><div className="flex gap-2">{[['6',t.wk[6]],['0',t.wk[0]]].map(([v,n])=>(<Chip key={v} on={lf.days.indexOf(v)>=0} onClick={()=>{const nd=lf.days.indexOf(v)>=0?lf.days.filter(x=>x!==v):lf.days.concat([v]);setLf({...lf,days:nd,quota:''});}}>{n}</Chip>))}</div></div>
+          {lf.days.length>0&&<div><p className="text-xs text-gray-400 mb-1">{t.holQuota}</p><div className="flex gap-2">{Array.from({length:lf.days.length}).map((_,i)=>(<Chip key={i} on={String(lf.quota||lf.days.length)===String(i+1)} onClick={()=>setLf({...lf,quota:String(i+1)})}>{i+1}</Chip>))}</div></div>}</div>}
+        <div><p className="text-xs text-gray-400 mb-1">{t.startD}{lf.kind==='part'||lf.kind==='note'||d.staff?'（'+(lang==='vi'?'bỏ trống = hôm nay':'留空＝今天')+'）':''}</p><input type="date" min={d.staff?undefined:today} value={lf.start} onChange={e=>setLf({...lf,start:e.target.value})} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/></div>
+        <div><p className="text-xs text-gray-400 mb-1">{lf.kind==='leave'?t.endD:t.endOpt}</p><input type="date" min={lf.start||today} value={lf.end} onChange={e=>setLf({...lf,end:e.target.value})} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/></div>
+        <input value={lf.reason} maxLength={100} onChange={e=>setLf({...lf,reason:e.target.value})} placeholder={t.reason} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/>
+        <div className="flex gap-2"><Btn color="bg-gray-700 text-white" onClick={()=>setLf(null)}>{lang==='vi'?'Hủy':'取消'}</Btn><Btn loading={busy} onClick={longSend}>{t.sendLong}</Btn></div></div>}
+      {d.long.mine.map(x=>(<div key={x.id} className="rounded-xl border border-gray-700 p-2 space-y-1">
+        <p className="text-sm text-white">{x.kind==='leave'?t.kLeave:longText(x,t)}　{periodText(x,t)}</p>
+        <p className="text-xs"><span className={x.status==='approved'?'text-emerald-400':'text-amber-300'}>{t['s_'+x.status]||x.status}</span>{x.reason?<span className="text-gray-500">　{x.reason}</span>:null}</p>
+        <div className="flex gap-2">{!x.end&&<button onClick={()=>{const v=window.prompt(t.setEndAsk,'');if(v)longAct('lv2LongEnd',{id:x.id,end:v.trim()});}} className="px-3 py-1.5 rounded-xl text-xs border border-gray-600 text-gray-200">{t.setEnd}</button>}
+          <button onClick={()=>longAct('lv2LongCancel',{id:x.id},t.cancelLong+'?')} className="px-3 py-1.5 rounded-xl text-xs border border-gray-600 text-gray-300">{t.cancelLong}</button></div>
+      </div>))}
+    </Card>}
     {d.canLeave&&d.seqMode==='paper'&&<p className="text-xs text-gray-400">{t.seqMine}：{d.mySeq?'#'+d.mySeq:t.seqWait}</p>}
     {d.isMgr&&<Card className="space-y-2" id="lv2-adjust">
       <div className="flex items-center justify-between"><p className="text-sm font-bold text-white">📋 {t.adjTitle}</p>
@@ -391,13 +421,15 @@ function LeavePage({me}){
         </div>);})()}
     </Card>}
     {d.canSeq&&d.seqMode==='paper'&&<Card className="space-y-2">
-      <p className="text-sm font-bold text-white">🔢 {t.seqTitle}</p><p className="text-[11px] text-gray-500">{t.seqHint}</p>
+      <div className="flex items-center"><p className="text-sm font-bold text-white">🔢 {t.seqTitle}</p><button onClick={()=>setSeqOpen(!seqOpen)} className="ml-auto text-xs text-violet-300">{seqOpen?t.seqToggleClose:t.seqToggleOpen}</button></div>{seqOpen&&<p className="text-[11px] text-gray-500">{t.seqHint}</p>}
+      {seqOpen&&<div className="space-y-2">
       <div className="flex gap-2 items-center flex-wrap"><Chip on={seqSort==='order'} onClick={()=>setSeqSort('order')}>{t.seqByOrder}</Chip><Chip on={seqSort==='code'} onClick={()=>setSeqSort('code')}>{t.seqByCode}</Chip>
         <input value={seqQ} onChange={e=>setSeqQ(e.target.value.replace(/\D/g,'').slice(0,6))} inputMode="numeric" placeholder={t.seqSearch} className="flex-1 min-w-[90px] rounded-lg bg-gray-900 border border-gray-700 px-2 py-1.5 text-sm text-white"/>{seqQ&&<button onClick={()=>setSeqQ('')} className="text-gray-400 px-1">✕</button>}</div>
       {d.seqList.length===0&&<p className="text-xs text-gray-500">{t.empty}</p>}
       {seqView.map(x=>(<div key={x.userId} className="flex items-center gap-2"><span className="w-12 font-bold text-gray-200">{x.code}</span><span className="text-xs text-gray-500 flex-1">{fmt(t.seqDays,{n:x.n})}</span>
         <input value={seqIn[x.userId]!==undefined?seqIn[x.userId]:String(x.seq)} inputMode="numeric" onChange={e=>setSeqIn({...seqIn,[x.userId]:e.target.value.replace(/\D/g,'').slice(0,4)})} className="w-20 text-center rounded-lg bg-gray-800 border border-gray-700 py-1.5 text-white"/>
         <button disabled={busy} onClick={()=>longAct('lv2SeqSet',{month:month,userId:x.userId,seq:seqIn[x.userId]!==undefined?seqIn[x.userId]:String(x.seq)})} className="px-3 py-1.5 rounded-lg text-xs bg-gray-700 text-white disabled:opacity-50">{t.seqSave}</button></div>))}
+      </div>}
     </Card>}
     {d.isMgr&&(()=>{const cv=cf||{wd:String(lim.weekday),we:String(lim.weekend),mode:d.seqMode,groups:d.groups||[]};const grs=cv.groups||[];const inp="w-20 text-center rounded-lg bg-gray-800 border border-gray-700 py-1.5 text-white";
       return(<Card className="space-y-2"><p className="text-sm font-bold text-white">⚙ {fmt(t.setTitle,{s:d.store})}</p>
@@ -410,29 +442,6 @@ function LeavePage({me}){
             <input value={gCode} inputMode="numeric" onChange={e=>setGCode(e.target.value.replace(/\D/g,'').slice(0,4))} onKeyDown={e=>{if(e.key==='Enter'&&gCode){if(gDraft.indexOf(gCode)<0)setGDraft(gDraft.concat([gCode]));setGCode('');}}} placeholder={t.grpPh} className="w-28 rounded-lg bg-gray-800 border border-gray-700 px-2 py-1 text-sm text-white"/>
             <button onClick={()=>{let a=gDraft.slice();if(gCode&&a.indexOf(gCode)<0)a.push(gCode);if(a.length<2){setErr(t.grpMin);return;}setErr('');setCf({...cv,groups:grs.concat([a])});setGDraft([]);setGCode('');}} className="px-3 py-1 rounded-lg text-xs bg-gray-700 text-white">{t.grpAdd}</button></div></div>
         <Btn loading={busy} onClick={()=>run(async()=>{const r=await api('lv2SettingsSet',{store:d.store,wd:cv.wd,we:cv.we,seqMode:cv.mode,groups:JSON.stringify(grs)});if(r&&r.ok){setMsg(t.setOk);setCf(null);reload();}else setErr((r&&r.error)||t.fail);})}>{t.setSave}</Btn></Card>);})()}
-    {(d.isTeacher||d.staff)&&<Card className="space-y-2">
-      <p className="text-sm font-bold text-white">{t.longTitle}</p>
-      {!lf&&<p className="text-xs text-gray-500">{t.longHint}</p>}
-      {!lf&&<Btn color="bg-gray-800 text-gray-200 border border-gray-600" onClick={()=>setLf({kind:'leave',start:'',end:'',days:[],alt:'odd',quota:'',shift:(d.me&&d.me.shift)||'early',code:'',reason:''})}>{t.longBtn}</Btn>}
-      {lf&&<div className="space-y-2">
-        <div className="flex gap-2 flex-wrap">{(d.staff?['leave','fixed','alt','holiday','part','note']:['leave','fixed','alt','holiday']).map(k=>(<Chip key={k} on={lf.kind===k} onClick={()=>setLf({...lf,kind:k,days:[],quota:''})}>{kindName(k,t)}</Chip>))}</div>
-        {d.staff&&<div><p className="text-xs text-gray-400 mb-1">{t.forCode}{lf.kind==='part'||lf.kind==='note'?' *':''}</p><input value={lf.code} inputMode="numeric" onChange={e=>setLf({...lf,code:e.target.value.replace(/\D/g,'').slice(0,4)})} placeholder={d.isTeacher&&lf.kind!=='part'&&lf.kind!=='note'?'（留空＝我自己）':'例：139'} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/></div>}
-        {(lf.kind==='fixed'||lf.kind==='alt'||lf.kind==='holiday')&&<div><p className="text-xs text-gray-400 mb-1">{t.shiftL}</p><div className="flex gap-2">{['early','late'].map(sh=><Chip key={sh} on={lf.shift===sh} onClick={()=>setLf({...lf,shift:sh})}>{t[sh]}</Chip>)}</div></div>}
-        {lf.kind==='fixed'&&<div><p className="text-xs text-gray-400 mb-1">{t.kFixed}</p><div className="flex gap-1 flex-wrap">{t.wk.map((w,i)=>(<Chip key={i} on={lf.days.indexOf(String(i))>=0} onClick={()=>setLf({...lf,days:lf.days.indexOf(String(i))>=0?lf.days.filter(x=>x!==String(i)):lf.days.concat([String(i)])})}>{w}</Chip>))}</div></div>}
-        {lf.kind==='alt'&&<div className="flex gap-2"><Chip on={lf.alt==='odd'} onClick={()=>setLf({...lf,alt:'odd'})}>{t.oddD}</Chip><Chip on={lf.alt==='even'} onClick={()=>setLf({...lf,alt:'even'})}>{t.evenD}</Chip></div>}
-        {lf.kind==='holiday'&&<div className="space-y-2"><div><p className="text-xs text-gray-400 mb-1">{t.holDays}</p><div className="flex gap-2">{[['6',t.wk[6]],['0',t.wk[0]]].map(([v,n])=>(<Chip key={v} on={lf.days.indexOf(v)>=0} onClick={()=>{const nd=lf.days.indexOf(v)>=0?lf.days.filter(x=>x!==v):lf.days.concat([v]);setLf({...lf,days:nd,quota:''});}}>{n}</Chip>))}</div></div>
-          {lf.days.length>0&&<div><p className="text-xs text-gray-400 mb-1">{t.holQuota}</p><div className="flex gap-2">{Array.from({length:lf.days.length}).map((_,i)=>(<Chip key={i} on={String(lf.quota||lf.days.length)===String(i+1)} onClick={()=>setLf({...lf,quota:String(i+1)})}>{i+1}</Chip>))}</div></div>}</div>}
-        <div><p className="text-xs text-gray-400 mb-1">{t.startD}{lf.kind==='part'||lf.kind==='note'||d.staff?'（'+(lang==='vi'?'bỏ trống = hôm nay':'留空＝今天')+'）':''}</p><input type="date" min={d.staff?undefined:today} value={lf.start} onChange={e=>setLf({...lf,start:e.target.value})} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/></div>
-        <div><p className="text-xs text-gray-400 mb-1">{lf.kind==='leave'?t.endD:t.endOpt}</p><input type="date" min={lf.start||today} value={lf.end} onChange={e=>setLf({...lf,end:e.target.value})} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/></div>
-        <input value={lf.reason} maxLength={100} onChange={e=>setLf({...lf,reason:e.target.value})} placeholder={t.reason} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/>
-        <div className="flex gap-2"><Btn color="bg-gray-700 text-white" onClick={()=>setLf(null)}>{lang==='vi'?'Hủy':'取消'}</Btn><Btn loading={busy} onClick={longSend}>{t.sendLong}</Btn></div></div>}
-      {d.long.mine.map(x=>(<div key={x.id} className="rounded-xl border border-gray-700 p-2 space-y-1">
-        <p className="text-sm text-white">{x.kind==='leave'?t.kLeave:longText(x,t)}　{periodText(x,t)}</p>
-        <p className="text-xs"><span className={x.status==='approved'?'text-emerald-400':'text-amber-300'}>{t['s_'+x.status]||x.status}</span>{x.reason?<span className="text-gray-500">　{x.reason}</span>:null}</p>
-        <div className="flex gap-2">{!x.end&&<button onClick={()=>{const v=window.prompt(t.setEndAsk,'');if(v)longAct('lv2LongEnd',{id:x.id,end:v.trim()});}} className="px-3 py-1.5 rounded-xl text-xs border border-gray-600 text-gray-200">{t.setEnd}</button>}
-          <button onClick={()=>longAct('lv2LongCancel',{id:x.id},t.cancelLong+'?')} className="px-3 py-1.5 rounded-xl text-xs border border-gray-600 text-gray-300">{t.cancelLong}</button></div>
-      </div>))}
-    </Card>}
     {d.mine.length>0&&<Card className="space-y-1">
       <p className="text-sm font-bold text-white">{t.mineList}</p>
       {d.mine.slice().sort((a,b)=>a.date<b.date?-1:1).map(x=>(<p key={x.id} className="text-sm text-gray-300">{x.date.slice(5)}　{t[x.shift]}　<span className={x.status==='approved'?'text-emerald-400':x.status==='pending'?'text-amber-300':'text-gray-400'}>{t['s_'+x.status]||x.status}</span>{x.over?<span className="text-xs text-orange-400">　{t.overTag}</span>:null}{x.signBy?<span className="text-xs text-gray-400">　{fmt(t.signedBy,{c:x.signBy})}</span>:null}{x.flags&&x.status==='pending'?<span className="text-xs text-gray-500">　（{flagText(x.flags)}）</span>:null}</p>))}
