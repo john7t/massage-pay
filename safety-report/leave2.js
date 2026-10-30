@@ -110,12 +110,14 @@ function Leave2Routes(){
 // 每天兩排：第一排 早班 1~10 位 | 晚班 1~10 位；第二排 11~20 位…（超過 20 人自動加排）
 const PDF_W=794,PDF_H=1123; // A4 @96dpi
 const loadScript=(src)=>new Promise((res,rej)=>{if(document.querySelector('script[src="'+src+'"]'))return res();const s=document.createElement('script');s.src=src;s.onload=()=>res();s.onerror=()=>rej(new Error('load '+src));document.head.appendChild(s);});
-function PdfCell({x,bl}){
-  return(<td style={{border:'1px solid #999',borderLeft:bl?'2px solid #000':'1px solid #999',padding:0,height:24,textAlign:'center',verticalAlign:'middle',whiteSpace:'nowrap',overflow:'hidden',fontSize:12,textDecoration:x&&x.o?'underline':'none',fontWeight:x&&x.o?700:400}}>{x?<span>{x.c}{x.p?'*':''}{x.s?<sup style={{fontSize:7,color:'#d00',marginLeft:1}}>{x.s}</sup>:null}</span>:null}</td>);
+function PdfCell({x}){
+  // 向上對齊:號碼在上、批准人小字在號碼正下方(不用 vertical-align / sup,html2canvas 在 iPhone 上會跑到底部)
+  return(<td style={{border:'1px solid #999',padding:0,height:26,textAlign:'center',verticalAlign:'top',whiteSpace:'nowrap',overflow:'hidden'}}>{x?<div><div style={{fontSize:12,lineHeight:'15px',height:15,textDecoration:x.o?'underline':'none',fontWeight:x.o?700:400}}>{x.c}{x.p?'*':''}</div>
+    <div style={{fontSize:8,lineHeight:'9px',height:9,color:'#d00',fontWeight:400}}>{x.s?x.s:'\u00a0'}</div></div>:null}</td>);
 }
 function PdfPageSheet({title,sub,days,roster,month,longBoard,pageNo,pages,genAt}){
   const wkz=['日','一','二','三','四','五','六'];
-  const th={border:'1px solid #333',background:'#eee',fontSize:12,padding:'3px 4px',textAlign:'center'};
+  const th={border:'1px solid #999',background:'#eee',fontSize:12,padding:'3px 4px',textAlign:'center'};
   const td={border:'1px solid #999',padding:'2px 4px',verticalAlign:'middle'};
   const wkS=(x)=>String(x.days||'').split(',').filter(Boolean).map(i=>wkz[parseInt(i,10)]).join('');
   const shT=(x)=>x.shift==='early'?'（早）':x.shift==='late'?'（晚）':'';
@@ -126,7 +128,7 @@ function PdfPageSheet({title,sub,days,roster,month,longBoard,pageNo,pages,genAt}
       <span style={{fontSize:18,fontWeight:700}}>{title}</span><span style={{fontSize:12}}>{sub}　第 {pageNo} / {pages} 頁</span></div>
     <table style={{width:'100%',borderCollapse:'collapse',tableLayout:'fixed'}}>
       <colgroup><col style={{width:46}}/><col style={{width:26}}/>{N.map((_,i)=><col key={'e'+i}/>)}{N.map((_,i)=><col key={'l'+i}/>)}</colgroup>
-      <thead><tr><th style={th} rowSpan={1}>日期</th><th style={th}>週</th><th style={th} colSpan={10}>早班休假（每格 1 人，第一排 1~10、第二排 11~20）</th><th style={{...th,borderLeft:'2px solid #000'}} colSpan={10}>晚班休假（每格 1 人，第一排 1~10、第二排 11~20）</th></tr></thead>
+      <thead><tr><th style={th} rowSpan={1}>日期</th><th style={th}>週</th><th style={th} colSpan={10}>早班休假（每格 1 人，第一排 1~10、第二排 11~20）</th><th style={th} colSpan={10}>晚班休假（每格 1 人，第一排 1~10、第二排 11~20）</th></tr></thead>
       <tbody>{days.map(dd=>{
         const date=month+'-'+String(dd).padStart(2,'0');const ro=roster[date]||{early:[],late:[]};
         const dow=new Date(parseInt(month.slice(0,4),10),parseInt(month.slice(5,7),10)-1,dd).getDay();const wk=dow===0||dow===6;
@@ -134,10 +136,10 @@ function PdfPageSheet({title,sub,days,roster,month,longBoard,pageNo,pages,genAt}
         const bg=wk?'#f2f2f2':'#fff';
         return Array.from({length:rows}).map((_,r)=>(<tr key={date+r} style={{background:bg}}>
           {/* 不用 rowSpan(iPhone/LINE 內建瀏覽器的 html2canvas 會漏畫合併儲存格內的文字):每排各一格,第一排放字,中間不畫分隔線 */}
-          <td style={{...td,textAlign:'center',fontWeight:700,fontSize:13,borderTop:r===0?'2px solid #333':'none',borderBottom:r<rows-1?'none':'1px solid #999'}}>{r===0?(parseInt(month.slice(5,7),10)+'/'+dd):'\u00a0'}</td>
-          <td style={{...td,textAlign:'center',fontSize:12,color:wk?'#c00':'#000',borderTop:r===0?'2px solid #333':'none',borderBottom:r<rows-1?'none':'1px solid #999'}}>{r===0?wkz[dow]:'\u00a0'}</td>
+          <td style={{...td,textAlign:'center',verticalAlign:'top',lineHeight:'15px',fontWeight:700,fontSize:13,borderTop:r===0?'1px solid #999':'none',borderBottom:r<rows-1?'none':'1px solid #999'}}>{r===0?(parseInt(month.slice(5,7),10)+'/'+dd):'\u00a0'}</td>
+          <td style={{...td,textAlign:'center',verticalAlign:'top',lineHeight:'15px',fontSize:12,color:wk?'#c00':'#000',borderTop:r===0?'1px solid #999':'none',borderBottom:r<rows-1?'none':'1px solid #999'}}>{r===0?wkz[dow]:'\u00a0'}</td>
           {N.map((_,i)=><PdfCell key={'e'+i} x={ro.early[r*10+i]}/>)}
-          {N.map((_,i)=><PdfCell key={'l'+i} x={ro.late[r*10+i]} bl={i===0}/>)}</tr>));})}
+          {N.map((_,i)=><PdfCell key={'l'+i} x={ro.late[r*10+i]}/>)}</tr>));})}
       </tbody></table>
     <div style={{position:'absolute',left:30,right:30,bottom:30}}>
       <div style={{fontSize:13,fontWeight:700,borderBottom:'1px solid #000',marginBottom:3}}>長假／固定上班日（已核准）</div>
