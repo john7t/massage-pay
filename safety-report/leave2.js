@@ -180,7 +180,7 @@ function LeavePage({me}){
   const lsSet=(k,v)=>{try{localStorage.setItem(k,v);}catch(e){}};
   const[rMode,setRMode]=useState(()=>lsGet('lv2RosterMode','all'));
   const[showSign,setShowSign]=useState(()=>lsGet('lv2ShowSign','1')!=='0');
-  const[rq,setRq]=useState('');const[rPg,setRPg]=useState(null);const[adjOpen,setAdjOpen]=useState({});const[armed,setArmed]=useState('');const[vMode,setVMode]=useState(()=>lsGet('lv2ViewMode','mgr')==='teacher'?'teacher':'mgr');const[seqOpen,setSeqOpen]=useState(false);const[gDraft,setGDraft]=useState([]);const[gCode,setGCode]=useState('');const[seqSort,setSeqSort]=useState('order');const[seqQ,setSeqQ]=useState('');const[lgOpen,setLgOpen]=useState(false);
+  const[rq,setRq]=useState('');const[rPg,setRPg]=useState(null);const[adjOpen,setAdjOpen]=useState({});const[armed,setArmed]=useState('');const[vMode,setVMode]=useState(()=>lsGet('lv2ViewMode','mgr')==='teacher'?'teacher':'mgr');const[seqOpen,setSeqOpen]=useState(false);const[gErr,setGErr]=useState('');const[gDraft,setGDraft]=useState([]);const[gCode,setGCode]=useState('');const[seqSort,setSeqSort]=useState('order');const[seqQ,setSeqQ]=useState('');const[lgOpen,setLgOpen]=useState(false);
   const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');const[err,setErr]=useState('');
   const[lf,setLf]=useState(null); // 長假/課業申請表單
   const[seqIn,setSeqIn]=useState({});const[cf,setCf]=useState(null);const[adjShift,setAdjShift]=useState((me.user&&me.user.shift)==='late'?'late':'early');
@@ -439,8 +439,11 @@ function LeavePage({me}){
         <div className="space-y-1.5"><p className="text-xs text-gray-400">{t.grpTitle}</p><p className="text-[11px] text-gray-500">{t.grpHint}</p>
           {grs.map((g,gi)=>(<div key={gi} className="flex items-center gap-2 text-sm text-gray-200"><span className="flex-1">{g.join('、')}</span><button onClick={()=>setCf({...cv,groups:grs.filter((_,i)=>i!==gi)})} className="text-gray-500">✕</button></div>))}
           <div className="flex flex-wrap items-center gap-1.5">{gDraft.map((c,i)=>(<span key={i} className="inline-flex items-center gap-1 rounded-full bg-violet-900 text-violet-100 text-xs px-2 py-0.5">{c}<button onClick={()=>setGDraft(gDraft.filter((_,j)=>j!==i))}>✕</button></span>))}
-            <input value={gCode} inputMode="numeric" onChange={e=>setGCode(e.target.value.replace(/\D/g,'').slice(0,4))} onKeyDown={e=>{if(e.key==='Enter'&&gCode){if(gDraft.indexOf(gCode)<0)setGDraft(gDraft.concat([gCode]));setGCode('');}}} placeholder={t.grpPh} className="w-28 rounded-lg bg-gray-800 border border-gray-700 px-2 py-1 text-sm text-white"/>
-            <button onClick={()=>{let a=gDraft.slice();if(gCode&&a.indexOf(gCode)<0)a.push(gCode);if(a.length<2){setErr(t.grpMin);return;}setErr('');setCf({...cv,groups:grs.concat([a])});setGDraft([]);setGCode('');}} className="px-3 py-1 rounded-lg text-xs bg-gray-700 text-white">{t.grpAdd}</button></div></div>
+            <form className="inline-flex items-center gap-1.5" onSubmit={e=>{e.preventDefault();if(gCode){if(gDraft.indexOf(gCode)<0)setGDraft(gDraft.concat([gCode]));setGCode('');setGErr('');}}}>
+              <input value={gCode} inputMode="numeric" enterKeyHint="done" onChange={e=>{setGCode(e.target.value.replace(/\D/g,'').slice(0,4));setGErr('');}} placeholder={t.grpPh} className="w-28 rounded-lg bg-gray-800 border border-gray-700 px-2 py-1 text-sm text-white"/>
+              <button type="submit" className="px-2.5 py-1 rounded-lg text-xs bg-gray-700 text-white">＋</button></form>
+            <button onClick={()=>{let a=gDraft.slice();if(gCode&&a.indexOf(gCode)<0)a.push(gCode);if(a.length<2){setGErr(t.grpMin);return;}setGErr('');setCf({...cv,groups:grs.concat([a])});setGDraft([]);setGCode('');}} className="px-3 py-1 rounded-lg text-xs bg-violet-700 text-white">{t.grpAdd}</button></div>
+          {gErr&&<p className="text-xs text-red-400">{gErr}</p>}</div>
         <Btn loading={busy} onClick={()=>run(async()=>{const r=await api('lv2SettingsSet',{store:d.store,wd:cv.wd,we:cv.we,seqMode:cv.mode,groups:JSON.stringify(grs)});if(r&&r.ok){setMsg(t.setOk);setCf(null);reload();}else setErr((r&&r.error)||t.fail);})}>{t.setSave}</Btn></Card>);})()}
     {d.mine.length>0&&<Card className="space-y-1">
       <p className="text-sm font-bold text-white">{t.mineList}</p>
