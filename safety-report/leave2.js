@@ -133,15 +133,26 @@ function PdfPageSheet({title,sub,days,roster,month,longBoard,pageNo,pages,genAt}
         const rows=Math.max(2,Math.ceil(Math.max(ro.early.length,ro.late.length)/10));
         const bg=wk?'#f2f2f2':'#fff';
         return Array.from({length:rows}).map((_,r)=>(<tr key={date+r} style={{background:bg}}>
-          {r===0&&<td rowSpan={rows} style={{...td,textAlign:'center',fontWeight:700,fontSize:13,borderTop:'2px solid #333'}}>{parseInt(month.slice(5,7),10)}/{dd}</td>}
-          {r===0&&<td rowSpan={rows} style={{...td,textAlign:'center',fontSize:12,color:wk?'#c00':'#000',borderTop:'2px solid #333'}}>{wkz[dow]}</td>}
+          {/* 不用 rowSpan(iPhone/LINE 內建瀏覽器的 html2canvas 會漏畫合併儲存格內的文字):每排各一格,第一排放字,中間不畫分隔線 */}
+          <td style={{...td,textAlign:'center',fontWeight:700,fontSize:13,borderTop:r===0?'2px solid #333':'none',borderBottom:r<rows-1?'none':'1px solid #999'}}>{r===0?(parseInt(month.slice(5,7),10)+'/'+dd):'\u00a0'}</td>
+          <td style={{...td,textAlign:'center',fontSize:12,color:wk?'#c00':'#000',borderTop:r===0?'2px solid #333':'none',borderBottom:r<rows-1?'none':'1px solid #999'}}>{r===0?wkz[dow]:'\u00a0'}</td>
           {N.map((_,i)=><PdfCell key={'e'+i} x={ro.early[r*10+i]}/>)}
           {N.map((_,i)=><PdfCell key={'l'+i} x={ro.late[r*10+i]} bl={i===0}/>)}</tr>));})}
       </tbody></table>
     <div style={{position:'absolute',left:30,right:30,bottom:30}}>
       <div style={{fontSize:13,fontWeight:700,borderBottom:'1px solid #000',marginBottom:3}}>長假／固定上班日（已核准）</div>
-      {longBoard.length===0?<div style={{fontSize:12,color:'#555'}}>本月無</div>:<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1px 16px'}}>
-        {longBoard.map(x=>(<div key={x.id} style={{fontSize:12,lineHeight:'17px'}}><b>{x.code}</b>{'　'+wkLine(x)+'　'+x.start.slice(5).replace('-','/')+' ~ '+(x.end?x.end.slice(5).replace('-','/'):'未定')}{x.reason?'　'+x.reason:''}</div>))}</div>}
+      {longBoard.length===0?<div style={{fontSize:11,color:'#555'}}>本月無</div>:(()=>{
+        const md=(d)=>String(d).slice(5).replace('-','/').replace(/\/0/,'/').replace(/^0/,'');
+        const sh=(x)=>x.shift==='early'?'早':x.shift==='late'?'晚':'';
+        const item=(x)=>{const e=x.end?'~'+md(x.end):'';
+          if(x.kind==='leave')return x.code+'('+md(x.start)+(x.end?'~'+md(x.end):'~')+')';
+          if(x.kind==='fixed')return x.code+'('+wkS(x)+sh(x)+e+')';
+          if(x.kind==='alt')return x.code+'('+(x.days==='odd'?'單':'雙')+sh(x)+e+')';
+          if(x.kind==='holiday')return x.code+'('+wkS(x)+(x.quota||String(x.days||'').split(',').length)+'天'+sh(x)+e+')';
+          return x.code;};
+        const G=[['leave','長假'],['fixed','固定休'],['alt','隔日休'],['holiday','假日可休'],['part','兼職'],['note','見人再壓']];
+        return G.map(([k,nm])=>{const arr=longBoard.filter(x=>x.kind===k);return arr.length?(<div key={k} style={{fontSize:11,lineHeight:'16px'}}><b>{nm}</b>　{arr.map(item).join('　')}</div>):null;});
+      })()}
       <div style={{fontSize:10,color:'#666',marginTop:4}}>底線＝超出名額（待調整）　<span style={{color:'#d00'}}>紅字</span>＝批准主管編號　*＝待簽核　主管排休已列入　列印時間 {genAt}</div>
     </div>
   </div>);
