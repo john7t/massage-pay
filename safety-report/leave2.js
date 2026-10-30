@@ -122,24 +122,24 @@ function PdfPageSheet({title,sub,days,roster,month,longBoard,pageNo,pages,genAt}
   const wkS=(x)=>String(x.days||'').split(',').filter(Boolean).map(i=>wkz[parseInt(i,10)]).join('');
   const shT=(x)=>x.shift==='early'?'（早）':x.shift==='late'?'（晚）':'';
   const wkLine=(x)=>x.kind==='leave'?'長假':x.kind==='fixed'?'固定休　每週'+wkS(x)+shT(x):x.kind==='alt'?'固定隔日休　'+(x.days==='odd'?'單號日':'雙號日')+shT(x):x.kind==='holiday'?'假日可休　'+wkS(x)+'・每週'+(x.quota||String(x.days||'').split(',').length)+'天'+shT(x):x.kind==='part'?'兼職':x.kind==='note'?'見人再壓':'課業　每週'+wkS(x)+'上班';
-  const N=Array.from({length:10});
+  const PER=6;const N=Array.from({length:PER});
   return(<div className="pdfpage" style={{width:PDF_W,height:PDF_H,background:'#fff',color:'#000',padding:'28px 30px',boxSizing:'border-box',fontFamily:'-apple-system,"PingFang TC","Noto Sans CJK TC","Noto Sans TC","Microsoft JhengHei",sans-serif',position:'relative',overflow:'hidden'}}>
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',borderBottom:'2px solid #000',paddingBottom:4,marginBottom:6}}>
       <span style={{fontSize:18,fontWeight:700}}>{title}</span><span style={{fontSize:12}}>{sub}　第 {pageNo} / {pages} 頁</span></div>
     <table style={{width:'100%',borderCollapse:'collapse',tableLayout:'fixed'}}>
       <colgroup><col style={{width:46}}/><col style={{width:26}}/>{N.map((_,i)=><col key={'e'+i}/>)}{N.map((_,i)=><col key={'l'+i}/>)}</colgroup>
-      <thead><tr><th style={th} rowSpan={1}>日期</th><th style={th}>週</th><th style={th} colSpan={10}>早班休假（每格 1 人，第一排 1~10、第二排 11~20）</th><th style={th} colSpan={10}>晚班休假（每格 1 人，第一排 1~10、第二排 11~20）</th></tr></thead>
+      <thead><tr><th style={th} rowSpan={1}>日期</th><th style={th}>週</th><th style={th} colSpan={PER}>早班休假（每格 1 人，一排 6 格）</th><th style={th} colSpan={PER}>晚班休假（每格 1 人，一排 6 格）</th></tr></thead>
       <tbody>{days.map(dd=>{
         const date=month+'-'+String(dd).padStart(2,'0');const ro=roster[date]||{early:[],late:[]};
         const dow=new Date(parseInt(month.slice(0,4),10),parseInt(month.slice(5,7),10)-1,dd).getDay();const wk=dow===0||dow===6;
-        const rows=Math.max(2,Math.ceil(Math.max(ro.early.length,ro.late.length)/10));
+        const rows=Math.max(2,Math.ceil(Math.max(ro.early.length,ro.late.length)/PER));
         const bg=wk?'#f2f2f2':'#fff';
         return Array.from({length:rows}).map((_,r)=>(<tr key={date+r} style={{background:bg}}>
           {/* 不用 rowSpan(iPhone/LINE 內建瀏覽器的 html2canvas 會漏畫合併儲存格內的文字):每排各一格,第一排放字,中間不畫分隔線 */}
           <td style={{...td,textAlign:'center',verticalAlign:'top',lineHeight:'15px',fontWeight:700,fontSize:13,borderTop:r===0?'1px solid #999':'none',borderBottom:r<rows-1?'none':'1px solid #999'}}>{r===0?(parseInt(month.slice(5,7),10)+'/'+dd):'\u00a0'}</td>
           <td style={{...td,textAlign:'center',verticalAlign:'top',lineHeight:'15px',fontSize:12,color:wk?'#c00':'#000',borderTop:r===0?'1px solid #999':'none',borderBottom:r<rows-1?'none':'1px solid #999'}}>{r===0?wkz[dow]:'\u00a0'}</td>
-          {N.map((_,i)=><PdfCell key={'e'+i} x={ro.early[r*10+i]}/>)}
-          {N.map((_,i)=><PdfCell key={'l'+i} x={ro.late[r*10+i]}/>)}</tr>));})}
+          {N.map((_,i)=><PdfCell key={'e'+i} x={ro.early[r*PER+i]}/>)}
+          {N.map((_,i)=><PdfCell key={'l'+i} x={ro.late[r*PER+i]}/>)}</tr>));})}
       </tbody></table>
     <div style={{position:'absolute',left:30,right:30,bottom:30}}>
       <div style={{fontSize:13,fontWeight:700,borderBottom:'1px solid #000',marginBottom:3}}>長假／固定上班日（已核准）</div>
