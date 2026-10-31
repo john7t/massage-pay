@@ -9,7 +9,7 @@
      ?s2=mgr          主管功能(申請、通知設定、調整主管)
      ?s2=my           我的安全回報記錄(我回報過的:日期、主題、內容、時間;唯讀)
      ?s2=today        (保留未用)目前未截止的回報清單,可點進去回報
-     ?s2=staff        人員清單(LINE名稱、移除;僅主管)
+     ?s2=staff        人員清單(LINE名稱、離職/離職日、離職區、手動新增離職編號;僅主管)
      ?s2=apv&rid=     核准/拒絕主管申請(從通知 Flex 進來)
    後端:gas-safety2.gs(動作名稱 s2xxx,全部帶 liff.getAccessToken() 由 GAS 驗證身分)。
    注意:本檔以 <script type="text/babel"> 載入,輸出 window.Safety2App,避免跟 safety-report.html 內的名稱衝突。 */
@@ -44,7 +44,7 @@ const CACHE_TTL=12*3600e3; // 安全保險:最久 12 小時後即使沒按重新
 const CACHEABLE=['s2Me','s2GetSurvey','s2GetList','s2MySurveys','s2MgrInfo','s2TodaySurveys','s2MyReports'];
 const WRITE_CLEAR={s2Register:'*',s2CreateSurvey:['s2MySurveys','s2TodaySurveys'],s2DeleteSurvey:['s2MySurveys','s2GetSurvey','s2GetList','s2TodaySurveys','s2MyReports'],s2RestoreSurvey:['s2MySurveys','s2GetSurvey','s2GetList'],
   s2Report:['s2GetSurvey','s2GetList','s2TodaySurveys','s2MyReports'],s2MgrApply:['s2Me','s2MgrInfo'],s2MgrApprove:['s2MgrInfo','s2Me','s2MySurveys'],s2MgrSet:['s2MgrInfo'],s2MgrNotify:['s2MgrInfo','s2Me'],
-  s2StaffSetLeft:['s2GetList'],s2WebAdminSet:['s2MgrInfo','s2Me'],s2OpenSet:['s2MgrInfo','s2GetList','s2GetSurvey'],
+  s2StaffSetLeft:['s2GetList','lv2Month'],s2StaffAddLeft:['lv2Month'],s2WebAdminSet:['s2MgrInfo','s2Me'],s2OpenSet:['s2MgrInfo','s2GetList','s2GetSurvey'],
   s2AdminHide:['s2MgrInfo','s2Me','s2MySurveys','s2GetList','s2GetSurvey']}; // 寫入成功後,清掉受影響的暫存
 function cuid(){try{const c=liff.getContext();return(c&&c.userId)||'';}catch(_e){return '';}}
 function ckey(action,params){return 's2c:'+cuid()+':'+action+':'+JSON.stringify(params||{});}
@@ -500,33 +500,60 @@ function ShareFlexBtn({label,altText,build}){
 function StaffList(){
   const[st,reload]=useLoad('s2StaffList',{});
   const[busy,setBusy]=useState('');const[err,setErr]=useState('');
+  const today=new Date(Date.now()+8*3600e3).toISOString().slice(0,10); // 台北今天
+  const[pick,setPick]=useState(null); // {id,date}:正在選離職日的人員
+  const[add,setAdd]=useState({store:'',code:'',date:today});
   if(st.loading&&!st.data)return(<Loading/>);
   if(!st.data||!st.data.ok)return(<p className="text-sm text-red-400">{(st.data&&st.data.error)||'失敗'}</p>);
   const d=st.data;
-  const toggle=async(m)=>{
-    if(!m.left&&!window.confirm('將「'+m.store+' '+m.code+'」移除？\n(資料保留，不再計入名單與分母，之後可恢復)'))return;
-    setBusy(m.id);setErr('');const r=await api('s2StaffSetLeft',{targetId:m.id,left:!m.left});setBusy('');if(r.ok)reload();else setErr(r.error||'失敗');
-  };
+  const mdS=(x)=>String(x||'').slice(5).replace('-','/').replace(/\/0/,'/').replace(/^0/,'');
+  const call=async(id,fn)=>{setBusy(id);setErr('');const r=await fn();setBusy('');if(r.ok){setPick(null);reload();}else setErr(r.error||'失敗');return r;};
+  const doLeft=(m)=>call(m.id,()=>api('s2StaffSetLeft',{targetId:m.id,left:true,leftDate:pick.date}));
+  const undo=(m)=>{
+    if(!window.confirm(m.manual?'刪除「'+m.store+' '+m.code+'」這筆手動離職記錄？':'將「'+m.store+' '+m.code+'」恢復為在職？\n(清除離職日期，之後可再設離職)'))return;
+    call(m.id,()=>api('s2StaffSetLeft',{targetId:m.id,left:false}));};
   const webToggle=async(m)=>{
     if(!window.confirm((m.web?'取消':'設定')+'「'+m.store+' '+m.code+'」（LINE：'+(m.name||'未取得')+'）為網頁管理者？'+(m.web?'':'\n網頁管理者權限等同管理者。')))return;
-    setBusy(m.id);setErr('');const r=await api('s2WebAdminSet',{targetId:m.id,on:!m.web});setBusy('');if(r.ok)reload();else setErr(r.error||'失敗');
+    call(m.id,()=>api('s2WebAdminSet',{targetId:m.id,on:!m.web}));
   };
+  const addLeft=()=>{const store=add.store||d.myStore||(d.stores||[])[0]||'';if(!add.code.trim()){setErr('請輸入編號');return;}
+    call('add',()=>api('s2StaffAddLeft',{store:store,code:add.code.trim(),leftDate:add.date})).then(r=>{if(r&&r.ok)setAdd({store:add.store,code:'',date:today});});};
   const groups=(d.stores||[]).map(sn=>({store:sn,items:d.staff.filter(x=>x.store===sn)})).filter(g=>g.items.length>0);
+  const row=(m)=>(<div key={m.id} className="py-2">
+    <div className="flex items-center justify-between">
+      <div className="min-w-0"><p className={m.left?'text-gray-400':'text-gray-100'}>{m.code}{m.role==='counter'?'（櫃台）':''}{m.shift==='early'?'（早班）':m.shift==='late'?'（晚班）':''}{m.left&&<span className="ml-2 text-xs text-amber-400">{m.leftDate?mdS(m.leftDate)+'離':'已離職(未填日期)'}</span>}{m.manual&&<span className="ml-2 text-xs text-gray-500">手動記錄</span>}{m.web&&<span className="ml-2 text-xs text-violet-300">網頁管理者</span>}</p>
+        {!m.manual&&<p className="text-xs text-gray-400 break-all">LINE：{m.name||'（未取得）'}</p>}</div>
+      <div className="flex flex-col gap-1 items-end flex-none ml-2">
+        {m.left?<>{!m.manual&&<button disabled={busy===m.id} className="px-3 py-1 rounded-full text-xs bg-gray-700 text-gray-200" onClick={()=>setPick({id:m.id,date:m.leftDate||today})}>改日期</button>}
+          <button disabled={busy===m.id} className={'px-3 py-1 rounded-full text-sm '+(m.manual?'bg-gray-700 text-red-300':'bg-emerald-700 text-white')} onClick={()=>undo(m)}>{m.manual?'刪除記錄':'恢復'}</button></>
+          :<button disabled={busy===m.id} className="px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-200" onClick={()=>setPick({id:m.id,date:today})}>離職</button>}
+        {SHOW_WEBADMIN_BTN&&d.realAdmin&&!m.left&&<button disabled={busy===m.id} className={'px-3 py-1 rounded-full text-xs border '+(m.web?'border-red-500 text-red-400':'border-violet-500 text-violet-300')} onClick={()=>webToggle(m)}>{m.web?'取消網頁管理者':'設為網頁管理者'}</button>}</div></div>
+    {pick&&pick.id===m.id&&(<div className="mt-2 p-2 rounded bg-gray-800 flex flex-wrap items-center gap-2"><span className="text-sm text-gray-200">最後上班日(離職日)</span>
+      <input type="date" value={pick.date} onChange={e=>setPick({id:m.id,date:e.target.value})} className="bg-gray-900 text-white rounded px-2 py-1 text-sm border border-gray-600"/>
+      <button disabled={busy===m.id||!pick.date} className="px-3 py-1 rounded-full text-sm bg-amber-600 text-white" onClick={()=>doLeft(m)}>確定</button>
+      <button className="px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-200" onClick={()=>setPick(null)}>取消</button>
+      <p className="w-full text-xs text-gray-400">離職後移到下方「離職區」；總休表該編號下方會加註「{pick.date?mdS(pick.date):'M/D'}離」，已排的休假不會刪除。</p></div>)}
+  </div>);
+  const leftSort=(a,b)=>(a.leftDate<b.leftDate?1:a.leftDate>b.leftDate?-1:0);
+  const stores=d.all?(d.stores||[]):[d.myStore];
   return(<div className="space-y-3">
     {groups.length===0&&<p className="text-sm text-gray-500">目前沒有人員</p>}
-    {groups.map(g=>(<div key={g.store}><p className="text-sm text-gray-300">{g.store}（在職 {g.items.filter(x=>!x.left).length}／共 {g.items.length}）</p>
-      <div className="mt-1 divide-y divide-gray-800">{g.items.map(m=>(<div key={m.id} className="flex items-center justify-between py-2">
-        <div className="min-w-0"><p className={m.left?'text-gray-500 line-through':'text-gray-100'}>{m.code}{m.role==='counter'?'（櫃台）':''}{m.shift==='early'?'（早班）':m.shift==='late'?'（晚班）':''}{m.left?'　已移除':''}{m.web&&<span className="ml-2 text-xs text-violet-300 no-underline">網頁管理者</span>}</p>
-          <p className="text-xs text-gray-400 break-all">LINE：{m.name||'（未取得）'}</p></div>
-        <div className="flex flex-col gap-1 items-end flex-none ml-2">
-          <button disabled={busy===m.id} className={'px-3 py-1 rounded-full text-sm '+(m.left?'bg-emerald-700 text-white':'bg-gray-700 text-gray-200')} onClick={()=>toggle(m)}>{m.left?'恢復':'移除'}</button>
-          {SHOW_WEBADMIN_BTN&&d.realAdmin&&!m.left&&<button disabled={busy===m.id} className={'px-3 py-1 rounded-full text-xs border '+(m.web?'border-red-500 text-red-400':'border-violet-500 text-violet-300')} onClick={()=>webToggle(m)}>{m.web?'取消網頁管理者':'設為網頁管理者'}</button>}</div></div>))}</div></div>))}
+    {groups.map(g=>{const on=g.items.filter(x=>!x.left),off=g.items.filter(x=>x.left).sort(leftSort);
+      return(<div key={g.store}><p className="text-sm text-gray-300">{g.store}（在職 {on.length}／離職 {off.length}）</p>
+        <div className="mt-1 divide-y divide-gray-800">{on.map(row)}</div>
+        {off.length>0&&(<div className="mt-2"><p className="text-xs text-amber-400">離職區</p><div className="mt-1 divide-y divide-gray-800 border-t border-gray-800">{off.map(row)}</div></div>)}</div>);})}
+    <div className="p-2 rounded border border-gray-700 space-y-2"><p className="text-sm text-gray-200">＋ 手動新增離職人員編號<span className="text-xs text-gray-500">（只做記錄：列入離職區、總休表編號下加註離職日）</span></p>
+      <div className="flex flex-wrap items-center gap-2">
+        {stores.length>1&&<select value={add.store||d.myStore||stores[0]} onChange={e=>setAdd({...add,store:e.target.value})} className="bg-gray-900 text-white rounded px-2 py-1 text-sm border border-gray-600">{stores.map(x=><option key={x} value={x}>{x}</option>)}</select>}
+        <input value={add.code} onChange={e=>setAdd({...add,code:e.target.value})} placeholder="編號" inputMode="numeric" className="w-20 bg-gray-900 text-white rounded px-2 py-1 text-sm border border-gray-600"/>
+        <input type="date" value={add.date} onChange={e=>setAdd({...add,date:e.target.value})} className="bg-gray-900 text-white rounded px-2 py-1 text-sm border border-gray-600"/>
+        <button disabled={busy==='add'} className="px-3 py-1 rounded-full text-sm bg-amber-600 text-white" onClick={addLeft}>新增</button></div></div>
     {err&&<p className="text-sm text-red-400">{err}</p>}
   </div>);
 }
 function StaffCard(){
   const[open,setOpen]=useState(false);
-  return(<Card className="space-y-3"><button className="w-full flex items-center justify-between text-left" onClick={()=>setOpen(!open)}><span className="font-bold text-white">👥 人員管理（移除）</span><span className="text-gray-400">{open?'▲':'▼'}</span></button>
+  return(<Card className="space-y-3"><button className="w-full flex items-center justify-between text-left" onClick={()=>setOpen(!open)}><span className="font-bold text-white">👥 人員管理（離職）</span><span className="text-gray-400">{open?'▲':'▼'}</span></button>
     {open&&<StaffList/>}</Card>);
 }
 
@@ -605,7 +632,7 @@ function MyReportsInner({me}){
       <p className="text-xs text-gray-500">{t.time}　{x.time}</p></Card>))}
   </Box>);
 }
-// ───────── 人員清單(僅主管):LINE 名稱、移除 ─────────
+// ───────── 人員清單(僅主管):LINE 名稱、離職 ─────────
 function StaffPage(){
   return(<MgrGate render={()=><Box><Card className="space-y-3"><h1 className="text-lg font-bold text-white">👥 人員清單</h1><StaffList/></Card></Box>}/>);
 }
