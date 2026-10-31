@@ -66,15 +66,15 @@ const addMonth=(m,n)=>{const y=parseInt(m.slice(0,4),10),mo=parseInt(m.slice(5,7
 const todayStr=()=>{const d=new Date(Date.now()+8*3600e3);return d.getUTCFullYear()+'-'+p2(d.getUTCMonth()+1)+'-'+p2(d.getUTCDate());};
 const SH_COLOR={early:'bg-amber-500',late:'bg-indigo-500'};
 
-const LV2_PROMO=[["🏖️", "#6D5DFC", "#46C2CB", "預排休假上線了", "Lịch nghỉ phép trước đã có", "不用再排隊寫紙本,用手機就能排下個月的休假,誰排了、還剩幾個名額,一目了然。", "Không cần xếp hàng viết giấy nữa, dùng điện thoại là đăng ký được ngày nghỉ tháng sau, ai đã đăng ký và còn mấy suất đều thấy rõ.", ""], ["📝", "#E8A33D", "#E0674B", "上線階段 1:測試階段", "Giai đoạn 1: Chạy thử", "仍請依公司規定寫休假小白單,於指定時間送櫃台;主管再依小白單順序,排定老師線上申請的順序。", "Vẫn viết phiếu nghỉ nhỏ màu trắng theo quy định công ty và nộp cho quầy vào thời gian chỉ định; quản lý sẽ sắp thứ tự đăng ký trực tuyến của nhân viên theo thứ tự phiếu.", ""], ["🚀", "#E0674B", "#C2417A", "上線階段 2:正式上線", "Giai đoạn 2: Chính thức", "改由線上進行預排休申請。", "Đăng ký nghỉ phép trước hoàn toàn trực tuyến.", ""], ["📅", "#F6A04D", "#F0627A", "點月曆,一下就排", "Chạm vào lịch là đăng ký xong", "選早班或晚班,點日期就登記,再點一次取消。可先「暫存」慢慢調整,確定了再「送出」。", "Chọn ca sáng hoặc ca tối, chạm vào ngày là đăng ký, chạm lại để hủy. Có thể “Lưu nháp” để chỉnh dần, chắc chắn rồi mới “Gửi”.", "每人每月可休 6 天\nMỗi người, mỗi tháng được nghỉ 6 ngày"], ["⏰", "#3CB7A0", "#3B82C4", "什麼時候排?", "Khi nào đăng ký?", "休假月份的前一個月 10 日開放送出,到 12 日 24:00 前送出,進入預排休假流程;更早也能先暫存。", "Từ ngày 10 của tháng trước tháng nghỉ là bắt đầu gửi được, gửi trước 24:00 ngày 12 sẽ vào quy trình đăng ký nghỉ trước; có thể lưu nháp sớm hơn.", "例:11 月休假 → 10/10 開放,10/12 24:00 前送出,進入預排休假流程\nVí dụ: nghỉ tháng 11 → mở 10/10, gửi trước 24:00 ngày 12/10 để vào quy trình"], ["👥", "#B469E0", "#6D7BF0", "名額一看就懂", "Nhìn là biết còn suất", "日曆小字顯示每日可休剩餘名額。老師只看到自己的編號與空位,不會看到別人。", "Số nhỏ trên lịch là số suất nghỉ còn lại của mỗi ngày. Bạn chỉ thấy số của mình và chỗ trống, không thấy của người khác.", "✦ 已有人休　✧ 還有空位\n✦ đã có người nghỉ　✧ còn chỗ"], ["🔢", "#4B8DE0", "#5A6BD8", "依申請順序,公平處理", "Xử lý công bằng theo thứ tự đăng ký", "名額依申請順序排。若超過名額,會標示「超額排休」,請改休或由主管協調核假。", "Suất được xếp theo thứ tự đăng ký. Nếu vượt suất sẽ ghi “Vượt hạn mức”, vui lòng đổi ngày hoặc nhờ quản lý duyệt.", "超額排休,請改休 / 主管已核假\nVượt hạn mức, vui lòng đổi ngày / Quản lý đã duyệt"], ["📌", "#2F9E6F", "#1F7A8C", "長假、固定休也能申請", "Nghỉ dài hạn, nghỉ cố định cũng đăng ký được", "因回國、課業實習,可申請長假或固定休,送出後由主管核准,列在總休表最下方。", "Khi về nước, học hoặc thực tập, có thể đăng ký nghỉ dài hạn hoặc nghỉ cố định — gửi xong chờ quản lý duyệt, hiển thị cuối bảng tổng.", "現在就打開「休假」試試看\nHãy mở “Nghỉ phép” và thử ngay"]];
+const LV2_PROMO=[["🏖️", "#6D5DFC", "#46C2CB", "預排休假上線了", "Lịch nghỉ phép trước đã có", "不用再排隊寫紙本,用手機就能排下個月的休假,誰排了、還剩幾個名額,一目了然。", "Không cần xếp hàng viết giấy nữa, dùng điện thoại là đăng ký được ngày nghỉ tháng sau, ai đã đăng ký và còn mấy suất đều thấy rõ.", ["", ""]], ["📝", "#E8A33D", "#E0674B", "上線階段 1:測試階段", "Giai đoạn 1: Chạy thử", "仍請依公司規定寫休假小白單,於指定時間送櫃台;主管再依小白單順序,排定老師線上申請的順序。", "Vẫn viết phiếu nghỉ nhỏ màu trắng theo quy định công ty và nộp cho quầy vào thời gian chỉ định; quản lý sẽ sắp thứ tự đăng ký trực tuyến của nhân viên theo thứ tự phiếu.", ["・小白單照常填寫、照常送櫃台\n・線上申請的順序,由主管依小白單順序排定\n・這段期間,可以先熟悉線上操作", "・Phiếu nhỏ vẫn viết và nộp cho quầy như bình thường\n・Thứ tự đăng ký trực tuyến do quản lý sắp xếp theo thứ tự phiếu\n・Trong thời gian này, bạn có thể làm quen với thao tác trực tuyến"]], ["🚀", "#E0674B", "#C2417A", "上線階段 2:正式上線", "Giai đoạn 2: Chính thức", "改由線上進行預排休申請。", "Đăng ký nghỉ phép trước hoàn toàn trực tuyến.", ["・不再需要寫小白單、送櫃台\n・每月 10 日 00:00 開放送出,12 日 24:00 前送出\n・誰排了、還剩幾個名額,在系統上一目了然", "・Không cần viết phiếu nhỏ và nộp cho quầy nữa\n・Mở gửi từ 00:00 ngày 10 hàng tháng, gửi trước 24:00 ngày 12\n・Ai đã đăng ký, còn mấy suất, đều xem được trên hệ thống"]], ["📅", "#F6A04D", "#F0627A", "點月曆,一下就排", "Chạm vào lịch là đăng ký xong", "選早班或晚班,點日期就登記,再點一次取消。可先「暫存」慢慢調整,確定了再「送出」。", "Chọn ca sáng hoặc ca tối, chạm vào ngày là đăng ký, chạm lại để hủy. Có thể “Lưu nháp” để chỉnh dần, chắc chắn rồi mới “Gửi”.", ["每人每月可休 6 天", "Mỗi người, mỗi tháng được nghỉ 6 ngày"]], ["⏰", "#3CB7A0", "#3B82C4", "什麼時候排?", "Khi nào đăng ký?", "休假月份的前一個月 10 日開放送出,到 12 日 24:00 前送出,進入預排休假流程;更早也能先暫存。", "Từ ngày 10 của tháng trước tháng nghỉ là bắt đầu gửi được, gửi trước 24:00 ngày 12 sẽ vào quy trình đăng ký nghỉ trước; có thể lưu nháp sớm hơn.", ["例:11 月休假 → 10/10 開放,10/12 24:00 前送出,進入預排休假流程", "Ví dụ: nghỉ tháng 11 → mở 10/10, gửi trước 24:00 ngày 12/10 để vào quy trình"]], ["👥", "#B469E0", "#6D7BF0", "名額一看就懂", "Nhìn là biết còn suất", "日曆小字顯示每日可休剩餘名額。老師只看到自己的編號與空位,不會看到別人。", "Số nhỏ trên lịch là số suất nghỉ còn lại của mỗi ngày. Bạn chỉ thấy số của mình và chỗ trống, không thấy của người khác.", ["✦ 已有人休　✧ 還有空位", "✦ đã có người nghỉ　✧ còn chỗ"]], ["🔢", "#4B8DE0", "#5A6BD8", "依申請順序,公平處理", "Xử lý công bằng theo thứ tự đăng ký", "名額依申請順序排。若超過名額,會標示「超額排休」,請改休或由主管協調核假。", "Suất được xếp theo thứ tự đăng ký. Nếu vượt suất sẽ ghi “Vượt hạn mức”, vui lòng đổi ngày hoặc nhờ quản lý duyệt.", ["超額排休,請改休 / 主管已核假", "Vượt hạn mức, vui lòng đổi ngày / Quản lý đã duyệt"]], ["📌", "#2F9E6F", "#1F7A8C", "長假、固定休也能申請", "Nghỉ dài hạn, nghỉ cố định cũng đăng ký được", "因回國、課業實習,可申請長假或固定休,送出後由主管核准,列在總休表最下方。", "Khi về nước, học hoặc thực tập, có thể đăng ký nghỉ dài hạn hoặc nghỉ cố định — gửi xong chờ quản lý duyệt, hiển thị cuối bảng tổng.", ["現在就打開「休假」試試看", "Hãy mở “Nghỉ phép” và thử ngay"]]];
 function buildPromoFlex(){
   const base='https://liff.line.me/'+window.__S2_LIFF_ID;const n=LV2_PROMO.length;
   return{type:'carousel',contents:LV2_PROMO.map((p,i)=>{
-    const body=[{type:'text',text:p[3],weight:'bold',size:'xl',color:'#111111',wrap:true},{type:'text',text:p[4],size:'xs',color:'#888888',wrap:true,margin:'xs'},{type:'text',text:p[5],size:'sm',color:'#333333',wrap:true,margin:'lg'},{type:'text',text:p[6],size:'xs',color:'#777777',wrap:true,margin:'sm'},
-      {type:'box',layout:'vertical',margin:'lg',backgroundColor:'#E8F7EE',cornerRadius:'8px',paddingAll:'8px',contents:[{type:'text',text:p[7],size:'xs',color:'#06803A',wrap:true}]}];
-    if(!p[7])body.pop(); // 沒有提示文字就不畫綠色小框(第 1 頁不提開啟方式)
+    const body=[{type:'text',text:p[5],size:'md',color:'#333333',wrap:true},{type:'text',text:p[6],size:'sm',color:'#777777',wrap:true,margin:'sm'},
+      {type:'box',layout:'vertical',margin:'lg',backgroundColor:'#E8F7EE',cornerRadius:'8px',paddingAll:'8px',contents:[{type:'text',text:p[7][0]+'\n'+p[7][1],size:'sm',color:'#06803A',wrap:true}]}];
+    if(!p[7][0])body.pop(); // 沒有提示文字就不畫綠色小框(第 1 頁不提開啟方式)
     const b={type:'bubble',size:'mega',
-      hero:{type:'box',layout:'vertical',height:'140px',justifyContent:'center',alignItems:'center',background:{type:'linearGradient',angle:'135deg',startColor:p[1],endColor:p[2]},contents:[{type:'text',text:p[0],size:'5xl',align:'center'},{type:'box',layout:'vertical',position:'absolute',offsetTop:'10px',offsetEnd:'12px',backgroundColor:'#00000040',cornerRadius:'10px',paddingTop:'2px',paddingBottom:'2px',paddingStart:'9px',paddingEnd:'9px',contents:[{type:'text',text:(i+1)+'/'+n,size:'xs',color:'#FFFFFF'}]}]},
+      hero:{type:'box',layout:'vertical',paddingAll:'18px',paddingTop:'34px',justifyContent:'center',alignItems:'center',background:{type:'linearGradient',angle:'135deg',startColor:p[1],endColor:p[2]},contents:[{type:'text',text:p[0],size:'4xl',align:'center'},{type:'text',text:p[3],weight:'bold',size:'xl',color:'#FFFFFF',align:'center',wrap:true,margin:'md'},{type:'text',text:p[4],size:'xs',color:'#FFFFFFCC',align:'center',wrap:true,margin:'xs'},{type:'box',layout:'vertical',position:'absolute',offsetTop:'10px',offsetEnd:'12px',backgroundColor:'#00000040',cornerRadius:'10px',paddingTop:'2px',paddingBottom:'2px',paddingStart:'9px',paddingEnd:'9px',contents:[{type:'text',text:(i+1)+'/'+n,size:'xs',color:'#FFFFFF'}]}]},
       body:{type:'box',layout:'vertical',paddingAll:'18px',contents:body}};
     if(i===n-1)b.footer={type:'box',layout:'vertical',paddingAll:'lg',contents:[{type:'button',style:'primary',color:'#6d4aa8',height:'sm',action:{type:'uri',label:'開啟預排休假 / Mở Nghỉ phép',uri:base+'?lv2=l'}}]};
     return b;})};
@@ -101,8 +101,55 @@ const longText=(x,t)=>{const sh=x.shift?(x.shift==='early'?'（'+t.early+'）':'
   if(x.kind==='part'||x.kind==='note')return kindName(x.kind,t);
   return fmt(t.weekly,{d:wkNames(x.days,t)});};
 const lang0=(t)=>t.wk[0]==='CN';
+// ───────── 預排休入口卡(分享給好友用:按鈕只能開網址)與介紹頁 ─────────
+// 機器人回覆的入口卡/介紹 Flex 在 gas-safety2(/預排休、/預排休介紹…),內容與 LV2_PROMO 同步。分享出去的卡片 LINE 規定只能用「開啟網址」按鈕,
+// 所以三顆介紹按鈕改開 ?lv2=intro&v=zh|vi|big(網頁版介紹)。
+const LV2_ENTRY_INTRO=[['預排休介紹(中文)','zh'],['Giới thiệu nghỉ phép','vi'],['預排休介紹(大字)','big']];
+function buildEntryFlex(){
+  const base='https://liff.line.me/'+window.__S2_LIFF_ID;
+  const bt=(label,uri)=>({type:'button',style:'secondary',height:'sm',action:{type:'uri',label:label,uri:uri}});
+  return{type:'bubble',size:'mega',
+    hero:{type:'box',layout:'vertical',paddingAll:'18px',paddingTop:'34px',paddingBottom:'30px',alignItems:'center',background:{type:'linearGradient',angle:'135deg',startColor:'#6D5DFC',endColor:'#46C2CB'},
+      contents:[{type:'text',text:'🏖️',size:'4xl',align:'center'},{type:'text',text:'線上預排休\n開放測試了',weight:'bold',size:'xl',color:'#FFFFFF',align:'center',wrap:true,margin:'md'}]},
+    footer:{type:'box',layout:'vertical',spacing:'sm',paddingAll:'16px',contents:[
+      {type:'button',style:'primary',color:'#6d4aa8',height:'sm',action:{type:'uri',label:'進入預排休',uri:base+'?lv2=l'}}]
+      .concat(LV2_ENTRY_INTRO.map(x=>bt(x[0],base+'?lv2=intro&v='+x[1])))}};
+}
+// 網頁版介紹(任何人都能開,不用登記):中文／越南文／大字
+function IntroPage(){
+  const q=new URLSearchParams(location.search);
+  const[v,setV]=useState(['zh','vi','big'].indexOf(q.get('v'))>=0?q.get('v'):'zh');
+  const vi=v==='vi',big=v==='big';
+  const fs=big?29:16,tfs=big?29:22,tipfs=big?29:14;
+  const go2=()=>{location.href='?lv2=l';};
+  return(<Box>
+    <div className="flex gap-2 flex-wrap">{[['zh','中文'],['vi','Tiếng Việt'],['big','大字']].map(x=>(<button key={x[0]} className={'px-4 py-1 rounded-full text-sm '+(v===x[0]?'bg-violet-600 text-white':'bg-gray-700 text-gray-200')} onClick={()=>setV(x[0])}>{x[1]}</button>))}</div>
+    {LV2_PROMO.map((p,i)=>{const title=vi?p[4]:p[3],body=vi?p[6]:p[5],tip=vi?p[7][1]:p[7][0];
+      return(<div key={i} className="rounded-2xl overflow-hidden bg-white text-gray-800 shadow">
+        <div style={{background:'linear-gradient(135deg,'+p[1]+','+p[2]+')',padding:'34px 18px 18px',textAlign:'center',position:'relative'}}>
+          <div style={{fontSize:40}}>{p[0]}</div><div style={{color:'#fff',fontWeight:700,fontSize:tfs,marginTop:8,whiteSpace:'pre-line'}}>{title}</div>
+          <span style={{position:'absolute',top:10,right:12,background:'#0004',color:'#fff',fontSize:12,borderRadius:10,padding:'2px 9px'}}>{i+1}/{LV2_PROMO.length}</span></div>
+        <div style={{padding:18}}><div style={{fontSize:fs,lineHeight:1.5,whiteSpace:'pre-line',color:'#333'}}>{body}</div>
+          {tip&&<div style={{marginTop:16,background:'#E8F7EE',color:'#06803A',fontSize:tipfs,borderRadius:8,padding:8,lineHeight:1.5,whiteSpace:'pre-line'}}>{tip}</div>}
+          {i===LV2_PROMO.length-1&&<button className="w-full mt-4 py-3 rounded-lg bg-violet-700 text-white font-bold" onClick={go2}>{vi?'Mở Nghỉ phép':'開啟預排休假'}</button>}</div></div>);})}
+  </Box>);
+}
+// 分享此頁:把入口卡(網址按鈕版)分享給好友
+function SharePage(){
+  const[res,setRes]=useState('');
+  const go2=async()=>{
+    try{if(!liff.isApiAvailable('shareTargetPicker')){setRes('此環境不支援分享,請在 LINE 內開啟');return;}
+      const r=await liff.shareTargetPicker([{type:'flex',altText:'線上預排休開放測試了',contents:buildEntryFlex()}]);setRes(r?'已分享 ✅':'已取消');}catch(e){setRes('錯誤:'+String(e&&e.message||e));}
+  };
+  return(<Box><Card className="space-y-3"><p className="font-bold text-white">📤 分享「線上預排休」入口</p>
+    <p className="text-sm text-gray-400">好友收到的卡片可進入預排休,或看中文／越南文／大字版介紹。</p>
+    <Btn onClick={go2}>選擇好友分享</Btn>{res&&<p className="text-center text-sm text-gray-400">{res}</p>}</Card></Box>);
+}
+
 function Leave2Routes(){
   const q=new URLSearchParams(location.search);
+  if(q.get('lv2')==='intro')return <IntroPage/>;
+  if(q.get('lv2')==='share')return <SharePage/>;
   if(q.get('lv2')==='pdf')return(<NeedUser render={(me)=><PdfPage me={me}/>}/>);
   return(<NeedUser render={(me)=><LeavePage me={me}/>}/>);
 }
