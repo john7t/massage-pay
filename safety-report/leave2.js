@@ -66,12 +66,13 @@ const addMonth=(m,n)=>{const y=parseInt(m.slice(0,4),10),mo=parseInt(m.slice(5,7
 const todayStr=()=>{const d=new Date(Date.now()+8*3600e3);return d.getUTCFullYear()+'-'+p2(d.getUTCMonth()+1)+'-'+p2(d.getUTCDate());};
 const SH_COLOR={early:'bg-amber-500',late:'bg-indigo-500'};
 
-const LV2_PROMO=[["🏖️", "#6D5DFC", "#46C2CB", "預排休假上線了", "Lịch nghỉ phép trước đã có", "不用再排隊寫紙本,用手機就能排下個月的休假,誰排了、還剩幾個名額,一目了然。", "Không cần xếp hàng viết giấy nữa, dùng điện thoại là đăng ký được ngày nghỉ tháng sau, ai đã đăng ký và còn mấy suất đều thấy rõ.", "開啟方式:選單「休假」,或輸入 /功能表\nCách mở: chọn “Nghỉ phép” trong menu hoặc gõ /menu"], ["📅", "#F6A04D", "#F0627A", "點月曆,一下就排", "Chạm vào lịch là đăng ký xong", "選早班或晚班,點日期就登記,再點一次取消。可先「暫存」慢慢調整,確定了再「送出」。", "Chọn ca sáng hoặc ca tối, chạm vào ngày là đăng ký, chạm lại để hủy. Có thể “Lưu nháp” để chỉnh dần, chắc chắn rồi mới “Gửi”.", "每人每班每月可休 6 天\nMỗi người, mỗi ca, mỗi tháng được nghỉ 6 ngày"], ["⏰", "#3CB7A0", "#3B82C4", "什麼時候排?", "Khi nào đăng ký?", "休假月份的前一個月 10 日開放送出,到 12 日 24:00 前送出免審批;更早也能先暫存。", "Từ ngày 10 của tháng trước tháng nghỉ là bắt đầu gửi được, gửi trước 24:00 ngày 12 thì không cần duyệt; có thể lưu nháp sớm hơn.", "例:11 月休假 → 10/10 開放,10/12 24:00 截止免審批\nVí dụ: nghỉ tháng 11 → mở 10/10, hết hạn miễn duyệt 24:00 ngày 12/10"], ["👥", "#B469E0", "#6D7BF0", "名額一看就懂", "Nhìn là biết còn suất", "每天每班平日 6 個名額,日曆小字顯示已休人數。老師只看到自己的編號與空位,不會看到別人。", "Mỗi ngày, mỗi ca vào ngày thường có 6 suất; số nhỏ trên lịch là số người đã nghỉ. Bạn chỉ thấy số của mình và chỗ trống, không thấy của người khác.", "✦ 已有人休　✧ 還有空位\n✦ đã có người nghỉ　✧ còn chỗ"], ["🔢", "#4B8DE0", "#5A6BD8", "依申請順序,公平處理", "Xử lý công bằng theo thứ tự đăng ký", "名額依申請順序排。若超過名額,會標示「超額排休」,請改休或由主管協調核假。", "Suất được xếp theo thứ tự đăng ký. Nếu vượt suất sẽ ghi “Vượt hạn mức”, vui lòng đổi ngày hoặc nhờ quản lý duyệt.", "超額排休,請改休 / 主管已核假\nVượt hạn mức, vui lòng đổi ngày / Quản lý đã duyệt"], ["📌", "#2F9E6F", "#1F7A8C", "長假、固定休也能申請", "Nghỉ dài hạn, nghỉ cố định cũng đăng ký được", "長假、固定休、固定隔日休、假日可休,送出後由主管核准,列在總休表最下方;固定休不佔名額。", "Nghỉ dài hạn, nghỉ cố định, nghỉ cách ngày, nghỉ ngày lễ — gửi xong chờ quản lý duyệt, hiển thị cuối bảng tổng; nghỉ cố định không chiếm suất.", "現在就打開「休假」試試看\nHãy mở “Nghỉ phép” và thử ngay"]];
+const LV2_PROMO=[["🏖️", "#6D5DFC", "#46C2CB", "預排休假上線了", "Lịch nghỉ phép trước đã có", "不用再排隊寫紙本,用手機就能排下個月的休假,誰排了、還剩幾個名額,一目了然。", "Không cần xếp hàng viết giấy nữa, dùng điện thoại là đăng ký được ngày nghỉ tháng sau, ai đã đăng ký và còn mấy suất đều thấy rõ.", ""], ["📅", "#F6A04D", "#F0627A", "點月曆,一下就排", "Chạm vào lịch là đăng ký xong", "選早班或晚班,點日期就登記,再點一次取消。可先「暫存」慢慢調整,確定了再「送出」。", "Chọn ca sáng hoặc ca tối, chạm vào ngày là đăng ký, chạm lại để hủy. Có thể “Lưu nháp” để chỉnh dần, chắc chắn rồi mới “Gửi”.", "每人每月可休 6 天\nMỗi người, mỗi tháng được nghỉ 6 ngày"], ["⏰", "#3CB7A0", "#3B82C4", "什麼時候排?", "Khi nào đăng ký?", "休假月份的前一個月 10 日開放送出,到 12 日 24:00 前送出,進入預排休假流程;更早也能先暫存。", "Từ ngày 10 của tháng trước tháng nghỉ là bắt đầu gửi được, gửi trước 24:00 ngày 12 sẽ vào quy trình đăng ký nghỉ trước; có thể lưu nháp sớm hơn.", "例:11 月休假 → 10/10 開放,10/12 24:00 前送出,進入預排休假流程\nVí dụ: nghỉ tháng 11 → mở 10/10, gửi trước 24:00 ngày 12/10 để vào quy trình"], ["👥", "#B469E0", "#6D7BF0", "名額一看就懂", "Nhìn là biết còn suất", "日曆小字顯示每日可休剩餘名額。老師只看到自己的編號與空位,不會看到別人。", "Số nhỏ trên lịch là số suất nghỉ còn lại của mỗi ngày. Bạn chỉ thấy số của mình và chỗ trống, không thấy của người khác.", "✦ 已有人休　✧ 還有空位\n✦ đã có người nghỉ　✧ còn chỗ"], ["🔢", "#4B8DE0", "#5A6BD8", "依申請順序,公平處理", "Xử lý công bằng theo thứ tự đăng ký", "名額依申請順序排。若超過名額,會標示「超額排休」,請改休或由主管協調核假。", "Suất được xếp theo thứ tự đăng ký. Nếu vượt suất sẽ ghi “Vượt hạn mức”, vui lòng đổi ngày hoặc nhờ quản lý duyệt.", "超額排休,請改休 / 主管已核假\nVượt hạn mức, vui lòng đổi ngày / Quản lý đã duyệt"], ["📌", "#2F9E6F", "#1F7A8C", "長假、固定休也能申請", "Nghỉ dài hạn, nghỉ cố định cũng đăng ký được", "因回國、課業實習,可申請長假或固定休,送出後由主管核准,列在總休表最下方。", "Khi về nước, học hoặc thực tập, có thể đăng ký nghỉ dài hạn hoặc nghỉ cố định — gửi xong chờ quản lý duyệt, hiển thị cuối bảng tổng.", "現在就打開「休假」試試看\nHãy mở “Nghỉ phép” và thử ngay"]];
 function buildPromoFlex(){
   const base='https://liff.line.me/'+window.__S2_LIFF_ID;const n=LV2_PROMO.length;
   return{type:'carousel',contents:LV2_PROMO.map((p,i)=>{
     const body=[{type:'text',text:p[3],weight:'bold',size:'xl',color:'#111111',wrap:true},{type:'text',text:p[4],size:'xs',color:'#888888',wrap:true,margin:'xs'},{type:'text',text:p[5],size:'sm',color:'#333333',wrap:true,margin:'lg'},{type:'text',text:p[6],size:'xs',color:'#777777',wrap:true,margin:'sm'},
       {type:'box',layout:'vertical',margin:'lg',backgroundColor:'#E8F7EE',cornerRadius:'8px',paddingAll:'8px',contents:[{type:'text',text:p[7],size:'xs',color:'#06803A',wrap:true}]}];
+    if(!p[7])body.pop(); // 沒有提示文字就不畫綠色小框(第 1 頁不提開啟方式)
     const b={type:'bubble',size:'mega',
       hero:{type:'box',layout:'vertical',height:'140px',justifyContent:'center',alignItems:'center',background:{type:'linearGradient',angle:'135deg',startColor:p[1],endColor:p[2]},contents:[{type:'text',text:p[0],size:'5xl',align:'center'},{type:'box',layout:'vertical',position:'absolute',offsetTop:'10px',offsetEnd:'12px',backgroundColor:'#00000040',cornerRadius:'10px',paddingTop:'2px',paddingBottom:'2px',paddingStart:'9px',paddingEnd:'9px',contents:[{type:'text',text:(i+1)+'/'+n,size:'xs',color:'#FFFFFF'}]}]},
       body:{type:'box',layout:'vertical',paddingAll:'18px',contents:body}};
@@ -110,12 +111,14 @@ function Leave2Routes(){
 // 每天兩排：第一排 早班 1~10 位 | 晚班 1~10 位；第二排 11~20 位…（超過 20 人自動加排）
 const PDF_W=794,PDF_H=1123; // A4 @96dpi
 const loadScript=(src)=>new Promise((res,rej)=>{if(document.querySelector('script[src="'+src+'"]'))return res();const s=document.createElement('script');s.src=src;s.onload=()=>res();s.onerror=()=>rej(new Error('load '+src));document.head.appendChild(s);});
-function PdfCell({x}){
+const mdShort=(d)=>String(d).slice(5).replace('-','/').replace(/\/0/,'/').replace(/^0/,'');
+const leftTag=(left,c,vi)=>{const d=left&&left[String(c).trim()];return d?mdShort(d)+(vi?' nghỉ':'離'):'';};
+function PdfCell({x,left}){
   // 向上對齊:號碼在上、批准人小字在號碼正下方(不用 vertical-align / sup,html2canvas 在 iPhone 上會跑到底部)
   return(<td style={{border:'1px solid #999',padding:0,height:26,textAlign:'center',verticalAlign:'top',whiteSpace:'nowrap',overflow:'visible'}}>{x?<div style={{position:'relative',top:-2}}><div style={{fontSize:12,lineHeight:'13px',height:13,textDecoration:x.o?'underline':'none',fontWeight:x.o?700:400}}>{x.c}{x.p?'*':''}</div>
-    <div style={{fontSize:8,lineHeight:'11px',height:11,color:'#d00',fontWeight:400}}>{x.s?x.s:'\u00a0'}</div></div>:null}</td>);
+    <div style={{fontSize:8,lineHeight:'11px',height:11,color:'#d00',fontWeight:400}}>{(()=>{const lt=leftTag(left,x.c);return(x.s||lt)?<React.Fragment>{x.s}{x.s&&lt?' ':''}{lt&&<span style={{color:'#555'}}>{lt}</span>}</React.Fragment>:'\u00a0';})()}</div></div>:null}</td>);
 }
-function PdfPageSheet({title,sub,days,roster,month,longBoard,pageNo,pages,genAt}){
+function PdfPageSheet({title,sub,days,roster,month,longBoard,left,pageNo,pages,genAt}){
   const wkz=['日','一','二','三','四','五','六'];
   const th={border:'1px solid #999',background:'#eee',fontSize:12,padding:0,height:24,lineHeight:'24px',verticalAlign:'middle',textAlign:'center'};
   const td={border:'1px solid #999',padding:'2px 4px',verticalAlign:'middle'};
@@ -123,6 +126,7 @@ function PdfPageSheet({title,sub,days,roster,month,longBoard,pageNo,pages,genAt}
   const shT=(x)=>x.shift==='early'?'（早）':x.shift==='late'?'（晚）':'';
   const wkLine=(x)=>x.kind==='leave'?'長假':x.kind==='fixed'?'固定休　每週'+wkS(x)+shT(x):x.kind==='alt'?'固定隔日休　'+(x.days==='odd'?'單號日':'雙號日')+shT(x):x.kind==='holiday'?'假日可休　'+wkS(x)+'・每週'+(x.quota||String(x.days||'').split(',').length)+'天'+shT(x):x.kind==='part'?'兼職':x.kind==='note'?'見人再壓':'課業　每週'+wkS(x)+'上班';
   const PER=6;const N=Array.from({length:PER});
+  const leftArr=Object.keys(left||{}).filter(c=>left[c]>=month+'-01').sort((a,b)=>left[a]<left[b]?-1:left[a]>left[b]?1:(parseFloat(a)-parseFloat(b))||0);
   return(<div className="pdfpage" style={{width:PDF_W,height:PDF_H,background:'#fff',color:'#000',padding:'28px 30px',boxSizing:'border-box',fontFamily:'-apple-system,"PingFang TC","Noto Sans CJK TC","Noto Sans TC","Microsoft JhengHei",sans-serif',position:'relative',overflow:'hidden'}}>
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',borderBottom:'2px solid #000',paddingBottom:4,marginBottom:6}}>
       <span style={{fontSize:18,fontWeight:700}}>{title}</span><span style={{fontSize:12}}>{sub}　第 {pageNo} / {pages} 頁</span></div>
@@ -138,12 +142,12 @@ function PdfPageSheet({title,sub,days,roster,month,longBoard,pageNo,pages,genAt}
           {/* 不用 rowSpan(iPhone/LINE 內建瀏覽器的 html2canvas 會漏畫合併儲存格內的文字):每排各一格,第一排放字,中間不畫分隔線 */}
           <td style={{...td,textAlign:'center',verticalAlign:'top',lineHeight:'15px',fontWeight:700,fontSize:13,borderTop:r===0?'1px solid #999':'none',borderBottom:r<rows-1?'none':'1px solid #999'}}>{r===0?(parseInt(month.slice(5,7),10)+'/'+dd):'\u00a0'}</td>
           <td style={{...td,textAlign:'center',verticalAlign:'top',lineHeight:'15px',fontSize:12,color:wk?'#c00':'#000',borderTop:r===0?'1px solid #999':'none',borderBottom:r<rows-1?'none':'1px solid #999'}}>{r===0?wkz[dow]:'\u00a0'}</td>
-          {N.map((_,i)=><PdfCell key={'e'+i} x={ro.early[r*PER+i]}/>)}
-          {N.map((_,i)=><PdfCell key={'l'+i} x={ro.late[r*PER+i]}/>)}</tr>));})}
+          {N.map((_,i)=><PdfCell key={'e'+i} x={ro.early[r*PER+i]} left={left}/>)}
+          {N.map((_,i)=><PdfCell key={'l'+i} x={ro.late[r*PER+i]} left={left}/>)}</tr>));})}
       </tbody></table>
     <div style={{position:'absolute',left:30,right:30,bottom:30}}>
       <div style={{fontSize:13,fontWeight:700,borderBottom:'1px solid #000',marginBottom:3,lineHeight:'18px',paddingBottom:3}}>長假／固定上班日（已核准）</div>
-      {longBoard.length===0?<div style={{fontSize:11,color:'#555'}}>本月無</div>:(()=>{
+      {longBoard.length===0&&leftArr.length===0?<div style={{fontSize:11,color:'#555'}}>本月無</div>:(()=>{
         const md=(d)=>String(d).slice(5).replace('-','/').replace(/\/0/,'/').replace(/^0/,'');
         const sh=(x)=>x.shift==='early'?'早':x.shift==='late'?'晚':'';
         const item=(x)=>{const e=x.end?'~'+md(x.end):'';
@@ -153,7 +157,7 @@ function PdfPageSheet({title,sub,days,roster,month,longBoard,pageNo,pages,genAt}
           if(x.kind==='holiday')return x.code+'('+wkS(x)+(x.quota||String(x.days||'').split(',').length)+'天'+sh(x)+e+')';
           return x.code;};
         const G=[['leave','長假'],['fixed','固定休'],['alt','隔日休'],['holiday','假日可休'],['part','兼職'],['note','見人再壓']];
-        return G.map(([k,nm])=>{const arr=longBoard.filter(x=>x.kind===k);return arr.length?(<div key={k} style={{fontSize:11,lineHeight:'16px'}}><b>{nm}</b>　{arr.map(item).join('　')}</div>):null;});
+        return G.map(([k,nm])=>{const arr=longBoard.filter(x=>x.kind===k);return arr.length?(<div key={k} style={{fontSize:11,lineHeight:'16px'}}><b>{nm}</b>　{arr.map(item).join('　')}</div>):null;}).concat(leftArr.length?[(<div key="lf" style={{fontSize:11,lineHeight:'16px'}}><b>離職</b>　{leftArr.map(c=>c+'('+mdShort(left[c])+'離)').join('　')}</div>)]:[]);
       })()}
       <div style={{fontSize:10,color:'#666',marginTop:4}}>底線＝超出名額（待調整）　<span style={{color:'#d00'}}>紅字</span>＝批准主管編號　*＝待簽核　主管排休已列入　列印時間 {genAt}</div>
     </div>
@@ -174,7 +178,7 @@ function PdfPage({me}){
   const title=d.store+'　'+month.slice(0,4)+' 年 '+parseInt(month.slice(5,7),10)+' 月　休假總表';
   const genAt=(()=>{const x=new Date(Date.now()+8*3600e3);return (x.getUTCMonth()+1)+'/'+x.getUTCDate()+' '+p2s(x.getUTCHours())+':'+p2s(x.getUTCMinutes());})();
   function p2s(n){return String(n).padStart(2,'0');}
-  const sheetProps={roster:d.roster,month:month,longBoard:d.long.board,pages:2,genAt:genAt,title:title};
+  const sheetProps={roster:d.roster,month:month,longBoard:d.long.board,left:d.left||{},pages:2,genAt:genAt,title:title};
   const download=async()=>{
     setBusy(true);setErr('');setCap(true);
     try{
@@ -424,7 +428,7 @@ function LeavePage({me}){
           const rows=[];for(let i=0;i<arr.length;i+=5)rows.push(arr.slice(i,i+5));
           return(<div key={s} className="space-y-0.5">{rows.map((row,ri)=>(<div key={ri} className="grid items-start text-sm leading-5" style={{gridTemplateColumns:'24px repeat(5,minmax(0,1fr))'}}>
             <span>{ri===0?<span className={'text-[11px] rounded px-1 text-white '+SH_COLOR[s]}>{s==='early'?'早':'晚'}</span>:null}</span>
-            {row.map((x,i)=>(<span key={x.id||i} className="inline-flex flex-col items-center"><span className={x.o?'text-orange-400 font-bold':x.f?'text-sky-300':'text-gray-200'}>{x.c}{x.p?'*':''}</span>{x.s&&(!isV||showSign)?<span className="text-[7px] leading-[8px] text-red-500 font-bold -mt-0.5">{x.s}</span>:x.f?<span className="text-[7px] leading-[8px] text-sky-400 -mt-0.5">{t.fixedTag}</span>:null}</span>))}</div>))}</div>);};
+            {row.map((x,i)=>(<span key={x.id||i} className="inline-flex flex-col items-center"><span className={x.o?'text-orange-400 font-bold':x.f?'text-sky-300':'text-gray-200'}>{x.c}{x.p?'*':''}</span>{x.s&&(!isV||showSign)?<span className="text-[7px] leading-[8px] text-red-500 font-bold -mt-0.5">{x.s}</span>:x.f?<span className="text-[7px] leading-[8px] text-sky-400 -mt-0.5">{t.fixedTag}</span>:null}{leftTag(d.left,x.c,lang==='vi')?<span className="text-[7px] leading-[8px] text-gray-400 -mt-0.5">{leftTag(d.left,x.c,lang==='vi')}</span>:null}</span>))}</div>))}</div>);};
         return(<div key={date} className={'border-t border-gray-800 pt-1.5 flex gap-3 '+(date<today?'opacity-40':date===today?'rounded-xl ring-1 ring-violet-500 bg-violet-950/30 px-1 ':'')}>
           <div className="w-12 shrink-0 text-center"><div className="text-xs font-bold text-violet-300">{parseInt(date.slice(5,7),10)}/{parseInt(date.slice(8),10)}</div>
             <span className={'inline-block text-[10px] rounded-full px-2 '+(wkend?'bg-red-950 text-red-300':'bg-gray-800 text-gray-400')}>{t.wk[dow]}</span>
