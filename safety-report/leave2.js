@@ -93,6 +93,9 @@ const KIND_KEY={leave:'kLeave',rest:'kRest',fixed:'kFixed',alt:'kAlt',holiday:'k
 const kindName=(k,t)=>String(t[KIND_KEY[k]]||k).split('（')[0].split(' (')[0];
 const KIND_CLS={leave:'bg-rose-600',rest:'bg-orange-600',fixed:'bg-sky-700',alt:'bg-sky-700',holiday:'bg-emerald-700',part:'bg-gray-600',note:'bg-gray-600',school:'bg-teal-600'};
 const wkNames=(days,t)=>String(days||'').split(',').filter(Boolean).map(i=>t.wk[parseInt(i,10)]).join(lang0(t)?' ':'');
+const KIND_ORD={leave:0,rest:1,fixed:2,alt:3,holiday:4,part:5,note:6,school:7};
+const byCode=(a,b)=>{const x=parseInt(a.code,10),y=parseInt(b.code,10);return (isNaN(x)?1e9:x)-(isNaN(y)?1e9:y)||String(a.code).localeCompare(String(b.code));};
+const sortBoard=(arr)=>(arr||[]).slice().sort((a,b)=>((KIND_ORD[a.kind]===undefined?9:KIND_ORD[a.kind])-(KIND_ORD[b.kind]===undefined?9:KIND_ORD[b.kind]))||byCode(a,b));
 const longText=(x,t)=>{const sh=x.shift?(x.shift==='early'?'（'+t.early+'）':'（'+t.late+'）'):'';
   if(x.kind==='leave')return t.kLeave;
   if(x.kind==='rest')return t.kRest;
@@ -246,7 +249,7 @@ function PdfPageSheet({title,sub,days,roster,month,longBoard,left,pageNo,pages,g
           if(x.kind==='holiday')return x.code+'('+wkS(x)+(x.quota||String(x.days||'').split(',').length)+'天'+sh(x)+e+')';
           return x.code;};
         const G=[['leave','長假'],['rest','長休'],['fixed','固定休'],['alt','隔日休'],['holiday','假日可休'],['part','兼職'],['note','見人再壓']];
-        return G.map(([k,nm])=>{const arr=longBoard.filter(x=>x.kind===k);return arr.length?(<div key={k} style={{fontSize:11,lineHeight:'16px'}}><b>{nm}</b>　{arr.map(item).join('　')}</div>):null;}).concat(leftArr.length?[(<div key="lf" style={{fontSize:11,lineHeight:'16px'}}><b>離職</b>　{leftArr.map(c=>c+'('+mdShort(left[c])+'離)').join('　')}</div>)]:[]);
+        return G.map(([k,nm])=>{const arr=longBoard.filter(x=>x.kind===k).slice().sort(byCode);return arr.length?(<div key={k} style={{fontSize:11,lineHeight:'16px'}}><b>{nm}</b>　{arr.map(item).join('　')}</div>):null;}).concat(leftArr.length?[(<div key="lf" style={{fontSize:11,lineHeight:'16px'}}><b>離職</b>　{leftArr.map(c=>c+'('+mdShort(left[c])+'離)').join('　')}</div>)]:[]);
       })()}
       <div style={{fontSize:10,color:'#666',marginTop:4}}>底線＝超出名額（待調整）　<span style={{color:'#d00'}}>紅字</span>＝批准主管編號　<span style={{color:'#1a6fb5'}}>藍字</span>＝固定休(固)／假日可休(可)　*＝待簽核　主管排休已列入　列印時間 {genAt}</div>
     </div>
@@ -330,6 +333,7 @@ function LeavePage({me}){
   const[rq,setRq]=useState('');const[rPg,setRPg]=useState(null);const[adjOpen,setAdjOpen]=useState({});const[armed,setArmed]=useState('');const[vMode,setVMode]=useState(()=>lsGet('lv2ViewMode','mgr')==='teacher'?'teacher':'mgr');const[seqOpen,setSeqOpen]=useState(false);const[logOpen,setLogOpen]=useState(false);const[gErr,setGErr]=useState('');const[gDraft,setGDraft]=useState([]);const[gCode,setGCode]=useState('');const[seqSort,setSeqSort]=useState('order');const[seqQ,setSeqQ]=useState('');const[lgOpen,setLgOpen]=useState(false);
   const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');const[err,setErr]=useState('');
   const[lf,setLf]=useState(null); // 長假/課業申請表單
+  const[pop,setPop]=useState(null); // 總休表點號碼的說明彈窗(主管)
   const[seqIn,setSeqIn]=useState({});const[cf,setCf]=useState(null);const[adjShift,setAdjShift]=useState((me.user&&me.user.shift)==='late'?'late':'early');
   const[st,reload]=useLoad('lv2Month',store?{month:month,store:store}:{month:month});
   const d=st.data&&st.data.ok&&st.data.month===month?st.data:null;
@@ -409,6 +413,24 @@ function LeavePage({me}){
   const pgLabel=pageDates.length?parseInt(pageDates[0].slice(8),10)+'~'+parseInt(pageDates[pageDates.length-1].slice(8),10)+(lang==='vi'?'':' 日'):'';
 
   return(<Box {...barOf(st,reload,lang)}>
+    {pop&&(()=>{const x=pop.x,q=x.q;const KN={leave:'長假',rest:'長休',fixed:'固定休',alt:'固定隔日休',holiday:'假日可休'};
+      const dd=new Date(parseInt(pop.date.slice(0,4),10),parseInt(pop.date.slice(5,7),10)-1,parseInt(pop.date.slice(8),10));const wk='日一二三四五六'[dd.getDay()];
+      const by=x.p?'尚未核准（待簽核）':!x.db?(x.v?'由規則自動帶入，沒有逐日申請單':'—'):(x.db==='自動(免審批)'||x.db==='主管排休'||x.db==='紙本匯入'||x.db==='代登'?x.db:x.db+' 核准');
+      const qd=q?(KN[q.k]||q.k)+'　'+q.s.slice(5).replace('-','/')+'~'+(q.e?q.e.slice(5).replace('-','/'):'未定')+(q.k==='fixed'||q.k==='holiday'?'　每週'+String(q.dy||'').split(',').filter(Boolean).map(i=>'日一二三四五六'[parseInt(i,10)]).join('、'):q.k==='alt'?'　'+(q.dy==='odd'?'單號日':'雙號日'):'')+(q.sh?'（'+(q.sh==='early'?'早班':'晚班')+'）':'')+(q.k==='holiday'&&q.qt?'　每週可休 '+q.qt+' 天':(q.k==='leave'||q.k==='rest'||q.k==='fixed'||q.k==='alt')?'　'+(q.oc?'佔名額':'不佔名額'):''):'';
+      const Row=({k,v})=>(<div className="flex gap-2 text-sm"><span className="shrink-0 w-14 text-gray-500">{k}</span><span className="flex-1 min-w-0 text-gray-100 break-words">{v}</span></div>);
+      return(<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={()=>setPop(null)}>
+        <div className="w-full max-w-sm rounded-2xl bg-gray-900 border border-gray-700 p-4 space-y-2" onClick={e=>e.stopPropagation()}>
+          <p className="text-base font-bold text-white">{parseInt(pop.date.slice(5,7),10)}/{parseInt(pop.date.slice(8),10)}（{wk}）{pop.s==='early'?'早班':'晚班'}　{x.c} 號</p>
+          <Row k="狀態" v={x.p?'待簽核':x.v?'已生效（規則帶入）':'已生效'}/>
+          <Row k="核准" v={by+(x.dt&&!x.p?'　'+x.dt.slice(5).replace('-','/'):'')}/>
+          {x.pos&&<Row k="名額" v={'超額（第 '+x.pos.split('/')[0]+' 位／名額 '+x.pos.split('/')[1]+'）　'+(x.s?'簽核：'+x.s:'尚未簽核')}/>}
+          {x.f&&!q&&<Row k="關聯" v="固定休（已不在清單，請至名單確認）"/>}
+          {q&&<Row k="關聯" v={qd}/>}
+          {q&&q.by&&<Row k="規則核准" v={q.by}/>}
+          {q&&q.rs&&<Row k="原因" v={q.rs}/>}
+          {x.fl&&<Row k="標記" v={x.fl}/>}
+          {!q&&!x.p&&!x.pos&&<p className="text-xs text-gray-500">沒有關聯的長假或固定休，這是一般單日休假。</p>}
+          <button onClick={()=>setPop(null)} className="w-full rounded-xl bg-gray-700 text-white py-2 text-sm mt-1">關閉</button></div></div>);})()}
     <h1 className="text-lg font-bold text-white">🏖️ {t.title}</h1>
     {d.stores&&d.stores.length>0&&<div className="flex gap-2 flex-wrap"><Chip on={!store} onClick={()=>setStore('')}>{d.me.store||t.store}</Chip>{d.stores.filter(x=>x!==d.me.store).map(x=><Chip key={x} on={store===x} onClick={()=>setStore(x)}>{x}</Chip>)}</div>}
     <div className="flex gap-2 flex-wrap">{[cur,addMonth(cur,1),addMonth(cur,2)].map(x=>(<Chip key={x} on={month===x} onClick={()=>{setMonth(x);setMsg('');setErr('');setFocus('');setRPg(null);}}>{parseInt(x.slice(5,7),10)}{lang==='vi'?'/'+x.slice(0,4):' 月'}</Chip>))}</div>
@@ -539,7 +561,7 @@ function LeavePage({me}){
           const rows=[];for(let i=0;i<arr.length;i+=5)rows.push(arr.slice(i,i+5));
           return(<div key={s} className="space-y-0.5">{rows.map((row,ri)=>(<div key={ri} className="grid items-start text-sm leading-5" style={{gridTemplateColumns:'24px repeat(5,minmax(0,1fr))'}}>
             <span>{ri===0?<span className={'text-[11px] rounded px-1 text-white '+SH_COLOR[s]}>{s==='early'?'早':'晚'}</span>:null}</span>
-            {row.map((x,i)=>(<span key={x.id||i} className="inline-flex flex-col items-center"><span className={x.o?'text-orange-400 font-bold':(x.f||x.h)?'text-sky-300':'text-gray-200'}>{x.c}{x.p?'*':''}</span>{x.s&&(!isV||showSign)?<span className="text-[7px] leading-[8px] text-red-500 font-bold -mt-0.5">{x.s}</span>:x.f?<span className="text-[7px] leading-[8px] text-sky-400 -mt-0.5">{t.fixedTag}</span>:x.h?<span className="text-[7px] leading-[8px] text-sky-400 -mt-0.5">{t.holTag}</span>:x.oc?<span className="text-[7px] leading-[8px] text-amber-400 -mt-0.5">{t.occTag}</span>:null}{leftTag(d.left,x.c,lang==='vi')?<span className="text-[7px] leading-[8px] text-gray-400 -mt-0.5">{leftTag(d.left,x.c,lang==='vi')}</span>:null}</span>))}</div>))}</div>);};
+            {row.map((x,i)=>(<span key={x.id||i} className="inline-flex flex-col items-center"><span onClick={d.isMgr&&!x.m?()=>setPop({date:date,s:s,x:x}):undefined} className={(x.o?'text-orange-400 font-bold':(x.f||x.h)?'text-sky-300':'text-gray-200')+(d.isMgr&&!x.m?' cursor-pointer underline decoration-dotted decoration-gray-600 underline-offset-2':'')}>{x.c}{x.p?'*':''}</span>{x.s&&(!isV||showSign)?<span className="text-[7px] leading-[8px] text-red-500 font-bold -mt-0.5">{x.s}</span>:x.f?<span className="text-[7px] leading-[8px] text-sky-400 -mt-0.5">{t.fixedTag}</span>:x.h?<span className="text-[7px] leading-[8px] text-sky-400 -mt-0.5">{t.holTag}</span>:x.oc?<span className="text-[7px] leading-[8px] text-amber-400 -mt-0.5">{x.rk||t.occTag}</span>:null}{leftTag(d.left,x.c,lang==='vi')?<span className="text-[7px] leading-[8px] text-gray-400 -mt-0.5">{leftTag(d.left,x.c,lang==='vi')}</span>:null}</span>))}</div>))}</div>);};
         return(<div key={date} className={'border-t border-gray-800 pt-1.5 flex gap-3 '+(date<today?'opacity-40':date===today?'rounded-xl ring-1 ring-violet-500 bg-violet-950/30 px-1 ':'')}>
           <div className="w-12 shrink-0 text-center"><div className="text-xs font-bold text-violet-300">{parseInt(date.slice(5,7),10)}/{parseInt(date.slice(8),10)}</div>
             <span className={'inline-block text-[10px] rounded-full px-2 '+(wkend?'bg-red-950 text-red-300':'bg-gray-800 text-gray-400')}>{t.wk[dow]}</span>
@@ -554,7 +576,7 @@ function LeavePage({me}){
         <div className="flex items-center text-sm font-bold text-white">📋 {t.boardTitle}{d.long.board.length>0&&<span className="text-xs font-normal text-gray-400 ml-2">{lang==='vi'?d.long.board.length:'共 '+d.long.board.length+' 人'}</span>}
           {d.long.board.length>1&&<button onClick={()=>setLgOpen(!lgOpen)} className="ml-auto text-xs text-violet-300">{lgOpen?(lang==='vi'?'Thu gọn ▲':'收合 ▲'):(lang==='vi'?'Xem tất cả ▼':'展開全部 ▼')}</button>}</div>
         {d.long.board.length===0&&<p className="text-xs text-gray-500">{t.boardNone}</p>}
-        {(lgOpen?d.long.board:d.long.board.slice(0,1)).map(x=>(<p key={x.id} className="text-sm text-gray-200 border-b border-gray-900 py-0.5"><span className="font-bold text-violet-300">{x.code}</span>{lang==='vi'?'':' 號'}　<span className={'text-xs rounded-full px-2 py-0.5 text-white '+(KIND_CLS[x.kind]||'bg-gray-600')}>{kindName(x.kind,t)}</span>{x.kind!=='leave'&&x.kind!=='rest'&&x.kind!=='part'&&x.kind!=='note'?<span className="text-xs text-gray-300">　{longText(x,t)}</span>:null}{x.kind!=='fixed'&&x.kind!=='alt'&&x.kind!=='holiday'||x.end?<span>　{periodText(x,t)}</span>:null}{x.reason?<span className="text-xs text-gray-500">　{x.reason}</span>:null}{d.staff&&(x.kind==='part'||x.kind==='note')?<span className="text-[10px] text-gray-600">　{t.staffOnly}</span>:null}{x.occupy==='1'?<span className="text-[10px] rounded-full px-1.5 py-0.5 bg-amber-700 text-white ml-1">{t.occYes}</span>:null}{d.staff&&(x.kind==='leave'||x.kind==='fixed'||x.kind==='alt')?<button onClick={()=>{const on=x.occupy==='1'?'':'1';if(on&&x.kind==='leave'&&!x.shift){const v=window.prompt(t.occPickShift+'：early / late','early');if(v!=='early'&&v!=='late')return;longAct('lv2LongOccupy',{id:x.id,occupy:'1',shift:v});}else longAct('lv2LongOccupy',{id:x.id,occupy:on});}} className="text-[11px] text-sky-400 ml-2 underline">{x.occupy==='1'?t.occNo:t.occYes}</button>:null}{d.staff?<button onClick={()=>longAct('lv2LongCancel',{id:x.id},t.delAsk)} className="text-gray-500 text-xs ml-2">✕</button>:null}</p>))}
+        {(lgOpen?sortBoard(d.long.board):sortBoard(d.long.board).slice(0,1)).map(x=>(<p key={x.id} className="text-sm text-gray-200 border-b border-gray-900 py-0.5"><span className="font-bold text-violet-300">{x.code}</span>{lang==='vi'?'':' 號'}　<span className={'text-xs rounded-full px-2 py-0.5 text-white '+(KIND_CLS[x.kind]||'bg-gray-600')}>{kindName(x.kind,t)}</span>{x.kind!=='leave'&&x.kind!=='rest'&&x.kind!=='part'&&x.kind!=='note'?<span className="text-xs text-gray-300">　{longText(x,t)}</span>:null}{x.kind!=='fixed'&&x.kind!=='alt'&&x.kind!=='holiday'||x.end?<span>　{periodText(x,t)}</span>:null}{x.reason?<span className="text-xs text-gray-500">　{x.reason}</span>:null}{d.staff&&(x.kind==='part'||x.kind==='note')?<span className="text-[10px] text-gray-600">　{t.staffOnly}</span>:null}{x.occupy==='1'?<span className="text-[10px] rounded-full px-1.5 py-0.5 bg-amber-700 text-white ml-1">{t.occYes}</span>:null}{d.staff&&(x.kind==='leave'||x.kind==='fixed'||x.kind==='alt')?<button onClick={()=>{const on=x.occupy==='1'?'':'1';if(on&&x.kind==='leave'&&!x.shift){const v=window.prompt(t.occPickShift+'：early / late','early');if(v!=='early'&&v!=='late')return;longAct('lv2LongOccupy',{id:x.id,occupy:'1',shift:v});}else longAct('lv2LongOccupy',{id:x.id,occupy:on});}} className="text-[11px] text-sky-400 ml-2 underline">{x.occupy==='1'?t.occNo:t.occYes}</button>:null}{d.staff?<button onClick={()=>longAct('lv2LongCancel',{id:x.id},t.delAsk)} className="text-gray-500 text-xs ml-2">✕</button>:null}</p>))}
         {!lgOpen&&d.long.board.length>1&&<button onClick={()=>setLgOpen(true)} className="text-[11px] text-gray-500">{lang==='vi'?'Bấm để xem '+(d.long.board.length-1)+' mục còn lại':'點此展開其餘 '+(d.long.board.length-1)+' 筆'}</button>}</div>
     </Card>
     {(d.isTeacher||d.staff)&&<Card className="space-y-2">
