@@ -499,8 +499,8 @@ function SettingsPage({me,editInfo}){
   const set=async(key,val)=>{setBusy(key);setErr('');const r=await api('n2SettingsSet',{key:key,value:val});setBusy('');if(r.ok)reload();else setErr(r.error||'失敗');};
   const row=(key,label,hint)=>(<div className="flex items-start justify-between gap-3 py-2 border-t border-gray-800 first:border-0"><div><p className="text-white text-sm">{label}</p><p className="text-xs text-gray-500 mt-1">{hint}</p></div>
     <button disabled={!!busy||!d.canSet} onClick={()=>set(key,!cfg[key])} className={'shrink-0 w-12 h-7 rounded-full flex items-center px-0.5 '+(cfg[key]?'bg-emerald-600 justify-end':'bg-gray-700 justify-start')+(busy===key||!d.canSet?' opacity-50':'')}><span className="w-6 h-6 rounded-full bg-white"/></button></div>);
-  const info=[[vi?'Vai trò':'角色',u.role==='teacher'?(vi?'KTV':'老師'):(vi?'Lễ tân':'櫃台')],[vi?'Chi nhánh':'店別',u.store||'—'],
-    [u.role==='teacher'?(vi?'Số KTV':'老師編號'):(vi?'Tên':'自訂名稱'),u.code||'—']];
+  const info=[[vi?'Vai trò':'角色',u.role==='teacher'?(vi?'Sư phụ':'老師'):(vi?'Lễ tân':'櫃台')],[vi?'Chi nhánh':'店別',u.store||'—'],
+    [u.role==='teacher'?(vi?'Số Sư phụ':'老師編號'):(vi?'Tên':'自訂名稱'),u.code||'—']];
   if(u.role==='teacher')info.push([vi?'Ca làm':'班別',u.shift==='early'?(vi?'Ca sáng':'早班'):u.shift==='late'?(vi?'Ca tối':'晚班'):(vi?'Chưa chọn':'未填')]);
   info.push([vi?'Ngôn ngữ':'語系',vi?'Tiếng Việt':'中文']);
   return(<Box {...barOf(st,reload,lang)}>
