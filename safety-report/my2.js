@@ -1,4 +1,4 @@
-/* my2.js — 「我的」頁面 (v1.0-005)
+/* my2.js — 「我的」頁面 (v1.0-006)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 my2:  ?my2=1  我的(待我處理 + 公告 + 安全回報 + 手套團購 + 預排休假 + 拒接名單)
    只讀取各模組既有的 API(n2List / s2TodaySurveys / s2MyReports / gb2List / lv2Month / b2List),不新增後端;任何一區讀取失敗只隱藏該區。 */
 (function(){
@@ -75,7 +75,7 @@ function My2Page({me}){
   const lvCur=ok(cs)?cs.data.mine.filter(x=>x.status!=='cancelled'&&x.status!=='rejected'):[];
   // 某月的「我的休假」區塊:標題可點,進該月的預排休頁
   const leaveBlock=(m,list,isCur)=>(<div key={m} className="border-t border-gray-800 pt-2 space-y-1">
-    <button onClick={()=>go('lv2=l&month='+m)} className="w-full flex items-center justify-between text-left"><span className="text-sm font-bold text-white">{fmt(t.leaveMine,{m:parseInt(m.slice(5),10)})}</span><span className="text-xs text-violet-300">{lang==='vi'?'Xem ›':'查看 ›'}</span></button>
+    <button onClick={()=>go('lv2=l&month='+curM)} className="w-full flex items-center justify-between text-left"><span className="text-sm font-bold text-white">{fmt(t.leaveMine,{m:parseInt(m.slice(5),10)})}</span><span className="text-xs text-violet-300">{lang==='vi'?'Xem ›':'查看 ›'}</span></button>
     {list.length===0&&<p className="text-xs text-gray-500">{t.noLeave}</p>}
     {['early','late'].map(sh=>{const a=list.filter(x=>x.shift===sh).sort((x,y)=>x.date<y.date?-1:1);return a.length?(<p key={sh} className="text-sm text-gray-200"><span className={'text-[11px] rounded px-1 text-white mr-1 '+(sh==='early'?'bg-amber-500':'bg-indigo-500')}>{t[sh]}</span>{a.map(x=>parseInt(x.date.slice(5,7),10)+'/'+parseInt(x.date.slice(8),10)+(x.status==='pending'?'⏳':x.status==='draft'?'✎':'')).join('、')}<span className="text-xs text-gray-500">　{a.length} {t.days}</span></p>):null;})}</div>);
   const lvOpenTodo=lv&&lv.canLeave&&(lv.state==='open'||lv.state==='late')&&lvAct.length===0;
@@ -144,7 +144,7 @@ function My2Page({me}){
           <span className="block h-1.5 rounded bg-gray-800"><span className="block h-1.5 rounded bg-emerald-500" style={{width:pct+'%'}}></span></span></button>);})}
     </Card>}
 
-    {lv&&(lv.canLeave||lvAct.length>0||lvCur.length>0)&&<Card className="space-y-2"><SecHead icon="🏖️" title={t.leave} t={t} onAll={()=>go('lv2=l&month='+nextM)}/>
+    {lv&&(lv.canLeave||lvAct.length>0||lvCur.length>0)&&<Card className="space-y-2"><SecHead icon="🏖️" title={t.leave} t={t} onAll={()=>go('lv2=l&month='+curM)}/>
       <p className="text-xs text-gray-400">{lv.state==='open'?fmt(t.leaveOpen,{m:parseInt(nextM.slice(5),10),c:(lv.closes||'').slice(5).replace('-','/')}):lv.state==='draft'?fmt(t.leaveDraft,{m:parseInt(nextM.slice(5),10),o:(lv.opens||'').slice(5).replace('-','/')}):lv.state==='late'?fmt(t.leaveLate,{m:parseInt(nextM.slice(5),10)}):fmt(t.leaveNone,{m:parseInt(nextM.slice(5),10)})}</p>
       {lvCur.length>0&&leaveBlock(curM,lvCur,true)}
       {leaveBlock(nextM,lvMine,false)}
