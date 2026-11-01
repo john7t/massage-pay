@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-<title>診斷頁</title>
+<title>診斷頁 v2</title>
 <style>
   body{background:#0a0a0f;color:#e5e7eb;font-family:-apple-system,sans-serif;padding:16px;margin:0;font-size:14px;line-height:1.6}
   h1{font-size:18px;margin:0 0 16px}
@@ -23,11 +23,18 @@
 <button onclick="copyMarkdown()" style="background:#0891b2">📋 複製診斷結果(Markdown)</button>
 <span id="copyMsg" style="font-size:12px;color:#10b981;margin-left:8px"></span>
 
-<h2>1. 檔案版本(直接讀原始文字,不執行,壞了也讀得到)</h2>
+<h2>1. 主程式檔案版本(直接讀原始文字,不執行,壞了也讀得到)</h2>
 <div id="versions">檢查中…</div>
 
-<h2>2. 逐一載入腳本(找出哪個檔案執行時出錯)</h2>
+<h2>2. 員工專區 safety-report/ 版本(頁面標題、2 系列 js)</h2>
+<p style="font-size:11px;color:#9ca3af;margin:0 0 6px">「頁面宣告」=safety-report/index.html 裡 ?v= 的版號(實際會載入的);「檔頭」=js 檔第一段註解寫的版號(可能沒更新);大小/行數可用來判斷檔案是否上傳完整、是否與預期同一批。</p>
+<div id="sr">檢查中…</div>
+
+<h2>3. 逐一載入腳本(找出哪個檔案執行時出錯)</h2>
 <div id="loads">尚未開始</div>
+
+<h2>4. 員工專區 2 系列 js 逐一轉譯＋執行(找出哪個檔案出錯)</h2>
+<div id="srRun">尚未開始</div>
 
 <script>
 const versionsEl = document.getElementById('versions');
@@ -82,6 +89,82 @@ async function checkVersions() {
     window.__diag.versions.push(['GAS(ping)', e.message]);
   }
   versionsEl.innerHTML = html;
+}
+
+const SR_DIR = './safety-report/';
+const SR_JS = ['safety2.js', 'notice2.js', 'blacklist2.js', 'gloves2.js', 'leave2.js', 'my2.js', 'shop2.js']; // 載入順序同 safety-report/index.html
+async function checkSafetyReport() {
+  const el = document.getElementById('sr');
+  let html = '';
+  window.__diag.sr = [];
+  const add = (name, val, cls, extra) => {
+    html += `<div class="row"><span>${name}</span><span class="${cls}">${val}</span></div>` + (extra ? `<div class="detail">${extra}</div>` : '');
+    window.__diag.sr.push([name, val, extra || '']);
+  };
+  let pageText = '';
+  try {
+    const res = await fetch(SR_DIR + 'index.html?t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) { add('safety-report/index.html', 'HTTP ' + res.status, 'fail'); el.innerHTML = html; return; }
+    pageText = await res.text();
+    const tm = pageText.match(/<title>([^<]*)<\/title>/);
+    add('index.html 標題', tm ? tm[1] : '找不到標題', tm ? 'ok' : 'fail', '最後修改: ' + (res.headers.get('last-modified') || '(伺服器沒提供)') + '　大小: ' + pageText.length + ' 字元');
+  } catch (e) { add('safety-report/index.html', '讀取失敗: ' + e.message, 'fail'); el.innerHTML = html; return; }
+  for (const f of SR_JS) {
+    try {
+      const dm = pageText.match(new RegExp('src="\\./' + f.replace('.', '\\.') + '\\?v=([\\w.\\-]+)"'));
+      const declared = dm ? dm[1] : null;
+      const res = await fetch(SR_DIR + f + '?t=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) { add(f, 'HTTP ' + res.status + (declared ? '(頁面宣告 v' + declared + ')' : ''), 'fail'); continue; }
+      const text = await res.text();
+      const hm = text.slice(0, 600).match(/v(\d+\.\d+-\d+)/);
+      const lines = text.split('\n').length;
+      const tail = text.trimEnd().slice(-40).replace(/\s+/g, ' ');
+      const msg = `頁面宣告 v${declared || '(沒有)'}　檔頭 v${hm ? hm[1] : '?'}　${(text.length / 1024).toFixed(1)}KB／${lines}行`;
+      add(f, msg, declared ? 'ok' : 'fail', '檔尾: …' + tail + '　最後修改: ' + (res.headers.get('last-modified') || '(伺服器沒提供)'));
+    } catch (e) { add(f, '讀取失敗: ' + e.message, 'fail'); }
+  }
+  el.innerHTML = html;
+}
+
+// 依序「轉譯＋執行」2 系列 js(順序同頁面,safety2 先),哪個檔案出錯會顯示訊息與行號
+function transformFor(source, label) {
+  // babel-standalone 對 text/babel 預設 env+react,這裡兩種都試,找出只在其中一種出錯的情況
+  const out = {};
+  for (const [k, presets] of [['react', [['react', { runtime: 'classic' }]]], ['env+react', ['env', ['react', { runtime: 'classic' }]]]]) {
+    try { out[k] = Babel.transform(source, { presets, filename: label }).code; }
+    catch (e) { out[k] = null; out[k + '_err'] = e.message; }
+  }
+  return out;
+}
+async function checkSafetyReportRun() {
+  const box = document.getElementById('srRun');
+  let html = '';
+  window.__diag.srRun = [];
+  const push = (name, msg, ok, detail) => {
+    html += `<div class="row"><span>${name}</span><span class="${ok ? 'ok' : 'fail'}">${msg}</span></div>` + (detail ? `<div class="detail">${detail}</div>` : '');
+    window.__diag.srRun.push([name, msg, detail || '']);
+    box.innerHTML = html;
+  };
+  if (!window.Babel || !window.React || !window.ReactDOM) { box.innerHTML = '<div class="detail">React/Babel 沒載入成功,略過</div>'; return; }
+  try { window.__shownFallback = true; } catch (_e) {} // 診斷頁自己跑腳本時,不要跳出「網站更新中」
+  for (const f of SR_JS) {
+    let source;
+    try {
+      const res = await fetch(SR_DIR + f + '?t=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) { push(f, '✗ HTTP ' + res.status, false); continue; }
+      source = await res.text();
+    } catch (e) { push(f, '✗ 讀取失敗: ' + e.message, false); continue; }
+    const tr = transformFor(source, f);
+    const trErr = ['react', 'env+react'].filter(k => !tr[k]).map(k => k + ': ' + tr[k + '_err']).join('\n');
+    if (!tr['env+react'] && !tr['react']) { push(f, '✗ 轉譯失敗(語法錯誤)', false, trErr); continue; }
+    try {
+      const fn = new Function(tr['env+react'] || tr['react']);
+      fn();
+      push(f, '✓ 轉譯+執行成功' + (trErr ? '(但有一種轉譯失敗,見下)' : ''), !trErr, trErr);
+    } catch (e) {
+      push(f, '✗ 執行失敗: ' + e.message, false, (e.stack || '').split('\n').slice(0, 6).join('\n'));
+    }
+  }
 }
 
 async function loadScript(src, isModule) {
@@ -199,6 +282,13 @@ function copyMarkdown() {
   const d = window.__diag;
   let md = '### 部署診斷結果\n\n測試時間：' + new Date().toLocaleString('zh-TW', { hour12: false }) + '\n\n**檔案版本**\n\n';
   d.versions.forEach(([name, ver]) => { md += `- ${name}: \`${ver}\`\n`; });
+  md += '\n**safety-report/ 版本**\n\n';
+  (d.sr || []).forEach(([name, ver, extra]) => { md += `- ${name}: ${ver}\n`; if (extra) md += `  - ${extra}\n`; });
+  md += '\n**2 系列 js 轉譯＋執行**\n\n';
+  (d.srRun || []).forEach(([name, status, detail]) => {
+    md += `- ${name}: ${status}\n`;
+    if (detail) md += '  ```\n  ' + detail.replace(/\n/g, '\n  ') + '\n  ```\n';
+  });
   md += '\n**逐一載入腳本**\n\n';
   d.loads.forEach(([name, status, detail]) => {
     md += `- ${name}: ${status}\n`;
@@ -223,7 +313,8 @@ function copyMarkdown() {
 
 document.getElementById('testTime').textContent = '測試時間：' + new Date().toLocaleString('zh-TW', { hour12: false });
 checkVersions();
-checkLoads();
+checkSafetyReport();
+checkLoads().then(checkSafetyReportRun);
 </script>
 </body>
 </html>
