@@ -1,4 +1,4 @@
-/* my2.js — 「我的」頁面 (v1.0-001)
+/* my2.js — 「我的」頁面 (v1.0-002)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 my2:  ?my2=1  我的(待我處理 + 公告 + 安全回報 + 手套團購 + 預排休假 + 拒接名單)
    只讀取各模組既有的 API(n2List / s2TodaySurveys / s2MyReports / gb2List / lv2Month / b2List),不新增後端;任何一區讀取失敗只隱藏該區。 */
 (function(){
@@ -16,7 +16,7 @@ const L={zh:{
   title:'我的',roleT:{teacher:'老師',counter:'櫃台'},todo:'待我處理',nothing:'目前沒有待處理事項 🎉',all:'全部 ›',
   notice:'公告',noNotice:'目前沒有公告',read:'已讀',
   safety:'安全回報',noSafety:'目前沒有進行中的安全回報',cut:'截止',unreported:'未回報',reported:'已回報',goReport:'去回報',youReported:'你回報：',stOk:'平安',stHelp:'需要協助',
-  gloves:'手套團購',noGloves:'目前沒有進行中的團購',myName:'我報名：',target:'目標 {a}/{b} 箱',unpaid:'待付款',paid:'已付款',paidAt:'已付 {t}',
+  gloves:'手套團購',noGloves:'目前沒有手套團購',needGlove:'點擊登記 我有需求 >',myName:'我報名：',target:'目標 {a}/{b} 箱',unpaid:'待付款',paid:'已付款',paidAt:'已付 {t}',
   leave:'預排休假',leaveOpen:'{m} 月開放登記中，截止 {c}',leaveDraft:'{m} 月可先暫存，{o} 開放送出',leaveLate:'{m} 月已過登記期間，送出需主管審批',leaveNone:'{m} 月',
   leaveMine:'我的 {m} 月休假',early:'早班',late:'晚班',days:'天',noLeave:'尚未登記',goLeave:'去排休',leavePend:'待簽核',leaveOk:'已生效',leaveDraftN:'暫存 {n} 天未送出',
   bl:'拒接名單',blHint:'只列出「拒接老師編號」含我（{c}）的客人',noBl:'沒有含你編號的拒接客人',addBl:'＋ 新增拒接客人',
@@ -27,7 +27,7 @@ const L={zh:{
   title:'Của tôi',roleT:{teacher:'KTV',counter:'Quầy'},todo:'Việc cần xử lý',nothing:'Hiện không có việc cần xử lý 🎉',all:'Tất cả ›',
   notice:'Thông báo',noNotice:'Chưa có thông báo',read:'Đã đọc',
   safety:'Báo cáo an toàn',noSafety:'Không có báo cáo đang mở',cut:'Hạn',unreported:'Chưa báo',reported:'Đã báo',goReport:'Báo ngay',youReported:'Bạn báo: ',stOk:'An toàn',stHelp:'Cần hỗ trợ',
-  gloves:'Mua chung găng tay',noGloves:'Chưa có đơn đang mở',myName:'Tôi đăng ký: ',target:'Mục tiêu {a}/{b} thùng',unpaid:'Chờ thanh toán',paid:'Đã thanh toán',paidAt:'Đã trả {t}',
+  gloves:'Mua chung găng tay',noGloves:'Hiện chưa có đơn mua chung găng tay',needGlove:'Bấm để đăng ký nhu cầu >',myName:'Tôi đăng ký: ',target:'Mục tiêu {a}/{b} thùng',unpaid:'Chờ thanh toán',paid:'Đã thanh toán',paidAt:'Đã trả {t}',
   leave:'Đăng ký nghỉ',leaveOpen:'Tháng {m} đang mở đăng ký, hạn {c}',leaveDraft:'Tháng {m} có thể lưu nháp, mở gửi từ {o}',leaveLate:'Tháng {m} đã quá hạn, gửi cần quản lý duyệt',leaveNone:'Tháng {m}',
   leaveMine:'Ngày nghỉ tháng {m} của tôi',early:'Ca sáng',late:'Ca tối',days:'ngày',noLeave:'Chưa đăng ký',goLeave:'Đăng ký',leavePend:'Chờ ký',leaveOk:'Có hiệu lực',leaveDraftN:'Nháp {n} ngày chưa gửi',
   bl:'Danh sách từ chối',blHint:'Chỉ hiện khách có mã KTV của tôi ({c})',noBl:'Không có khách từ chối liên quan đến bạn',addBl:'＋ Thêm khách từ chối',
@@ -49,8 +49,9 @@ function My2Page({me}){
   const[rs,rr]=useLoad('s2MyReports',{});
   const[gs,gr]=useLoad('gb2List',{});
   const[ls,lr]=useLoad('lv2Month',{month:nextM});
+  const curM=today.slice(0,7);const[cs,cr]=useLoad('lv2Month',{month:curM}); // 本月的排休也顯示在「我的」
   const[bs,br]=useLoad('b2List',{});
-  const reloadAll=()=>{[nr,sr,rr,gr,lr,br].forEach(f=>{try{f();}catch(_e){}});};
+  const reloadAll=()=>{[nr,sr,rr,gr,lr,cr,br].forEach(f=>{try{f();}catch(_e){}});};
   const ok=x=>x&&x.data&&x.data.ok;
   const loadingAny=[ns,ss,rs,gs,ls,bs].some(x=>x.loading&&!x.data);
   const bar=barOf(ns,reloadAll,lang);
@@ -68,6 +69,12 @@ function My2Page({me}){
   const lvMine=lv?lv.mine.filter(x=>x.status!=='cancelled'&&x.status!=='rejected'):[];
   const lvDraft=lvMine.filter(x=>x.status==='draft');
   const lvAct=lvMine.filter(x=>x.status==='approved'||x.status==='pending');
+  const lvCur=ok(cs)?cs.data.mine.filter(x=>x.status!=='cancelled'&&x.status!=='rejected'):[];
+  // 某月的「我的休假」區塊:標題可點,進該月的預排休頁
+  const leaveBlock=(m,list,isCur)=>(<div key={m} className="border-t border-gray-800 pt-2 space-y-1">
+    <button onClick={()=>go('lv2=l&month='+m)} className="w-full flex items-center justify-between text-left"><span className="text-sm font-bold text-white">{fmt(t.leaveMine,{m:parseInt(m.slice(5),10)})}</span><span className="text-xs text-violet-300">{lang==='vi'?'Xem ›':'查看 ›'}</span></button>
+    {list.length===0&&<p className="text-xs text-gray-500">{t.noLeave}</p>}
+    {['early','late'].map(sh=>{const a=list.filter(x=>x.shift===sh).sort((x,y)=>x.date<y.date?-1:1);return a.length?(<p key={sh} className="text-sm text-gray-200"><span className={'text-[11px] rounded px-1 text-white mr-1 '+(sh==='early'?'bg-amber-500':'bg-indigo-500')}>{t[sh]}</span>{a.map(x=>parseInt(x.date.slice(5,7),10)+'/'+parseInt(x.date.slice(8),10)+(x.status==='pending'?'⏳':x.status==='draft'?'✎':'')).join('、')}<span className="text-xs text-gray-500">　{a.length} {t.days}</span></p>):null;})}</div>);
   const lvOpenTodo=lv&&lv.canLeave&&(lv.state==='open'||lv.state==='late')&&lvAct.length===0;
   const bl=ok(bs)?bs.data.approved:[];
 
@@ -112,6 +119,7 @@ function My2Page({me}){
 
     {ok(gs)&&<Card className="space-y-2"><SecHead icon="🧤" title={t.gloves} t={t} onAll={()=>go('gb2=l')}/>
       {gOrders.length===0&&<p className="text-xs text-gray-500">{t.noGloves}</p>}
+      {gOrders.length===0&&<button onClick={()=>go('gb2=l')} className="w-full text-left text-sm text-violet-300 font-bold border-t border-gray-800 pt-2">{t.needGlove}</button>}
       {gOrders.slice(0,2).map(o=>{const me1=(o.people||[]).find(p=>p.mine);const pct=Math.min(100,Math.round((o.boxes||0)*100/Math.max(1,o.threshold||1)));
         return(<button key={o.id} onClick={()=>go('gb2=l')} className="w-full text-left border-t border-gray-800 pt-2 space-y-1">
           <span className="flex items-center gap-2"><span className="flex-1 text-sm text-white">{o.store}・{o.statusLabel}</span>
@@ -121,11 +129,10 @@ function My2Page({me}){
           <span className="block h-1.5 rounded bg-gray-800"><span className="block h-1.5 rounded bg-emerald-500" style={{width:pct+'%'}}></span></span></button>);})}
     </Card>}
 
-    {lv&&(lv.canLeave||lvAct.length>0)&&<Card className="space-y-2"><SecHead icon="🏖️" title={t.leave} t={t} onAll={()=>go('lv2=l&month='+nextM)}/>
+    {lv&&(lv.canLeave||lvAct.length>0||lvCur.length>0)&&<Card className="space-y-2"><SecHead icon="🏖️" title={t.leave} t={t} onAll={()=>go('lv2=l&month='+nextM)}/>
       <p className="text-xs text-gray-400">{lv.state==='open'?fmt(t.leaveOpen,{m:parseInt(nextM.slice(5),10),c:(lv.closes||'').slice(5).replace('-','/')}):lv.state==='draft'?fmt(t.leaveDraft,{m:parseInt(nextM.slice(5),10),o:(lv.opens||'').slice(5).replace('-','/')}):lv.state==='late'?fmt(t.leaveLate,{m:parseInt(nextM.slice(5),10)}):fmt(t.leaveNone,{m:parseInt(nextM.slice(5),10)})}</p>
-      <div className="border-t border-gray-800 pt-2 space-y-1"><p className="text-sm font-bold text-white">{fmt(t.leaveMine,{m:parseInt(nextM.slice(5),10)})}</p>
-        {lvMine.length===0&&<p className="text-xs text-gray-500">{t.noLeave}</p>}
-        {['early','late'].map(sh=>{const a=lvMine.filter(x=>x.shift===sh).sort((x,y)=>x.date<y.date?-1:1);return a.length?(<p key={sh} className="text-sm text-gray-200"><span className={'text-[11px] rounded px-1 text-white mr-1 '+(sh==='early'?'bg-amber-500':'bg-indigo-500')}>{t[sh]}</span>{a.map(x=>parseInt(x.date.slice(5,7),10)+'/'+parseInt(x.date.slice(8),10)+(x.status==='pending'?'⏳':x.status==='draft'?'✎':'')).join('、')}<span className="text-xs text-gray-500">　{a.length} {t.days}</span></p>):null;})}</div>
+      {lvCur.length>0&&leaveBlock(curM,lvCur,true)}
+      {leaveBlock(nextM,lvMine,false)}
     </Card>}
 
     {ok(bs)&&<Card className="space-y-2"><SecHead icon="🚫" title={t.bl} n={bl.length} t={t} onAll={()=>go('b2=l')}/>
@@ -142,3 +149,4 @@ function My2Page({me}){
 function My2Routes(){return(<NeedUser render={(me)=><My2Page me={me}/>}/>);}
 window.My2Routes=My2Routes;
 })();
+q
