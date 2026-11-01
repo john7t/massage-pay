@@ -134,6 +134,7 @@ function RegisterForm({user,onDone,showLangFirst}){
     let name='';try{const p=await liff.getProfile();name=p.displayName||'';}catch(_e){}
     const r=await api('s2Register',{role,store,lang,code:code.trim(),displayName:name,shift:role==='teacher'?shift:'',onHour:role==='teacher'?onH:'',offHour:role==='teacher'?offH:'',mgrNo:needMgr?mgrNo.trim():'',bizPhone:role==='counter'&&biz?'1':''});
     setBusy(false);
+    if(r.ok&&role==='teacher'&&!(r.user&&r.user.onHour&&r.user.offHour)){setErr('已送出,但伺服器回傳的上牌/下牌時間是空的(請截圖給開發者)：'+JSON.stringify(r.user||{}));return;} // 診斷:避免無聲卡在同一畫面
     if(r.ok)onDone(r.user);else setErr(r.error||t.fail);
   };
   return(<Box>
