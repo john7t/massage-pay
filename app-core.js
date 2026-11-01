@@ -1467,7 +1467,7 @@ function GloveBanner({settings}){
     {(()=>{const vi=settings&&settings.lang==='vi';const num=/^\d+$/.test(String(o.who||''));
       const SVI={collecting:'Đang nhận đơn',closed:'Chốt sớm',paying:'Đang thu tiền',shipping:'Đang vận chuyển',arrived:'Đã đến nơi'};
       const who=o.who?String(o.who)+(num?'號':''):'';
-      const line1=vi?('Mua chung găng tay '+(o.store||'')+' đang diễn ra'+(o.who?' (do KTV '+o.who+' khởi tạo)':''))
+      const line1=vi?('Mua chung găng tay '+(o.store||'')+' đang diễn ra'+(o.who?' (do Sư phụ '+o.who+' khởi tạo)':''))
                     :((o.store||'')+'手套團購進行中'+(who?'（由'+who+'發起）':''));
       const st=vi?(SVI[o.status]||o.statusLabel):o.statusLabel;
       return(<><p className="text-sm text-gray-100 font-semibold">🧤 {line1}</p>
