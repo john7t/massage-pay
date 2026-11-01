@@ -1,4 +1,4 @@
-/* my2.js — 「我的」頁面 (v1.0-002)
+/* my2.js — 「我的」頁面 (v1.0-004)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 my2:  ?my2=1  我的(待我處理 + 公告 + 安全回報 + 手套團購 + 預排休假 + 拒接名單)
    只讀取各模組既有的 API(n2List / s2TodaySurveys / s2MyReports / gb2List / lv2Month / b2List),不新增後端;任何一區讀取失敗只隱藏該區。 */
 (function(){
@@ -22,6 +22,7 @@ const L={zh:{
   bl:'拒接名單',blHint:'只列出「拒接老師編號」含我（{c}）的客人',noBl:'沒有含你編號的拒接客人',addBl:'＋ 新增拒接客人',
   lvName:{p:'老師個人',store:'單店拒接',all:'全店拒接'},reason:'拒接原因：',
   tNotice:'{n} 則未讀公告',tLatest:'最新：',tSafety:'尚未回報',tGlove:'手套團購：請交錢給認領人',tLeave:'預排休假',goSee:'去看',goPay:'待付款',
+  pts:'勞點',ptsStd:'標準 {n} 點（{s}）',ptsMet:'達標',ptsNot:'未達標',ptsNew:'新進（前三個月不列入考核）',ptsRank:'同店{s}名次 {r} / {t}',ptsMon:'{m} 月',ptsPt:'點',ptsHist:'近幾個月',
   loading:'載入中…',fail:'這一區暫時讀不到'},
  vi:{
   title:'Của tôi',roleT:{teacher:'Sư phụ',counter:'Quầy'},todo:'Việc cần xử lý',nothing:'Hiện không có việc cần xử lý 🎉',all:'Tất cả ›',
@@ -33,6 +34,7 @@ const L={zh:{
   bl:'Danh sách từ chối',blHint:'Chỉ hiện khách có mã Sư phụ của tôi ({c})',noBl:'Không có khách từ chối liên quan đến bạn',addBl:'＋ Thêm khách từ chối',
   lvName:{p:'Cá nhân',store:'Một chi nhánh',all:'Toàn hệ thống'},reason:'Lý do: ',
   tNotice:'{n} thông báo chưa đọc',tLatest:'Mới nhất: ',tSafety:'Chưa báo cáo',tGlove:'Mua chung găng tay: hãy trả tiền cho người nhận',tLeave:'Đăng ký nghỉ',goSee:'Xem',goPay:'Chờ trả tiền',
+  pts:'Điểm lao động (勞點)',ptsStd:'Chuẩn {n} điểm ({s})',ptsMet:'Đạt',ptsNot:'Chưa đạt',ptsNew:'Người mới (3 tháng đầu không tính)',ptsRank:'Hạng {r} / {t} ({s})',ptsMon:'Tháng {m}',ptsPt:'điểm',ptsHist:'Các tháng gần đây',
   loading:'Đang tải…',fail:'Không tải được mục này'}};
 
 function SecHead({icon,title,n,onAll,t}){
@@ -51,7 +53,8 @@ function My2Page({me}){
   const[ls,lr]=useLoad('lv2Month',{month:nextM});
   const curM=today.slice(0,7);const[cs,cr]=useLoad('lv2Month',{month:curM}); // 本月的排休也顯示在「我的」
   const[bs,br]=useLoad('b2List',{});
-  const reloadAll=()=>{[nr,sr,rr,gr,lr,cr,br].forEach(f=>{try{f();}catch(_e){}});};
+  const[ps,pr]=useLoad('s2PtsMine',{}); // 我的勞點(只看自己)
+  const reloadAll=()=>{[nr,sr,rr,gr,lr,cr,br,pr].forEach(f=>{try{f();}catch(_e){}});};
   const ok=x=>x&&x.data&&x.data.ok;
   const loadingAny=[ns,ss,rs,gs,ls,bs].some(x=>x.loading&&!x.data);
   const bar=barOf(ns,reloadAll,lang);
@@ -116,6 +119,15 @@ function My2Page({me}){
         <Pill cls={x.mine?'bg-emerald-600':'bg-red-600'}>{x.mine?t.reported:t.unreported}</Pill></button>))}
       {surveys.length===0&&ok(rs)&&rs.data.reports.slice(0,2).map(r=>(<p key={r.id} className="text-sm text-gray-300 border-t border-gray-800 pt-2">{r.title}　<span className="text-xs text-gray-500">{r.date}・{t.youReported}{r.status==='ok'?t.stOk:r.status==='help'?t.stHelp:(r.otherText||t.reported)}</span></p>))}
     </Card>}
+
+    {ok(ps)&&ps.data.has&&(()=>{const P=ps.data;const shT=P.shift==='late'?(lang==='vi'?'Ca tối':'晚班'):(lang==='vi'?'Ca sáng':'早班');
+      return(<Card className="space-y-2"><SecHead icon="🏅" title={t.pts} t={t}/>
+        <div className="flex items-end gap-3"><span className="text-4xl font-bold text-white">{P.points===null?'—':P.points}</span><span className="text-sm text-gray-400 pb-1">{fmt(t.ptsMon,{m:parseInt(String(P.month).slice(5),10)})}・{t.ptsPt}</span>
+          <span className="flex-1"></span>
+          {P.newbie?<Pill cls="bg-gray-600">{t.ptsNew}</Pill>:P.met===null?null:<Pill cls={P.met?'bg-emerald-600':'bg-red-600'}>{P.met?t.ptsMet:t.ptsNot}</Pill>}</div>
+        {P.std>0&&<p className="text-xs text-gray-400">{fmt(t.ptsStd,{n:P.std,s:shT})}{P.rank>0?'　'+fmt(t.ptsRank,{s:shT,r:P.rank,t:P.total}):''}</p>}
+        <div className="flex gap-1.5 flex-wrap border-t border-gray-800 pt-2">{(P.series||[]).map(x=>(<span key={x.m} className={'text-xs rounded-lg px-2 py-1 border '+(P.std>0&&x.p>=P.std?'border-emerald-700 text-emerald-300':'border-gray-700 text-gray-400')}>{parseInt(x.m.slice(5),10)}月 {x.p}</span>))}</div>
+      </Card>);})()}
 
     {ok(gs)&&<Card className="space-y-2"><SecHead icon="🧤" title={t.gloves} t={t} onAll={()=>go('gb2=l')}/>
       {gOrders.length===0&&<p className="text-xs text-gray-500">{t.noGloves}</p>}
