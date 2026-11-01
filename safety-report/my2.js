@@ -24,13 +24,13 @@ const L={zh:{
   tNotice:'{n} 則未讀公告',tLatest:'最新：',tSafety:'尚未回報',tGlove:'手套團購：請交錢給認領人',tLeave:'預排休假',goSee:'去看',goPay:'待付款',
   loading:'載入中…',fail:'這一區暫時讀不到'},
  vi:{
-  title:'Của tôi',roleT:{teacher:'KTV',counter:'Quầy'},todo:'Việc cần xử lý',nothing:'Hiện không có việc cần xử lý 🎉',all:'Tất cả ›',
+  title:'Của tôi',roleT:{teacher:'Sư phụ',counter:'Quầy'},todo:'Việc cần xử lý',nothing:'Hiện không có việc cần xử lý 🎉',all:'Tất cả ›',
   notice:'Thông báo',noNotice:'Chưa có thông báo',read:'Đã đọc',
   safety:'Báo cáo an toàn',noSafety:'Không có báo cáo đang mở',cut:'Hạn',unreported:'Chưa báo',reported:'Đã báo',goReport:'Báo ngay',youReported:'Bạn báo: ',stOk:'An toàn',stHelp:'Cần hỗ trợ',
   gloves:'Mua chung găng tay',noGloves:'Hiện chưa có đơn mua chung găng tay',needGlove:'Bấm để đăng ký nhu cầu >',myName:'Tôi đăng ký: ',target:'Mục tiêu {a}/{b} thùng',unpaid:'Chờ thanh toán',paid:'Đã thanh toán',paidAt:'Đã trả {t}',
   leave:'Đăng ký nghỉ',leaveOpen:'Tháng {m} đang mở đăng ký, hạn {c}',leaveDraft:'Tháng {m} có thể lưu nháp, mở gửi từ {o}',leaveLate:'Tháng {m} đã quá hạn, gửi cần quản lý duyệt',leaveNone:'Tháng {m}',
   leaveMine:'Ngày nghỉ tháng {m} của tôi',early:'Ca sáng',late:'Ca tối',days:'ngày',noLeave:'Chưa đăng ký',goLeave:'Đăng ký',leavePend:'Chờ ký',leaveOk:'Có hiệu lực',leaveDraftN:'Nháp {n} ngày chưa gửi',
-  bl:'Danh sách từ chối',blHint:'Chỉ hiện khách có mã KTV của tôi ({c})',noBl:'Không có khách từ chối liên quan đến bạn',addBl:'＋ Thêm khách từ chối',
+  bl:'Danh sách từ chối',blHint:'Chỉ hiện khách có mã Sư phụ của tôi ({c})',noBl:'Không có khách từ chối liên quan đến bạn',addBl:'＋ Thêm khách từ chối',
   lvName:{p:'Cá nhân',store:'Một chi nhánh',all:'Toàn hệ thống'},reason:'Lý do: ',
   tNotice:'{n} thông báo chưa đọc',tLatest:'Mới nhất: ',tSafety:'Chưa báo cáo',tGlove:'Mua chung găng tay: hãy trả tiền cho người nhận',tLeave:'Đăng ký nghỉ',goSee:'Xem',goPay:'Chờ trả tiền',
   loading:'Đang tải…',fail:'Không tải được mục này'}};
