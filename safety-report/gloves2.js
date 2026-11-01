@@ -22,7 +22,7 @@ const L={
       changeTo:'變更狀態',mergeCopy:'合併複製(各店截止/收錢中)',failed:'失敗',pushed:'已推播給',ppl:'人',pushBlock:'(LINE 額度不足,未推播)',confirm:'確定要變更成「{0}」嗎?'},
   vi:{title:'Mua chung găng tay',plus:'Tôi +1',need:'Tôi có nhu cầu',noOrder:'Hiện chưa có đơn đang nhận',noOrderHint:'Có nhu cầu hãy bấm "Tôi có nhu cầu" để tạo đơn mới cho chi nhánh',
       color:'Màu',size:'Size',boxes:'Số thùng',submit:'Gửi',save:'Lưu',cancel:'Hủy',edit:'Sửa',del:'Xóa',claim:'Tôi nhận phụ trách',release:'Bỏ nhận',claimer:'Người phụ trách',none:'Chưa có',
-      startClaim:'Tôi khởi tạo và phụ trách (không mua)',proxyTitle:'Ghi hộ KTV (chỉ ghi chú, không gửi thông báo)',proxyCode:'Số KTV',proxyAdd:'Ghi',proxyTag:'ghi chú',progress:'Tiến độ',noClaimerWarn:'Đủ số lượng, chưa có người phụ trách!',people:'Danh sách đặt',paid:'Đã nộp tiền',unpaid:'Chưa nộp',copyVendor:'Sao chép đơn gửi nhà cung cấp',copied:'Đã sao chép',
+      startClaim:'Tôi khởi tạo và phụ trách (không mua)',proxyTitle:'Ghi hộ Sư phụ (chỉ ghi chú, không gửi thông báo)',proxyCode:'Số Sư phụ',proxyAdd:'Ghi',proxyTag:'ghi chú',progress:'Tiến độ',noClaimerWarn:'Đủ số lượng, chưa có người phụ trách!',people:'Danh sách đặt',paid:'Đã nộp tiền',unpaid:'Chưa nộp',copyVendor:'Sao chép đơn gửi nhà cung cấp',copied:'Đã sao chép',
       admin:'Dành cho người phụ trách',history:'Lịch sử',mine:'Của tôi',back:'Quay lại',set:'Cài đặt',store:'Chi nhánh',expired:'Đã quá hạn nhận đơn',claimHint:'Người phụ trách thu tiền, đặt hàng và cập nhật trạng thái',
       changeTo:'Đổi trạng thái',mergeCopy:'Gộp & sao chép',failed:'Thất bại',pushed:'Đã gửi thông báo cho',ppl:'người',pushBlock:'(Hết hạn mức LINE, chưa gửi)',confirm:'Đổi thành "{0}"?'}
 };
