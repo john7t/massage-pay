@@ -42,7 +42,7 @@ function go(q){
 // ───────── 本機暫存:讀過一次就存 localStorage,切換頁面不重讀 GAS;點「🔄 重新整理」才清掉重讀 ─────────
 const CACHE_TTL=12*3600e3; // 安全保險:最久 12 小時後即使沒按重新整理也會重讀
 const CACHEABLE=['s2Me','s2GetSurvey','s2GetList','s2MySurveys','s2MgrInfo','s2TodaySurveys','s2MyReports'];
-const WRITE_CLEAR={s2Register:'*',s2CreateSurvey:['s2MySurveys','s2TodaySurveys'],s2DeleteSurvey:['s2MySurveys','s2GetSurvey','s2GetList','s2TodaySurveys','s2MyReports'],s2RestoreSurvey:['s2MySurveys','s2GetSurvey','s2GetList'],
+const WRITE_CLEAR={s2Register:'*',s2PtsImport:'*',s2CreateSurvey:['s2MySurveys','s2TodaySurveys'],s2DeleteSurvey:['s2MySurveys','s2GetSurvey','s2GetList','s2TodaySurveys','s2MyReports'],s2RestoreSurvey:['s2MySurveys','s2GetSurvey','s2GetList'],
   s2Report:['s2GetSurvey','s2GetList','s2TodaySurveys','s2MyReports'],s2MgrApply:['s2Me','s2MgrInfo'],s2MgrApprove:['s2MgrInfo','s2Me','s2MySurveys'],s2MgrSet:['s2MgrInfo'],s2MgrNotify:['s2MgrInfo','s2Me'],
   s2StaffSetLeft:['s2GetList','lv2Month'],s2ApvModeSet:['s2MgrInfo'],s2BizSet:['s2GetList','s2MgrInfo'],s2BizMaxSet:['s2MgrInfo'],s2UserApprove:[],s2StaffAddLeft:['lv2Month'],s2WebAdminSet:['s2MgrInfo','s2Me'],s2OpenSet:['s2MgrInfo','s2GetList','s2GetSurvey'],
   s2AdminHide:['s2MgrInfo','s2Me','s2MySurveys','s2GetList','s2GetSurvey']}; // 寫入成功後,清掉受影響的暫存
@@ -692,6 +692,25 @@ function BizCard({d,act}){
       <span className="text-sm text-gray-300">{sel}　已核准 {info.count} 支</span></div>
     <p className="text-xs text-gray-500">櫃台註冊時勾選「公務機」，主管審核通過才算；已核准數量達到上限就不能再通過。</p></Card>);
 }
+function PointsCard({d}){
+  const stores=(d.biz&&d.biz.stores)||[];const[sel,setSel]=useState((d.biz&&d.biz.store)||stores[0]||'龍山寺店');
+  const[txt,setTxt]=useState('');const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');const[err,setErr]=useState('');
+  const yr=new Date(Date.now()+8*3600e3).getUTCFullYear();
+  const example='{\n  "store": "'+sel+'",\n  "rows": [\n    { "code": "150", "months": { "'+yr+'-01": 22, "'+yr+'-02": 1, "'+yr+'-09": 34 } },\n    { "code": "155", "months": { "'+yr+'-05": 1, "'+yr+'-09": 3 } }\n  ]\n}';
+  const prompt='你是資料轉換助手。我會附上「勞點表」的照片(可能有多張)。請把照片中每一位老師、每一個月份的手寫數字,轉成下面的 JSON,只輸出 JSON 本身(不要加說明文字、不要加 ``` 符號)。\n\n格式規則:\n1. 最外層是物件:{"store":"店別","rows":[…]}。store 固定填 "'+sel+'"。\n2. rows 每一列代表一位老師:{"code":"編號","months":{"yyyy-MM":點數,…}}。\n3. code 是表格最左欄的號碼(只取數字,去掉「號」字),必須是字串。\n4. months 的 key 一律用「'+yr+'-月份」兩位數格式,例如一月=「'+yr+'-01」、九月=「'+yr+'-09」。表頭是一月~十二月。\n5. 點數是整數(0 也要填 0)。空白的格子「不要」輸出該月份。\n6. 忽略「歷史最高」那一欄與備註文字。編號欄是空白的列整列略過。\n7. 看不清楚或不確定的數字,仍填你最可能的值,並在輸出最後另起一行寫「看不清楚:編號xxx 的 x 月」。\n\n範例輸出:\n'+example;
+  const cp=async(v)=>{let ok=false;try{ok=await copyText(v);}catch(_e){}setMsg(ok?'已複製':'複製失敗,請長按文字框手動複製');setTimeout(()=>setMsg(''),2500);};
+  const run=async()=>{setErr('');setMsg('');if(!txt.trim()){setErr('請先貼上 JSON');return;}setBusy(true);
+    let r;try{r=await api('s2PtsImport',{json:txt.trim()});}catch(e){r={ok:false,error:String(e)};}
+    setBusy(false);if(r&&r.ok){setMsg('匯入完成:新增 '+r.added+' 筆、更新 '+r.updated+' 筆(共 '+r.people+' 位)');setTxt('');}else setErr((r&&r.error)||'匯入失敗');};
+  return(<Card className="space-y-2"><p className="font-bold text-white">🏅 勞點匯入</p>
+    <p className="text-xs text-gray-500">老師在「我的」頁面只看得到自己的勞點、達標與否與同店同班別名次。標準:早班 15、晚班 8;新進前三個月不列入。同一人同月重複匯入會覆蓋。</p>
+    {stores.length>1&&<div className="flex gap-2 flex-wrap">{stores.map(sn=><Chip key={sn} on={sel===sn} onClick={()=>setSel(sn)}>{sn}</Chip>)}</div>}
+    <div className="flex gap-2"><button onClick={()=>cp(prompt)} className="flex-1 rounded-xl border border-violet-500 text-violet-300 py-2 text-sm">📋 複製給 AI 的描述詞</button><button onClick={()=>cp(example)} className="flex-1 rounded-xl border border-gray-600 text-gray-200 py-2 text-sm">📋 複製 JSON 範例</button></div>
+    <p className="text-[11px] text-gray-500">步驟:①複製描述詞 ②貼給你自己的 AI,並附上勞點表照片 ③把 AI 輸出的 JSON 貼到下面 ④按匯入。每次匯入錯誤時整批不會寫入。</p>
+    <textarea value={txt} onChange={e=>setTxt(e.target.value)} rows={6} placeholder={example} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white text-xs font-mono"/>
+    {err&&<p className="text-xs text-red-400 whitespace-pre-wrap">{err}</p>}{msg&&<p className="text-xs text-emerald-400">{msg}</p>}
+    <Btn loading={busy} onClick={run}>匯入勞點</Btn></Card>);
+}
 function MgrPage(){
   return(<NeedUserOptional render={(me,needReg)=><MgrInner me={me} needReg={needReg}/>}/>);
 }
@@ -750,6 +769,7 @@ function MgrInner({me,needReg}){
         {m.canEdit&&(<div className="flex flex-wrap gap-2 mt-2">{d.levels.filter(l=>(d.settable||[]).indexOf(l)>=0).map(l=>(<Chip key={l} on={m.level===l} onClick={()=>m.level!==l&&setLevel(m,l)}>{l}</Chip>))}<button className="px-3 py-2 rounded-full border border-red-500 text-red-400 text-sm" onClick={()=>window.confirm('取消「'+m.label+'」的主管職？')&&setLevel(m,'')}>取消主管</button></div>)}</div>))}
     </Card>
     {d.biz&&(<BizCard d={d} act={act}/>)}
+    {d.biz&&(<PointsCard d={d}/>)}
     {d.admin&&(<Card className="space-y-2"><p className="font-bold text-white">🆕 新帳號審核方式</p>
       <div className="flex gap-2 flex-wrap"><Chip on={d.apvMode!=='notify'} onClick={()=>d.apvMode==='notify'&&act(()=>api('s2ApvModeSet',{mode:'auto'}))}>填對主管編號自動通過</Chip><Chip on={d.apvMode==='notify'} onClick={()=>d.apvMode!=='notify'&&act(()=>api('s2ApvModeSet',{mode:'notify'}))}>推播給所填主管審核</Chip></div>
       <p className="text-xs text-gray-500">註冊時填的「所屬主管編號」若不是本店主管，一律不推播、不拒絕，帳號顯示「審核中」，由本人當面找主管確認，主管再到人員管理按「通過」。</p></Card>)}
