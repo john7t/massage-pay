@@ -19,11 +19,11 @@ const{gasCallPost}=window.MP||{};
 
 // ───────── 多語(回報人流程有中/越;發起人與主管頁僅中文) ─────────
 const TT={
-  zh:{lang:'語系',role:'你的角色',teacher:'老師',counter:'櫃台',store:'店別',code:'老師編號',shift:'班別',early:'早班',late:'晚班',shiftHint:'在 06~15 時上班皆為早班',name:'自訂名稱',codeHint:'請輸入你的老師編號',nameHint:'請輸入你的名稱(例如:小美)',next:'下一步',saving:'儲存中…',
+  zh:{bizT:'我是櫃台公務機',bizHint:'勾選後需主管審核；通過後，出勤異動等通知會送到這個帳號。一間店的公務機有數量上限。',bizOkTag:'已核准為公務機',bizReqTag:'公務機審核中',lang:'語系',role:'你的角色',teacher:'老師',counter:'櫃台',store:'店別',code:'老師編號',shift:'班別',early:'早班',late:'晚班',shiftHint:'在 06~15 時上班皆為早班',onT:'上牌時間',offT:'下牌時間',hrU:'時',pickHr:'請選擇',offHint:'預設為上牌時間 +12 小時,可自行調整',fillHr:'請補填上牌／下牌時間(只需填一次)',mgrNoT:'所屬主管編號',mgrNoHint:'請輸入你的主管(店內主管)編號',pendTitle:'你的帳號審核中',pendSub:'請直接找店內主管面對面確認',askStuck:'帳號審核卡住了？請點此詢問',askBtn:'詢問帳號審核情況',askNote:'點擊後會在官方帳號聊天室送出「詢問帳號審核情況」',askSent:'已送出,請回到聊天室查看回覆',askManual:'請在聊天室按送出',reEdit:'主管編號填錯了？重新填寫',recheck:'重新確認',name:'自訂名稱',codeHint:'請輸入你的老師編號',nameHint:'請輸入你的名稱(例如:小美)',next:'下一步',saving:'儲存中…',
       survey:'安全回報',by:'發起人',end:'截止',closed:'這筆回報已截止',ok:'我平安',help:'需要協助',other:'其他',otherHint:'請說明你的狀況',send:'送出',sent:'已回報',sentAt:'回報時間',change:'修改回報',
       list:'回報名單',editInfo:'修改基本資料',loading:'載入中…',copy:'點此複製',copied:'已複製',refresh:'重新整理',dataAt:'資料時間',noOne:'尚無人回報',needHelp:'需要協助',
       tapToChange:'你已回報,可再點選修改',back:'返回',fail:'失敗',detail:'詳細'},
-  vi:{lang:'Ngôn ngữ',role:'Vai trò',teacher:'KTV',counter:'Lễ tân',store:'Chi nhánh',code:'Số KTV',shift:'Ca làm',early:'Ca sáng',late:'Ca tối',shiftHint:'Làm việc trong khoảng 06~15 giờ đều là ca sáng',name:'Tên của bạn',codeHint:'Nhập số KTV của bạn',nameHint:'Nhập tên của bạn (ví dụ: Mai)',next:'Tiếp theo',saving:'Đang lưu…',
+  vi:{bizT:'Tôi là máy công vụ của quầy',bizHint:'Cần quản lý duyệt; sau khi được duyệt, thông báo chấm công sẽ gửi đến tài khoản này. Mỗi chi nhánh có giới hạn số lượng.',bizOkTag:'Đã duyệt máy công vụ',bizReqTag:'Đang chờ duyệt máy công vụ',lang:'Ngôn ngữ',role:'Vai trò',teacher:'KTV',counter:'Lễ tân',store:'Chi nhánh',code:'Số KTV',shift:'Ca làm',early:'Ca sáng',late:'Ca tối',shiftHint:'Làm việc trong khoảng 06~15 giờ đều là ca sáng',onT:'Giờ lên bài',offT:'Giờ xuống bài',hrU:'giờ',pickHr:'Vui lòng chọn',offHint:'Mặc định là giờ lên bài +12 giờ, có thể chỉnh',fillHr:'Vui lòng bổ sung giờ lên bài / xuống bài (chỉ cần điền một lần)',mgrNoT:'Số quản lý trực tiếp',mgrNoHint:'Nhập số của quản lý cửa hàng bạn',pendTitle:'Tài khoản đang chờ duyệt',pendSub:'Vui lòng gặp trực tiếp quản lý cửa hàng để xác nhận',askStuck:'Tài khoản bị kẹt? Bấm vào đây để hỏi',askBtn:'Hỏi về tình trạng duyệt tài khoản',askNote:'Bấm để gửi tin nhắn “詢問帳號審核情況” trong khung chat của tài khoản chính thức',askSent:'Đã gửi, vui lòng quay lại khung chat xem phản hồi',askManual:'Vui lòng bấm gửi trong khung chat',reEdit:'Nhập sai số quản lý? Điền lại',recheck:'Kiểm tra lại',name:'Tên của bạn',codeHint:'Nhập số KTV của bạn',nameHint:'Nhập tên của bạn (ví dụ: Mai)',next:'Tiếp theo',saving:'Đang lưu…',
       survey:'Báo cáo an toàn',by:'Người tạo',end:'Hạn chót',closed:'Báo cáo này đã hết hạn',ok:'Tôi an toàn',help:'Cần hỗ trợ',other:'Khác',otherHint:'Hãy mô tả tình trạng của bạn',send:'Gửi',sent:'Đã báo cáo',sentAt:'Thời gian',change:'Sửa báo cáo',
       list:'Danh sách báo cáo',editInfo:'Sửa thông tin cơ bản',loading:'Đang tải…',copy:'Sao chép',copied:'Đã sao chép',refresh:'Làm mới',dataAt:'Thời gian dữ liệu',noOne:'Chưa có ai báo cáo',needHelp:'Cần hỗ trợ',
       tapToChange:'Bạn đã báo cáo, có thể sửa lại',back:'Quay lại',fail:'Thất bại',detail:'Chi tiết'}
@@ -44,7 +44,7 @@ const CACHE_TTL=12*3600e3; // 安全保險:最久 12 小時後即使沒按重新
 const CACHEABLE=['s2Me','s2GetSurvey','s2GetList','s2MySurveys','s2MgrInfo','s2TodaySurveys','s2MyReports'];
 const WRITE_CLEAR={s2Register:'*',s2CreateSurvey:['s2MySurveys','s2TodaySurveys'],s2DeleteSurvey:['s2MySurveys','s2GetSurvey','s2GetList','s2TodaySurveys','s2MyReports'],s2RestoreSurvey:['s2MySurveys','s2GetSurvey','s2GetList'],
   s2Report:['s2GetSurvey','s2GetList','s2TodaySurveys','s2MyReports'],s2MgrApply:['s2Me','s2MgrInfo'],s2MgrApprove:['s2MgrInfo','s2Me','s2MySurveys'],s2MgrSet:['s2MgrInfo'],s2MgrNotify:['s2MgrInfo','s2Me'],
-  s2StaffSetLeft:['s2GetList','lv2Month'],s2StaffAddLeft:['lv2Month'],s2WebAdminSet:['s2MgrInfo','s2Me'],s2OpenSet:['s2MgrInfo','s2GetList','s2GetSurvey'],
+  s2StaffSetLeft:['s2GetList','lv2Month'],s2ApvModeSet:['s2MgrInfo'],s2BizSet:['s2GetList','s2MgrInfo'],s2BizMaxSet:['s2MgrInfo'],s2UserApprove:[],s2StaffAddLeft:['lv2Month'],s2WebAdminSet:['s2MgrInfo','s2Me'],s2OpenSet:['s2MgrInfo','s2GetList','s2GetSurvey'],
   s2AdminHide:['s2MgrInfo','s2Me','s2MySurveys','s2GetList','s2GetSurvey']}; // 寫入成功後,清掉受影響的暫存
 function cuid(){try{const c=liff.getContext();return(c&&c.userId)||'';}catch(_e){return '';}}
 function ckey(action,params){return 's2c:'+cuid()+':'+action+':'+JSON.stringify(params||{});}
@@ -121,33 +121,68 @@ function RegisterForm({user,onDone,showLangFirst}){
   const[store,setStore]=useState(user?user.store:'');
   const[code,setCode]=useState(user?user.code:'');
   const[shift,setShift]=useState(user&&user.shift?user.shift:'');
+  const[biz,setBiz]=useState(!!(user&&(user.bizPhone==='1'||user.bizPhone==='req')));
+  const[mgrNo,setMgrNo]=useState('');const needMgr=!user||user.status==='pending'; // 新註冊(或審核中重填)才要填所屬主管編號
+  const[onH,setOnH]=useState(user&&user.onHour?user.onHour:0);const[offH,setOffH]=useState(user&&user.offHour?user.offHour:0);
   const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
   const t=TT[lang];
-  const ready=role&&store&&code.trim()&&(role!=='teacher'||shift);
+  const ready=role&&store&&code.trim()&&(role!=='teacher'||(shift&&onH&&offH))&&(!needMgr||mgrNo.trim());
+  const hrOpts=Array.from({length:24},(_,i)=>i+1);const hrTxt=(n)=>n+' '+t.hrU;
+  const pickOn=(v)=>{const n=parseInt(v,10)||0;setOnH(n);if(n)setOffH(((n+12-1)%24)+1);}; // 下牌預設=上牌+12(超過 24 折回,例:20→8)
   const submit=async()=>{
     setBusy(true);setErr('');
     let name='';try{const p=await liff.getProfile();name=p.displayName||'';}catch(_e){}
-    const r=await api('s2Register',{role,store,lang,code:code.trim(),displayName:name,shift:role==='teacher'?shift:''});
+    const r=await api('s2Register',{role,store,lang,code:code.trim(),displayName:name,shift:role==='teacher'?shift:'',onHour:role==='teacher'?onH:'',offHour:role==='teacher'?offH:'',mgrNo:needMgr?mgrNo.trim():'',bizPhone:role==='counter'&&biz?'1':''});
     setBusy(false);
     if(r.ok)onDone(r.user);else setErr(r.error||t.fail);
   };
   return(<Box>
+    {user&&user.role==='teacher'&&!(user.onHour&&user.offHour)&&<p className="text-sm text-amber-300 px-1">{t.fillHr}</p>}
     <Card>
       <p className="text-sm text-gray-400 mb-2">{TT.zh.lang} / {TT.vi.lang}</p>
       <div className="flex gap-2"><Chip on={lang==='zh'} onClick={()=>setLang('zh')}>中文</Chip><Chip on={lang==='vi'} onClick={()=>setLang('vi')}>Tiếng Việt</Chip></div>
     </Card>
     <Card className="space-y-3">
       <div><p className="text-sm text-gray-400 mb-2">{t.role}</p><div className="flex gap-2"><Chip on={role==='teacher'} onClick={()=>setRole('teacher')}>{t.teacher}</Chip><Chip on={role==='counter'} onClick={()=>setRole('counter')}>{t.counter}</Chip></div></div>
+      {role==='counter'&&(<div className="rounded-xl border border-gray-700 p-3"><label className="flex items-center gap-2 text-gray-100"><input type="checkbox" checked={biz} onChange={e=>setBiz(e.target.checked)} className="w-5 h-5"/><span>📞 {t.bizT}</span>{user&&user.bizPhone==='1'&&biz&&<span className="text-xs text-emerald-400">{t.bizOkTag}</span>}{user&&user.bizPhone==='req'&&biz&&<span className="text-xs text-amber-300">{t.bizReqTag}</span>}</label><p className="text-xs text-gray-400 mt-1">{t.bizHint}</p></div>)}
       <div><p className="text-sm text-gray-400 mb-2">{t.store}</p><div className="flex flex-wrap gap-2">{STORES.map(s=>(<Chip key={s} on={store===s} onClick={()=>setStore(s)}>{s}</Chip>))}</div></div>
       {role&&(<div><p className="text-sm text-gray-400 mb-2">{role==='teacher'?t.code:t.name}</p>
         <input value={code} onChange={e=>setCode(e.target.value)} maxLength={role==='teacher'?6:20} inputMode={role==='teacher'?'numeric':'text'} placeholder={role==='teacher'?t.codeHint:t.nameHint}
           className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-lg text-white"/></div>)}
       {role==='teacher'&&(<div><p className="text-sm text-gray-400 mb-2">{t.shift}</p><div className="flex gap-2"><Chip on={shift==='early'} onClick={()=>setShift('early')}>{t.early}</Chip><Chip on={shift==='late'} onClick={()=>setShift('late')}>{t.late}</Chip></div>
         <p className="text-xs text-gray-500 mt-2">{t.shiftHint}</p></div>)}
+      {role==='teacher'&&(<div><p className="text-sm text-gray-400 mb-2">{t.onT}</p>
+        <select value={onH||''} onChange={e=>pickOn(e.target.value)} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-lg text-white"><option value="">{t.pickHr}</option>{hrOpts.map(n=><option key={n} value={n}>{hrTxt(n)}</option>)}</select>
+        <p className="text-sm text-gray-400 mb-2 mt-3">{t.offT}</p>
+        <select value={offH||''} onChange={e=>setOffH(parseInt(e.target.value,10)||0)} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-lg text-white"><option value="">{t.pickHr}</option>{hrOpts.map(n=><option key={n} value={n}>{hrTxt(n)}</option>)}</select>
+        <p className="text-xs text-gray-500 mt-2">{t.offHint}</p></div>)}
+      {role&&needMgr&&(<div><p className="text-sm text-amber-300 mb-2">{t.mgrNoT}</p>
+        <input value={mgrNo} onChange={e=>setMgrNo(e.target.value)} maxLength={10} inputMode="numeric" placeholder={t.mgrNoHint} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-lg text-white"/></div>)}
     </Card>
     {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
     <Btn disabled={!ready} loading={busy} onClick={submit}>{busy?t.saving:t.next}</Btn>
   </Box>);
+}
+
+// 帳號審核中畫面:不能使用功能;「詢問」按鈕在官方帳號聊天室自動送出「詢問帳號審核情況」(使用者先傳訊息,官方帳號才能回覆;不推播給主管,請本人當面找主管確認)
+const ASK_TEXT='詢問帳號審核情況';
+function PendingScreen({user,onEdit,onRecheck}){
+  const lang=user&&user.lang==='vi'?'vi':'zh';const t=TT[lang];const[msg,setMsg]=useState('');const[busy,setBusy]=useState(false);
+  const ask=async()=>{
+    setMsg('');setBusy(true);
+    try{
+      if(liff.isInClient&&liff.isInClient()&&liff.sendMessages){await liff.sendMessages([{type:'text',text:ASK_TEXT}]);setMsg(t.askSent);setBusy(false);try{setTimeout(()=>liff.closeWindow(),600);}catch(_e){}return;}
+    }catch(_e){/* 沒開 chat_message.write 權限或不是從聊天室開啟:改用帶入文字的連結 */}
+    setBusy(false);
+    const bid=String(user&&user.botId||'');
+    if(bid){setMsg(t.askManual);const u='https://line.me/R/oaMessage/'+bid+'/?'+encodeURIComponent(ASK_TEXT);try{liff.openWindow({url:u,external:false});}catch(_e){location.href=u;}}
+    else setMsg(t.askManual);
+  };
+  return(<Box><Card className="space-y-3 text-center"><div className="text-4xl">⏳</div><p className="text-lg font-bold text-white">{t.pendTitle}</p><p className="text-sm text-gray-400">{t.pendSub}</p>
+    <p className="text-sm text-violet-300 underline pt-2">{t.askStuck}</p>
+    <Btn color="bg-gray-700 text-white" loading={busy} onClick={ask}>{t.askBtn}</Btn>
+    <p className="text-xs text-gray-500">{t.askNote}</p>{msg&&<p className="text-sm text-emerald-400">{msg}</p>}
+    <div className="flex gap-2 justify-center pt-1"><button className="px-3 py-1 rounded-full text-sm bg-gray-800 text-gray-200" onClick={onRecheck}>{t.recheck}</button><button className="px-3 py-1 rounded-full text-sm bg-gray-800 text-gray-200" onClick={onEdit}>{t.reEdit}</button></div></Card></Box>);
 }
 
 // 需要已登記身分的頁面共用:沒登記就先顯示基本資料表單,填完「下一步」再進入內容
@@ -157,7 +192,8 @@ function NeedUser({render}){
   if(st.loading&&!st.data)return(<Loading text="載入中… / Đang tải…"/>);
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
   const me=st.data;const u=user===undefined?me.user:user;
-  if(!u||editing)return(<RegisterForm user={u} onDone={x=>{setUser(x);setEditing(false);}}/>);
+  if(u&&u.status==='pending'&&!editing)return(<PendingScreen user={u} onEdit={()=>setEditing(true)} onRecheck={()=>{cclear('*');setUser(undefined);reload();}}/>);
+  if(!u||editing||(u.role==='teacher'&&!(u.onHour&&u.offHour)))return(<RegisterForm user={u} onDone={x=>{setUser(x);setEditing(false);}}/>);
   return render(Object.assign({},me,{user:u}),()=>setEditing(true),reload);
 }
 
@@ -508,6 +544,11 @@ function StaffList(){
   const d=st.data;
   const mdS=(x)=>String(x||'').slice(5).replace('-','/').replace(/\/0/,'/').replace(/^0/,'');
   const call=async(id,fn)=>{setBusy(id);setErr('');const r=await fn();setBusy('');if(r.ok){setPick(null);reload();}else setErr(r.error||'失敗');return r;};
+  const approve=(m)=>{if(!window.confirm('開通「'+m.store+' '+m.code+'」的帳號？'))return;call(m.id,()=>api('s2UserApprove',{targetId:m.id}));};
+  const bizAct=(m,a)=>{const nm='「'+m.store+' '+m.code+'」';
+    if(a==='no'){if(!window.confirm('拒絕 '+nm+' 的公務機申請？'))return;call(m.id,()=>api('s2UserApprove',{targetId:m.id,reject:'1'}));return;}
+    if(a==='off'){if(!window.confirm('取消 '+nm+' 的公務機身分？'))return;call(m.id,()=>api('s2BizSet',{targetId:m.id,on:''}));return;}
+    if(!window.confirm('將 '+nm+' 設為公務機？'))return;call(m.id,()=>api('s2BizSet',{targetId:m.id,on:'1'}));};
   const doLeft=(m)=>call(m.id,()=>api('s2StaffSetLeft',{targetId:m.id,left:true,leftDate:pick.date}));
   const undo=(m)=>{
     if(!window.confirm(m.manual?'刪除「'+m.store+' '+m.code+'」這筆手動離職記錄？':'將「'+m.store+' '+m.code+'」恢復為在職？\n(清除離職日期，之後可再設離職)'))return;
@@ -521,12 +562,12 @@ function StaffList(){
   const groups=(d.stores||[]).map(sn=>({store:sn,items:d.staff.filter(x=>x.store===sn)})).filter(g=>g.items.length>0);
   const row=(m)=>(<div key={m.id} className="py-2">
     <div className="flex items-center justify-between">
-      <div className="min-w-0"><p className={m.left?'text-gray-400':'text-gray-100'}>{m.code}{m.role==='counter'?'（櫃台）':''}{m.shift==='early'?'（早班）':m.shift==='late'?'（晚班）':''}{m.left&&<span className="ml-2 text-xs text-amber-400">{m.leftDate?mdS(m.leftDate)+'離':'已離職(未填日期)'}</span>}{m.manual&&<span className="ml-2 text-xs text-gray-500">手動記錄</span>}{m.web&&<span className="ml-2 text-xs text-violet-300">網頁管理者</span>}</p>
+      <div className="min-w-0"><p className={m.left?'text-gray-400':'text-gray-100'}>{m.code}{m.role==='counter'?'（櫃台）':''}{m.biz==='1'?<span className="ml-1 text-xs text-emerald-400">📞公務機</span>:m.biz==='req'?<span className="ml-1 text-xs text-amber-300">📞公務機申請中</span>:null}{m.shift==='early'?'（早班）':m.shift==='late'?'（晚班）':''}{m.onHour&&m.offHour?<span className="ml-2 text-xs text-gray-400">{'上'+m.onHour+' 下'+m.offHour}</span>:null}{m.left&&<span className="ml-2 text-xs text-amber-400">{m.leftDate?mdS(m.leftDate)+'離':'已離職(未填日期)'}</span>}{m.manual&&<span className="ml-2 text-xs text-gray-500">手動記錄</span>}{m.pend&&<span className="ml-2 text-xs text-sky-300">審核中{m.mgrNo?'・填 '+m.mgrNo:''}</span>}{m.web&&<span className="ml-2 text-xs text-violet-300">網頁管理者</span>}</p>
         {!m.manual&&<p className="text-xs text-gray-400 break-all">LINE：{m.name||'（未取得）'}</p>}</div>
       <div className="flex flex-col gap-1 items-end flex-none ml-2">
         {m.left?<>{!m.manual&&<button disabled={busy===m.id} className="px-3 py-1 rounded-full text-xs bg-gray-700 text-gray-200" onClick={()=>setPick({id:m.id,date:m.leftDate||today})}>改日期</button>}
           <button disabled={busy===m.id} className={'px-3 py-1 rounded-full text-sm '+(m.manual?'bg-gray-700 text-red-300':'bg-emerald-700 text-white')} onClick={()=>undo(m)}>{m.manual?'刪除記錄':'恢復'}</button></>
-          :<button disabled={busy===m.id} className="px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-200" onClick={()=>setPick({id:m.id,date:today})}>離職</button>}
+          :<>{!m.pend&&m.role==='counter'&&m.biz==='req'&&<><button disabled={busy===m.id} className="px-3 py-1 rounded-full text-xs bg-sky-600 text-white" onClick={()=>bizAct(m,'ok')}>通過公務機</button><button disabled={busy===m.id} className="px-3 py-1 rounded-full text-xs bg-gray-700 text-gray-200" onClick={()=>bizAct(m,'no')}>拒絕</button></>}{!m.pend&&m.role==='counter'&&m.biz!=='req'&&<button disabled={busy===m.id} className="px-3 py-1 rounded-full text-xs border border-gray-600 text-gray-300" onClick={()=>bizAct(m,m.biz==='1'?'off':'on')}>{m.biz==='1'?'取消公務機':'設為公務機'}</button>}{m.pend&&<button disabled={busy===m.id} className="px-3 py-1 rounded-full text-sm bg-sky-600 text-white" onClick={()=>approve(m)}>通過</button>}<button disabled={busy===m.id} className="px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-200" onClick={()=>setPick({id:m.id,date:today})}>離職</button></>}
         {SHOW_WEBADMIN_BTN&&d.realAdmin&&!m.left&&<button disabled={busy===m.id} className={'px-3 py-1 rounded-full text-xs border '+(m.web?'border-red-500 text-red-400':'border-violet-500 text-violet-300')} onClick={()=>webToggle(m)}>{m.web?'取消網頁管理者':'設為網頁管理者'}</button>}</div></div>
     {pick&&pick.id===m.id&&(<div className="mt-2 p-2 rounded bg-gray-800 flex flex-wrap items-center gap-2"><span className="text-sm text-gray-200">最後上班日(離職日)</span>
       <input type="date" value={pick.date} onChange={e=>setPick({id:m.id,date:e.target.value})} className="bg-gray-900 text-white rounded px-2 py-1 text-sm border border-gray-600"/>
@@ -538,7 +579,7 @@ function StaffList(){
   const stores=d.all?(d.stores||[]):[d.myStore];
   return(<div className="space-y-3">
     {groups.length===0&&<p className="text-sm text-gray-500">目前沒有人員</p>}
-    {groups.map(g=>{const on=g.items.filter(x=>!x.left),off=g.items.filter(x=>x.left).sort(leftSort);
+    {groups.map(g=>{const on=g.items.filter(x=>!x.left).sort((a,b)=>(b.pend?1:0)-(a.pend?1:0)),off=g.items.filter(x=>x.left).sort(leftSort);
       return(<div key={g.store}><p className="text-sm text-gray-300">{g.store}（在職 {on.length}／離職 {off.length}）</p>
         <div className="mt-1 divide-y divide-gray-800">{on.map(row)}</div>
         {off.length>0&&(<div className="mt-2"><p className="text-xs text-amber-400">離職區</p><div className="mt-1 divide-y divide-gray-800 border-t border-gray-800">{off.map(row)}</div></div>)}</div>);})}
@@ -638,6 +679,18 @@ function StaffPage(){
 }
 
 // ───────── 主管功能 ─────────
+// 公務機數量(每店上限 0~5,預設 1):櫃台註冊勾「公務機」→ 主管審核通過時檢查是否已達上限
+function BizCard({d,act}){
+  const stores=d.biz.stores||[];const[sel,setSel]=useState(d.biz.store||stores[0]||'');
+  const info=(d.biz.byStore||{})[sel]||{max:1,count:0};
+  const set=(n)=>{if(n<0||n>5||n===info.max)return;act(()=>api('s2BizMaxSet',{store:sel,max:n}));};
+  const sb='w-10 h-10 rounded-xl border border-gray-600 text-xl text-white disabled:opacity-30';
+  return(<Card className="space-y-2"><p className="font-bold text-white">📞 公務機數量</p>
+    {stores.length>1&&<div className="flex gap-2 flex-wrap">{stores.map(sn=><Chip key={sn} on={sel===sn} onClick={()=>setSel(sn)}>{sn}</Chip>)}</div>}
+    <div className="flex items-center gap-3"><button className={sb} disabled={info.max<=0} onClick={()=>set(info.max-1)}>‹</button><span className="text-2xl font-bold text-white w-8 text-center">{info.max}</span><button className={sb} disabled={info.max>=5} onClick={()=>set(info.max+1)}>›</button>
+      <span className="text-sm text-gray-300">{sel}　已核准 {info.count} 支</span></div>
+    <p className="text-xs text-gray-500">櫃台註冊時勾選「公務機」，主管審核通過才算；已核准數量達到上限就不能再通過。</p></Card>);
+}
 function MgrPage(){
   return(<NeedUserOptional render={(me,needReg)=><MgrInner me={me} needReg={needReg}/>}/>);
 }
@@ -695,6 +748,10 @@ function MgrInner({me,needReg}){
       {d.mgrs.map(m=>(<div key={m.lineUserId} className="border-t border-gray-800 pt-2"><p className="text-gray-200">{m.store} {m.label}　<span className="text-violet-300">{m.level}</span></p>
         {m.canEdit&&(<div className="flex flex-wrap gap-2 mt-2">{d.levels.filter(l=>(d.settable||[]).indexOf(l)>=0).map(l=>(<Chip key={l} on={m.level===l} onClick={()=>m.level!==l&&setLevel(m,l)}>{l}</Chip>))}<button className="px-3 py-2 rounded-full border border-red-500 text-red-400 text-sm" onClick={()=>window.confirm('取消「'+m.label+'」的主管職？')&&setLevel(m,'')}>取消主管</button></div>)}</div>))}
     </Card>
+    {d.biz&&(<BizCard d={d} act={act}/>)}
+    {d.admin&&(<Card className="space-y-2"><p className="font-bold text-white">🆕 新帳號審核方式</p>
+      <div className="flex gap-2 flex-wrap"><Chip on={d.apvMode!=='notify'} onClick={()=>d.apvMode==='notify'&&act(()=>api('s2ApvModeSet',{mode:'auto'}))}>填對主管編號自動通過</Chip><Chip on={d.apvMode==='notify'} onClick={()=>d.apvMode!=='notify'&&act(()=>api('s2ApvModeSet',{mode:'notify'}))}>推播給所填主管審核</Chip></div>
+      <p className="text-xs text-gray-500">註冊時填的「所屬主管編號」若不是本店主管，一律不推播、不拒絕，帳號顯示「審核中」，由本人當面找主管確認，主管再到人員管理按「通過」。</p></Card>)}
     <p className="text-sm font-bold text-violet-300 px-1 pt-3">🛡️ 安全回報</p>
     <Card className="space-y-3">
       <Btn onClick={()=>go('s2=mnew')}>＋ 建立新回報並分享</Btn>
