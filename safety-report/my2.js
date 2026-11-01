@@ -149,4 +149,3 @@ function My2Page({me}){
 function My2Routes(){return(<NeedUser render={(me)=><My2Page me={me}/>}/>);}
 window.My2Routes=My2Routes;
 })();
-q
