@@ -6,7 +6,7 @@
 const{useState,useEffect,useRef}=React;
 const C=window.S2Core;
 if(!C){window.Leave2Routes=()=>React.createElement('div',{className:'p-6 text-center text-red-400'},'載入失敗:缺少 safety2.js');return;}
-const{api,useLoad,Box,Card,Btn,Loading,Msg,NeedUser,barOf,go,CACHEABLE,WRITE_CLEAR}=C;
+const{api,useLoad,Box,Card,Btn,Loading,Msg,NeedUser,barOf,go,CACHEABLE,WRITE_CLEAR,Spinner}=C;
 // 本機暫存:讀過的月份存手機,切換月份不重讀;點上方「🔄 重新整理」才重讀(12 小時後也會自動重讀);任何寫入動作成功後自動清掉
 if(CACHEABLE.indexOf('lv2Month')<0)CACHEABLE.push('lv2Month');
 ['lv2Save','lv2Cancel','lv2Decide','lv2Sign','lv2Notify','lv2SeqSet','lv2SettingsSet','lv2LongSave','lv2LongEnd','lv2LongOccupy','lv2LongCancel','lv2LongDecide','lv2Claim'].forEach(x=>{WRITE_CLEAR[x]=['lv2Month'];});
@@ -337,9 +337,10 @@ function LeavePage({me}){
   const[pop,setPop]=useState(null); // 總休表點號碼的說明彈窗(主管)
   const[seqIn,setSeqIn]=useState({});const[cf,setCf]=useState(null);const[adjShift,setAdjShift]=useState((me.user&&me.user.shift)==='late'?'late':'early');
   const[st,reload]=useLoad('lv2Month',store?{month:month,store:store}:{month:month});
+  const rlP=useRef(null);const reloadR=()=>{const p=reload();rlP.current=p;return p;}; // 寫入後的重讀:run 會等它回來才解除按鈕鎖定,避免『按鈕先亮、資料還沒更新』造成重複點擊
   const d=st.data&&st.data.ok&&st.data.month===month?st.data:null;
   const[cx,setCx]=useState([]); // 要取消的「已核准」假(id);按送出才真的申請
-  const dirtyR=useRef('');const lastMo=useRef('');
+  const busyR=useRef(false);  const dirtyR=useRef('');const lastMo=useRef('');
   useEffect(()=>{if(d){const same=lastMo.current===d.month;lastMo.current=d.month;if(same&&dirtyR.current===d.month)return;dirtyR.current='';setSel(d.mine.filter(x=>x.status==='draft').map(x=>({date:x.date,shift:x.shift})));setCx([]);}},[d&&d._at,d&&d.month]); // 背景更新回來時,若使用者已動手選日期就不覆蓋
   useEffect(()=>{if(d&&new URLSearchParams(location.search).get('tab')==='adjust'&&!window.__lv2Scrolled){window.__lv2Scrolled=1;setTimeout(()=>{const el=document.getElementById('lv2-adjust');if(el&&el.scrollIntoView)el.scrollIntoView();},100);}},[d&&d.month]);
   if(!d&&st.loading)return(<Loading/>);
@@ -360,7 +361,7 @@ function LeavePage({me}){
   const used={early:0,late:0};
   d.mine.forEach(x=>{if((x.status==='approved'||x.status==='pending')&&!x.cx&&cx.indexOf(x.id)<0)used[x.shift]++;}); // 取消中／標成要取消的不算(改假淨額)
   sel.forEach(x=>{used[x.shift]++;});
-  const run=async(fn)=>{setBusy(true);setErr('');setMsg('');try{await fn();}finally{setBusy(false);dirtyR.current='';}};
+  const run=async(fn)=>{if(busyR.current)return;busyR.current=true;setBusy(true);setErr('');setMsg('');rlP.current=null;try{await fn();try{if(rlP.current)await rlP.current;}catch(_e){}}finally{busyR.current=false;setBusy(false);dirtyR.current='';}}; // 同步鎖(busyR)擋連點;重讀完成後才解鎖
   const onDay=(date)=>{
     setFocus(date);
     if(!d.canLeave||date<today||d.state==='past'||d.state==='tooEarly')return;
@@ -370,7 +371,7 @@ function LeavePage({me}){
       if(m.status==='approved'&&!m.cx){ // 已核准的假:點一下標成「要取消」(再點還原),按下方送出才申請,不跳確認
         setCx(cx.indexOf(m.id)>=0?cx.filter(i=>i!==m.id):cx.concat([m.id]));return;}
       if(!window.confirm((m.cx||m.pair)?t.cxWithdrawAsk:t.cancelAsk))return; // 撤回改假/取消申請,或取消待簽核的
-      run(async()=>{const r=await api('lv2Cancel',{id:m.id});if(r&&r.ok)reload();else setErr((r&&r.error)||t.fail);});
+      run(async()=>{const r=await api('lv2Cancel',{id:m.id});if(r&&r.ok)reloadR();else setErr((r&&r.error)||t.fail);});
       return;
     }
     dirtyR.current=month;
@@ -384,15 +385,15 @@ function LeavePage({me}){
       else if(!window.confirm((cx.length?fmt(t.changeAskT,{c:cx.length,n:sel.length})+'\n'+(d.state==='late'?t.changeLate:t.changeOpen):t.submitAsk)+(overP?'\n'+t.submitOver:'')))return;
     }
     const r=await api('lv2Save',{month:month,items:JSON.stringify(sel),submit:!!submit,cancel:submit&&cx.length?JSON.stringify(cx):''});
-    if(r&&r.ok){setMsg(submit?fmt(t.sent,{a:r.approved,p:r.pending})+((r.cancelled||r.cxPending)?'；'+fmt(t.cxSent,{a:r.cancelled||0,p:r.cxPending||0}):''):fmt(t.saved,{n:r.saved}));setCx([]);reload();}
+    if(r&&r.ok){setMsg(submit?fmt(t.sent,{a:r.approved,p:r.pending})+((r.cancelled||r.cxPending)?'；'+fmt(t.cxSent,{a:r.cancelled||0,p:r.cxPending||0}):''):fmt(t.saved,{n:r.saved}));setCx([]);reloadR();}
     else setErr((r&&r.error)||t.fail);
   });
   const longSend=()=>run(async()=>{
     const r=await api('lv2LongSave',{kind:lf.kind,start:lf.start,end:lf.kind==='rest'?'':lf.end,days:lf.kind==='alt'?lf.alt:lf.days.join(','),shift:lf.shift,quota:lf.quota,code:lf.code,reason:lf.reason.trim(),occupy:lf.occupy||''});
-    if(r&&r.ok){setMsg(r.status==='approved'?t.addedOk:t.longSent);setLf(null);reload();}else setErr((r&&r.error)||t.fail);
+    if(r&&r.ok){setMsg(r.status==='approved'?t.addedOk:t.longSent);setLf(null);reloadR();}else setErr((r&&r.error)||t.fail);
   });
-  const longAct=(action,params,ask)=>{if(ask&&!window.confirm(ask))return;run(async()=>{const r=await api(action,params);if(r&&r.ok)reload();else setErr((r&&r.error)||t.fail);});};
-  const decide=(id,approve)=>run(async()=>{const r=await api('lv2Decide',{id:id,approve:approve});if(r&&r.ok)reload();else setErr((r&&r.error)||t.fail);});
+  const longAct=(action,params,ask)=>{if(ask&&!window.confirm(ask))return;run(async()=>{const r=await api(action,params);if(r&&r.ok)reloadR();else setErr((r&&r.error)||t.fail);});};
+  const decide=(id,approve)=>run(async()=>{const r=await api('lv2Decide',{id:id,approve:approve});if(r&&r.ok)reloadR();else setErr((r&&r.error)||t.fail);});
 
   // 月曆
   const[y,m]=[parseInt(month.slice(0,4),10),parseInt(month.slice(5,7),10)];
@@ -417,6 +418,7 @@ function LeavePage({me}){
   const pgLabel=pageDates.length?parseInt(pageDates[0].slice(8),10)+'~'+parseInt(pageDates[pageDates.length-1].slice(8),10)+(lang==='vi'?'':' 日'):'';
 
   return(<Box {...barOf(st,reload,lang)}>
+    {busy&&<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"><div className="rounded-2xl bg-gray-900 border border-gray-700 px-6 py-5 flex flex-col items-center gap-2 text-violet-300"><Spinner size={36}/><p className="text-sm text-gray-200">{lang==='vi'?'Đang xử lý…':'處理中，請稍候…'}</p></div></div>}
     {pop&&(()=>{const x=pop.x,q=x.q;const KN={leave:'長假',rest:'長休',fixed:'固定休',alt:'固定隔日休',holiday:'假日可休'};
       const dd=new Date(parseInt(pop.date.slice(0,4),10),parseInt(pop.date.slice(5,7),10)-1,parseInt(pop.date.slice(8),10));const wk='日一二三四五六'[dd.getDay()];
       const by=x.p?'尚未核准（待簽核）':!x.db?(x.v?'由規則自動帶入，沒有逐日申請單':'—'):(x.db==='自動(免審批)'||x.db==='主管排休'||x.db==='紙本匯入'||x.db==='代登'?x.db:x.db+' 核准');
@@ -444,7 +446,7 @@ function LeavePage({me}){
       <p className="text-sm font-bold text-amber-300">📎 {t.paperT}</p>
       {(d.paper.rules||[]).length>0&&<p className="text-xs text-gray-300">另有規則：{d.paper.rules.join('、')}</p>}
       {d.paper.n>0&&<p className="text-xs text-gray-300">{fmt(t.paperTxt,{n:d.paper.n,c:d.me.code,m:parseInt(month.slice(5,7),10),l:d.paper.items.map(x=>parseInt(x.date.slice(5,7),10)+'/'+parseInt(x.date.slice(8),10)+(x.shift==='early'?(lang==='vi'?' sáng':' 早'):(lang==='vi'?' tối':' 晚'))).join('、')})}</p>}
-      <Btn loading={busy} onClick={()=>{if(!window.confirm(t.paperAsk))return;run(async()=>{const r=await api('lv2Claim',{});if(r&&r.ok){setMsg(fmt(t.paperOk,{n:r.n}));reload();}else setErr((r&&r.error)||t.fail);});}}>{t.paperBtn}</Btn></Card>}
+      <Btn loading={busy} onClick={()=>{if(!window.confirm(t.paperAsk))return;run(async()=>{const r=await api('lv2Claim',{});if(r&&r.ok){setMsg(fmt(t.paperOk,{n:r.n}));reloadR();}else setErr((r&&r.error)||t.fail);});}}>{t.paperBtn}</Btn></Card>}
     {d.blocked&&<p className="text-sm text-amber-300">{fmt(t.blockedTxt,{k:kindName(d.blocked,t)})}</p>}
     {!d.canLeave&&!d.blocked&&<p className="text-xs text-gray-400">{t.notTeacher}</p>}
     {d.canLeave&&!desk&&<div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-gray-400">{t.shift}</span>
@@ -664,7 +666,7 @@ function LeavePage({me}){
               <button type="submit" className="px-2.5 py-1 rounded-lg text-xs bg-gray-700 text-white">＋</button></form>
             <button onClick={()=>{let a=gDraft.slice();if(gCode&&a.indexOf(gCode)<0)a.push(gCode);if(a.length<2){setGErr(t.grpMin);return;}setGErr('');setCf({...cv,groups:grs.concat([a])});setGDraft([]);setGCode('');}} className="px-3 py-1 rounded-lg text-xs bg-violet-700 text-white">{t.grpAdd}</button></div>
           {gErr&&<p className="text-xs text-red-400">{gErr}</p>}</div>
-        <Btn loading={busy} onClick={()=>run(async()=>{const r=await api('lv2SettingsSet',{store:d.store,wd:cv.wd,we:cv.we,seqMode:cv.mode,groups:JSON.stringify(grs)});if(r&&r.ok){setMsg(t.setOk);setCf(null);reload();}else setErr((r&&r.error)||t.fail);})}>{t.setSave}</Btn></Card>);})()}
+        <Btn loading={busy} onClick={()=>run(async()=>{const r=await api('lv2SettingsSet',{store:d.store,wd:cv.wd,we:cv.we,seqMode:cv.mode,groups:JSON.stringify(grs)});if(r&&r.ok){setMsg(t.setOk);setCf(null);reloadR();}else setErr((r&&r.error)||t.fail);})}>{t.setSave}</Btn></Card>);})()}
     {(d.isMgr||d.staff)&&<Card><Btn color="bg-gray-700 text-white" onClick={()=>go('lv2=stats')}>📊 預排休統計（入口點擊／註冊／暫存）</Btn></Card>}
     {d.isMgr&&<Card className="space-y-2"><p className="text-sm font-bold text-white">📤 {t.promoT}</p><p className="text-xs text-gray-500">{t.promoHint}</p>
       <Btn color="bg-blue-600 text-white" onClick={async()=>{try{if(!liff.isApiAvailable('shareTargetPicker')){setErr(t.shareNo);return;}
