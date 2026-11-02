@@ -111,7 +111,7 @@ function useLoad(action,params){ // 回傳[狀態,重新讀取(強制略過暫�
     const swr=SWR.indexOf(action)>=0;
     if(!force){const c=peek(action,params);if(c){setSt({loading:false,data:c,err:''});if(!swr)return;}}
     setSt(s=>({loading:true,data:s.data,err:''}));
-    api(action,params,!!force||swr).then(d=>setSt(s=>(d&&d.ok)?{loading:false,data:d,err:''}:(s.data&&s.data.ok)?{loading:false,data:s.data,err:'更新失敗,畫面上仍是舊資料'}:{loading:false,data:d,err:''}));
+    return api(action,params,!!force||swr).then(d=>setSt(s=>(d&&d.ok)?{loading:false,data:d,err:''}:(s.data&&s.data.ok)?{loading:false,data:s.data,err:'更新失敗,畫面上仍是舊資料'}:{loading:false,data:d,err:''}));
   },[action,pk]);
   useEffect(()=>{run(false);},[run]);
   return[st,()=>run(true)];
@@ -696,7 +696,7 @@ function BizCard({d,act}){
     <p className="text-xs text-gray-500">櫃台註冊時勾選「公務機」，主管審核通過才算；已核准數量達到上限就不能再通過。</p></Card>);
 }
 
-// 主管看某月全店勞點:早/晚班分區(依人員資料目前班別;離職、沒編號、沒班別不列),可依編號或勞點排序
+// 店內公開的某月全店勞點:早/晚班分區(依人員資料目前班別;離職、沒編號、沒班別不列),可依編號或勞點排序
 function PtsAll({month,store}){
   const[sort,setSort]=useState('code');const[m,setM]=useState(month||'');
   const[st]=useLoad('s2PtsMonthAll',store?{month:m,store:store}:{month:m});
@@ -704,12 +704,14 @@ function PtsAll({month,store}){
   const D=st.data&&st.data.ok&&st.data.has?st.data:null;
   if(!D)return(<p className="text-xs text-gray-500">{st.loading?'載入中…':((st.data&&st.data.error)||'沒有資料')}</p>);
   const srt=(arr)=>arr.slice().sort(sort==='pts'?((a,b)=>(b.p===null?-1:b.p)-(a.p===null?-1:a.p)||(parseInt(a.c,10)-parseInt(b.c,10))):((a,b)=>(parseInt(a.c,10)||1e9)-(parseInt(b.c,10)||1e9)));
-  return(<div className="space-y-2 border-t border-gray-800 pt-2">
+  const sw=!!(st.loading&&month&&D.month!==month);
+  return(<div className={'space-y-2 border-t border-gray-800 pt-2 '+(sw?'opacity-50':'')}>
+    {sw&&<div className="flex items-center justify-center gap-2 text-violet-300 text-sm"><Spinner size={18}/>讀取中…</div>}
     <div className="flex items-center gap-2 flex-wrap"><p className="text-sm font-bold text-white">{D.store}　{parseInt(D.month.slice(5),10)} 月全店勞點</p>
       <span className="flex-1"/><Chip on={sort==='code'} onClick={()=>setSort('code')}>依編號</Chip><Chip on={sort==='pts'} onClick={()=>setSort('pts')}>依勞點</Chip></div>
     {['early','late'].map(sh=>(<div key={sh}><p className="text-xs text-gray-400 mb-1">{sh==='early'?'早班':'晚班'}（標準 {D.std[sh]}，{D[sh].length} 人）</p>
       {D[sh].length===0&&<p className="text-xs text-gray-600">沒有人員</p>}
-      <div className="grid grid-cols-2 gap-1">{srt(D[sh]).map(x=>(<div key={x.c} className="flex items-center gap-2 rounded-lg border border-gray-800 px-2 py-1 text-sm"><span className="font-bold text-gray-200 w-10">{x.c}</span>
+      <div className="grid grid-cols-2 gap-1">{srt(D[sh]).map(x=>(<div key={x.c} className={'flex items-center gap-2 rounded-lg border px-2 py-1 text-sm '+(x.c===D.me?'border-violet-400 bg-violet-950/30':'border-gray-800')}><span className="font-bold text-gray-200 w-10">{x.c}</span>
         <span className={'w-8 text-right '+(x.p===null?'text-gray-600':x.nb?'text-gray-400':x.met?'text-emerald-400':'text-red-400')}>{x.p===null?'—':x.p}</span>
         <span className="text-[10px] text-gray-500 flex-1 text-right">{x.nb?'新進':(x.rk>0?'第'+x.rk+'名':'')}</span></div>))}</div></div>))}
     <p className="text-[11px] text-gray-600">綠=達標 紅=未達標 灰=新進(前三個月不考核)；—=該月沒有資料。名次為同班別內，同分並列。</p>
@@ -727,7 +729,7 @@ function PointsCard({d}){
     let r;try{r=await api('s2PtsImport',{json:txt.trim()});}catch(e){r={ok:false,error:String(e)};}
     setBusy(false);if(r&&r.ok){setMsg('匯入完成:新增 '+r.added+' 筆、更新 '+r.updated+' 筆(共 '+r.people+' 位)');setTxt('');}else setErr((r&&r.error)||'匯入失敗');};
   return(<Card className="space-y-2"><p className="font-bold text-white">🏅 勞點匯入</p>
-    <p className="text-xs text-gray-500">老師在「我的」頁面只看得到自己的勞點、達標與否與同店同班別名次。標準:早班 15、晚班 8;新進前三個月不列入。同一人同月重複匯入會覆蓋。</p>
+    <p className="text-xs text-gray-500">勞點記錄為店內公開:老師在「我的」頁面可看自己的勞點、達標與否、同班別名次,點月份可查看該月全店名單。標準:早班 15、晚班 8;新進前三個月不列入。同一人同月重複匯入會覆蓋。</p>
     {stores.length>1&&<div className="flex gap-2 flex-wrap">{stores.map(sn=><Chip key={sn} on={sel===sn} onClick={()=>setSel(sn)}>{sn}</Chip>)}</div>}
     <div className="flex gap-2"><button onClick={()=>cp(prompt)} className="flex-1 rounded-xl border border-violet-500 text-violet-300 py-2 text-sm">📋 複製給 AI 的描述詞</button><button onClick={()=>cp(example)} className="flex-1 rounded-xl border border-gray-600 text-gray-200 py-2 text-sm">📋 複製 JSON 範例</button></div>
     <p className="text-[11px] text-gray-500">步驟:①複製描述詞 ②貼給你自己的 AI,並附上勞點表照片 ③把 AI 輸出的 JSON 貼到下面 ④按匯入。每次匯入錯誤時整批不會寫入。</p>
