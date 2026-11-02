@@ -1,4 +1,4 @@
-/* my2.js — 「我的」頁面 (v1.0-006)
+/* my2.js — 「我的」頁面 (v1.0-007)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 my2:  ?my2=1  我的(待我處理 + 公告 + 安全回報 + 手套團購 + 預排休假 + 拒接名單)
    只讀取各模組既有的 API(n2List / s2TodaySurveys / s2MyReports / gb2List / lv2Month / b2List),不新增後端;任何一區讀取失敗只隱藏該區。 */
 (function(){
@@ -22,7 +22,7 @@ const L={zh:{
   bl:'拒接名單',blHint:'只列出「拒接老師編號」含我（{c}）的客人',noBl:'沒有含你編號的拒接客人',addBl:'＋ 新增拒接客人',
   lvName:{p:'老師個人',store:'單店拒接',all:'全店拒接'},reason:'拒接原因：',
   tNotice:'{n} 則未讀公告',tLatest:'最新：',tSafety:'尚未回報',tGlove:'手套團購：請交錢給認領人',tLeave:'預排休假',goSee:'去看',goPay:'待付款',
-  pts:'勞點',ptsStd:'標準 {n} 點（{s}）',ptsMet:'達標',ptsNot:'未達標',ptsNew:'新進（前三個月不列入考核）',ptsRank:'同店{s}名次 {r} / {t}',ptsMon:'{m} 月',ptsPt:'點',ptsHist:'近幾個月',ptsTop:'{m} 月前三名',ptsNo:'{n}號',
+  pts:'勞點',ptsStd:'標準 {n} 點（{s}）',ptsMet:'達標',ptsNot:'未達標',ptsNew:'新進（前三個月不列入考核）',ptsRank:'同店{s}名次 {r} / {t}',ptsMon:'{m} 月',ptsPt:'點',ptsHist:'近幾個月',ptsBar:'我的逐月勞點（虛線＝標準 {s}；紫框＝目前選的月份）',ptsTop:'{m} 月前三名',ptsNo:'{n}號',
   loading:'載入中…',fail:'這一區暫時讀不到'},
  vi:{
   title:'Của tôi',roleT:{teacher:'Sư phụ',counter:'Quầy'},todo:'Việc cần xử lý',nothing:'Hiện không có việc cần xử lý 🎉',all:'Tất cả ›',
@@ -34,7 +34,7 @@ const L={zh:{
   bl:'Danh sách từ chối',blHint:'Chỉ hiện khách có mã Sư phụ của tôi ({c})',noBl:'Không có khách từ chối liên quan đến bạn',addBl:'＋ Thêm khách từ chối',
   lvName:{p:'Cá nhân',store:'Một chi nhánh',all:'Toàn hệ thống'},reason:'Lý do: ',
   tNotice:'{n} thông báo chưa đọc',tLatest:'Mới nhất: ',tSafety:'Chưa báo cáo',tGlove:'Mua chung găng tay: hãy trả tiền cho người nhận',tLeave:'Đăng ký nghỉ',goSee:'Xem',goPay:'Chờ trả tiền',
-  pts:'Điểm lao động (勞點)',ptsStd:'Chuẩn {n} điểm ({s})',ptsMet:'Đạt',ptsNot:'Chưa đạt',ptsNew:'Người mới (3 tháng đầu không tính)',ptsRank:'Hạng {r} / {t} ({s})',ptsMon:'Tháng {m}',ptsPt:'điểm',ptsHist:'Các tháng gần đây',ptsTop:'Top 3 tháng {m}',ptsNo:'Số {n}',
+  pts:'Điểm lao động (勞點)',ptsStd:'Chuẩn {n} điểm ({s})',ptsMet:'Đạt',ptsNot:'Chưa đạt',ptsNew:'Người mới (3 tháng đầu không tính)',ptsRank:'Hạng {r} / {t} ({s})',ptsMon:'Tháng {m}',ptsPt:'điểm',ptsHist:'Các tháng gần đây',ptsBar:'Điểm theo tháng (đường đứt = chuẩn {s}; viền tím = tháng đang chọn)',ptsTop:'Top 3 tháng {m}',ptsNo:'Số {n}',
   loading:'Đang tải…',fail:'Không tải được mục này'}};
 
 function SecHead({icon,title,n,onAll,t}){
@@ -53,7 +53,8 @@ function My2Page({me}){
   const[ls,lr]=useLoad('lv2Month',{month:nextM});
   const curM=today.slice(0,7);const[cs,cr]=useLoad('lv2Month',{month:curM}); // 本月的排休也顯示在「我的」
   const[bs,br]=useLoad('b2List',{});
-  const[ps,pr]=useLoad('s2PtsMine',{}); // 我的勞點(只看自己)
+  const[pm,setPm]=useState('');const[py,setPy]=useState(0); // 勞點:所選月份(空=最新)/年份
+  const[ps,pr]=useLoad('s2PtsMine',{month:pm}); // 我的勞點
   const reloadAll=()=>{[nr,sr,rr,gr,lr,cr,br,pr].forEach(f=>{try{f();}catch(_e){}});};
   const ok=x=>x&&x.data&&x.data.ok;
   const loadingAny=[ns,ss,rs,gs,ls,bs].some(x=>x.loading&&!x.data);
@@ -121,15 +122,28 @@ function My2Page({me}){
     </Card>}
 
     {ok(ps)&&ps.data.has&&(()=>{const P=ps.data;const shT=P.shift==='late'?(lang==='vi'?'Ca tối':'晚班'):(lang==='vi'?'Ca sáng':'早班');
+      const Y=py||parseInt(String(P.month).slice(0,4),10);const ym=(mo)=>Y+'-'+p2(mo);
+      const smap={};(P.series||[]).forEach(x=>{smap[x.m]=x.p;});
+      const inRange=(m)=>m>=P.earliest&&m<=P.latest;
+      const vals=[];for(let mo=1;mo<=12;mo++){const v=smap[ym(mo)];if(v!==undefined)vals.push(v);}
+      const mx=Math.max(P.std||0,...vals,1);
       return(<Card className="space-y-2"><SecHead icon="🏅" title={t.pts} t={t}/>
-        <div className="flex items-end gap-3"><span className="text-4xl font-bold text-white">{P.points===null?'—':P.points}</span><span className="text-sm text-gray-400 pb-1">{fmt(t.ptsMon,{m:parseInt(String(P.month).slice(5),10)})}・{t.ptsPt}</span>
+        <div className="flex items-center justify-center gap-4"><button onClick={()=>setPy(Y-1)} className="w-8 h-8 rounded-lg border border-gray-600 text-gray-300">‹</button><span className="text-sm font-bold text-white">{Y}{lang==='vi'?'':' 年'}</span><button onClick={()=>setPy(Y+1)} className="w-8 h-8 rounded-lg border border-gray-600 text-gray-300">›</button></div>
+        <div className="grid grid-cols-6 gap-1.5">{Array.from({length:12}).map((_,i)=>{const mo=i+1,m=ym(mo),v=smap[m],sel=m===P.month,ok1=v!==undefined&&P.std>0&&v>=P.std,bad=v!==undefined&&P.std>0&&v<P.std,can=inRange(m);
+          return(<button key={m} disabled={!can} onClick={()=>setPm(m)} className={'rounded-lg border py-1 text-center '+(sel?'bg-violet-600 border-violet-600 text-white':can?(ok1?'border-emerald-800 text-gray-200':'border-gray-700 text-gray-200'):'border-gray-800 text-gray-600 opacity-40')}>
+            <span className="block text-[13px]">{mo}{lang==='vi'?'':'月'}</span><span className={'block text-[10px] '+(sel?'text-violet-100':bad?'text-red-400':ok1?'text-emerald-400':'text-gray-500')}>{v===undefined?'—':v}</span></button>);})}</div>
+        <div className="border-t border-gray-800 pt-2 flex items-end gap-3"><span className="text-4xl font-bold text-white">{P.points===null?'—':P.points}</span><span className="text-sm text-gray-400 pb-1">{fmt(t.ptsMon,{m:parseInt(String(P.month).slice(5),10)})}・{t.ptsPt}</span>
           <span className="flex-1"></span>
-          {P.newbie?<Pill cls="bg-gray-600">{t.ptsNew}</Pill>:P.met===null?null:<Pill cls={P.met?'bg-emerald-600':'bg-red-600'}>{P.met?t.ptsMet:t.ptsNot}</Pill>}</div>
+          {P.points===null?null:P.newbie?<Pill cls="bg-gray-600">{t.ptsNew}</Pill>:P.met===null?null:<Pill cls={P.met?'bg-emerald-600':'bg-red-600'}>{P.met?t.ptsMet:t.ptsNot}</Pill>}</div>
         {P.std>0&&<p className="text-xs text-gray-400">{fmt(t.ptsStd,{n:P.std,s:shT})}{P.rank>0?'　'+fmt(t.ptsRank,{s:shT,r:P.rank,t:P.total}):''}</p>}
         {P.top&&(P.top.early.length>0||P.top.late.length>0)&&<div className="border-t border-gray-800 pt-2 space-y-1.5"><p className="text-xs text-gray-400">{fmt(t.ptsTop,{m:parseInt(String(P.month).slice(5),10)})}</p>
           {['early','late'].map(sh=>P.top[sh].length>0&&(<div key={sh} className="flex items-start gap-2"><span className="shrink-0 text-xs text-gray-400 w-10 pt-0.5">{sh==='late'?(lang==='vi'?'Ca tối':'晚班'):(lang==='vi'?'Ca sáng':'早班')}</span>
             <div className="flex flex-wrap gap-1.5">{P.top[sh].map(x=>(<span key={sh+x.c} className={'text-xs rounded-lg px-2 py-1 border '+(x.me?'border-violet-400 text-violet-200 font-bold':'border-gray-700 text-gray-300')}>{x.r}.{lang==='vi'?fmt(t.ptsNo,{n:x.c}):x.c+'號'} {x.p}{t.ptsPt==='điểm'?'':'點'}</span>))}</div></div>))}</div>}
-        <div className="flex gap-1.5 flex-wrap border-t border-gray-800 pt-2">{(P.series||[]).map(x=>(<span key={x.m} className={'text-xs rounded-lg px-2 py-1 border '+(P.std>0&&x.p>=P.std?'border-emerald-700 text-emerald-300':'border-gray-700 text-gray-400')}>{parseInt(x.m.slice(5),10)}月 {x.p}</span>))}</div>
+        {vals.length>0&&<div className="border-t border-gray-800 pt-2"><p className="text-[11px] text-gray-500">{fmt(t.ptsBar,{s:P.std})}</p>
+          <div className="relative flex items-end gap-1.5 border-b border-gray-700 mt-4" style={{height:84}}>
+            {P.std>0&&<div className="absolute left-0 right-0" style={{bottom:Math.round(P.std/mx*84)+'px',borderTop:'1px dashed #f59e0b'}}><span className="absolute right-0 text-[9px] text-amber-400" style={{top:-13}}>{P.std}</span></div>}
+            {Array.from({length:12}).map((_,i)=>{const m=ym(i+1),v=smap[m];return(<div key={m} className="flex-1 relative" style={{height:v===undefined?0:Math.max(2,Math.round(v/mx*84)),background:v===undefined?'transparent':(P.std>0&&v<P.std?'#ef4444':'#10b981'),borderRadius:'4px 4px 0 0',outline:m===P.month&&v!==undefined?'2px solid #a78bfa':'none'}}>{v!==undefined&&<span className="absolute left-0 right-0 text-center text-[9px] text-gray-300" style={{top:-13}}>{v}</span>}</div>);})}</div>
+          <div className="flex gap-1.5 mt-0.5">{Array.from({length:12}).map((_,i)=>(<span key={i} className="flex-1 text-center text-[9px] text-gray-500">{i+1}</span>))}</div></div>}
       </Card>);})()}
 
     {ok(gs)&&<Card className="space-y-2"><SecHead icon="🧤" title={t.gloves} t={t} onAll={()=>go('gb2=l')}/>
