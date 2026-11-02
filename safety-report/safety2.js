@@ -42,6 +42,8 @@ function go(q){
 // ───────── 本機暫存:讀過一次就存 localStorage,切換頁面不重讀 GAS;點「🔄 重新整理」才清掉重讀 ─────────
 const CACHE_TTL=12*3600e3; // 安全保險:最久 12 小時後即使沒按重新整理也會重讀
 const CACHEABLE=['s2Me','s2GetSurvey','s2GetList','s2MySurveys','s2MgrInfo','s2TodaySurveys','s2MyReports'];
+// 先顯示上次的暫存、同時背景重讀(stale-while-revalidate):會變動的即時資料用這個,第二次起進頁面不用轉圈;讀回來後自動換成最新(顯示「更新中」)
+const SWR=['lv2Month','gb2List','b2List','s2PtsMine','s2PtsMonthAll'];
 const WRITE_CLEAR={s2Register:'*',s2PtsImport:'*',s2CreateSurvey:['s2MySurveys','s2TodaySurveys'],s2DeleteSurvey:['s2MySurveys','s2GetSurvey','s2GetList','s2TodaySurveys','s2MyReports'],s2RestoreSurvey:['s2MySurveys','s2GetSurvey','s2GetList'],
   s2Report:['s2GetSurvey','s2GetList','s2TodaySurveys','s2MyReports'],s2MgrApply:['s2Me','s2MgrInfo'],s2MgrApprove:['s2MgrInfo','s2Me','s2MySurveys'],s2MgrSet:['s2MgrInfo'],s2MgrNotify:['s2MgrInfo','s2Me'],
   s2StaffSetLeft:['s2GetList','lv2Month'],s2ApvModeSet:['s2MgrInfo'],s2BizSet:['s2GetList','s2MgrInfo'],s2BizMaxSet:['s2MgrInfo'],s2UserApprove:[],s2StaffAddLeft:['lv2Month'],s2WebAdminSet:['s2MgrInfo','s2Me'],s2OpenSet:['s2MgrInfo','s2GetList','s2GetSurvey'],
@@ -55,7 +57,7 @@ function cclear(actions){
     ks.forEach(k=>{if(actions==='*'||actions.some(a=>k.indexOf(':'+a+':')>=0))localStorage.removeItem(k);});}catch(_e){}
 }
 function peek(action,params){ // 同步取暫存(沒有就 null),讓有暫存的頁面第一次畫就直接有內容,不閃「載入中」
-  if(CACHEABLE.indexOf(action)<0)return null;
+  if(CACHEABLE.indexOf(action)<0&&SWR.indexOf(action)<0)return null;
   return cget(ckey(action,params));
 }
 const S2_TIMEOUT={n2Analyze:90000}; // AI 分析(Gemini 產生標籤+越南文翻譯)比較久,放寬到 90 秒
@@ -64,7 +66,7 @@ async function api(action,params,force){
   if(cacheable&&!force){const c=cget(k);if(c)return c;}
   let tok='';try{tok=liff.getAccessToken()||'';}catch(_e){}
   const r=(await gasCallPost(action,Object.assign({},params||{},{accessToken:tok}),S2_TIMEOUT[action]||20000))||{ok:false,error:'連不上伺服器,請稍後再試'+(window.__gasErr?'（'+window.__gasErr+'）':'')};
-  if(r.ok){ r._at=Date.now(); if(cacheable)cput(k,r); else if(WRITE_CLEAR[action])cclear(WRITE_CLEAR[action]); }
+  if(r.ok){ r._at=Date.now(); if(cacheable)cput(k,r); else if(SWR.indexOf(action)>=0)cput(ckey(action,params),r); else if(WRITE_CLEAR[action])cclear(WRITE_CLEAR[action]); }
   return r;
 }
 function defaultLang(){try{return String(navigator.language||'').toLowerCase().indexOf('vi')===0?'vi':'zh';}catch(_e){return 'zh';}}
@@ -106,9 +108,10 @@ function useLoad(action,params){ // 回傳[狀態,重新讀取(強制略過暫�
   const pk=JSON.stringify(params||{});
   const[st,setSt]=useState(()=>{const c=peek(action,params);return c?{loading:false,data:c,err:''}:{loading:true,data:null,err:''};});
   const run=useCallback((force)=>{
-    if(!force){const c=peek(action,params);if(c){setSt({loading:false,data:c,err:''});return;}}
+    const swr=SWR.indexOf(action)>=0;
+    if(!force){const c=peek(action,params);if(c){setSt({loading:false,data:c,err:''});if(!swr)return;}}
     setSt(s=>({loading:true,data:s.data,err:''}));
-    api(action,params,!!force).then(d=>setSt(s=>(d&&d.ok)?{loading:false,data:d,err:''}:(s.data&&s.data.ok)?{loading:false,data:s.data,err:'更新失敗,畫面上仍是舊資料'}:{loading:false,data:d,err:''}));
+    api(action,params,!!force||swr).then(d=>setSt(s=>(d&&d.ok)?{loading:false,data:d,err:''}:(s.data&&s.data.ok)?{loading:false,data:s.data,err:'更新失敗,畫面上仍是舊資料'}:{loading:false,data:d,err:''}));
   },[action,pk]);
   useEffect(()=>{run(false);},[run]);
   return[st,()=>run(true)];
