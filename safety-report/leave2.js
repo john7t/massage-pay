@@ -207,7 +207,7 @@ const mdShort=(d)=>String(d).slice(5).replace('-','/').replace(/\/0/,'/').replac
 const leftTag=(left,c,vi)=>{const d=left&&left[String(c).trim()];return d?mdShort(d)+(vi?' nghỉ':'離'):'';};
 function PdfCell({x,left}){
   // 向上對齊:號碼在上、批准人小字在號碼正下方(不用 vertical-align / sup,html2canvas 在 iPhone 上會跑到底部)
-  return(<td style={{border:'1px solid #999',padding:0,height:26,textAlign:'center',verticalAlign:'top',whiteSpace:'nowrap',overflow:'visible'}}>{x?<div style={{position:'relative',top:-2}}><div style={{fontSize:12,lineHeight:'13px',height:13,textDecoration:x.o?'underline':'none',fontWeight:x.o?700:400,color:(x.f||x.h)&&!x.o?'#1a6fb5':'#000'}}>{x.c}{x.p?'*':''}</div>
+  return(<td style={{border:'1px solid #999',padding:0,height:26,textAlign:'center',verticalAlign:'top',whiteSpace:'nowrap',overflow:'visible'}}>{x?<div style={{position:'relative',top:-2}}><div style={{fontSize:12,lineHeight:'13px',height:13,textDecoration:x.o?'underline':'none',fontWeight:x.o?700:400,color:x.lf?'#888':(x.f||x.h)&&!x.o?'#1a6fb5':'#000'}}>{x.c}{x.p?'*':''}</div>
     <div style={{fontSize:8,lineHeight:'11px',height:11,color:'#d00',fontWeight:400}}>{(()=>{const lt=leftTag(left,x.c);const ft=x.f?'固':x.h?'可':'';return(x.s||lt||ft)?<React.Fragment>{ft&&<span style={{color:'#1a6fb5'}}>{ft}</span>}{ft&&(x.s||lt)?' ':''}{x.s}{x.s&&lt?' ':''}{lt&&<span style={{color:'#555'}}>{lt}</span>}</React.Fragment>:'\u00a0';})()}</div></div>:null}</td>);
 }
 function PdfPageSheet({title,sub,days,roster,month,longBoard,left,pageNo,pages,genAt}){
@@ -319,7 +319,7 @@ function PdfPage({me}){
 function LeavePage({me}){
   const lang=me.user&&me.user.lang==='vi'?'vi':'zh';const t=L[lang];
   const cur=todayStr().slice(0,7);
-  const[month,setMonth]=useState(addMonth(cur,1));
+  const[month,setMonth]=useState(()=>{try{const m=new URLSearchParams(location.search).get('month')||'';if(/^\d{4}-(0[1-9]|1[0-2])$/.test(m)&&[cur,addMonth(cur,1),addMonth(cur,2)].indexOf(m)>=0)return m;}catch(_e){}return addMonth(cur,1);}); // ?month=yyyy-MM 先看該月(本月~後兩月)，沒帶預設次月
   const[store,setStore]=useState('');
   useEffect(()=>{ // 從入口卡「進入預排休」(?src=entry)進來:記一筆點擊(同一個頁面工作階段只記一次,重新整理不重複)
     try{if(new URLSearchParams(location.search).get('src')!=='entry')return;const k='lv2-entry-tracked';if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1');api('lv2Track',{src:'entry'});}catch(_e){}
@@ -333,6 +333,7 @@ function LeavePage({me}){
   const[rq,setRq]=useState('');const[rPg,setRPg]=useState(null);const[adjOpen,setAdjOpen]=useState({});const[armed,setArmed]=useState('');const[vMode,setVMode]=useState(()=>lsGet('lv2ViewMode','mgr')==='teacher'?'teacher':'mgr');const[seqOpen,setSeqOpen]=useState(false);const[logOpen,setLogOpen]=useState(false);const[gErr,setGErr]=useState('');const[gDraft,setGDraft]=useState([]);const[gCode,setGCode]=useState('');const[seqSort,setSeqSort]=useState('order');const[seqQ,setSeqQ]=useState('');const[lgOpen,setLgOpen]=useState(false);
   const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');const[err,setErr]=useState('');
   const[lf,setLf]=useState(null); // 長假/課業申請表單
+  const adjSorted=(sh)=>((d.adjust&&d.adjust[sh])||[]).slice().sort((a,b)=>(a.date<b.date?-1:a.date>b.date?1:((a.pos||0)-(b.pos||0)))); // 調整表依日期、名次排序
   const[pop,setPop]=useState(null); // 總休表點號碼的說明彈窗(主管)
   const[seqIn,setSeqIn]=useState({});const[cf,setCf]=useState(null);const[adjShift,setAdjShift]=useState((me.user&&me.user.shift)==='late'?'late':'early');
   const[st,reload]=useLoad('lv2Month',store?{month:month,store:store}:{month:month});
@@ -424,12 +425,13 @@ function LeavePage({me}){
           <Row k="狀態" v={x.p?'待簽核':x.v?'已生效（規則帶入）':'已生效'}/>
           <Row k="核准" v={by+(x.dt&&!x.p?'　'+x.dt.slice(5).replace('-','/'):'')}/>
           {x.pos&&<Row k="名額" v={'超額（第 '+x.pos.split('/')[0]+' 位／名額 '+x.pos.split('/')[1]+'）　'+(x.s?'簽核：'+x.s:'尚未簽核')}/>}
-          {x.f&&!q&&<Row k="關聯" v="固定休（已不在清單，請至名單確認）"/>}
+          {!!x.f&&!q&&<Row k="關聯" v="固定休（已不在清單，請至名單確認）"/>}
           {q&&<Row k="關聯" v={qd}/>}
           {q&&q.by&&<Row k="規則核准" v={q.by}/>}
           {q&&q.rs&&<Row k="原因" v={q.rs}/>}
+          {!!x.lf&&<Row k="離職" v={'已離職（最後上班日 '+String((d.left||{})[String(x.c).trim()]||'').slice(5).replace('-','/')+'），這天不佔名額、不算超額'}/>}
           {x.fl&&<Row k="標記" v={x.fl}/>}
-          {!q&&!x.p&&!x.pos&&<p className="text-xs text-gray-500">沒有關聯的長假或固定休，這是一般單日休假。</p>}
+          {!q&&!x.p&&!x.pos&&!x.lf&&<p className="text-xs text-gray-500">沒有關聯的長假或固定休，這是一般單日休假。</p>}
           <button onClick={()=>setPop(null)} className="w-full rounded-xl bg-gray-700 text-white py-2 text-sm mt-1">關閉</button></div></div>);})()}
     <h1 className="text-lg font-bold text-white">🏖️ {t.title}</h1>
     {d.stores&&d.stores.length>0&&<div className="flex gap-2 flex-wrap"><Chip on={!store} onClick={()=>setStore('')}>{d.me.store||t.store}</Chip>{d.stores.filter(x=>x!==d.me.store).map(x=><Chip key={x} on={store===x} onClick={()=>setStore(x)}>{x}</Chip>)}</div>}
@@ -561,7 +563,7 @@ function LeavePage({me}){
           const rows=[];for(let i=0;i<arr.length;i+=5)rows.push(arr.slice(i,i+5));
           return(<div key={s} className="space-y-0.5">{rows.map((row,ri)=>(<div key={ri} className="grid items-start text-sm leading-5" style={{gridTemplateColumns:'24px repeat(5,minmax(0,1fr))'}}>
             <span>{ri===0?<span className={'text-[11px] rounded px-1 text-white '+SH_COLOR[s]}>{s==='early'?'早':'晚'}</span>:null}</span>
-            {row.map((x,i)=>(<span key={x.id||i} className="inline-flex flex-col items-center"><span onClick={d.isMgr&&!x.m?()=>setPop({date:date,s:s,x:x}):undefined} className={(x.o?'text-orange-400 font-bold':(x.f||x.h)?'text-sky-300':'text-gray-200')+(d.isMgr&&!x.m?' cursor-pointer underline decoration-dotted decoration-gray-600 underline-offset-2':'')}>{x.c}{x.p?'*':''}</span>{x.s&&(!isV||showSign)?<span className="text-[7px] leading-[8px] text-red-500 font-bold -mt-0.5">{x.s}</span>:x.f?<span className="text-[7px] leading-[8px] text-sky-400 -mt-0.5">{t.fixedTag}</span>:x.h?<span className="text-[7px] leading-[8px] text-sky-400 -mt-0.5">{t.holTag}</span>:x.oc?<span className="text-[7px] leading-[8px] text-amber-400 -mt-0.5">{x.rk||t.occTag}</span>:null}{leftTag(d.left,x.c,lang==='vi')?<span className="text-[7px] leading-[8px] text-gray-400 -mt-0.5">{leftTag(d.left,x.c,lang==='vi')}</span>:null}</span>))}</div>))}</div>);};
+            {row.map((x,i)=>(<span key={x.id||i} className="inline-flex flex-col items-center"><span onClick={d.isMgr&&!x.m?()=>setPop({date:date,s:s,x:x}):undefined} className={(x.lf?'text-gray-500 line-through':x.o?'text-orange-400 font-bold':(x.f||x.h)?'text-sky-300':'text-gray-200')+(d.isMgr&&!x.m?' cursor-pointer underline decoration-dotted decoration-gray-600 underline-offset-2':'')}>{x.c}{x.p?'*':''}</span>{x.s&&(!isV||showSign)?<span className="text-[7px] leading-[8px] text-red-500 font-bold -mt-0.5">{x.s}</span>:x.f?<span className="text-[7px] leading-[8px] text-sky-400 -mt-0.5">{t.fixedTag}</span>:x.h?<span className="text-[7px] leading-[8px] text-sky-400 -mt-0.5">{t.holTag}</span>:x.oc?<span className="text-[7px] leading-[8px] text-amber-400 -mt-0.5">{x.rk||t.occTag}</span>:null}{leftTag(d.left,x.c,lang==='vi')?<span className="text-[7px] leading-[8px] text-gray-400 -mt-0.5">{leftTag(d.left,x.c,lang==='vi')}</span>:null}</span>))}</div>))}</div>);};
         return(<div key={date} className={'border-t border-gray-800 pt-1.5 flex gap-3 '+(date<today?'opacity-40':date===today?'rounded-xl ring-1 ring-violet-500 bg-violet-950/30 px-1 ':'')}>
           <div className="w-12 shrink-0 text-center"><div className="text-xs font-bold text-violet-300">{parseInt(date.slice(5,7),10)}/{parseInt(date.slice(8),10)}</div>
             <span className={'inline-block text-[10px] rounded-full px-2 '+(wkend?'bg-red-950 text-red-300':'bg-gray-800 text-gray-400')}>{t.wk[dow]}</span>
@@ -606,18 +608,19 @@ function LeavePage({me}){
     {d.canLeave&&d.seqMode==='paper'&&<p className="text-xs text-gray-400">{t.seqMine}：{d.mySeq?'#'+d.mySeq:t.seqWait}</p>}
     {d.isMgr&&<Card className="space-y-2" id="lv2-adjust">
       <div className="flex items-center justify-between"><p className="text-sm font-bold text-white">📋 {t.adjTitle}</p>
-        {(()=>{const ids=d.adjust[adjShift].filter(x=>!x.signBy).map(x=>x.id);return ids.length>0?<button disabled={busy} onClick={()=>longAct('lv2Notify',{ids:JSON.stringify(ids)},t.notifyAsk)} className="text-xs bg-sky-700 text-white rounded-xl px-3 py-1.5">{t.notifyAll}（{ids.length}）</button>:null;})()}</div>
-      <div className="flex gap-2">{['early','late'].map(s=>(<Chip key={s} on={adjShift===s} onClick={()=>setAdjShift(s)}>{t[s]}（{d.adjust[s].length}）</Chip>))}</div>
+        {(()=>{const ids=adjSorted(adjShift).filter(x=>!x.signBy&&!x.notifiedAt).map(x=>x.id);return ids.length>0?<button disabled={busy} onClick={()=>longAct('lv2Notify',{ids:JSON.stringify(ids)},t.notifyAsk)} className="text-xs bg-sky-700 text-white rounded-xl px-3 py-1.5">{t.notifyAll}（{ids.length}）</button>:null;})()}</div>
+      <div className="flex gap-2">{['early','late'].map(s=>(<Chip key={s} on={adjShift===s} onClick={()=>setAdjShift(s)}>{t[s]}（{adjSorted(s).filter(x=>!x.signBy&&!x.notifiedAt).length}／{d.adjust[s].length}）</Chip>))}</div>
+      <p className="text-[11px] text-gray-500">{lang==='vi'?'Số trong ngoặc: chưa xử lý／tổng cần điều chỉnh':'括號內：未處理／全部應調整筆數（已通知或已簽核算已處理）'}</p>
       <p className="text-[11px] text-gray-500">{t.adjHint}</p>
       {d.adjust[adjShift].length===0&&<p className="text-xs text-gray-500">{t.adjNone}</p>}
       {(()=>{
-        const groups=[];d.adjust[adjShift].forEach(x=>{let g=groups[groups.length-1];if(!g||g.date!==x.date){g={date:x.date,cap:x.cap,list:[]};groups.push(g);}g.list.push(x);});
+        const groups=[];adjSorted(adjShift).forEach(x=>{let g=groups[groups.length-1];if(!g||g.date!==x.date){g={date:x.date,cap:x.cap,list:[]};groups.push(g);}g.list.push(x);});
         const allOpen=groups.length>0&&groups.every(g=>adjOpen[adjShift+g.date]);
-        return(<div className="space-y-1.5">
+        return(<div key={'adj-'+adjShift} className="space-y-1.5">
           {groups.length>1&&<div className="text-right"><button onClick={()=>{const o={...adjOpen};groups.forEach(g=>{o[adjShift+g.date]=!allOpen;});setAdjOpen(o);}} className="text-[11px] text-violet-300">{allOpen?t.adjNone2:t.adjAll}</button></div>}
-          {groups.map(g=>{const k=adjShift+g.date;const open=!!adjOpen[k];const done=g.list.filter(x=>x.signBy||x.notifiedAt).length;const todo=g.list.length-done;
+          {groups.map((g,gi)=>{const k=adjShift+g.date;const open=!!adjOpen[k];const done=g.list.filter(x=>x.signBy||x.notifiedAt).length;const todo=g.list.length-done;
             const dow=new Date(parseInt(g.date.slice(0,4),10),parseInt(g.date.slice(5,7),10)-1,parseInt(g.date.slice(8),10)).getDay();
-            return(<div key={k} className="rounded-xl border border-gray-800">
+            return(<div key={adjShift+'|'+gi+'|'+g.date} className="rounded-xl border border-gray-800">
               <button onClick={()=>setAdjOpen({...adjOpen,[k]:!open})} className="w-full flex items-center gap-2 px-3 py-2 text-left">
                 <span className="text-sm font-bold text-violet-300">{parseInt(g.date.slice(5,7),10)}/{parseInt(g.date.slice(8),10)}</span>
                 <span className="text-[11px] text-gray-400">{t.wk[dow]}　{lang==='vi'?'Hạn mức':'名額'} {g.cap}</span>
