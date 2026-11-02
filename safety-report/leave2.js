@@ -319,7 +319,7 @@ function PdfPage({me}){
 function LeavePage({me}){
   const lang=me.user&&me.user.lang==='vi'?'vi':'zh';const t=L[lang];
   const cur=todayStr().slice(0,7);
-  const[month,setMonth]=useState(()=>{try{const m=new URLSearchParams(location.search).get('month')||'';if(/^\d{4}-(0[1-9]|1[0-2])$/.test(m)&&[addMonth(cur,-2),addMonth(cur,-1),cur,addMonth(cur,1),addMonth(cur,2)].indexOf(m)>=0)return m;}catch(_e){}return addMonth(cur,1);}); // ?month=yyyy-MM 先看該月(本月~後兩月)，沒帶預設次月
+  const[month,setMonth]=useState(()=>{try{const m=new URLSearchParams(location.search).get('month')||'';if(/^\d{4}-(0[1-9]|1[0-2])$/.test(m)&&[addMonth(cur,-2),addMonth(cur,-1),cur,addMonth(cur,1),addMonth(cur,2)].indexOf(m)>=0)return m;if(new URLSearchParams(location.search).get('src')==='entry')return addMonth(cur,1);}catch(_e){}return cur;}); // ?month=yyyy-MM 先看該月(本月~後兩月)，沒帶預設次月
   const[store,setStore]=useState('');
   useEffect(()=>{ // 從入口卡「進入預排休」(?src=entry)進來:記一筆點擊(同一個頁面工作階段只記一次,重新整理不重複)
     try{if(new URLSearchParams(location.search).get('src')!=='entry')return;const k='lv2-entry-tracked';if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1');api('lv2Track',{src:'entry'});}catch(_e){}
@@ -403,6 +403,7 @@ function LeavePage({me}){
   const canSubmit=canEdit&&d.state!=='draft'&&(sel.length>0||cx.length>0);
   const rosterOf=focus&&d.roster[focus];
   const isV=!!(d.isMgr||d.canSeq);
+  const desk=(()=>{try{return new URLSearchParams(location.search).get('desk')==='1';}catch(_e){return false;}})(); // 櫃台 Rich Menu 進來(?desk=1):不顯示登記/暫存/待簽核區塊
   const seqView=(()=>{let l=d.seqList.slice();if(seqSort==='code')l.sort((a,b)=>(parseInt(a.code,10)||1e9)-(parseInt(b.code,10)||1e9));if(seqQ)l=l.filter(x=>String(x.code).indexOf(seqQ)===0);return l;})();
   const allDays=cells.filter(Boolean);
   const anonView=!!(d.anon||(isV&&vMode==='teacher'));
@@ -444,9 +445,9 @@ function LeavePage({me}){
       <Btn loading={busy} onClick={()=>{if(!window.confirm(t.paperAsk))return;run(async()=>{const r=await api('lv2Claim',{});if(r&&r.ok){setMsg(fmt(t.paperOk,{n:r.n}));reload();}else setErr((r&&r.error)||t.fail);});}}>{t.paperBtn}</Btn></Card>}
     {d.blocked&&<p className="text-sm text-amber-300">{fmt(t.blockedTxt,{k:kindName(d.blocked,t)})}</p>}
     {!d.canLeave&&!d.blocked&&<p className="text-xs text-gray-400">{t.notTeacher}</p>}
-    {d.canLeave&&<div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-gray-400">{t.shift}</span>
+    {d.canLeave&&!desk&&<div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-gray-400">{t.shift}</span>
       {['early','late'].map(s=><Chip key={s} on={shift===s} onClick={()=>setShift(s)}>{t[s]}</Chip>)}</div>}
-    <Card className="space-y-2">
+    {!desk&&<Card className="space-y-2">
       <div className="grid grid-cols-7 text-center text-xs text-gray-500">{(lang==='vi'?['CN','T2','T3','T4','T5','T6','T7']:['日','一','二','三','四','五','六']).map(w=><div key={w}>{w}</div>)}</div>
       <div className="grid grid-cols-7 gap-1">
         {cells.map((date,i)=>{
@@ -466,23 +467,23 @@ function LeavePage({me}){
           </button>);})}
       </div>
       <p className="text-[11px] text-gray-500">{lang==='vi'?'Số nhỏ: ca sáng/ca tối của chi nhánh (tối đa '+lim.weekday+')':'小字：本店 早班/晚班 已休人數（平日每班上限 '+lim.weekday+' 人）'}</p>
-    </Card>
-    {d.canLeave&&<Card className="space-y-1">
+    </Card>}
+    {d.canLeave&&!desk&&<Card className="space-y-1">
       <p className="text-sm font-bold text-white">{t.sum}</p>
       {['early','late'].map(s=>(<p key={s} className={'text-sm '+(used[s]>lim.person?'text-red-400':'text-gray-200')}>{t[s]}：{used[s]} / {lim.person} {t.days}{used[s]>lim.person?'　'+fmt(t.over,{n:lim.person}):''}</p>))}
       {sel.some(x=>((d.counts[x.date]||{})[x.shift]||0)>=capOf(x.date)&&!holOk(x.date))&&<p className="text-xs text-red-400">{fmt(t.full,{n:lim.weekday})}</p>}
       {cx.length>0&&<p className="text-xs text-amber-300">{fmt(t.changeSum,{c:cx.length,n:sel.length})}</p>}
       {canEdit&&cx.length===0&&d.mine.some(x=>x.status==='approved'&&!x.cx&&x.date>=today)&&<p className="text-[11px] text-gray-500">{t.cxHint}</p>}
     </Card>}
-    {canEdit&&<div className="flex gap-2"><Btn color="bg-gray-700 text-white" loading={busy} onClick={()=>save(false)}>{t.draft}</Btn>
+    {canEdit&&!desk&&<div className="flex gap-2"><Btn color="bg-gray-700 text-white" loading={busy} onClick={()=>save(false)}>{t.draft}</Btn>
       {d.state!=='draft'&&<Btn loading={busy} onClick={()=>canSubmit?save(true):null} color={canSubmit?undefined:'bg-gray-800 text-gray-500'}>{cx.length>0?t.changeSubmit:t.submit}</Btn>}</div>}
     {msg&&<p className="text-center text-sm text-emerald-400">✅ {msg}</p>}
     {err&&<p className="text-center text-sm text-red-400">{err}</p>}
-    {d.mine.length>0&&<Card className="space-y-1">
+    {d.mine.length>0&&!desk&&<Card className="space-y-1">
       <p className="text-sm font-bold text-white">{t.mineList}</p>
       {d.mine.slice().sort((a,b)=>a.date<b.date?-1:1).map(x=>(<p key={x.id} className="text-sm text-gray-300">{x.date.slice(5)}　{t[x.shift]}　<span className={x.cx?'text-red-300':x.status==='approved'?'text-emerald-400':x.status==='pending'?'text-amber-300':'text-gray-400'}>{x.cx?t.s_cx:(t['s_'+x.status]||x.status)}</span>{x.over?<span className="text-xs text-orange-400">　{t.overTag}</span>:null}{x.signBy?<span className="text-xs text-gray-400">　{fmt(t.signedBy,{c:x.signBy})}</span>:null}{x.flags&&x.status==='pending'?<span className="text-xs text-gray-500">　（{flagText(x.flags)}）</span>:null}</p>))}
     </Card>}
-    {d.isMgr&&d.state!=='past'&&<Card className="space-y-2">
+    {d.isMgr&&!desk&&d.state!=='past'&&<Card className="space-y-2">
       <p className="text-sm font-bold text-white">{t.pendingTitle}（{d.pending.length}）</p>
       {d.pending.length===0&&<p className="text-xs text-gray-500">{t.noPending}</p>}
       {d.pending.map(x=>(<div key={x.id} className="rounded-xl border border-gray-700 p-2 space-y-1">
@@ -495,7 +496,7 @@ function LeavePage({me}){
           <button disabled={busy} onClick={()=>decide(x.id,false)} className="flex-1 py-2 rounded-xl text-sm font-bold bg-gray-700 text-gray-200 disabled:opacity-50">{t.rej}</button></div>
       </div>))}
     </Card>}
-    {d.isMgr&&d.long.pending.length>0&&<Card className="space-y-2">
+    {d.isMgr&&!desk&&d.long.pending.length>0&&<Card className="space-y-2">
       <p className="text-sm font-bold text-white">{t.longTitle} · {t.pendingTitle}（{d.long.pending.length}）</p>
       {d.long.pending.map(x=>(<div key={x.id} className="rounded-xl border border-gray-700 p-2 space-y-1">
         <p className="text-sm text-white">{x.store}　{x.code} 號　{(x.kind==='leave'||x.kind==='rest')?longText(x,t):longText(x,t)}　{periodText(x,t)}</p>
@@ -503,15 +504,6 @@ function LeavePage({me}){
         <div className="flex gap-2"><button disabled={busy} onClick={()=>longAct('lv2LongDecide',{id:x.id,approve:true})} className="flex-1 py-2 rounded-xl text-sm font-bold bg-emerald-600 text-white disabled:opacity-50">{t.ok}</button>
           <button disabled={busy} onClick={()=>longAct('lv2LongDecide',{id:x.id,approve:false})} className="flex-1 py-2 rounded-xl text-sm font-bold bg-gray-700 text-gray-200 disabled:opacity-50">{t.rej}</button></div>
       </div>))}
-    </Card>}
-    {d.staff&&d.log&&<Card className="space-y-2">
-      <button onClick={()=>setLogOpen(!logOpen)} className="w-full flex items-center justify-between"><p className="text-sm font-bold text-white">{t.logTitle}（{d.log.length}）</p><span className="text-xs text-violet-300">{logOpen?(lang==='vi'?'Thu gọn ▲':'收合 ▲'):(lang==='vi'?'Mở ▼':'展開 ▼')}</span></button>
-      {logOpen&&d.log.length===0&&<p className="text-xs text-gray-500">{t.logNone}</p>}
-      {logOpen&&d.log.map((x,i)=>(<p key={i} className="text-xs text-gray-300 border-b border-gray-900 py-1">
-        <span className="text-gray-500">{String(x.t).slice(5,16).replace('-','/')}</span>　<span className="font-bold text-violet-300">{x.c}</span>{lang==='vi'?'':' 號'}　
-        <span className={'rounded-full px-1.5 py-0.5 text-white '+(x.a==='approve'?'bg-emerald-700':x.a==='reject'?'bg-gray-600':'bg-rose-700')}>{x.a==='approve'?t.logApprove:x.a==='reject'?t.logReject:t.logCancel}</span>　
-        {x.k==='day'?<span>{x.d.slice(5).replace('-','/')} {t[x.sh]}</span>:<span>{kindName(x.kind,t)}{x.kind!=='leave'&&x.kind!=='rest'?' '+longText(x,t):''} {x.start.slice(5).replace('-','/')}~{x.end?x.end.slice(5).replace('-','/'):t.pendingEnd}</span>}
-        <span className="text-gray-500">　{t.logBy}：{x.by==='本人取消'||x.by==='本人'?t.logSelf:x.by}</span></p>))}
     </Card>}
     <Card className="space-y-2">
       <div className="flex items-center justify-between"><p className="text-sm font-bold text-white">🗓️ {t.rosterTitle}</p>
@@ -636,6 +628,15 @@ function LeavePage({me}){
               {x.signBy&&<button disabled={busy} onClick={()=>{if(armed===x.id){setArmed('');longAct('lv2Sign',{id:x.id,on:false});}else{setArmed(x.id);setTimeout(()=>setArmed(a=>a===x.id?'':a),4000);}}} className={'flex-1 py-1.5 rounded-lg text-xs font-bold disabled:opacity-50 '+(armed===x.id?'bg-red-600 text-white':'bg-gray-700 text-gray-200')}>{armed===x.id?t.unsignSure:t.unsign}</button>}</div></div>))}</div>}
             </div>);})}
         </div>);})()}
+    </Card>}
+    {d.staff&&d.log&&<Card className="space-y-2">
+      <button onClick={()=>setLogOpen(!logOpen)} className="w-full flex items-center justify-between"><p className="text-sm font-bold text-white">{t.logTitle}（{d.log.length}）</p><span className="text-xs text-violet-300">{logOpen?(lang==='vi'?'Thu gọn ▲':'收合 ▲'):(lang==='vi'?'Mở ▼':'展開 ▼')}</span></button>
+      {logOpen&&d.log.length===0&&<p className="text-xs text-gray-500">{t.logNone}</p>}
+      {logOpen&&d.log.map((x,i)=>(<p key={i} className="text-xs text-gray-300 border-b border-gray-900 py-1">
+        <span className="text-gray-500">{String(x.t).slice(5,16).replace('-','/')}</span>　<span className="font-bold text-violet-300">{x.c}</span>{lang==='vi'?'':' 號'}　
+        <span className={'rounded-full px-1.5 py-0.5 text-white '+(x.a==='approve'?'bg-emerald-700':x.a==='reject'?'bg-gray-600':'bg-rose-700')}>{x.a==='approve'?t.logApprove:x.a==='reject'?t.logReject:t.logCancel}</span>　
+        {x.k==='day'?<span>{x.d.slice(5).replace('-','/')} {t[x.sh]}</span>:<span>{kindName(x.kind,t)}{x.kind!=='leave'&&x.kind!=='rest'?' '+longText(x,t):''} {x.start.slice(5).replace('-','/')}~{x.end?x.end.slice(5).replace('-','/'):t.pendingEnd}</span>}
+        <span className="text-gray-500">　{t.logBy}：{x.by==='本人取消'||x.by==='本人'?t.logSelf:x.by}</span></p>))}
     </Card>}
     {d.canSeq&&d.state!=='past'&&d.seqMode==='paper'&&<Card className="space-y-2">
       <div className="flex items-center"><p className="text-sm font-bold text-white">🔢 {t.seqTitle}</p><button onClick={()=>setSeqOpen(!seqOpen)} className="ml-auto text-xs text-violet-300">{seqOpen?t.seqToggleClose:t.seqToggleOpen}</button></div>{seqOpen&&<p className="text-[11px] text-gray-500">{t.seqHint}</p>}
