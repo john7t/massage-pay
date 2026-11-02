@@ -1,4 +1,4 @@
-/* my2.js — 「我的」頁面 (v1.0-007)
+/* my2.js — 「我的」頁面 (v1.0-008)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 my2:  ?my2=1  我的(待我處理 + 公告 + 安全回報 + 手套團購 + 預排休假 + 拒接名單)
    只讀取各模組既有的 API(n2List / s2TodaySurveys / s2MyReports / gb2List / lv2Month / b2List),不新增後端;任何一區讀取失敗只隱藏該區。 */
 (function(){
@@ -53,7 +53,7 @@ function My2Page({me}){
   const[ls,lr]=useLoad('lv2Month',{month:nextM});
   const curM=today.slice(0,7);const[cs,cr]=useLoad('lv2Month',{month:curM}); // 本月的排休也顯示在「我的」
   const[bs,br]=useLoad('b2List',{});
-  const[pm,setPm]=useState('');const[py,setPy]=useState(0); // 勞點:所選月份(空=最新)/年份
+  const[pallV,setPallV]=useState(false);const[pm,setPm]=useState('');const[py,setPy]=useState(0); // 勞點:所選月份(空=最新)/年份
   const[ps,pr]=useLoad('s2PtsMine',{month:pm}); // 我的勞點
   const reloadAll=()=>{[nr,sr,rr,gr,lr,cr,br,pr].forEach(f=>{try{f();}catch(_e){}});};
   const ok=x=>x&&x.data&&x.data.ok;
@@ -144,6 +144,7 @@ function My2Page({me}){
             {P.std>0&&<div className="absolute left-0 right-0" style={{bottom:Math.round(P.std/mx*84)+'px',borderTop:'1px dashed #f59e0b'}}><span className="absolute right-0 text-[9px] text-amber-400" style={{top:-13}}>{P.std}</span></div>}
             {Array.from({length:12}).map((_,i)=>{const m=ym(i+1),v=smap[m];return(<div key={m} className="flex-1 relative" style={{height:v===undefined?0:Math.max(2,Math.round(v/mx*84)),background:v===undefined?'transparent':(P.std>0&&v<P.std?'#ef4444':'#10b981'),borderRadius:'4px 4px 0 0',outline:m===P.month&&v!==undefined?'2px solid #a78bfa':'none'}}>{v!==undefined&&<span className="absolute left-0 right-0 text-center text-[9px] text-gray-300" style={{top:-13}}>{v}</span>}</div>);})}</div>
           <div className="flex gap-1.5 mt-0.5">{Array.from({length:12}).map((_,i)=>(<span key={i} className="flex-1 text-center text-[9px] text-gray-500">{i+1}</span>))}</div></div>}
+        {P.mgr&&window.S2Core.PtsAll&&<div><button onClick={()=>setPallV(!pallV)} className="w-full rounded-xl border border-gray-600 text-gray-200 py-2 text-sm">{pallV?'收起全店名單':'📋 查看 '+parseInt(String(P.month).slice(5),10)+' 月全店勞點'}</button>{pallV&&<window.S2Core.PtsAll month={P.month}/>}</div>}
       </Card>);})()}
 
     {ok(gs)&&<Card className="space-y-2"><SecHead icon="🧤" title={t.gloves} t={t} onAll={()=>go('gb2=l')}/>
