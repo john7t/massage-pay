@@ -3,7 +3,7 @@
    規則與後端見 gas-leave2.gs.txt:每月 9 日 00:00 ~ 12 日 24:00 可登記「下個月」休假,期間免審批(超休需主管簽字);之後的送出需主管審批;可提前 2 個月暫存。
    早/晚班分開統計:每人每月各 6 天、每店每日各班別最多 6 人。 */
 (function(){
-const{useState,useEffect}=React;
+const{useState,useEffect,useRef}=React;
 const C=window.S2Core;
 if(!C){window.Leave2Routes=()=>React.createElement('div',{className:'p-6 text-center text-red-400'},'載入失敗:缺少 safety2.js');return;}
 const{api,useLoad,Box,Card,Btn,Loading,Msg,NeedUser,barOf,go,CACHEABLE,WRITE_CLEAR}=C;
@@ -339,7 +339,8 @@ function LeavePage({me}){
   const[st,reload]=useLoad('lv2Month',store?{month:month,store:store}:{month:month});
   const d=st.data&&st.data.ok&&st.data.month===month?st.data:null;
   const[cx,setCx]=useState([]); // 要取消的「已核准」假(id);按送出才真的申請
-  useEffect(()=>{if(d){setSel(d.mine.filter(x=>x.status==='draft').map(x=>({date:x.date,shift:x.shift})));setCx([]);}},[d&&d._at,d&&d.month]);
+  const dirtyR=useRef('');const lastMo=useRef('');
+  useEffect(()=>{if(d){const same=lastMo.current===d.month;lastMo.current=d.month;if(same&&dirtyR.current===d.month)return;dirtyR.current='';setSel(d.mine.filter(x=>x.status==='draft').map(x=>({date:x.date,shift:x.shift})));setCx([]);}},[d&&d._at,d&&d.month]); // 背景更新回來時,若使用者已動手選日期就不覆蓋
   useEffect(()=>{if(d&&new URLSearchParams(location.search).get('tab')==='adjust'&&!window.__lv2Scrolled){window.__lv2Scrolled=1;setTimeout(()=>{const el=document.getElementById('lv2-adjust');if(el&&el.scrollIntoView)el.scrollIntoView();},100);}},[d&&d.month]);
   if(!d&&st.loading)return(<Loading/>);
   if(!d&&!(st.data&&st.data.ok))return(<Msg text={(st.data&&st.data.error)||t.fail}/>);
@@ -359,7 +360,7 @@ function LeavePage({me}){
   const used={early:0,late:0};
   d.mine.forEach(x=>{if((x.status==='approved'||x.status==='pending')&&!x.cx&&cx.indexOf(x.id)<0)used[x.shift]++;}); // 取消中／標成要取消的不算(改假淨額)
   sel.forEach(x=>{used[x.shift]++;});
-  const run=async(fn)=>{setBusy(true);setErr('');setMsg('');try{await fn();}finally{setBusy(false);}};
+  const run=async(fn)=>{setBusy(true);setErr('');setMsg('');try{await fn();}finally{setBusy(false);dirtyR.current='';}};
   const onDay=(date)=>{
     setFocus(date);
     if(!d.canLeave||date<today||d.state==='past'||d.state==='tooEarly')return;
@@ -372,6 +373,7 @@ function LeavePage({me}){
       run(async()=>{const r=await api('lv2Cancel',{id:m.id});if(r&&r.ok)reload();else setErr((r&&r.error)||t.fail);});
       return;
     }
+    dirtyR.current=month;
     setSel(selHas(date,shift)?sel.filter(x=>!(x.date===date&&x.shift===shift)):sel.concat([{date:date,shift:shift}]));
   };
   const save=(submit)=>run(async()=>{
