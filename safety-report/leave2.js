@@ -461,7 +461,8 @@ function LeavePage({me}){
             <span className={'text-xs '+(date===today?'text-violet-300 font-bold':'text-gray-200')}>{parseInt(date.slice(8),10)}</span>
             <span className="flex flex-wrap gap-0.5 mt-0.5">
               {['early','late'].map(s=>{const mm=mine.filter(x=>x.shift===s)[0];const dr=selHas(date,s);
-                if(!mm&&!dr)return null;
+                if(!mm&&!dr){const ocx=(((d.roster&&d.roster[date])||{})[s]||[]).filter(x=>String(x.c)===String((d.me&&d.me.code)||'')&&x.oc)[0];
+                  return ocx?<span key={s} className="text-[10px] leading-4 px-1 rounded border border-sky-500 text-sky-300">{s==='early'?'早':'晚'}{ocx.rk||'固'}</span>:null;} // 自己的長假／固定休佔位:顯示『早固／晚長』小標,點了不會登記
                 const cxm=!!(mm&&cx.indexOf(mm.id)>=0),cxr=!!(mm&&mm.cx);
                 const cls=cxm?'border border-red-400 bg-red-900/50 text-red-300 line-through':cxr?'border border-dashed border-red-400 '+SH_COLOR[s]+' text-white':mm?(mm.status==='pending'?'border border-dashed border-white/70 ':'')+SH_COLOR[s]+' text-white':'border border-dashed '+(s==='early'?'border-amber-400 text-amber-300':'border-indigo-400 text-indigo-300');
                 return <span key={s} className={'text-[10px] leading-4 px-1 rounded '+cls}>{s==='early'?'早':'晚'}{cxm?'✕':cxr?'⏳✕':mm?(mm.status==='pending'?'⏳':'✓'):''}</span>;})}
@@ -470,6 +471,7 @@ function LeavePage({me}){
               <span className={c.early>=capOf(date)?'text-red-400':''}>{c.early}</span>/<span className={c.late>=capOf(date)?'text-red-400':''}>{c.late}</span></span>}
           </button>);})}
       </div>
+      {err===t.ocDay&&<p className="text-xs text-sky-300">{err}</p>}
       <p className="text-[11px] text-gray-500">{lang==='vi'?'Số nhỏ: ca sáng/ca tối của chi nhánh (tối đa '+lim.weekday+')':'小字：本店 早班/晚班 已休人數（平日每班上限 '+lim.weekday+' 人）'}</p>
     </Card>}
     {d.canLeave&&!desk&&<Card className="space-y-1">
