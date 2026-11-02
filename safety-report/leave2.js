@@ -16,7 +16,7 @@ const L={
   zh:{title:'預排休假',early:'早班',late:'晚班',shift:'登記班別',tapHint:'點日期登記休假（目前：{s}）；點已登記的日期可取消',
     draft:'暫存',submit:'送出休假單',saved:'已暫存 {n} 天',sent:'已送出：{a} 天生效，{p} 天待主管簽核',fail:'失敗',
     st_tooEarly:'還不能暫存（最早可提前 2 個月暫存）',st_draft:'尚未開放送出，可先排好並暫存；{o} 起可送出，進入公司排休階段',
-    st_open:'登記期間中（到 {c} 前）：送出免審批，超休需主管簽字',st_late:'已超過送排休期間：目前送出後需主管審批',st_past:'這個月已過',
+    st_open:'登記期間中（到 {c} 前）：送出免審批，超休需主管簽字',st_late:'已超過送排休期間：目前送出後需主管審批',st_past:'這個月已過：資料已鎖定，僅供查看',
     used:'已排',days:'天',over:'超過 {n} 天，超休需主管簽字',full:'當日已滿 {n} 人，需主管簽字',
     cancelAsk:'要取消這天的休假嗎？',submitAsk:'確定送出這些休假嗎？',submitOver:'其中有超休，需主管簽字後才生效。',
     fullWarn:'你申請 {d} 這幾天當天已排休超過 6 人，你的申請可能會被調整。現在調整會比之後通知調整時有更多選擇。\n是否仍要送出申請？',
@@ -39,7 +39,7 @@ const L={
   vi:{title:'Đăng ký nghỉ trước',early:'Ca sáng',late:'Ca tối',shift:'Chọn ca',tapHint:'Chạm vào ngày để đăng ký nghỉ (hiện tại: {s}); chạm ngày đã đăng ký để hủy',
     draft:'Lưu tạm',submit:'Gửi đơn nghỉ',saved:'Đã lưu tạm {n} ngày',sent:'Đã gửi: {a} ngày có hiệu lực, {p} ngày chờ quản lý ký',fail:'Thất bại',
     st_tooEarly:'Chưa thể lưu tạm (tối đa trước 2 tháng)',st_draft:'Chưa mở gửi đơn, có thể lưu tạm; từ {o} gửi đơn không cần duyệt',
-    st_open:'Đang trong thời gian đăng ký (đến {c}): gửi không cần duyệt, vượt mức cần quản lý ký',st_late:'Đã quá thời gian không cần duyệt: gửi đơn cần quản lý duyệt',st_past:'Tháng này đã qua',
+    st_open:'Đang trong thời gian đăng ký (đến {c}): gửi không cần duyệt, vượt mức cần quản lý ký',st_late:'Đã quá thời gian không cần duyệt: gửi đơn cần quản lý duyệt',st_past:'Tháng này đã qua: dữ liệu đã khóa, chỉ để xem',
     used:'Đã xếp',days:'ngày',over:'Vượt {n} ngày, cần quản lý ký',full:'Ngày này đã đủ {n} người, cần quản lý ký',
     cancelAsk:'Hủy ngày nghỉ này?',submitAsk:'Xác nhận gửi các ngày nghỉ này?',submitOver:'Có ngày vượt mức, cần quản lý ký mới có hiệu lực.',
     fullWarn:'Các ngày bạn xin: {d} đã có hơn 6 người nghỉ, đơn của bạn có thể bị điều chỉnh. Điều chỉnh ngay bây giờ sẽ có nhiều lựa chọn hơn so với khi được thông báo sau.\nBạn vẫn muốn gửi đơn?',
@@ -319,7 +319,7 @@ function PdfPage({me}){
 function LeavePage({me}){
   const lang=me.user&&me.user.lang==='vi'?'vi':'zh';const t=L[lang];
   const cur=todayStr().slice(0,7);
-  const[month,setMonth]=useState(()=>{try{const m=new URLSearchParams(location.search).get('month')||'';if(/^\d{4}-(0[1-9]|1[0-2])$/.test(m)&&[cur,addMonth(cur,1),addMonth(cur,2)].indexOf(m)>=0)return m;}catch(_e){}return addMonth(cur,1);}); // ?month=yyyy-MM 先看該月(本月~後兩月)，沒帶預設次月
+  const[month,setMonth]=useState(()=>{try{const m=new URLSearchParams(location.search).get('month')||'';if(/^\d{4}-(0[1-9]|1[0-2])$/.test(m)&&[addMonth(cur,-2),addMonth(cur,-1),cur,addMonth(cur,1),addMonth(cur,2)].indexOf(m)>=0)return m;}catch(_e){}return addMonth(cur,1);}); // ?month=yyyy-MM 先看該月(本月~後兩月)，沒帶預設次月
   const[store,setStore]=useState('');
   useEffect(()=>{ // 從入口卡「進入預排休」(?src=entry)進來:記一筆點擊(同一個頁面工作階段只記一次,重新整理不重複)
     try{if(new URLSearchParams(location.search).get('src')!=='entry')return;const k='lv2-entry-tracked';if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1');api('lv2Track',{src:'entry'});}catch(_e){}
@@ -435,7 +435,7 @@ function LeavePage({me}){
           <button onClick={()=>setPop(null)} className="w-full rounded-xl bg-gray-700 text-white py-2 text-sm mt-1">關閉</button></div></div>);})()}
     <h1 className="text-lg font-bold text-white">🏖️ {t.title}</h1>
     {d.stores&&d.stores.length>0&&<div className="flex gap-2 flex-wrap"><Chip on={!store} onClick={()=>setStore('')}>{d.me.store||t.store}</Chip>{d.stores.filter(x=>x!==d.me.store).map(x=><Chip key={x} on={store===x} onClick={()=>setStore(x)}>{x}</Chip>)}</div>}
-    <div className="flex gap-2 flex-wrap">{[cur,addMonth(cur,1),addMonth(cur,2)].map(x=>(<Chip key={x} on={month===x} onClick={()=>{setMonth(x);setMsg('');setErr('');setFocus('');setRPg(null);}}>{parseInt(x.slice(5,7),10)}{lang==='vi'?'/'+x.slice(0,4):' 月'}</Chip>))}</div>
+    <div className="flex gap-2 flex-wrap">{[addMonth(cur,-2),addMonth(cur,-1),cur,addMonth(cur,1),addMonth(cur,2)].map(x=>(<Chip key={x} on={month===x} onClick={()=>{setMonth(x);setMsg('');setErr('');setFocus('');setRPg(null);}}>{parseInt(x.slice(5,7),10)}{lang==='vi'?'/'+x.slice(0,4):' 月'}</Chip>))}</div>
     <div className={'rounded-xl border px-3 py-2 text-xs '+bannerCls}>{banner}</div>
     {d.paper&&(d.paper.n>0||(d.paper.rules||[]).length>0)&&(d.canLeave||d.isTeacher)&&<Card className="space-y-2 border-amber-700">
       <p className="text-sm font-bold text-amber-300">📎 {t.paperT}</p>
@@ -451,7 +451,7 @@ function LeavePage({me}){
       <div className="grid grid-cols-7 gap-1">
         {cells.map((date,i)=>{
           if(!date)return <div key={'e'+i}/>;
-          const c=d.counts[date]||{early:0,late:0};const past=date<today;const mine=mineBy[date]||[];
+          const c=d.counts[date]||{early:0,late:0};const past=date<today&&d.state!=='past';const mine=mineBy[date]||[]; // 已過月的舊月份不灰底(整頁鎖定)
           return(<button key={date} onClick={()=>onDay(date)} className={'rounded-lg border min-h-[58px] p-1 text-left flex flex-col '+(focus===date?'border-violet-400 ':'border-gray-800 ')+(past?'opacity-40 ':'bg-gray-900 ')}>
             <span className={'text-xs '+(date===today?'text-violet-300 font-bold':'text-gray-200')}>{parseInt(date.slice(8),10)}</span>
             <span className="flex flex-wrap gap-0.5 mt-0.5">
@@ -482,7 +482,7 @@ function LeavePage({me}){
       <p className="text-sm font-bold text-white">{t.mineList}</p>
       {d.mine.slice().sort((a,b)=>a.date<b.date?-1:1).map(x=>(<p key={x.id} className="text-sm text-gray-300">{x.date.slice(5)}　{t[x.shift]}　<span className={x.cx?'text-red-300':x.status==='approved'?'text-emerald-400':x.status==='pending'?'text-amber-300':'text-gray-400'}>{x.cx?t.s_cx:(t['s_'+x.status]||x.status)}</span>{x.over?<span className="text-xs text-orange-400">　{t.overTag}</span>:null}{x.signBy?<span className="text-xs text-gray-400">　{fmt(t.signedBy,{c:x.signBy})}</span>:null}{x.flags&&x.status==='pending'?<span className="text-xs text-gray-500">　（{flagText(x.flags)}）</span>:null}</p>))}
     </Card>}
-    {d.isMgr&&<Card className="space-y-2">
+    {d.isMgr&&d.state!=='past'&&<Card className="space-y-2">
       <p className="text-sm font-bold text-white">{t.pendingTitle}（{d.pending.length}）</p>
       {d.pending.length===0&&<p className="text-xs text-gray-500">{t.noPending}</p>}
       {d.pending.map(x=>(<div key={x.id} className="rounded-xl border border-gray-700 p-2 space-y-1">
@@ -606,7 +606,7 @@ function LeavePage({me}){
       </div>))}
     </Card>}
     {d.canLeave&&d.seqMode==='paper'&&<p className="text-xs text-gray-400">{t.seqMine}：{d.mySeq?'#'+d.mySeq:t.seqWait}</p>}
-    {d.isMgr&&<Card className="space-y-2" id="lv2-adjust">
+    {d.isMgr&&d.state!=='past'&&<Card className="space-y-2" id="lv2-adjust">
       <div className="flex items-center justify-between"><p className="text-sm font-bold text-white">📋 {t.adjTitle}</p>
         {(()=>{const ids=adjSorted(adjShift).filter(x=>!x.signBy&&!x.notifiedAt).map(x=>x.id);return ids.length>0?<button disabled={busy} onClick={()=>longAct('lv2Notify',{ids:JSON.stringify(ids)},t.notifyAsk)} className="text-xs bg-sky-700 text-white rounded-xl px-3 py-1.5">{t.notifyAll}（{ids.length}）</button>:null;})()}</div>
       <div className="flex gap-2">{['early','late'].map(s=>(<Chip key={s} on={adjShift===s} onClick={()=>setAdjShift(s)}>{t[s]}（{adjSorted(s).filter(x=>!x.signBy&&!x.notifiedAt).length}／{d.adjust[s].length}）</Chip>))}</div>
@@ -637,7 +637,7 @@ function LeavePage({me}){
             </div>);})}
         </div>);})()}
     </Card>}
-    {d.canSeq&&d.seqMode==='paper'&&<Card className="space-y-2">
+    {d.canSeq&&d.state!=='past'&&d.seqMode==='paper'&&<Card className="space-y-2">
       <div className="flex items-center"><p className="text-sm font-bold text-white">🔢 {t.seqTitle}</p><button onClick={()=>setSeqOpen(!seqOpen)} className="ml-auto text-xs text-violet-300">{seqOpen?t.seqToggleClose:t.seqToggleOpen}</button></div>{seqOpen&&<p className="text-[11px] text-gray-500">{t.seqHint}</p>}
       {seqOpen&&<div className="space-y-2">
       <div className="flex gap-2 items-center flex-wrap"><Chip on={seqSort==='order'} onClick={()=>setSeqSort('order')}>{t.seqByOrder}</Chip><Chip on={seqSort==='code'} onClick={()=>setSeqSort('code')}>{t.seqByCode}</Chip>
