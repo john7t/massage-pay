@@ -692,9 +692,30 @@ function BizCard({d,act}){
       <span className="text-sm text-gray-300">{sel}　已核准 {info.count} 支</span></div>
     <p className="text-xs text-gray-500">櫃台註冊時勾選「公務機」，主管審核通過才算；已核准數量達到上限就不能再通過。</p></Card>);
 }
+
+// 主管看某月全店勞點:早/晚班分區(依人員資料目前班別;離職、沒編號、沒班別不列),可依編號或勞點排序
+function PtsAll({month,store}){
+  const[sort,setSort]=useState('code');const[m,setM]=useState(month||'');
+  const[st]=useLoad('s2PtsMonthAll',store?{month:m,store:store}:{month:m});
+  useEffect(()=>{if(month)setM(month);},[month]);
+  const D=st.data&&st.data.ok&&st.data.has?st.data:null;
+  if(!D)return(<p className="text-xs text-gray-500">{st.loading?'載入中…':((st.data&&st.data.error)||'沒有資料')}</p>);
+  const srt=(arr)=>arr.slice().sort(sort==='pts'?((a,b)=>(b.p===null?-1:b.p)-(a.p===null?-1:a.p)||(parseInt(a.c,10)-parseInt(b.c,10))):((a,b)=>(parseInt(a.c,10)||1e9)-(parseInt(b.c,10)||1e9)));
+  return(<div className="space-y-2 border-t border-gray-800 pt-2">
+    <div className="flex items-center gap-2 flex-wrap"><p className="text-sm font-bold text-white">{D.store}　{parseInt(D.month.slice(5),10)} 月全店勞點</p>
+      <span className="flex-1"/><Chip on={sort==='code'} onClick={()=>setSort('code')}>依編號</Chip><Chip on={sort==='pts'} onClick={()=>setSort('pts')}>依勞點</Chip></div>
+    {['early','late'].map(sh=>(<div key={sh}><p className="text-xs text-gray-400 mb-1">{sh==='early'?'早班':'晚班'}（標準 {D.std[sh]}，{D[sh].length} 人）</p>
+      {D[sh].length===0&&<p className="text-xs text-gray-600">沒有人員</p>}
+      <div className="grid grid-cols-2 gap-1">{srt(D[sh]).map(x=>(<div key={x.c} className="flex items-center gap-2 rounded-lg border border-gray-800 px-2 py-1 text-sm"><span className="font-bold text-gray-200 w-10">{x.c}</span>
+        <span className={'w-8 text-right '+(x.p===null?'text-gray-600':x.nb?'text-gray-400':x.met?'text-emerald-400':'text-red-400')}>{x.p===null?'—':x.p}</span>
+        <span className="text-[10px] text-gray-500 flex-1 text-right">{x.nb?'新進':(x.rk>0?'第'+x.rk+'名':'')}</span></div>))}</div></div>))}
+    <p className="text-[11px] text-gray-600">綠=達標 紅=未達標 灰=新進(前三個月不考核)；—=該月沒有資料。名次為同班別內，同分並列。</p>
+  </div>);
+}
 function PointsCard({d}){
   const stores=(d.biz&&d.biz.stores)||[];const[sel,setSel]=useState((d.biz&&d.biz.store)||stores[0]||'龍山寺店');
   const[txt,setTxt]=useState('');const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');const[err,setErr]=useState('');
+  const[view,setView]=useState(false);
   const yr=new Date(Date.now()+8*3600e3).getUTCFullYear();
   const example='{\n  "store": "'+sel+'",\n  "rows": [\n    { "code": "150", "months": { "'+yr+'-01": 22, "'+yr+'-02": 1, "'+yr+'-09": 34 } },\n    { "code": "155", "months": { "'+yr+'-05": 1, "'+yr+'-09": 3 } }\n  ]\n}';
   const prompt='你是資料轉換助手。我會附上「勞點表」的照片(可能有多張)。請把照片中每一位老師、每一個月份的手寫數字,轉成下面的 JSON,只輸出 JSON 本身(不要加說明文字、不要加 ``` 符號)。\n\n格式規則:\n1. 最外層是物件:{"store":"店別","rows":[…]}。store 固定填 "'+sel+'"。\n2. rows 每一列代表一位老師:{"code":"編號","months":{"yyyy-MM":點數,…}}。\n3. code 是表格最左欄的號碼(只取數字,去掉「號」字),必須是字串。\n4. months 的 key 一律用「'+yr+'-月份」兩位數格式,例如一月=「'+yr+'-01」、九月=「'+yr+'-09」。表頭是一月~十二月。\n5. 點數是整數(0 也要填 0)。空白的格子「不要」輸出該月份。\n6. 忽略「歷史最高」那一欄與備註文字。編號欄是空白的列整列略過。\n7. 看不清楚或不確定的數字,仍填你最可能的值,並在輸出最後另起一行寫「看不清楚:編號xxx 的 x 月」。\n\n範例輸出:\n'+example;
@@ -709,7 +730,8 @@ function PointsCard({d}){
     <p className="text-[11px] text-gray-500">步驟:①複製描述詞 ②貼給你自己的 AI,並附上勞點表照片 ③把 AI 輸出的 JSON 貼到下面 ④按匯入。每次匯入錯誤時整批不會寫入。</p>
     <textarea value={txt} onChange={e=>setTxt(e.target.value)} rows={6} placeholder={example} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white text-xs font-mono"/>
     {err&&<p className="text-xs text-red-400 whitespace-pre-wrap">{err}</p>}{msg&&<p className="text-xs text-emerald-400">{msg}</p>}
-    <Btn loading={busy} onClick={run}>匯入勞點</Btn></Card>);
+    <Btn loading={busy} onClick={run}>匯入勞點</Btn>
+    <button onClick={()=>setView(!view)} className="w-full rounded-xl border border-gray-600 text-gray-200 py-2 text-sm">{view?'收起全店勞點':'📋 查看各月全店勞點'}</button>{view&&<PtsAll store={sel}/>}</Card>);
 }
 function MgrPage(){
   return(<NeedUserOptional render={(me,needReg)=><MgrInner me={me} needReg={needReg}/>}/>);
@@ -864,6 +886,6 @@ function Safety2Routes(){
     <div className="text-xs text-gray-400 px-2 space-y-0.5"><p className="font-bold text-gray-300">模組版本</p>{vers.map(x=><p key={x}>{x}</p>)}<p className="text-gray-600 pt-1">❌未載入＝檔案沒上傳、檔名不符或內容有語法錯誤（請清除 LINE 快取後重開）</p></div></div>;
 }
 // 匯出給 notice2.js(公司公告)共用:API、暫存、版面元件、人員註冊流程
-window.S2Core={Chip,api,useLoad,Box,Card,Btn,Loading,Msg,Spinner,NeedUser,go,copyText,barOf,cclear,cput,ckey,peek,CACHEABLE,WRITE_CLEAR,STORES};
+window.S2Core={PtsAll,Chip,api,useLoad,Box,Card,Btn,Loading,Msg,Spinner,NeedUser,go,copyText,barOf,cclear,cput,ckey,peek,CACHEABLE,WRITE_CLEAR,STORES};
 window.Safety2App=Safety2App;
 })();
