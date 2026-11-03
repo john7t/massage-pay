@@ -125,17 +125,21 @@ function posRelease(D,now){
 // 老師池:白牌=現在可派(依白牌順序);紅牌=預計結束後可派;綠牌休息中不推薦
 function teacherPool(D,now){
   const pool=[];const bks=c=>(D.bookings||[]).filter(b=>b.code===c&&b.at>now-20*MIN).map(b=>b.at).sort((a,b)=>a-b);
-  D.white.forEach((p,i)=>{if(p.state==='white')pool.push({code:p.code,gender:p.gender,nation:p.nation,ready:now,order:i,white:true,bks:bks(p.code)});});
-  D.red.forEach((p,i)=>pool.push({code:p.code,gender:p.gender,nation:p.nation,ready:Math.max(p.redEnd||now+60*MIN,now),order:1000+i,white:false,bks:bks(p.code)}));
+  D.white.forEach((p,i)=>{if(p.state==='white')pool.push({code:p.code,gender:p.gender,nation:p.nation,ready:now,order:i,white:true,bks:bks(p.code),zhunOff:zhunOn(p,now)?p.offHour:0});});
+  D.red.forEach((p,i)=>pool.push({code:p.code,gender:p.gender,nation:p.nation,ready:Math.max(p.redEnd||now+60*MIN,now),order:1000+i,white:false,bks:bks(p.code),zhunOff:zhunOn(p,now)?p.offHour:0}));
   return pool;
 }
+// 准下(R5.28):老師喊准下後,只能接「下牌時間前做得完」的客人;沒喊准下則下牌時間前都能接(2:59 也接)
+function offAbs(offHour,ref){const d0=Math.floor((ref+8*3600e3)/86400e3)*86400e3-8*3600e3;for(let k=-1;k<=2;k++){const c=d0+k*86400e3+offHour*3600e3;if(c>ref)return c;}return Infinity;}
+const zhunOn=(p,now)=>!!(p&&p.zhun>0&&now-p.zhun<10*3600e3&&p.offHour>0);
+const zOk=(t,f)=>f.nozhun||!t.zhunOff||!f.total||Math.max(f.ms||0,t.ready)+f.total*MIN<=offAbs(t.zhunOff,Math.max(f.ms||0,t.ready));
 const tOk=(t,f)=>(!f.oil||t.gender==='F')&&(!f.gender||t.gender===f.gender)&&(!f.nation||t.nation===f.nation)&&(!f.teacher||t.code===f.teacher);
 // 勞點限制(R5.11):老師在 start 之後 2 小時內有勞點預約時,可接的最長分鐘:不足 40 分=0(只能等勞點)、不足 70 分=40、不足 120 分=70、其餘不限
 function bkCap(t,start){const b=(t.bks||[]).find(x=>x>start-5*MIN);if(b===undefined)return Infinity;const av=(b-start)/MIN;return av>=120?Infinity:av>=70?70:av>=40?40:0;}
 const bkOk=(t,f)=>f.nobk||!f.total||f.total<=bkCap(t,Math.max(f.ms||0,t.ready));
 // 挑 n 位老師:先看誰最快可派(同時間依白牌順序)
 function pickTeachers(pool,f,n,usedT){
-  const c=pool.filter(t=>!usedT[t.code]&&tOk(t,f)&&bkOk(t,f)).sort((a,b)=>a.ready-b.ready||a.order-b.order);
+  const c=pool.filter(t=>!usedT[t.code]&&tOk(t,f)&&bkOk(t,f)&&zOk(t,f)).sort((a,b)=>a.ready-b.ready||a.order-b.order);
   return c.length>=n?c.slice(0,n):null;
 }
 // 挑 n 個同類型位置:先取最快空出的 n 個;同樣快時,優先緊靠在一起、保留其他緊靠位置(R3.5)、再依偏好順序
@@ -177,9 +181,11 @@ function planItem(D,now,pool,rel0,used,it,order,minStart,split){
       if(!t){const inL=k=>(D[k]||[]).some(x=>x.code===f.teacher);return {err:'指定老師 '+f.teacher+' 號:'+(inL('white')?'休息中(綠牌)':inL('gray')?'還沒上牌':inL('off')?'已下牌':inL('leave')?'請假':'今天沒有這位老師')};}
       if(usedT[f.teacher])return {err:'指定老師 '+f.teacher+' 號已排給前面的客人'};
       if(!tOk(t,f))return {err:'指定老師 '+f.teacher+' 號不符合條件(油壓限女老師/指男指女/國籍)'};
+      if(!zOk(t,f))return {err:'指定老師 '+f.teacher+' 號已喊准下,'+hmFull(offAbs(t.zhunOff,Math.max(f.ms,t.ready)))+' 前要做完,來不及做這個項目(R5.28)'};
       const b=(t.bks||[]).find(x=>x>Math.max(f.ms,t.ready)-5*MIN);return {err:'指定老師 '+f.teacher+' 號 '+(b?hmFull(b)+' 有勞點預約,':'')+'時間不夠做這個項目(R5.11:不足 2 小時只能接 70/40,不足 70 只能接 40,不足 40 要等勞點)'};}
     const nb=pickTeachers(pool,Object.assign({},f1,{nobk:true}),it.n,usedT);
-    return {err:nb?'老師近 2 小時內有勞點預約,時間不夠做這個項目(R5.11)':'沒有符合條件的老師'};}
+    const nz=pickTeachers(pool,Object.assign({},f1,{nobk:true,nozhun:true}),it.n,usedT);
+    return {err:nb?'老師近 2 小時內有勞點預約,時間不夠做這個項目(R5.11)':nz?'符合條件的老師已喊准下,下牌前來不及做完這個項目(R5.28)':'沒有符合條件的老師'};}
   const posType=need;
   const pos1=pickPositions(posType,it.n,rel,usedP,posType==='foot'?PREF_FOOT:(f.oil?PREF_OIL:bedPref(it.n)),Math.max(now,minStart||0));
   if(!pos1)return {err:'沒有'+(posType==='foot'?'腳位':'床位')};
@@ -240,7 +246,7 @@ function recommend(D,now,items,opt){
   const full=freeF+freeB===0;let soon=null;if(Object.keys(rel0).length){let bp=null;Object.keys(rel0).forEach(x=>{if(!bp||rel0[x]<rel0[bp])bp=x;});soon={pos:bp,at:rel0[bp]};}
   return {plans:plans,femaleWait:femaleWait,full:full,soon:full?soon:null,freeF:freeF,freeB:freeB};
 }
-window.__cnRec={bkConflict,recommend,itemCalc,posRelease,teacherPool,grid10,planItem};
+window.__cnRec={zhunOn,offAbs,bkConflict,recommend,itemCalc,posRelease,teacherPool,grid10,planItem};
 // 翻綠狀態:回傳 {left 剩餘秒, over 是否超時, overAt 到時時間(ms), used 累計秒}
 function greenInfo(p,now){
   const cur=p.state==='green'?Math.max(0,Math.round((now-p.greenStart)/1000)):0;
@@ -265,6 +271,7 @@ function Plate({p,now,small,onClick}){
   else if(st==='red'){bg='#fde2e4';bd='#dc2626';col=fem?'#9f1239':'#8f1d1d';subCol='#b91c1c';sub=(p.redItem||'')+(p.redEnd?' '+hm(p.redEnd):'');}
   else if(st==='off'){bg='transparent';bd='#a9aeba';col='#6b7280';}
   else if(st==='leave'){bg='transparent';bd='#a9aeba';bs='dashed';col='#9aa0ad';sub=p.leaveKind==='temp'?'臨時請假':'請假';subCol='#9aa0ad';}
+  if((st==='white'||st==='red')&&zhunOn(p,now)){sub='准下'+(sub?' '+sub:'');subCol='#b45309';}
   const sw=st==='red'?w+10:w;
   return(<button onClick={onClick} style={{width:sw,minWidth:sw,height:h,flex:'0 0 auto',borderRadius:10,border:'1.5px '+bs+' '+bd,background:bg,boxShadow:ring,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:2,padding:0,cursor:'pointer'}}>
     <span style={{fontSize:p.code.length>2?17:19,fontWeight:800,lineHeight:1,color:col,fontVariantNumeric:'tabular-nums'}}>{p.code}</span>
@@ -444,17 +451,23 @@ const guestTxt=o=>[(o.gname||'')+(o.title||''),o.src,o.phone?'…'+String(o.phon
 const newItem=()=>({kind:'pkg',base:3,n:1,extra:0,oil:false,gender:'',nation:'',teacher:''});
 function ArrangeSheet({init,ginit,D,now,onDone,onBook,onClose}){
   const[items,setItems]=useState(init&&init.length?init:[newItem()]);const[g,setG]=useState(ginit||G0());
-  const today=dkey(now);const[date,setDate]=useState(today);const[tm,setTm]=useState('18:00');const[dayT,setDayT]=useState(null);
+  const today=bday(now);const[date,setDate]=useState(today);const[tm,setTm]=useState('');const[dayT,setDayT]=useState(null);
   useEffect(()=>{if(date===today){setDayT(null);return;}let dead=false;setDayT('loading');
     api('cnDay',{date:date},true).then(r=>{if(!dead)setDayT(r&&r.ok?r.teachers:'err');}).catch(()=>{if(!dead)setDayT('err');});return()=>{dead=true;};},[date]);
-  const known=[].concat(D.white,D.gray,D.red,D.off,D.leave).map(p=>({code:p.code,gender:p.gender})).sort((a,b)=>(parseInt(a.code,10)||0)-(parseInt(b.code,10)||0));
+  const known=[].concat(D.white,D.gray,D.red,D.off,D.leave).map(p=>({code:p.code,gender:p.gender,onHour:p.onHour||0,offHour:p.offHour||0})).sort((a,b)=>(parseInt(a.code,10)||0)-(parseInt(b.code,10)||0));
   const dayList=Array.isArray(dayT)?dayT:known; // 查不到當天資料(離線)時,用本機已知的老師名單
   const t0=items[0]&&String(items[0].teacher||'').trim();
-  const tBk=t0?(D.bookings||[]).filter(b=>b.code===t0&&dkey(b.at)===date):[];
-  const atMs=Date.parse(date+'T'+tm+':00+08:00');
+  const tBk=t0?(D.bookings||[]).filter(b=>b.code===t0&&bday(b.at)===date):[];
+  const base3=Date.parse(date+'T03:00:00+08:00'); // 營業日從 03:00 起,到隔天 02:30 的每 30 分
+  const slotMs=x=>{const mm=(parseInt(x.slice(0,2),10)*60+parseInt(x.slice(3),10)-180+1440)%1440;return base3+mm*60000;};
+  const tInfo=t0?dayList.find(t=>t.code===t0):null;
+  const inShift=x=>{if(!tInfo||!tInfo.onHour||!tInfo.offHour)return true;const h=parseInt(x.slice(0,2),10)+parseInt(x.slice(3),10)/60,on=tInfo.onHour,off=tInfo.offHour;return on<off?(h>=on&&h<off):(h>=on||h<off);}; // 只能約表定上牌~下牌時段
+  const slots=Array.from({length:48},(_,k)=>{const m=(180+k*30)%1440;return p2(Math.floor(m/60))+':'+(m%60?'30':'00');}).filter(x=>inShift(x)&&slotMs(x)>now);
+  useEffect(()=>{if(slots.length&&slots.indexOf(tm)<0)setTm(slots[0]);else if(!slots.length&&tm)setTm('');},[t0,date,slots.join()]);
+  const atMs=tm?slotMs(tm):0;
   const cflt=t0?bkConflict(D,t0,atMs,items[0]):'';
   const bkOk=!!t0&&guestOk(g)&&gDigits(g).length>=8&&!!String(g.sur||'').trim()&&atMs>now&&!cflt;
-  const days=[0,1,2].map(i=>dkey(now+i*86400e3));
+  const days=[0,1,2].map(i=>bday(now+i*86400e3));
   const set=(i,o)=>setItems(a=>a.map((x,j)=>j===i?Object.assign({},x,o):x));
   const Chip=({on,children,onClick})=>(<button onClick={onClick} className={'rounded-xl border px-3 py-2 text-sm font-bold '+(on?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-200')}>{children}</button>);
   return(<Sheet title="安排客人" onClose={onClose}>
@@ -480,9 +493,9 @@ function ArrangeSheet({init,ginit,D,now,onDone,onBook,onClose}){
     </div>))}
     {items.length<4&&<Bt tone="gray" onClick={()=>setItems(a=>a.concat([newItem()]))}>＋項目(不同項目)</Bt>}
     {t0&&<div className="rounded-xl border border-amber-500 p-3 space-y-2"><p className="text-sm font-bold text-amber-300">勞點預約 {t0} 號</p>
-      <div className="flex items-center gap-2"><span className="text-sm text-gray-300">時間</span><select value={tm} onChange={e=>setTm(e.target.value)} className="flex-1 rounded-xl bg-gray-800 border border-gray-700 px-2 py-2 text-white">{Array.from({length:48},(_,k)=>p2(Math.floor(k/2))+':'+(k%2?'30':'00')).map(x=>{const bad=bkConflict(D,t0,Date.parse(date+'T'+x+':00+08:00'),items[0]);return <option key={x} value={x}>{x}{bad?'(老師忙)':''}</option>;})}</select></div>
+      <div className="flex items-center gap-2"><span className="text-sm text-gray-300">時間</span>{tInfo&&tInfo.onHour&&tInfo.offHour&&<span className="text-xs text-gray-400">表定 {p2(tInfo.onHour%24)}:00~{p2(tInfo.offHour%24)}:00</span>}<select value={tm} onChange={e=>setTm(e.target.value)} className="flex-1 rounded-xl bg-gray-800 border border-gray-700 px-2 py-2 text-white">{slots.map(x=>{const bad=bkConflict(D,t0,slotMs(x),items[0]);return <option key={x} value={x}>{x}{bad?'(老師忙)':''}</option>;})}</select></div>
       {cflt&&<p className="text-xs text-red-300">⚠ {cflt}</p>}
-      <Bt tone="green" disabled={!bkOk} onClick={()=>onBook(Object.assign({},items[0],{n:1}),g,atMs)}>{bkOk?'建立勞點預約 '+date.slice(5)+' '+tm:(atMs<=now?'預約時間已過':cflt?'此時間老師無法接':'預約需要完整手機、姓、稱謂與客源')}</Bt></div>}
+      <Bt tone="green" disabled={!bkOk} onClick={()=>onBook(Object.assign({},items[0],{n:1}),g,atMs)}>{bkOk?'建立勞點預約 '+dkey(atMs).slice(5)+' '+tm:(!tm?'此老師沒有可預約的時段(表定 '+(tInfo&&tInfo.onHour?p2(tInfo.onHour%24)+':00~'+p2(tInfo.offHour%24)+':00':'—')+')':atMs<=now?'預約時間已過':cflt?'此時間老師無法接':'預約需要完整手機、姓、稱謂與客源')}</Bt></div>}
     {date===today?<Bt disabled={!guestOk(g)} onClick={()=>onDone(items,g)}>{guestOk(g)?'排客人 → 看推薦':(g.title&&g.src?'手機需完整號碼並填姓':'請先選稱謂與客源')}</Bt>:null}<Bt tone="gray" onClick={onClose}>取消</Bt></Sheet>);
 }
 const RuleTag=({r})=>(<span className="text-[10px] rounded px-1.5 py-0.5 bg-indigo-900 text-indigo-200">{r}</span>);
@@ -490,8 +503,8 @@ const RuleTag=({r})=>(<span className="text-[10px] rounded px-1.5 py-0.5 bg-indi
 // ── 勞點預約清單(R5.11、R5.17):今天與之後 14 天 ──
 const itemLabel=x=>String((x&&x.item)||'?').replace('pkg3','套餐120').replace('pkg2','套餐70');
 function BookList({D,now,onArrive,onCancel}){
-  const today=dkey(now);const B=(D.bookings||[]).filter(b=>dkey(b.at)===today).sort((a,b)=>a.at-b.at);if(!B.length)return null;
-  return(<CSec title="今天預約(勞點)" right={B.length+' 筆'}>{B.map(b=>{const late=b.at<now-10*MIN;const isT=dkey(b.at)===today;
+  const today=bday(now);const B=(D.bookings||[]).filter(b=>bday(b.at)===today).sort((a,b)=>a.at-b.at);if(!B.length)return null;
+  return(<CSec title="今天預約(勞點)" right={B.length+' 筆'}>{B.map(b=>{const late=b.at<now-10*MIN;const isT=bday(b.at)===today;
     return(<div key={b.id} className="cn-bk"><div style={{minWidth:52}}><div className="tm" style={{color:late?'#b91c1c':'#1b1f2a'}}>{hmFull(b.at)}</div><div style={{fontSize:11,color:'#6b7280'}}>{isT?(late?'已過 '+Math.round((now-b.at)/MIN)+' 分':'今天'):b.at?dkey(b.at).slice(5):''}</div></div>
       <span className="tc">{b.code}</span>
       <div style={{flex:1,minWidth:0}}><div style={{fontSize:14,fontWeight:700,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{((b.sur||'')+(b.giv||'')+(b.title||''))||'客人'}</div><div style={{fontSize:12,color:'#5b6270'}}>{itemLabel(b)}{b.src?' · '+b.src:''}{b.phone?' · …'+String(b.phone).slice(-3):''}</div></div>
@@ -566,7 +579,7 @@ function RedPanel({p,D,now,go,onClose}){
     {pending&&(pick?(<div className="space-y-2"><p className="text-sm text-gray-300">轉到哪個位置?</p><div className="flex flex-wrap gap-2">{frees.map(x=><button key={x} onClick={()=>go('move',{pos2:x})} className={'rounded-lg border px-3 py-2 '+(x===p.redPos2?'border-violet-400 bg-violet-600 text-white font-bold':'border-violet-500 text-violet-200')}>{x}{x===p.redPos2?'(建議)':''}</button>)}</div><Bt tone="gray" onClick={()=>setPick(false)}>返回</Bt></div>)
       :(<React.Fragment><Bt onClick={()=>setPick(true)}>{p.redPos2?'轉場(建議 '+p.redPos2+',可改選)':'轉場(選位置)'}</Bt>
         <div><p className="text-xs text-gray-400 mb-1">調節口訣(客滿時)</p><div className="flex gap-2">{['11','滿包','40','80'].map(c=><button key={c} onClick={()=>{const r=callCode(p,c);if(r)go('adjust',r);}} className="flex-1 rounded-lg border border-gray-600 text-gray-100 py-2">{c}</button>)}</div></div></React.Fragment>))}
-    {!pick&&<React.Fragment><Bt onClick={()=>go('back',{})}>回牌(排到白牌最後)</Bt><Bt tone="red" onClick={()=>{if(confirm(p.code+' 號下牌?'))go('off',{});}}>下牌</Bt></React.Fragment>}
+    {!pick&&<React.Fragment><Bt onClick={()=>go('back',{})}>回牌(排到白牌最後)</Bt><ZhunBt p={p} now={now} go={go}/><Bt tone="red" onClick={()=>{if(confirm(p.code+' 號下牌?'))go('off',{});}}>下牌</Bt></React.Fragment>}
   </div>);
 }
 // 開單(手動選位置;系統推薦待 P3,R9)
@@ -598,6 +611,9 @@ function OpenSheet({D,now,presetPos,act,onClose}){
     <Bt tone="gray" onClick={onClose}>取消</Bt></Sheet>);
 }
 
+function ZhunBt({p,now,go}){const on=zhunOn(p,now);
+  return(<div className="space-y-1">{on&&<p className="text-sm text-amber-300">已喊准下:只能接 {p.offHour%24===0?'24:00':p2(p.offHour%24)+':00'} 前做得完的客人</p>}
+    {p.offHour>0?<Bt tone="gray" onClick={()=>{if(on||confirm(p.code+' 號喊准下?\n之後只接下牌時間('+p2(p.offHour%24)+':00)前做得完的客人'))go('zhun',{on:on?'0':'1'});}}>{on?'取消准下':'准下(老師要下班)'}</Bt>:<p className="text-xs text-gray-500">此老師沒有設定下牌時間,無法使用准下</p>}</div>);}
 function PlateSheet({p,D,now,act,onClose}){
   const[mode,setMode]=useState('');const[item,setItem]=useState('');const[pos,setPos]=useState('');
   const st=p.state;const off=p.offHour?(p2(p.offHour%24)+':00'):'—';const on=p.onHour?(p2(p.onHour%24)+':00'):'不固定';
@@ -610,7 +626,7 @@ function PlateSheet({p,D,now,act,onClose}){
       <input value={pos} onChange={e=>setPos(e.target.value)} placeholder="位置(選填,例 8)" className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-white"/>
       <Bt onClick={()=>go('red',{item:item,pos:pos})}>轉紅牌(開始做事)</Bt><Bt tone="gray" onClick={()=>setMode('')}>返回</Bt></div>)
     :(<div className="space-y-2"><Info k="上牌時間" v={p.onAt?hmFull(p.onAt):'—'}/>{onInfo}{p.bk&&<p className="text-sm font-bold text-amber-300">勞點預約 {hmFull(p.bk.at)}　{((p.bk.sur||'')+(p.bk.giv||'')+(p.bk.title||''))||'客人'}　{itemLabel(p.bk)}</p>}<Info k="預計下牌時間" v={off}/>
-      <Bt onClick={()=>setMode('red')}>派工(轉紅牌)</Bt><Bt tone="green" onClick={()=>go('green')}>翻綠(休息/吃飯)</Bt><Bt tone="red" onClick={()=>{if(confirm(p.code+' 號下牌?'))go('off');}}>下牌</Bt></div>);
+      <Bt onClick={()=>setMode('red')}>派工(轉紅牌)</Bt><Bt tone="green" onClick={()=>go('green')}>翻綠(休息/吃飯)</Bt><ZhunBt p={p} now={now} go={go}/><Bt tone="red" onClick={()=>{if(confirm(p.code+' 號下牌?'))go('off');}}>下牌</Bt></div>);
   else if(st==='green'){const g=greenInfo(p,now);const segs=(p.greenSegs||[]);
     body=(<div className="space-y-2">{onInfo}
       <table className="w-full text-sm"><thead><tr className="text-gray-400 text-xs"><th className="text-left font-normal py-1">段</th><th className="text-left font-normal">起</th><th className="text-left font-normal">迄</th><th className="text-left font-normal">耗時</th></tr></thead><tbody>
@@ -656,6 +672,7 @@ function gcSearch(q){const d=String(q||'').replace(/[^0-9]/g,'');if(d.length<3)r
 async function gcSync(force){const c=gcLoad();if(!force&&Date.now()-(c.syncAt||0)<5*60000)return;
   try{const r=await api('cnGuests',{since:c.at||0},true);if(r&&r.ok){gcMerge(r.list||[]);c.at=r.now||Date.now();c.syncAt=Date.now();gcSave();}}catch(_e){}}
 const dkey=ms=>new Date(ms+8*3600e3).toISOString().slice(0,10);
+const bday=ms=>dkey(ms-3*3600e3); // 營業日:03:00~隔天 02:59 算同一天(凌晨 3 點結帳)
 const rid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 function cloneData(S){const c=l=>(l||[]).map(x=>Object.assign({},x));return Object.assign({},S,{bookings:(S.bookings||[]).map(x=>Object.assign({},x)),orders:(S.orders||[]).map(x=>Object.assign({},x)),waits:(S.waits||[]).map(x=>Object.assign({},x)),white:c(S.white),gray:c(S.gray),red:c(S.red),off:c(S.off),leave:c(S.leave)});}
 function applyOp(D,o){
@@ -688,7 +705,8 @@ function applyOp(D,o){
   else if(o.act==='late'&&st==='gray'){p.lateTo=o.to;p.lateKind=(p.due&&ts>p.due)?'after':'late';}
   else if(o.act==='leave'&&!inP){p.state='leave';p.leaveKind='temp';delete p.lateTo;}
   else if(o.act==='unleave'&&st==='leave'){p.state='off';}
-  else if(o.act==='off'&&(inP||st==='gray'||st==='leave')){if(st==='green')closeG();if(st==='red')finish(p.code);p.state='off';p.redPos='';p.redPos2='';p.redTransfer=0;}
+  else if(o.act==='zhun'&&inP){p.zhun=o.on==='1'?ts:0;}
+  else if(o.act==='off'&&(inP||st==='gray'||st==='leave')){if(st==='green')closeG();if(st==='red')finish(p.code);p.state='off';p.redPos='';p.redPos2='';p.redTransfer=0;p.zhun=0;}
   const k={white:'white',green:'white',gray:'gray',red:'red',off:'off',leave:'leave'}[p.state];D[k].push(p);
 }
 function applyAll(S,q){
