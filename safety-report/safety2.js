@@ -118,6 +118,8 @@ function useLoad(action,params){ // 回傳[狀態,重新讀取(強制略過暫�
 }
 
 // ───────── 基本資料(首次):角色/店別/語系/編號或名稱 → 下一步 ─────────
+TT.zh.genderT='性別';TT.zh.female='女';TT.zh.male='男';TT.zh.nationT='國籍';TT.zh.nTW='台灣';TT.zh.nCN='中國';TT.zh.nVN='越南';TT.zh.fillGn='請補填性別與國籍(之後安排客人要用到)';
+TT.vi.genderT='Giới tính';TT.vi.female='Nữ';TT.vi.male='Nam';TT.vi.nationT='Quốc tịch';TT.vi.nTW='Đài Loan';TT.vi.nCN='Trung Quốc';TT.vi.nVN='Việt Nam';TT.vi.fillGn='Vui lòng bổ sung giới tính và quốc tịch';
 function RegisterForm({user,onDone,showLangFirst}){
   const[lang,setLang]=useState(user?user.lang:defaultLang());
   const[role,setRole]=useState(user?user.role:'');
@@ -126,22 +128,24 @@ function RegisterForm({user,onDone,showLangFirst}){
   const[shift,setShift]=useState(user&&user.shift?user.shift:'');
   const[biz,setBiz]=useState(!!(user&&(user.bizPhone==='1'||user.bizPhone==='req')));
   const[mgrNo,setMgrNo]=useState('');const needMgr=!user||user.status==='pending'; // 新註冊(或審核中重填)才要填所屬主管編號
+  const[gender,setGender]=useState(user&&user.gender?user.gender:'');const[nation,setNation]=useState(user&&user.nation?user.nation:'');
   const[onH,setOnH]=useState(user&&user.onHour?user.onHour:0);const[offH,setOffH]=useState(user&&user.offHour?user.offHour:0);
   const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
   const t=TT[lang];
-  const ready=role&&store&&code.trim()&&(role!=='teacher'||(shift&&onH&&offH))&&(!needMgr||mgrNo.trim());
+  const ready=role&&store&&code.trim()&&(role!=='teacher'||(shift&&onH&&offH&&gender&&nation))&&(!needMgr||mgrNo.trim());
   const hrOpts=Array.from({length:24},(_,i)=>i+1);const hrTxt=(n)=>n+' '+t.hrU;
   const pickOn=(v)=>{const n=parseInt(v,10)||0;setOnH(n);if(n)setOffH(((n+12-1)%24)+1);}; // 下牌預設=上牌+12(超過 24 折回,例:20→8)
   const submit=async()=>{
     setBusy(true);setErr('');
     let name='';try{const p=await liff.getProfile();name=p.displayName||'';}catch(_e){}
-    const r=await api('s2Register',{role,store,lang,code:code.trim(),displayName:name,shift:role==='teacher'?shift:'',onHour:role==='teacher'?onH:'',offHour:role==='teacher'?offH:'',mgrNo:needMgr?mgrNo.trim():'',bizPhone:role==='counter'&&biz?'1':''});
+    const r=await api('s2Register',{role,store,lang,code:code.trim(),displayName:name,shift:role==='teacher'?shift:'',onHour:role==='teacher'?onH:'',offHour:role==='teacher'?offH:'',gender:role==='teacher'?gender:'',nation:role==='teacher'?nation:'',mgrNo:needMgr?mgrNo.trim():'',bizPhone:role==='counter'&&biz?'1':''});
     setBusy(false);
     if(r.ok&&role==='teacher'&&!(r.user&&r.user.onHour&&r.user.offHour)){setErr('已送出,但伺服器回傳的上牌/下牌時間是空的(請截圖給開發者)：'+JSON.stringify(r.user||{}));return;} // 診斷:避免無聲卡在同一畫面
     if(r.ok)onDone(r.user);else setErr(r.error||t.fail);
   };
   return(<Box>
     {user&&user.role==='teacher'&&!(user.onHour&&user.offHour)&&<p className="text-sm text-amber-300 px-1">{t.fillHr}</p>}
+    {user&&user.role==='teacher'&&user.onHour&&user.offHour&&!(user.gender&&user.nation)&&<p className="text-sm text-amber-300 px-1">{t.fillGn}</p>}
     <Card>
       <p className="text-sm text-gray-400 mb-2">{TT.zh.lang} / {TT.vi.lang}</p>
       <div className="flex gap-2"><Chip on={lang==='zh'} onClick={()=>setLang('zh')}>中文</Chip><Chip on={lang==='vi'} onClick={()=>setLang('vi')}>Tiếng Việt</Chip></div>
@@ -155,6 +159,8 @@ function RegisterForm({user,onDone,showLangFirst}){
           className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-lg text-white"/></div>)}
       {role==='teacher'&&(<div><p className="text-sm text-gray-400 mb-2">{t.shift}</p><div className="flex gap-2"><Chip on={shift==='early'} onClick={()=>setShift('early')}>{t.early}</Chip><Chip on={shift==='late'} onClick={()=>setShift('late')}>{t.late}</Chip></div>
         <p className="text-xs text-gray-500 mt-2">{t.shiftHint}</p></div>)}
+      {role==='teacher'&&(<div><p className="text-sm text-gray-400 mb-2">{t.genderT}</p><div className="flex gap-2"><Chip on={gender==='F'} onClick={()=>setGender('F')}>{t.female}</Chip><Chip on={gender==='M'} onClick={()=>setGender('M')}>{t.male}</Chip></div>
+        <p className="text-sm text-gray-400 mb-2 mt-3">{t.nationT}</p><div className="flex gap-2"><Chip on={nation==='TW'} onClick={()=>setNation('TW')}>{t.nTW}</Chip><Chip on={nation==='CN'} onClick={()=>setNation('CN')}>{t.nCN}</Chip><Chip on={nation==='VN'} onClick={()=>setNation('VN')}>{t.nVN}</Chip></div></div>)}
       {role==='teacher'&&(<div><p className="text-sm text-gray-400 mb-2">{t.onT}</p>
         <select value={onH||''} onChange={e=>pickOn(e.target.value)} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-lg text-white"><option value="">{t.pickHr}</option>{hrOpts.map(n=><option key={n} value={n}>{hrTxt(n)}</option>)}</select>
         <p className="text-sm text-gray-400 mb-2 mt-3">{t.offT}</p>
@@ -197,7 +203,7 @@ function NeedUser({render}){
   if(!st.data||!st.data.ok)return(<Msg text={(st.data&&st.data.error)||'失敗'}/>);
   const me=st.data;const u=user===undefined?me.user:user;
   if(u&&u.status==='pending'&&!editing)return(<PendingScreen user={u} onEdit={()=>setEditing(true)} onRecheck={()=>{cclear('*');setUser(undefined);reload();}}/>);
-  if(!u||editing||(u.role==='teacher'&&!(u.onHour&&u.offHour)))return(<RegisterForm user={u} onDone={x=>{setUser(x);setEditing(false);}}/>);
+  if(!u||editing||(u.role==='teacher'&&!(u.onHour&&u.offHour&&u.gender&&u.nation)))return(<RegisterForm user={u} onDone={x=>{setUser(x);setEditing(false);}}/>);
   return render(Object.assign({},me,{user:u}),()=>setEditing(true),reload);
 }
 
@@ -851,6 +857,7 @@ function s2PageName(){
   if(q.has('sp'))return q.get('sp')==='early'?'早鳥夜貓':'價目表';
   if(q.has('gb2')){const v=q.get('gb2')||'l';return v==='set'?'手套團購設定':'手套團購';}
   if(q.has('lv2'))return '預排休假';
+  if(q.has('cn2'))return '主櫃';
   if(q.has('b2')){const v=q.get('b2')||'l';return v==='new'?'新增拒接':v==='set'?'拒接名單設定':'拒接名單';}
   if(q.has('n2')){const v=q.get('n2')||'l';return ({v:'公告內容',new:'發布公告',edit:'編輯公告',r:'已讀情況',set:'設定'})[v]||'公司公告';}
   const v=q.get('s2')||'';
@@ -868,6 +875,7 @@ function Safety2Routes(){
   const q=new URLSearchParams(location.search);
   if(q.has('sp')&&window.ShopRoutes){const SP=window.ShopRoutes;return <SP/>;} // 價目表/早鳥夜貓(shop2.js),公開資訊
   if(q.has('gb2')&&window.Gloves2Routes){const G2=window.Gloves2Routes;return <G2/>;} // 手套團購 2.0(gloves2.js)
+  if(q.has('cn2')&&window.Counter2Routes){const CN=window.Counter2Routes;return <CN/>;} // 主櫃號碼牌(counter2.js)
   if(q.has('my2')&&window.My2Routes){const M2=window.My2Routes;return <M2/>;} // 「我的」頁面(my2.js)
   if(q.has('lv2')&&window.Leave2Routes){const L2=window.Leave2Routes;return <L2/>;} // 預排休假 2.0(leave2.js)
   if(q.has('b2')&&window.Blacklist2Routes){const B2=window.Blacklist2Routes;return <B2/>;} // 拒接名單 2.0(blacklist2.js)
@@ -884,7 +892,7 @@ function Safety2Routes(){
   if(p==='my')return <MyReportsPage/>;
   if(p==='staff')return <StaffPage/>;
   if(p==='apv')return <ApvPage rid={q.get('rid')||''}/>;
-  const mods=[['safety2.js',true],['notice2.js',!!window.Notice2Routes],['blacklist2.js',!!window.Blacklist2Routes],['gloves2.js',!!window.Gloves2Routes],['leave2.js',!!window.Leave2Routes],['my2.js',!!window.My2Routes],['shop2.js',!!window.ShopRoutes]];
+  const mods=[['safety2.js',true],['notice2.js',!!window.Notice2Routes],['blacklist2.js',!!window.Blacklist2Routes],['gloves2.js',!!window.Gloves2Routes],['leave2.js',!!window.Leave2Routes],['my2.js',!!window.My2Routes],['shop2.js',!!window.ShopRoutes],['counter2.js',!!window.Counter2Routes]];
   const vers=mods.map(([n,ok])=>{let v='未引入';try{const el=[].slice.call(document.querySelectorAll('script[src]')).find(x=>(x.getAttribute('src')||'').indexOf('/'+n)>=0);if(el){const m=(el.getAttribute('src')||'').match(/v=([\w.-]+)/);v=m?m[1]:'無版本';}}catch(e){}return n+' '+v+(ok?' ✅已載入':' ❌未載入');});
   const dbg='參數: '+(location.search||'(空)')+' ｜ 頁面:'+(document.title||'');
   return <div className="space-y-2"><Msg text="不支援的頁面"/><p className="text-xs text-gray-500 break-all px-2">{dbg}</p>
