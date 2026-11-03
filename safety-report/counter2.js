@@ -1,4 +1,4 @@
-/* counter2.js — 主櫃「老師號碼牌區」(v1.0-009,P1~P3+候位+訂單流水)
+/* counter2.js — 主櫃「老師號碼牌區」(v1.0-010,P1~P3+候位+訂單流水)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 cn2:  ?cn2=1  主櫃現況表(目前只有老師號碼牌區)
    規則見 counter-rules.md(R5.x、R6.6~R6.8);後端 gas-counter2.gs.txt(cnPlates / cnAct)。
    牌:白(等待派工)/綠(休息,可分段,累計每班 1 小時)/灰(未上牌)/紅(做事中)/下牌(實框透明)/請假(虛框)。 */
@@ -6,7 +6,8 @@
 const{useState,useEffect,useRef}=React;
 const C=window.S2Core;
 if(!C){window.Counter2Routes=()=>React.createElement('div',{className:'p-6 text-center text-red-400'},'載入失敗:缺少 safety2.js');return;}
-const{api,Box,Card,Loading,Msg,NeedUser,Spinner}=C;
+const{api,Box,Loading,Msg,NeedUser,Spinner}=C;
+const Card=({children,className})=>(<div className={'cn-card '+(className||'')}>{children}</div>);
 const p2=n=>String(n).padStart(2,'0');
 const tzp=ms=>{const d=new Date(ms+8*3600e3);return{h:d.getUTCHours(),m:d.getUTCMinutes(),s:d.getUTCSeconds()};};
 const hm=ms=>{const x=tzp(ms);return x.h+':'+p2(x.m);};
@@ -15,6 +16,50 @@ const mmss=sec=>p2(Math.floor(sec/60))+':'+p2(sec%60);
 const dur=sec=>Math.round(sec/60)+' 分';
 const nextMark=(now,stepMin)=>{const st=stepMin*60000;return Math.floor((now+8*3600e3)/st)*st+st-8*3600e3;}; // 台北時間的下一個整/半點
 const LIMIT=3600;
+// ── 白底主題:版面用 cn-* 類別;其餘沿用的 Tailwind 深色類別,在 .cn-light 內改成淺色對應 ──
+const CN_CSS=String.raw`
+.cn-light{background:#f7f7f9;color:#1b1f2a;min-height:100vh;font-feature-settings:"tnum"}
+.cn-wrap{max-width:448px;margin:0 auto;padding:18px 16px 40px}
+.cn-hd{display:flex;justify-content:space-between;align-items:flex-end;padding:2px 0 12px;gap:8px}
+.cn-hd h1{font-size:20px;font-weight:700}.cn-tm{font-size:13px;color:#5b6270;margin-top:3px;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:6px}
+.cn-acts{display:flex;gap:8px}.cn-btn{height:38px;padding:0 14px;border-radius:10px;font-size:14px;font-weight:600;border:1px solid #d3d6de;color:#1b1f2a;background:#fff}
+.cn-btn.p{background:#6d28d9;border-color:#6d28d9;color:#fff}
+.cn-sync{font-size:13px;color:#0f8a5f;font-weight:600;background:none;border:0;padding:0}.cn-sync.w{color:#b45309}
+.cn-chips{display:flex;gap:8px;margin-bottom:12px}.cn-chip{flex:1;background:#fff;border:1px solid #e3e5eb;border-radius:10px;padding:8px 10px}
+.cn-chip b{display:block;font-size:20px;line-height:1.1;font-variant-numeric:tabular-nums}.cn-chip span{font-size:12px;color:#5b6270}
+.cn-alert{border-left:3px solid #dc2626;background:#fdecee;border-radius:6px;padding:8px 10px;font-size:13px;margin-bottom:12px;color:#9b1c1c}
+.cn-sec{padding:14px 0;border-top:1px solid #e3e5eb}.cn-sec.f{border-top:0;padding-top:4px;margin-top:8px}
+.cn-sh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}.cn-sh h2{font-size:13px;font-weight:600;color:#5b6270;letter-spacing:.08em}
+.cn-sh em{font-style:normal;font-size:12px;color:#6b7280}.cn-link{font-size:12px;color:#6d28d9;font-weight:600;background:none;border:0;padding:0}
+.cn-card{background:#fff;border:1px solid #e3e5eb;border-radius:14px;padding:12px;margin-top:10px}
+.cn-tabs{display:flex;gap:4px;background:#e9ebf0;border-radius:10px;padding:3px;margin-bottom:10px}
+.cn-tab{flex:1;text-align:center;font-size:13px;padding:8px 0;border-radius:8px;color:#5b6270;font-weight:600;background:none;border:0}
+.cn-tab.on{background:#fff;color:#1b1f2a;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.cn-ord{padding:12px 0;border-top:1px solid #e3e5eb}.cn-ord:first-child{border-top:0;padding-top:2px}.cn-ord.click{cursor:pointer}
+.cn-oh{display:flex;align-items:center;gap:8px}.cn-no{white-space:nowrap;font:600 12px ui-monospace,monospace;color:#5b6270;background:#e9ebf0;border-radius:6px;padding:2px 6px}
+.cn-gn{font-weight:700;font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cn-cnt{white-space:nowrap;font-size:12px;color:#5b21b6;background:#ede9fe;border-radius:6px;padding:1px 7px}.cn-sp{flex:1}
+.cn-m{font-size:13px;color:#3a4050;margin-top:6px;display:flex;gap:8px;font-variant-numeric:tabular-nums;align-items:baseline;flex-wrap:wrap}
+.cn-m .c{font-family:ui-monospace,monospace;min-width:46px;color:#111;font-weight:700}.cn-m b{color:#111}.cn-m .tt{margin-left:auto;color:#5b6270;white-space:nowrap}
+.cn-meta{font-size:12px;color:#5b6270;margin-top:6px;display:flex;justify-content:space-between;gap:8px}
+.cn-st{white-space:nowrap;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px}.cn-dot{width:8px;height:8px;border-radius:50%}
+.cn-act{height:38px;padding:0 18px;border-radius:10px;font-weight:700;font-size:14px;color:#111;border:0;margin-top:10px}
+.cn-money{font-weight:700;font-variant-numeric:tabular-nums}
+.cn-light .text-white,.cn-light .text-gray-100{color:#1b1f2a}.cn-light .text-gray-200{color:#2f3542}.cn-light .text-gray-300{color:#3a4050}
+.cn-light .text-gray-400{color:#5b6270}.cn-light .text-gray-500{color:#6b7280}.cn-light .text-gray-600{color:#9aa0ad}
+.cn-light .text-violet-200,.cn-light .text-violet-300{color:#6d28d9}.cn-light .text-emerald-300,.cn-light .text-emerald-400{color:#0f8a5f}
+.cn-light .text-sky-300{color:#0369a1}.cn-light .text-amber-200,.cn-light .text-amber-300{color:#b45309}
+.cn-light .text-red-200,.cn-light .text-red-300,.cn-light .text-red-400{color:#b91c1c}.cn-light .text-rose-200,.cn-light .text-rose-300{color:#be123c}
+.cn-light .text-indigo-200{color:#4338ca}.cn-light .text-violet-100{color:#5b21b6}
+.cn-light .bg-gray-900{background:#fff}.cn-light .bg-gray-800{background:#eceef2}.cn-light .bg-gray-700{background:#d9dce3}
+.cn-light .bg-indigo-900{background:#e0e4ff}.cn-light .bg-violet-950{background:#f3effe}.cn-light .bg-violet-900{background:#ede9fe}.cn-light .bg-indigo-950{background:#eef0ff}
+.cn-light .bg-red-950{background:#fdecee}.cn-light .bg-amber-950{background:#fff6e0}.cn-light .bg-black\/30{background:rgba(0,0,0,.04)}
+.cn-light .border-gray-800{border-color:#e3e5eb}.cn-light .border-gray-700{border-color:#d3d6de}.cn-light .border-gray-600{border-color:#c2c6d0}
+.cn-light .border-amber-500{border-color:#d99a06}.cn-light .border-red-500{border-color:#dc2626}
+.cn-light .bg-violet-600{background:#6d28d9;border-color:#6d28d9}.cn-light .bg-violet-600.text-white,.cn-light .bg-emerald-600.text-white{color:#fff}
+.cn-light .active\:bg-gray-800:active{background:#eceef2}
+.cn-light input::placeholder{color:#9aa0ad}
+`;
+
 
 // ── 位置與項目(R1、R8) ──
 const FEET=['1','2','3','4','5','6','7','8','9','10','11','12'];
@@ -182,35 +227,30 @@ const isLate=(p,now)=>p.state==='gray'&&p.due<=now&&!(p.lateTo&&p.lateTo>now); /
 
 // ── 號碼牌 ──
 function Plate({p,now,small,onClick}){
-  const st=p.state;let cls,sub=null,subCls='';
-  const fem=p.gender==='F';
-  const w=small?46:62,h=small?46:76,cs=small?34:38;
-  const base={width:w,height:h,minWidth:w,borderRadius:12,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:2,flex:'0 0 auto',fontWeight:700,border:'2px solid',cursor:'pointer',padding:0};
-  const circ={width:cs,height:cs,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:p.code.length>2?(small?15:17):(small?18:19),fontWeight:800,lineHeight:1};
-  let st1={...base},c1={...circ};
-  if(st==='white'){st1={...st1,background:'#f3f4f6',borderColor:'#fff',color:'#111'};c1={...c1,background:'#d1d5db',border:'2px solid #6b7280',color:fem?'#dc2626':'#111'};}
-  else if(st==='green'){const g=greenInfo(p,now);
-    st1={...st1,background:'#15803d',borderColor:g.over?'#ef4444':'#4ade80',color:'#fff',boxShadow:g.over?'0 0 0 3px #ef4444':'none'};c1={...c1,background:'#dcfce7',border:'2px solid #14532d',color:'#14532d'};
-    if(g.over){sub='翻綠超時'+hm(g.overAt);subCls='#fecaca';}else if(!g.noLimit&&g.left<=60){sub=mmss(g.left);subCls='#fde68a';}else{sub='翻'+hm(p.greenStart);subCls='#dcfce7';}}
-  else if(st==='gray'){const late=isLate(p,now);
-    st1={...st1,background:'#4b5563',borderColor:'#6b7280',color:'#e5e7eb',boxShadow:late?'0 0 0 2px #fca5a5':'none'};c1={...c1,background:'#374151',border:'2px solid #9ca3af',color:'#e5e7eb'};
-    if(late){sub='未到未電';subCls='#f87171';}
-    if(p.lateTo&&p.lateTo>now){sub=(p.lateKind==='after'?'未到晚到':'晚到')+hm(p.lateTo);subCls='#fde68a';}
-    else if(p.lateTo&&late){sub=(p.lateKind==='after'?'未到晚到':'晚到')+hm(p.lateTo)+' 未到';subCls='#f87171';}}
-  else if(st==='red'){st1={...st1,background:'#b91c1c',borderColor:'#ef4444',color:'#fff'};c1={...c1,background:'#fff',border:'2px solid #fecaca',color:fem?'#be123c':'#7f1d1d'};
-    sub=(p.redItem||'')+(p.redStart?' '+hm(p.redStart)+(p.redEnd?'→'+hm(p.redEnd):''):'');subCls='#fee2e2';}
-  else if(st==='off'){st1={...st1,background:'transparent',borderColor:'#9ca3af',color:'#e5e7eb'};c1={...c1,color:'#e5e7eb',border:'2px solid #6b7280'};}
-  else if(st==='leave'){st1={...st1,background:'transparent',borderColor:'#9ca3af',borderStyle:'dashed',color:'#9ca3af'};c1={...c1,color:'#9ca3af',border:'2px dashed #6b7280'};if(!small){sub=p.leaveKind==='temp'?'臨時請假':'請假';subCls='#9ca3af';}}
-  if(small)sub=(st==='gray'||st==='green'||st==='red'||st==='leave')?null:sub;
-  const subSize=sub&&sub.length>6?9:10;
-  return(<button onClick={onClick} style={st1}><span style={c1}>{p.code}</span>{!small&&sub?<span style={{fontSize:subSize,fontWeight:700,lineHeight:1.05,color:subCls,textAlign:'center',maxWidth:w-4}}>{sub}</span>:null}</button>);
+  const st=p.state;const fem=p.gender==='F';const w=small?50:64,h=small?60:72;
+  let bg='#fff',bd='#c9ccd5',bs='solid',col=fem?'#be123c':'#111',sub='',subCol='#5b6270',ring='none';
+  if(st==='white'){sub=p.onAt?hm(p.onAt):'';}
+  else if(st==='green'){const g=greenInfo(p,now);bg='#d9f5e8';bd=g.over?'#dc2626':'#34a77a';col='#0b6b46';subCol='#0b6b46';ring=g.over?'0 0 0 2px #fca5a5':'none';
+    if(g.over){sub='超時'+hm(g.overAt);subCol='#b91c1c';}else if(!g.noLimit&&g.left<=60){sub=mmss(g.left);subCol='#b45309';}else{sub='翻'+hm(p.greenStart);}}
+  else if(st==='gray'){const late=isLate(p,now);bg='#eceef2';bd='#a9aeba';bs='dashed';col=fem?'#be123c':'#5b6270';sub=p.due?hm(p.due):'';subCol='#6b7280';
+    if(late){sub='未到未電';subCol='#b91c1c';bd='#dc2626';ring='0 0 0 2px #fecaca';}
+    if(p.lateTo&&p.lateTo>now){sub=(p.lateKind==='after'?'未到晚到':'晚到')+hm(p.lateTo);subCol='#b45309';}
+    else if(p.lateTo&&late){sub=(p.lateKind==='after'?'未到晚到':'晚到')+hm(p.lateTo)+' 未到';subCol='#b91c1c';}}
+  else if(st==='red'){bg='#fde2e4';bd='#dc2626';col=fem?'#9f1239':'#8f1d1d';subCol='#b91c1c';sub=(p.redItem||'')+(p.redEnd?' '+hm(p.redEnd):'');}
+  else if(st==='off'){bg='transparent';bd='#a9aeba';col='#6b7280';}
+  else if(st==='leave'){bg='transparent';bd='#a9aeba';bs='dashed';col='#9aa0ad';sub=p.leaveKind==='temp'?'臨時請假':'請假';subCol='#9aa0ad';}
+  const sw=st==='red'?w+10:w;
+  return(<button onClick={onClick} style={{width:sw,minWidth:sw,height:h,flex:'0 0 auto',borderRadius:10,border:'1.5px '+bs+' '+bd,background:bg,boxShadow:ring,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:2,padding:0,cursor:'pointer'}}>
+    <span style={{fontSize:p.code.length>2?17:19,fontWeight:800,lineHeight:1,color:col,fontVariantNumeric:'tabular-nums'}}>{p.code}</span>
+    {sub?<span style={{fontSize:sub.length>6?9:10,fontWeight:600,lineHeight:1.05,color:subCol,textAlign:'center',maxWidth:sw-4}}>{sub}</span>:null}</button>);
 }
 const Row=({children,scroll})=>(<div style={scroll?{display:'flex',gap:5,overflowX:'auto',paddingBottom:4,WebkitOverflowScrolling:'touch'}:{display:'flex',flexWrap:'wrap',gap:6}}>{children}</div>);
-const Zone=({title,count,children,hint})=>(<Card className="space-y-2"><div className="flex items-center justify-between"><p className="text-sm font-bold text-white">{title}</p><span className="text-xs text-gray-400">{count}</span></div>{children}{hint&&<p className="text-[11px] text-gray-500">{hint}</p>}</Card>);
+const CSec=({title,right,children,first})=>(<div className={'cn-sec'+(first?' f':'')}><div className="cn-sh"><h2>{title}</h2><em>{right}</em></div>{children}</div>);
+const Zone=({title,count,children,hint})=>(<CSec title={title} right={count}>{children}{hint&&<p className="text-[11px] text-gray-500 mt-2">{hint}</p>}</CSec>);
 
 // ── 彈窗 ──
 function Sheet({title,onClose,children}){
-  return(<div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center" style={{background:'rgba(0,0,0,.6)'}} onClick={onClose}>
+  return(<div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center" style={{background:'rgba(20,22,30,.45)'}} onClick={onClose}>
     <div className="w-full max-w-md rounded-t-2xl sm:rounded-2xl bg-gray-900 border border-gray-700 p-4 space-y-3" onClick={e=>e.stopPropagation()} style={{maxHeight:'85vh',overflowY:'auto'}}>
       <div className="flex items-center justify-between"><p className="text-lg font-bold text-white">{title}</p><button onClick={onClose} className="text-gray-400 text-xl px-2">✕</button></div>{children}</div></div>);
 }
@@ -236,31 +276,33 @@ function groupOrders(O){
     g.start=Math.min.apply(null,L.map(x=>x.start||0));g.createdAt=Math.min.apply(null,L.map(x=>x.createdAt||0));
     g.doneAt=Math.max.apply(null,L.map(x=>x.doneAt||0));g.paidAt=Math.max.apply(null,L.map(x=>x.paidAt||0));g.ordAt=Math.max.apply(null,L.map(x=>x.ordAt||0));
     g.ordBy=(L.find(x=>x.ordBy)||{}).ordBy||'';g.paidBy=(L.find(x=>x.paidBy)||{}).paidBy||'';g.openBy=h.openBy;
-    g.guest=guestTxt(h);g.no=(L.find(x=>x.no)||{}).no||'';
+    g.guest=guestTxt(h);g.gnm=(h.gname||'')+(h.title||'');g.sub=[h.src,h.phone?'…'+String(h.phone).slice(-3):''].filter(Boolean).join(' · ');g.no=(L.find(x=>x.no)||{}).no||'';
     const pi=(L.find(x=>x.payInfo)||{}).payInfo;try{g.pay=pi?JSON.parse(pi):null;}catch(_e){g.pay=null;}
     const pr=L.map(x=>priceOf(x.item,x.createdAt));g.due=pr.every(x=>x!==null)?pr.reduce((a,b)=>a+b,0):null;g.paid=L.reduce((a,x)=>a+(x.price||0),0);return g;});
 }
 function OrderLog({D,onOpen,onPay,act}){
-  const A=groupOrders(D.orders||[]);
+  const A=groupOrders(D.orders||[]);const[tab,setTab]=useState('');
   const sg=A.filter(x=>x.st==='seating').sort((a,b)=>a.start-b.start);const sv=A.filter(x=>x.st==='serving').sort((a,b)=>a.start-b.start);
   const wp=A.filter(x=>x.st==='wait_pay').sort((a,b)=>a.doneAt-b.doneAt);
   const dn=A.filter(x=>x.st==='done').sort((a,b)=>b.paidAt-a.paidAt).slice(0,30);
-  const Mem=({o})=>(<p className="text-sm text-gray-100"><b className="text-white" style={{fontFamily:'monospace'}}>{o.item}</b>　老師 <b>{o.code}</b>　位置 {o.pos0}{o.pos&&o.pos!==o.pos0?' → '+o.pos:''}
-    <span className="text-xs text-gray-400">　{hmFull(o.start)}{o.end?' – '+hmFull(o.end):''}{o.status==='serving'&&o.transfer>0?'　轉'+hm(o.transfer):''}</span>
-    {o.status==='wait_pay'?<span className="text-xs text-amber-300">　已完成 {hmFull(o.doneAt)}</span>:null}</p>);
-  const Row=({g,right,click})=>(<div onClick={click} className={'rounded-xl border border-gray-800 px-3 py-2 space-y-1 '+(click?'cursor-pointer active:bg-gray-800':'')}>
-    <div className="flex items-start gap-2"><div className="flex-1 min-w-0">
-      <p className="text-sm font-bold text-violet-200"><span className="text-xs font-mono text-gray-400 mr-1">#{g.no||'…'}</span>{g.guest||'客人未登記'}{g.list.length>1?<span className="ml-2 text-xs rounded px-1.5 py-0.5 bg-violet-900 text-violet-100">{g.list.length} 位</span>:null}</p>
-      {g.list.map(o=><Mem key={o.id} o={o}/>)}
-      <p className="text-xs text-gray-400">{g.openBy?'開單 '+g.openBy:''}{g.ordAt>0?'　已打單 '+hmFull(g.ordAt)+(g.ordBy?'　'+g.ordBy:''):''}{click?'　(點一下:回牌/轉場/加時)':''}</p></div>{right}</div></div>);
-  const Sec=({t,n,c,children})=>(<div className="space-y-1.5"><p className={'text-sm font-bold '+c}>{t} <span className="text-xs font-normal text-gray-400">{n}</span></p>{n===0?<p className="text-xs text-gray-500 pl-1">沒有</p>:children}</div>);
+  const TABS=[['seating','帶位',sg],['serving','服務中',sv],['wait_pay','待買單',wp],['done','已完成',dn]];
+  const cur=tab||(sg.length?'seating':wp.length&&!sv.length?'wait_pay':'serving'); // 預設:有待打單先看待打單,其次服務中
+  const list=(TABS.find(x=>x[0]===cur)||TABS[1])[2];
   const nm=g=>g.list.length>1?'這組客人('+g.list.length+' 位)':'老師 '+g.list[0].code+'('+g.list[0].item+')';
-  return(<Card className="space-y-3"><p className="text-sm font-bold text-white">📋 訂單流水 <span className="text-xs font-normal text-gray-400">一組客人算一筆</span></p>
-    <Sec t="🔵 帶位中(待打單)" n={sg.length} c="text-sky-300">{sg.map(g=><Row key={g.key} g={g} right={<div className="shrink-0 text-right"><p className="text-xs text-gray-400">開單 {hmFull(g.createdAt)}</p><button onClick={()=>{if(confirm(nm(g)+'已打單?\n(會以打單時間重算轉場與結束時間)'))act({act:'dadan',wid:g.key});}} className="mt-1 rounded-lg bg-sky-500 text-black text-xs font-bold px-3 py-1.5">打單</button></div>}/>)}</Sec>
-    <Sec t="🟢 服務中(已打單)" n={sv.length} c="text-emerald-300">{sv.map(g=><Row key={g.key} g={g} click={()=>onOpen(g.key)} right={<span className="text-xs text-emerald-300 shrink-0">{g.list.length===1&&g.list[0].end?hm(g.list[0].end)+'到':''}</span>}/>)}</Sec>
-    <Sec t="🟡 已完成・待買單" n={wp.length} c="text-amber-300">{wp.map(g=><Row key={g.key} g={g} right={<div className="shrink-0 text-right"><p className="text-xs text-gray-400">完成 {hmFull(g.doneAt)}</p>{g.due!==null&&<p className="text-xs text-amber-200">應收 {g.due}</p>}<button onClick={()=>onPay(g.key)} className="mt-1 rounded-lg bg-amber-500 text-black text-xs font-bold px-3 py-1.5">買單</button></div>}/>)}</Sec>
-    <Sec t="⚪ 已完成(已買單)" n={dn.length} c="text-gray-300">{dn.map(g=><Row key={g.key} g={g} right={<span className="text-xs text-gray-400 shrink-0 text-right">買單 {hmFull(g.paidAt)}{g.paidBy?<br/>:''}{g.paidBy}<br/><b className="text-gray-200">{g.pay?g.pay.total:g.paid}</b>{g.pay?<React.Fragment><br/>{payTxt(g.pay)}</React.Fragment>:null}</span>}/>)}</Sec>
-  </Card>);
+  const ST={seating:['帶位中','#0284c7','#0369a1'],serving:['服務中','#0f8a5f','#0f8a5f'],wait_pay:['待買單','#d99a06','#b45309'],done:['已完成','#9aa0ad','#5b6270']};
+  const Mem=({o})=>(<div className="cn-m"><span className="c">{o.item}</span><span>老師 <b>{o.code}</b></span><span>位置 {o.pos0}{o.pos&&o.pos!==o.pos0?' → '+o.pos:''}</span>
+    <span className="tt">{o.status==='wait_pay'?'完成 '+hmFull(o.doneAt):o.status==='seating'?hmFull(o.createdAt)+' 開單':hmFull(o.start)+(o.end?' – '+hmFull(o.end):'')}{o.status==='serving'&&o.transfer>0?'　轉'+hm(o.transfer):''}</span></div>);
+  const Ord=({g})=>{const st=ST[g.st];const clickable=g.st==='serving';
+    return(<div className={'cn-ord'+(clickable?' click':'')} onClick={clickable?()=>onOpen(g.key):undefined}>
+      <div className="cn-oh"><span className="cn-no">{g.no||'…'}</span><span className="cn-gn">{g.gnm||'客人未登記'}</span>{g.list.length>1?<span className="cn-cnt">{g.list.length} 位</span>:null}<span className="cn-sp"></span>
+        {g.st==='wait_pay'&&g.due!==null?<span className="cn-money">應收 {g.due}</span>:g.st==='done'?<span className="cn-money">{g.pay?g.pay.total:g.paid}</span>:<span className="cn-st" style={{color:st[2]}}><i className="cn-dot" style={{background:st[1]}}></i>{st[0]}</span>}</div>
+      {g.list.map(o=><Mem key={o.id} o={o}/>)}
+      <div className="cn-meta"><span>{g.sub?g.sub+' · ':''}{g.openBy?'開單 '+g.openBy:''}{g.ordAt>0?' · 打單 '+hmFull(g.ordAt)+(g.ordBy?' '+g.ordBy:''):''}{g.st==='done'?' · 買單 '+hmFull(g.paidAt)+(g.paidBy?' '+g.paidBy:'')+(g.pay?' · '+payTxt(g.pay):''):''}</span>{clickable?<span style={{color:'#6d28d9',fontWeight:600}}>回牌 · 轉場 · 加時 ›</span>:null}</div>
+      {g.st==='seating'&&<button className="cn-act" style={{background:'#38bdf8'}} onClick={()=>{if(confirm(nm(g)+'已打單?\n(會以打單時間重算轉場與結束時間)'))act({act:'dadan',wid:g.key});}}>打單</button>}
+      {g.st==='wait_pay'&&<button className="cn-act" style={{background:'#f59e0b'}} onClick={()=>onPay(g.key)}>買單</button>}
+    </div>);};
+  return(<CSec title="訂單" right="一組客人算一筆"><div className="cn-tabs">{TABS.map(t=>(<button key={t[0]} className={'cn-tab'+(cur===t[0]?' on':'')} onClick={()=>setTab(t[0])}>{t[1]}{t[0]!=='done'||t[2].length?' '+t[2].length:''}</button>))}</div>
+    {list.length===0?<p className="text-sm text-gray-500 py-2">沒有</p>:list.map(g=><Ord key={g.key} g={g}/>)}</CSec>);
 }
 // 買單:每位老師的金額(依價目與開單時間自動帶入,可改;價目未訂的要手填)、付款方式 現金/票券(400、200 可混用,不足補現金)
 function PaySheet({g,onDone,onClose}){
@@ -307,17 +349,17 @@ function OrderSheet({g,D,act,onClose}){
 function seatMap(D){const m={};D.red.forEach(p=>{if(p.redPos)m[p.redPos]={p:p,kind:'cur'};if(p.redPos2)m[p.redPos2]={p:p,kind:'rsv'};});return m;}
 // 位置格:本身時間狀態(R6.4):接近(≤5 分)黃、超時紅、其餘綠
 function Seat({pos,occ,now,onClick}){
-  let bg='#16161d',bd='#3b3b4a',bs='solid',body=<span style={{color:'#6b7280',fontSize:12}}>空</span>;
-  if(occ){const p=occ.p;
-    if(occ.kind==='rsv'){bd='#a78bfa';bs='dashed';body=<React.Fragment><span style={{fontSize:16,fontWeight:800,color:'#c4b5fd'}}>{p.code}</span><span style={{fontSize:9,color:'#c4b5fd'}}>轉入{p.redTransfer?' '+hm(p.redTransfer):''}</span></React.Fragment>;}
+  let bg='#fff',bd='#c9ccd5',bs='solid',body=<span style={{color:'#9aa0ad',fontSize:12}}>空</span>;
+  if(occ){const p=occ.p;const fem=p.gender==='F';
+    if(occ.kind==='rsv'){bd='#7c3aed';bs='dashed';bg='#f3effe';body=<React.Fragment><span style={{fontSize:16,fontWeight:800,color:'#6d28d9'}}>{p.code}</span><span style={{fontSize:9,color:'#6d28d9'}}>轉入{p.redTransfer?' '+hm(p.redTransfer):''}</span></React.Fragment>;}
     else{const key=p.redTransfer>0?p.redTransfer:p.redEnd;const left=key?(key-now)/60000:999;const over=p.redEnd&&now>p.redEnd;
-      bg=over?'#4c1010':left<=5?'#4a3a0c':'#10331f';bd=over?'#ef4444':left<=5?'#facc15':'#22c55e';
-      body=<React.Fragment><span style={{fontSize:p.code.length>2?17:20,fontWeight:800,color:p.gender==='F'?'#fda4af':'#fff',lineHeight:1}}>{p.code}</span><span style={{fontSize:10,fontWeight:700,color:'#e5e7eb'}}>{p.redItem}</span>
-        {p.redTransfer>0&&<span style={{fontSize:10,color:'#fde68a'}}>轉{hm(p.redTransfer)}</span>}{p.redEnd>0&&<span style={{fontSize:10,color:over?'#fca5a5':'#bbf7d0'}}>{hm(p.redEnd)}到</span>}</React.Fragment>;}}
-  return(<button onClick={onClick} style={{flex:'1 1 0',minWidth:0,minHeight:92,borderRadius:8,border:'2px '+bs+' '+bd,background:bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:1,padding:'2px 0'}}>
-    <span style={{fontSize:11,color:'#9ca3af',alignSelf:'flex-start',paddingLeft:4}}>{pos}{CAM.indexOf(pos)>=0?' 📷':''}</span>{body}</button>);
+      bg=over?'#fde2e4':left<=5?'#fff4d1':'#e1f6ea';bd=over?'#dc2626':left<=5?'#d99a06':'#34a77a';
+      body=<React.Fragment><span style={{fontSize:p.code.length>2?17:20,fontWeight:800,color:fem?'#be123c':'#111',lineHeight:1}}>{p.code}</span><span style={{fontSize:10,fontWeight:700,color:'#3a4050'}}>{p.redItem}</span>
+        {p.redTransfer>0&&<span style={{fontSize:10,color:'#92400e'}}>轉{hm(p.redTransfer)}</span>}{p.redEnd>0&&<span style={{fontSize:10,color:over?'#b91c1c':'#0b6b46'}}>{hm(p.redEnd)}到</span>}</React.Fragment>;}}
+  return(<button onClick={onClick} style={{flex:'1 1 0',minWidth:0,minHeight:92,borderRadius:8,border:'1.5px '+bs+' '+bd,background:bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:1,padding:'2px 0'}}>
+    <span style={{fontSize:11,color:'#6b7280',alignSelf:'flex-start',paddingLeft:4}}>{pos}{CAM.indexOf(pos)>=0?' 📷':''}</span>{body}</button>);
 }
-const Grp=({children})=>(<div style={{display:'flex',gap:3,flex:'1 1 0',minWidth:0,border:'1px solid #2a2a35',borderRadius:10,padding:3}}>{children}</div>);
+const Grp=({children})=>(<div style={{display:'flex',gap:3,flex:'1 1 0',minWidth:0,border:'1px solid #e3e5eb',borderRadius:10,padding:3}}>{children}</div>);
 function SeatMap({D,now,onSeat}){
   const M=seatMap(D);const S=pos=><Seat key={pos} pos={pos} occ={M[pos]} now={now} onClick={()=>onSeat(pos)}/>;
   const free=a=>a.filter(x=>!M[x]).length;
@@ -601,27 +643,26 @@ function CounterPage({who}){
   const lateN=D.gray.filter(p=>isLate(p,now)).length;
   const click=p=>()=>setSel(p.code);
   const wtxt=D.window?hm(D.window[0])+'~'+(hm(D.window[1]+1).replace(/^0:00$/,'24:00')):'';
-  return(<Box>
-    <div className="flex items-center justify-between"><div><p className="text-lg font-bold text-white">🪧 主櫃・{D.store}</p><p className="text-xs text-gray-400">{hmFull(now)}:{p2(tzp(now).s)}　白 {D.white.filter(p=>p.state==='white').length}・綠 {D.white.filter(p=>p.state==='green').length}・灰 {D.gray.length}・紅 {D.red.length}</p></div>
-      <div className="flex gap-2"><button onClick={()=>setArranging(true)} className="text-xs text-white bg-emerald-600 rounded-lg px-3 py-1 font-bold">安排客人</button><button onClick={()=>setOpening('')} className="text-xs text-white bg-violet-600 rounded-lg px-3 py-1 font-bold">＋開單</button><button onClick={sync} className="text-xs text-gray-300 border border-gray-600 rounded-lg px-2 py-1">{syncing?<Spinner size={12}/>:'🔄'}</button><button onClick={()=>setOpen(!open)} className="text-xs text-violet-200 border border-violet-500 rounded-lg px-3 py-1">{open?'收合 ▲':'展開 ▼'}</button></div></div>
-    <p className="text-[11px] text-gray-500 -mt-2">{queue.length>0?<span className="text-amber-300">⏳ 待上傳 {queue.length} 筆(每 10 秒自動送出)</span>:<span>✓ 已同步{syncAt?' '+hmFull(syncAt)+':'+p2(tzp(syncAt).s):''}</span>}</p>
+  const cnt=k=>D.white.filter(p=>p.state===k).length;
+  return(<div className="cn-light"><style>{CN_CSS}</style><div className="cn-wrap">
+    <div className="cn-hd"><div><h1>主櫃 · {D.store}</h1><div className="cn-tm"><span>{hmFull(now)}:{p2(tzp(now).s)}</span><button onClick={sync} className={'cn-sync'+(queue.length>0?' w':'')}>{syncing?<Spinner size={12}/>:'●'} {queue.length>0?'待上傳 '+queue.length+' 筆':'已同步'+(syncAt?' '+hmFull(syncAt):'')}</button></div></div>
+      <div className="cn-acts"><button onClick={()=>setArranging(true)} className="cn-btn">安排客人</button><button onClick={()=>setOpening('')} className="cn-btn p">＋開單</button></div></div>
+    <div className="cn-chips"><div className="cn-chip"><b>{cnt('white')}</b><span>白牌</span></div><div className="cn-chip"><b style={{color:'#0f8a5f'}}>{cnt('green')}</b><span>綠牌</span></div><div className="cn-chip"><b style={{color:'#6b7280'}}>{D.gray.length}</b><span>灰牌</span></div><div className="cn-chip"><b style={{color:'#b91c1c'}}>{D.red.length}</b><span>紅牌</span></div></div>
     {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
+    {lateN>0&&<div className="cn-alert"><b>未到未電 {lateN} 位</b>　{D.gray.filter(p=>isLate(p,now)).map(p=>p.code).join('、')}</div>}
     {req&&<RecBlock D={D} now={now} req={req} ahead={(fromWait?D.waits.slice(0,Math.max(0,D.waits.findIndex(x=>x.id===fromWait))):D.waits).map(x=>x.items)} onClear={()=>{setReq(null);setFromWait('');setGuest(G0());}} onEdit={()=>setArranging(true)} onWait={fromWait?null:()=>setWaitSheet(true)} adopt={ops=>{const gid=rid();ops.forEach(o=>act(Object.assign({},o,gFields(guest),{gid:gid})));if(fromWait)act({act:'wdone',wid:fromWait,status:'seated'});setReq(null);setFromWait('');setGuest(G0());}}/>}
     <WaitList D={D} now={now} onPick={w=>setWaitSel(w.id)}/>
     {notes.length>0&&<div className="rounded-xl border border-amber-500 bg-amber-950 text-amber-200 px-3 py-2 text-sm space-y-1"><p className="font-bold">有操作沒有成功(可能別台櫃台已先處理),畫面已更新為最新牌況:</p>{notes.map((n,i)=><p key={i}>・{n}</p>)}<button onClick={()=>setNotes([])} className="text-xs underline">知道了</button></div>}
-    {lateN>0&&<div className="rounded-xl border border-red-500 bg-red-950 text-red-300 px-3 py-2 text-sm font-bold">⚠ 未到未電 {lateN} 位:{D.gray.filter(p=>isLate(p,now)).map(p=>p.code).join('、')}</div>}
-    {!open?(<React.Fragment>
-      <Card className="space-y-2"><div className="flex items-center justify-between"><p className="text-sm font-bold text-white">⚪ 白牌＋灰牌</p><span className="text-xs text-gray-400">白 {D.white.length}・灰 {D.gray.length}</span></div>
-        {D.white.length+D.gray.length===0?<p className="text-sm text-gray-500 py-2">目前沒有牌</p>:<Row scroll>{D.white.map(p=><Plate key={p.code} p={p} now={now} small onClick={click(p)}/>)}
-          {D.white.length>0&&D.gray.length>0&&<div style={{flex:'0 0 auto',width:1,background:'#3b3b4a',margin:'0 3px'}}/>}{D.gray.map(p=><Plate key={p.code} p={p} now={now} small onClick={click(p)}/>)}</Row>}</Card>
-      <Card className="space-y-2"><div className="flex items-center justify-between"><p className="text-sm font-bold text-white">🔴 紅牌</p><span className="text-xs text-gray-400">{D.red.length}</span></div>
-        {D.red.length===0?<p className="text-sm text-gray-500 py-1">沒有做事中的老師</p>:<Row scroll>{D.red.map(p=><Plate key={p.code} p={p} now={now} small onClick={click(p)}/>)}</Row>}</Card>
-    </React.Fragment>):(<React.Fragment>
-      <Zone title="⚪ 白牌(等待派工)" count={D.white.length} hint="依序派工;綠牌=休息中,輪到時跳過">{D.white.length?<Row>{D.white.map(p=><Plate key={p.code} p={p} now={now} onClick={click(p)}/>)}</Row>:<p className="text-sm text-gray-500">沒有白牌</p>}</Zone>
-      <Zone title="⬜ 灰牌(未上牌)" count={D.gray.length} hint={'目前顯示上牌時段:'+wtxt+'(依現在時間切換)'}>{D.gray.length?<Row>{D.gray.map(p=><Plate key={p.code} p={p} now={now} onClick={click(p)}/>)}</Row>:<p className="text-sm text-gray-500">這個時段沒有要上牌的老師</p>}</Zone>
-      <Zone title="🔴 紅牌(做事中)" count={D.red.length}>{D.red.length?<Row>{D.red.map(p=><Plate key={p.code} p={p} now={now} onClick={click(p)}/>)}</Row>:<p className="text-sm text-gray-500">沒有紅牌</p>}</Zone>
-      <Zone title="▫ 下牌" count={D.off.length}>{D.off.length?<Row>{D.off.map(p=><Plate key={p.code} p={p} now={now} onClick={click(p)}/>)}</Row>:<p className="text-sm text-gray-500">沒有</p>}</Zone>
-      <Zone title="┄ 請假" count={D.leave.length}>{D.leave.length?<Row>{D.leave.map(p=><Plate key={p.code} p={p} now={now} onClick={click(p)}/>)}</Row>:<p className="text-sm text-gray-500">沒有</p>}</Zone>
+    <CSec first title={open?'全部牌況':'待派工'} right={<React.Fragment><span>白 {D.white.filter(p=>p.state==='white').length} · 綠 {cnt('green')} · 灰 {D.gray.length}　</span><button className="cn-link" onClick={()=>setOpen(!open)}>{open?'收合 ‹':'展開 ›'}</button></React.Fragment>}>
+      {!open&&(D.white.length+D.gray.length===0?<p className="text-sm text-gray-500 py-2">目前沒有牌</p>:<Row scroll>{D.white.map(p=><Plate key={p.code} p={p} now={now} small onClick={click(p)}/>)}
+        {D.white.length>0&&D.gray.length>0&&<div style={{flex:'0 0 auto',width:1,background:'#d3d6de',margin:'0 3px'}}/>}{D.gray.map(p=><Plate key={p.code} p={p} now={now} small onClick={click(p)}/>)}</Row>)}</CSec>
+    {!open?(<CSec title="做事中" right={D.red.length}>{D.red.length===0?<p className="text-sm text-gray-500 py-1">沒有做事中的老師</p>:<Row scroll>{D.red.map(p=><Plate key={p.code} p={p} now={now} small onClick={click(p)}/>)}</Row>}</CSec>)
+    :(<React.Fragment>
+      <Zone title="白牌(等待派工)" count={D.white.length} hint="依序派工;綠牌=休息中,輪到時跳過">{D.white.length?<Row>{D.white.map(p=><Plate key={p.code} p={p} now={now} onClick={click(p)}/>)}</Row>:<p className="text-sm text-gray-500">沒有白牌</p>}</Zone>
+      <Zone title="灰牌(未上牌)" count={D.gray.length} hint={'目前顯示上牌時段:'+wtxt+'(依現在時間切換)'}>{D.gray.length?<Row>{D.gray.map(p=><Plate key={p.code} p={p} now={now} onClick={click(p)}/>)}</Row>:<p className="text-sm text-gray-500">這個時段沒有要上牌的老師</p>}</Zone>
+      <Zone title="紅牌(做事中)" count={D.red.length}>{D.red.length?<Row>{D.red.map(p=><Plate key={p.code} p={p} now={now} onClick={click(p)}/>)}</Row>:<p className="text-sm text-gray-500">沒有紅牌</p>}</Zone>
+      <Zone title="下牌" count={D.off.length}>{D.off.length?<Row>{D.off.map(p=><Plate key={p.code} p={p} now={now} onClick={click(p)}/>)}</Row>:<p className="text-sm text-gray-500">沒有</p>}</Zone>
+      <Zone title="請假" count={D.leave.length}>{D.leave.length?<Row>{D.leave.map(p=><Plate key={p.code} p={p} now={now} onClick={click(p)}/>)}</Row>:<p className="text-sm text-gray-500">沒有</p>}</Zone>
     </React.Fragment>)}
     <SeatMap D={D} now={now} onSeat={pos=>{const m=seatMap(D)[pos];if(m)setSel(m.p.code);else setOpening(pos);}}/>
     <OrderLog D={D} act={act} onOpen={setOrdSel} onPay={setPaySel}/>
@@ -632,7 +673,7 @@ function CounterPage({who}){
     {waitSel&&D.waits.some(x=>x.id===waitSel)&&<WaitEntrySheet w={D.waits.find(x=>x.id===waitSel)} idx={D.waits.findIndex(x=>x.id===waitSel)} act={o=>{act(o);setWaitSel(null);}} onSeat={w=>{setReq(w.items);setGuest({title:w.title||'',src:w.src||'',phone:w.phone||'',sur:w.sur||w.name||'',giv:w.sur?String(w.name||'').slice(w.sur.length):''});setFromWait(w.id);setWaitSel(null);}} onClose={()=>setWaitSel(null)}/>}
     {arranging&&<ArrangeSheet init={req} ginit={guest} onDone={(its,g)=>{setReq(its);setGuest(g);setArranging(false);}} onClose={()=>setArranging(false)}/>}
     {opening!==null&&<OpenSheet D={D} now={now} presetPos={opening} act={o=>{act(o);setOpening(null);}} onClose={()=>setOpening(null)}/>}
-  </Box>);
+  </div></div>);
 }
 function Counter2Routes(){return(<NeedUser render={(me)=><CounterPage who={(me.user&&me.user.code)||'櫃台'}/>}/>);}
 window.Counter2Routes=Counter2Routes;
