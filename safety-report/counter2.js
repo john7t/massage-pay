@@ -240,7 +240,7 @@ function recommend(D,now,items,opt){
   const full=freeF+freeB===0;let soon=null;if(Object.keys(rel0).length){let bp=null;Object.keys(rel0).forEach(x=>{if(!bp||rel0[x]<rel0[bp])bp=x;});soon={pos:bp,at:rel0[bp]};}
   return {plans:plans,femaleWait:femaleWait,full:full,soon:full?soon:null,freeF:freeF,freeB:freeB};
 }
-window.__cnRec={recommend,itemCalc,posRelease,teacherPool,grid10,planItem};
+window.__cnRec={bkConflict,recommend,itemCalc,posRelease,teacherPool,grid10,planItem};
 // 翻綠狀態:回傳 {left 剩餘秒, over 是否超時, overAt 到時時間(ms), used 累計秒}
 function greenInfo(p,now){
   const cur=p.state==='green'?Math.max(0,Math.round((now-p.greenStart)/1000)):0;
@@ -430,6 +430,16 @@ function GuestPick({g,setG}){
     {d.length>=3&&!full&&<p className="text-xs text-gray-500">手機不足 8 碼:請點選符合的客人,或輸入完整號碼</p>}
   </div>);
 }
+// 勞點預約衝突檢查:老師目前服務(含帶位中)做到預約時間之後、或與他其他預約的服務時間重疊,都不能預約;回傳原因文字,沒有衝突回傳 ''
+const itemDur=(it,at)=>{const c0=it&&baseCode(it);const code=c0==='pkg3'||c0==='pkg2'?pkgCodes(it).foot:c0;const c=code&&itemCalc(code,(it&&it.extra)||0,at||0);return c?c.total*MIN:70*MIN;};
+function bkConflict(D,code,at,it,exceptId){
+  if(!code||!(at>0))return '';const dur=itemDur(it,at);
+  const p=(D.red||[]).find(x=>x.code===code);
+  if(p&&p.redEnd>at)return code+' 號目前服務到 '+hmFull(p.redEnd)+','+hmFull(at)+' 還沒做完';
+  const o=(D.bookings||[]).find(b=>b.code===code&&b.id!==exceptId&&b.at<at+dur&&at<b.at+itemDur(b.it,b.at));
+  if(o)return code+' 號 '+hmFull(o.at)+' 已有勞點預約,時間重疊';
+  return '';
+}
 const guestTxt=o=>[(o.gname||'')+(o.title||''),o.src,o.phone?'…'+String(o.phone).slice(-3):''].filter(Boolean).join('・');
 const newItem=()=>({kind:'pkg',base:3,n:1,extra:0,oil:false,gender:'',nation:'',teacher:''});
 function ArrangeSheet({init,ginit,D,now,onDone,onBook,onClose}){
@@ -442,7 +452,8 @@ function ArrangeSheet({init,ginit,D,now,onDone,onBook,onClose}){
   const t0=items[0]&&String(items[0].teacher||'').trim();
   const tBk=t0?(D.bookings||[]).filter(b=>b.code===t0&&dkey(b.at)===date):[];
   const atMs=Date.parse(date+'T'+tm+':00+08:00');
-  const bkOk=!!t0&&guestOk(g)&&gDigits(g).length>=8&&!!String(g.sur||'').trim()&&atMs>now;
+  const cflt=t0?bkConflict(D,t0,atMs,items[0]):'';
+  const bkOk=!!t0&&guestOk(g)&&gDigits(g).length>=8&&!!String(g.sur||'').trim()&&atMs>now&&!cflt;
   const days=[0,1,2].map(i=>dkey(now+i*86400e3));
   const set=(i,o)=>setItems(a=>a.map((x,j)=>j===i?Object.assign({},x,o):x));
   const Chip=({on,children,onClick})=>(<button onClick={onClick} className={'rounded-xl border px-3 py-2 text-sm font-bold '+(on?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-200')}>{children}</button>);
@@ -469,8 +480,9 @@ function ArrangeSheet({init,ginit,D,now,onDone,onBook,onClose}){
     </div>))}
     {items.length<4&&<Bt tone="gray" onClick={()=>setItems(a=>a.concat([newItem()]))}>＋項目(不同項目)</Bt>}
     {t0&&<div className="rounded-xl border border-amber-500 p-3 space-y-2"><p className="text-sm font-bold text-amber-300">勞點預約 {t0} 號</p>
-      <div className="flex items-center gap-2"><span className="text-sm text-gray-300">時間</span><select value={tm} onChange={e=>setTm(e.target.value)} className="flex-1 rounded-xl bg-gray-800 border border-gray-700 px-2 py-2 text-white">{Array.from({length:48},(_,k)=>p2(Math.floor(k/2))+':'+(k%2?'30':'00')).map(x=><option key={x} value={x}>{x}</option>)}</select></div>
-      <Bt tone="green" disabled={!bkOk} onClick={()=>onBook(Object.assign({},items[0],{n:1}),g,atMs)}>{bkOk?'建立勞點預約 '+date.slice(5)+' '+tm:(atMs<=now?'預約時間已過':'預約需要完整手機、姓、稱謂與客源')}</Bt></div>}
+      <div className="flex items-center gap-2"><span className="text-sm text-gray-300">時間</span><select value={tm} onChange={e=>setTm(e.target.value)} className="flex-1 rounded-xl bg-gray-800 border border-gray-700 px-2 py-2 text-white">{Array.from({length:48},(_,k)=>p2(Math.floor(k/2))+':'+(k%2?'30':'00')).map(x=>{const bad=bkConflict(D,t0,Date.parse(date+'T'+x+':00+08:00'),items[0]);return <option key={x} value={x}>{x}{bad?'(老師忙)':''}</option>;})}</select></div>
+      {cflt&&<p className="text-xs text-red-300">⚠ {cflt}</p>}
+      <Bt tone="green" disabled={!bkOk} onClick={()=>onBook(Object.assign({},items[0],{n:1}),g,atMs)}>{bkOk?'建立勞點預約 '+date.slice(5)+' '+tm:(atMs<=now?'預約時間已過':cflt?'此時間老師無法接':'預約需要完整手機、姓、稱謂與客源')}</Bt></div>}
     {date===today?<Bt disabled={!guestOk(g)} onClick={()=>onDone(items,g)}>{guestOk(g)?'排客人 → 看推薦':(g.title&&g.src?'手機需完整號碼並填姓':'請先選稱謂與客源')}</Bt>:null}<Bt tone="gray" onClick={onClose}>取消</Bt></Sheet>);
 }
 const RuleTag=({r})=>(<span className="text-[10px] rounded px-1.5 py-0.5 bg-indigo-900 text-indigo-200">{r}</span>);
