@@ -1,4 +1,4 @@
-/* counter2.js — 主櫃「老師號碼牌區」(v1.0-004,P1~P3)
+/* counter2.js — 主櫃「老師號碼牌區」(v1.0-005,P1~P3+候位)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 cn2:  ?cn2=1  主櫃現況表(目前只有老師號碼牌區)
    規則見 counter-rules.md(R5.x、R6.6~R6.8);後端 gas-counter2.gs.txt(cnPlates / cnAct)。
    牌:白(等待派工)/綠(休息,可分段,累計每班 1 小時)/灰(未上牌)/紅(做事中)/下牌(實框透明)/請假(虛框)。 */
@@ -141,6 +141,7 @@ function recommend(D,now,items,opt){
   opt=opt||{};const pool=teacherPool(D,now);const rel0=posRelease(D,now);
   const M=seatMap(D);const freeF=FEET.filter(x=>!M[x]).length,freeB=BEDS.filter(x=>!M[x]).length;
   const runOnce=(orders,minStart,split)=>{const used={t:{},p:{}};const res=[];
+    (opt.ahead||[]).forEach(g=>{(g||[]).forEach(x=>{planItem(D,now,pool,rel0,used,x,'foot',0,false);});}); // 前面候位的客人先占用老師與位置(R9.16)
     for(let i=0;i<items.length;i++){const r=planItem(D,now,pool,rel0,used,items[i],orders[i],minStart,split);if(r.err)return {err:'項目 '+String.fromCharCode(65+i)+':'+r.err};r.label=String.fromCharCode(65+i);res.push(r);}return {items:res};};
   const isPkg=items.map(it=>it.kind==='pkg');
   // 套餐先後(R2.11、R9.9):預設先腳;腳位很滿、床位很空改先身;兩種都試,取最快(同樣快時依預設)
@@ -268,11 +269,38 @@ function ArrangeSheet({init,onDone,onClose}){
     <Bt onClick={()=>onDone(items)}>排客人 → 看推薦</Bt><Bt tone="gray" onClick={onClose}>取消</Bt></Sheet>);
 }
 const RuleTag=({r})=>(<span className="text-[10px] rounded px-1.5 py-0.5 bg-indigo-900 text-indigo-200">{r}</span>);
+
+// ── 客滿候位(R9.16):登記手機與姓(名可略),之後的客人排在後面 ──
+const itemsText=its=>(its||[]).map((x,i)=>String.fromCharCode(65+i)+' '+(baseCode(x)||'?').replace('pkg3','套餐120').replace('pkg2','套餐70')+(x.extra?'+'+x.extra:'')+(x.n>1?'×'+x.n:'')+(x.oil?' 油壓':'')+(x.gender==='F'?' 指女':x.gender==='M'?' 指男':'')+(x.nation==='TW'?' 指台':x.nation==='VN'?' 指越':'')).join('、');
+function WaitSheet({req,onDone,onClose}){
+  const[phone,setPhone]=useState('');const[sur,setSur]=useState('');const[giv,setGiv]=useState('');
+  const ok=phone.replace(/[^0-9]/g,'').length>=8&&sur.trim();
+  return(<Sheet title="登記候位" onClose={onClose}>
+    <p className="text-sm text-gray-300">客滿、現場客要等:登記後排在候位順序,之後來的客人排在這一組後面。</p>
+    <p className="text-sm text-violet-200">{itemsText(req)}</p>
+    <input value={phone} onChange={e=>setPhone(e.target.value)} inputMode="tel" placeholder="手機號碼(必填)" className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-white"/>
+    <div className="flex gap-2"><input value={sur} onChange={e=>setSur(e.target.value)} maxLength={4} placeholder="姓(必填)" className="w-28 rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-white"/><input value={giv} onChange={e=>setGiv(e.target.value)} maxLength={8} placeholder="名(可略)" className="flex-1 rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-white"/></div>
+    <Bt disabled={!ok} onClick={()=>onDone({phone:phone,name:sur.trim()+giv.trim()})}>登記候位</Bt><Bt tone="gray" onClick={onClose}>取消</Bt></Sheet>);
+}
+// 候位清單:依登記順序;預估開始時間=前面候位的客人先占用後,這組最快何時能開始
+function WaitList({D,now,onPick}){
+  const W=D.waits||[];if(!W.length)return null;
+  const q=Math.floor(now/30000)*30000;
+  return(<Card className="space-y-2"><div className="flex items-center justify-between"><p className="text-sm font-bold text-white">⏳ 候位 {W.length} 組</p><span className="text-xs text-gray-400">依登記順序</span></div>
+    {W.map((w,i)=>{let est='';try{const R=window.__cnRec.recommend(D,q,w.items,{ahead:W.slice(0,i).map(x=>x.items)});if(R.plans[0]){const st=R.plans[0].start;est=st<=q+60000?'現在可開始':'約 '+hmFull(st)+'('+Math.round((st-q)/60000)+' 分後)';}else est=R.error||'';}catch(_e){}
+      return(<button key={w.id} onClick={()=>onPick(w)} className="w-full text-left rounded-xl border border-gray-700 px-3 py-2"><div className="flex items-center gap-2"><span className="text-lg font-bold text-amber-300">{i+1}</span><span className="text-white font-bold">{w.name}</span><span className="text-xs text-gray-400">…{String(w.phone).slice(-3)}</span><span className="flex-1"></span><span className="text-xs text-emerald-300">{est}</span></div><p className="text-xs text-gray-300">{itemsText(w.items)}　登記 {hmFull(w.createdAt)}</p></button>);})}
+  </Card>);
+}
+function WaitEntrySheet({w,idx,act,onSeat,onClose}){
+  return(<Sheet title={'候位 '+(idx+1)+'　'+w.name} onClose={onClose}>
+    <Info k="手機" v={<a href={'tel:'+w.phone} className="text-violet-300 underline">{w.phone}</a>}/><Info k="項目" v={itemsText(w.items)}/><Info k="登記時間" v={hmFull(w.createdAt)}/>
+    <Bt onClick={()=>onSeat(w)}>安排(帶入推薦)</Bt><Bt tone="red" onClick={()=>{if(confirm('取消 '+w.name+' 的候位?'))act({act:'wdone',wid:w.id,status:'cancel'});}}>取消候位</Bt><Bt tone="gray" onClick={onClose}>關閉</Bt></Sheet>);
+}
 // 推薦區塊(主畫面最上方)
-function RecBlock({D,now,req,onClear,onEdit,adopt}){
+function RecBlock({D,now,req,ahead,onClear,onEdit,adopt,onWait}){
   const[wait,setWait]=useState(0);const[pi,setPi]=useState(0);const[useAlt,setUseAlt]=useState(false);const[together,setTogether]=useState(true);
   const q5=Math.floor(now/30000)*30000; // 每 30 秒重算
-  const R=window.__cnRec.recommend(D,q5,req,wait?{minStart:q5+wait*MIN}:{});
+  const R=window.__cnRec.recommend(D,q5,req,Object.assign({ahead:ahead||[]},wait?{minStart:q5+wait*MIN}:{}));
   if(R.error)return(<div className="rounded-2xl border border-red-500 bg-red-950 p-3 space-y-2"><p className="text-sm text-red-200 font-bold">排客人後的推薦</p><p className="text-sm text-red-200">{R.error}</p><div className="flex gap-2"><button onClick={onEdit} className="text-xs underline text-red-200">修改</button><button onClick={onClear} className="text-xs underline text-red-200">清除</button></div></div>);
   const plans=R.plans;const base=plans[Math.min(pi,plans.length-1)];const pl=(useAlt&&base.alt)?base.alt:base;
   const M=seatMap(D);const posNow=x=>!M[x];
@@ -280,6 +308,7 @@ function RecBlock({D,now,req,onClear,onEdit,adopt}){
   const doAdopt=()=>{const ops=[];pl.items.forEach(r=>r.people.forEach(p=>{ops.push({act:'red',code:p.teacher,item:r.realCode+(r.extra?'+'+r.extra:''),pos:p.pos1,pos2:(p.pos2&&posNow(p.pos2))?p.pos2:'',start:p.start,end:p.end,transfer:p.transfer});}));adopt(ops);};
   return(<div className="rounded-2xl border border-violet-500 bg-indigo-950 p-3 space-y-3">
     <div className="flex items-center justify-between"><p className="text-base font-bold text-white">排客人後的推薦</p><span className="text-xs text-indigo-200">{req.length} 項・{req.reduce((a,x)=>a+x.n,0)} 位</span></div>
+    {(ahead||[]).length>0&&<p className="text-sm font-bold text-amber-300">前面還有 {(ahead||[]).length} 組候位,以下推薦已排在他們後面(R9.16)</p>}
     {R.full&&<p className="text-sm font-bold text-red-300">客滿!最快 {R.soon.pos} 號位 {hmFull(R.soon.at)} 空出</p>}
     {!R.full&&D.white.filter(p=>p.state==='white').length===0&&<p className="text-sm font-bold text-amber-300">老師全在紅牌區(或休息中)</p>}
     {plans.length>1&&<div className="flex gap-2">{plans.map((p,i)=>(<button key={i} onClick={()=>{setPi(i);setUseAlt(false);}} className={'rounded-xl border px-3 py-1.5 text-sm font-bold '+(i===pi?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-200')}>{p.label}</button>))}</div>}
@@ -291,6 +320,7 @@ function RecBlock({D,now,req,onClear,onEdit,adopt}){
     {R.femaleWait&&R.femaleWait.length>0&&<p className="text-xs text-rose-200">白牌沒有女老師;紅牌女老師:{R.femaleWait.slice(0,4).map(x=>x.code+'(約 '+x.wait+' 分)').join('、')}　可先請客人稍候,或改非指定(R9.6)</p>}
     <div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-indigo-200">稍候</span>{[0,10,20,30].map(m=><button key={m} onClick={()=>setWait(m)} className={'rounded-lg border px-3 py-1 text-sm '+(wait===m?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-200')}>{m?m+' 分':'不等'}</button>)}</div>
     {base.alt&&<button onClick={()=>setUseAlt(!useAlt)} className="text-xs rounded-lg border border-indigo-400 text-indigo-200 px-3 py-1">{useAlt?'← 回到推薦':'換成:'+base.alt.label}</button>}
+    {(R.full||pl.items.some(r=>r.wait>0))&&onWait&&<button onClick={onWait} className="w-full rounded-xl border border-amber-400 text-amber-200 py-2 text-sm font-bold">客人要等 → 登記候位(手機+姓)</button>}
     {!ready&&<p className="text-xs text-gray-400">老師或位置尚未空出,空出後再按「採用」(推薦會隨時間更新)</p>}
     <div className="flex gap-2"><button disabled={!ready} onClick={doAdopt} className={'flex-1 rounded-xl py-2.5 font-bold text-white '+(ready?'bg-violet-600':'bg-gray-700 opacity-50')}>採用(開單)</button><button onClick={onEdit} className="rounded-xl border border-gray-500 text-gray-200 px-3">修改</button><button onClick={onClear} className="rounded-xl border border-gray-500 text-gray-200 px-3">清除</button></div>
   </div>);
@@ -346,14 +376,15 @@ function PlateSheet({p,D,now,act,onClose}){
   const go=(a,extra)=>act(Object.assign({act:a,code:p.code},extra||{}));
   const title=p.code+' 號'+(p.gender==='F'?' ♀':'')+({white:'　白牌',green:'　綠牌(休息)',gray:'　未上牌',red:'　做事中',off:'　下牌',leave:'　請假'}[st]||'');
   let body=null;
+  const onInfo=(<React.Fragment>{p.onBy&&<Info k="上牌操作人" v={p.onBy}/>}{p.onNote&&<p className="text-sm text-amber-300">⚠ {p.onNote}</p>}</React.Fragment>);
   if(st==='white')body=mode==='red'?(<div className="space-y-2">
       <input value={item} onChange={e=>setItem(e.target.value)} placeholder="項目(選填,例 bf3)" className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-white"/>
       <input value={pos} onChange={e=>setPos(e.target.value)} placeholder="位置(選填,例 8)" className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-3 text-white"/>
       <Bt onClick={()=>go('red',{item:item,pos:pos})}>轉紅牌(開始做事)</Bt><Bt tone="gray" onClick={()=>setMode('')}>返回</Bt></div>)
-    :(<div className="space-y-2"><Info k="上牌時間" v={p.onAt?hmFull(p.onAt):'—'}/><Info k="預計下牌時間" v={off}/>
+    :(<div className="space-y-2"><Info k="上牌時間" v={p.onAt?hmFull(p.onAt):'—'}/>{onInfo}<Info k="預計下牌時間" v={off}/>
       <Bt onClick={()=>setMode('red')}>派工(轉紅牌)</Bt><Bt tone="green" onClick={()=>go('green')}>翻綠(休息/吃飯)</Bt><Bt tone="red" onClick={()=>{if(confirm(p.code+' 號下牌?'))go('off');}}>下牌</Bt></div>);
   else if(st==='green'){const g=greenInfo(p,now);const segs=(p.greenSegs||[]);
-    body=(<div className="space-y-2">
+    body=(<div className="space-y-2">{onInfo}
       <table className="w-full text-sm"><thead><tr className="text-gray-400 text-xs"><th className="text-left font-normal py-1">段</th><th className="text-left font-normal">起</th><th className="text-left font-normal">迄</th><th className="text-left font-normal">耗時</th></tr></thead><tbody>
         {segs.map((s,i)=>(<tr key={i} className="border-t border-gray-800 text-gray-100"><td className="py-1">{i+1}</td><td>{hmFull(s[0])}</td><td>{hmFull(s[1])}</td><td>{dur(Math.round((s[1]-s[0])/1000))}</td></tr>))}
         <tr className="border-t border-gray-800 text-gray-100"><td className="py-1">{segs.length+1}</td><td>{hmFull(p.greenStart)}</td><td>進行中</td><td>{dur(g.cur)}</td></tr></tbody></table>
@@ -366,7 +397,7 @@ function PlateSheet({p,D,now,act,onClose}){
       :(<div className="space-y-2"><Info k="上牌時間" v={hmFull(p.due)}/><Info k="預計下牌時間" v={off}/>
         {late&&<p className="text-sm font-bold text-red-400">已過上牌時間,未到未電</p>}
         {p.lateTo&&<p className="text-sm text-amber-300">{p.lateKind==='after'?'未到晚到':'晚到'} {hmFull(p.lateTo)}</p>}
-        <Bt onClick={()=>go('on')}>上牌(已到場)</Bt><Bt tone="gray" onClick={()=>setMode('late')}>晚到</Bt><Bt tone="red" onClick={()=>{if(confirm(p.code+' 號臨時請假?'))go('leave');}}>臨時請假</Bt></div>);}
+        <Bt onClick={()=>{const early=Math.round((p.due-now)/60000);if(early>40&&!confirm(p.code+' 號應到 '+hmFull(p.due)+',現在比應到時間早 '+early+' 分鐘。\n確定要上牌嗎?(會記錄「提前上牌」與操作人)'))return;go('on');}}>上牌(已到場)</Bt><Bt tone="gray" onClick={()=>setMode('late')}>晚到</Bt><Bt tone="red" onClick={()=>{if(confirm(p.code+' 號臨時請假?'))go('leave');}}>臨時請假</Bt></div>);}
   else if(st==='red')body=(<RedPanel p={p} D={D} now={now} go={go} onClose={onClose}/>);
   else if(st==='off')body=(<div className="space-y-2"><Info k="上牌時間" v={on}/><Info k="預計下牌時間" v={off}/>
       <Bt onClick={()=>go('on')}>上牌</Bt><Bt tone="red" onClick={()=>{if(confirm(p.code+' 號臨時請假?'))go('leave');}}>請假</Bt></div>);
@@ -381,8 +412,10 @@ const QK='cn2:queue:v1';
 const lsGet=()=>{try{const a=JSON.parse(localStorage.getItem(QK)||'[]');return Array.isArray(a)?a.filter(o=>o&&o.id&&Date.now()-o.ts<6*3600e3):[];}catch(_e){return [];}};
 const lsSet=q=>{try{localStorage.setItem(QK,JSON.stringify(q));}catch(_e){}};
 const rid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-function cloneData(S){const c=l=>(l||[]).map(x=>Object.assign({},x));return Object.assign({},S,{white:c(S.white),gray:c(S.gray),red:c(S.red),off:c(S.off),leave:c(S.leave)});}
+function cloneData(S){const c=l=>(l||[]).map(x=>Object.assign({},x));return Object.assign({},S,{waits:(S.waits||[]).map(x=>Object.assign({},x)),white:c(S.white),gray:c(S.gray),red:c(S.red),off:c(S.off),leave:c(S.leave)});}
 function applyOp(D,o){
+  if(o.act==='wadd'){if(!D.waits.some(x=>x.id===o.id)&&o.phone&&o.name)D.waits.push({id:o.id,phone:String(o.phone).replace(/[^0-9+]/g,''),name:o.name,items:o.items||[],createdAt:o.ts});return;}
+  if(o.act==='wdone'){D.waits=D.waits.filter(x=>x.id!==o.wid);return;}
   const lists=['white','gray','red','off','leave'];let p=null;
   for(const k of lists){const i=D[k].findIndex(x=>x.code===o.code);if(i>=0){p=D[k][i];D[k].splice(i,1);break;}}
   if(!p)return;
@@ -390,7 +423,7 @@ function applyOp(D,o){
   const maxSeq=Math.max(0,...D.white.map(x=>x.seq||0));
   const closeG=()=>{const sec=Math.max(0,Math.round((ts-p.greenStart)/1000));p.greenUsed=(p.greenUsed||0)+sec;p.greenSegs=(p.greenSegs||[]).concat([[p.greenStart,ts]]);};
   const inP=st==='white'||st==='red'||st==='green';
-  if(o.act==='on'&&!inP){p.state='white';p.seq=Math.max(ts,maxSeq+1);p.onAt=ts;delete p.lateTo;delete p.lateKind;delete p.due;}
+  if(o.act==='on'&&!inP){p.state='white';p.seq=Math.max(ts,maxSeq+1);p.onAt=ts;p.onBy=o.by||'';p.onNote=(p.due&&p.due-ts>40*MIN)?'提前'+Math.round((p.due-ts)/MIN)+'分上牌(應到 '+hmFull(p.due)+')':'';delete p.lateTo;delete p.lateKind;delete p.due;}
   else if(o.act==='back'&&st==='red'){p.state='white';p.seq=Math.max(ts,maxSeq+1);p.redPos='';p.redPos2='';p.redTransfer=0;}
   else if(o.act==='back'&&st==='green'){closeG();p.state='white';}
   else if(o.act==='red'&&st==='white'){p.state='red';p.redItem=o.item||'';p.redPos=o.pos||'';p.redPos2=o.pos2||'';p.redStart=(o.start>=ts-2*3600e3&&o.start<=ts+3*3600e3)?o.start:ts;p.redEnd=parseInt(o.end,10)||0;p.redTransfer=parseInt(o.transfer,10)||0;}
@@ -412,9 +445,9 @@ function applyAll(S,q){
 }
 
 // ── 主頁 ──
-function CounterPage(){
+function CounterPage({who}){
   const[server,setServer]=useState(null);const[queue,setQueue]=useState(()=>lsGet());const[err,setErr]=useState('');const[notes,setNotes]=useState([]);
-  const[open,setOpen]=useState(false);const[sel,setSel]=useState(null);const[opening,setOpening]=useState(null);const[arranging,setArranging]=useState(false);const[req,setReq]=useState(null);
+  const[open,setOpen]=useState(false);const[sel,setSel]=useState(null);const[opening,setOpening]=useState(null);const[arranging,setArranging]=useState(false);const[req,setReq]=useState(null);const[waitSheet,setWaitSheet]=useState(false);const[fromWait,setFromWait]=useState('');const[waitSel,setWaitSel]=useState(null);
   const[skew,setSkew]=useState(0);const[,setTick]=useState(0);const[syncAt,setSyncAt]=useState(0);const[syncing,setSyncing]=useState(false);
   const qR=useRef(queue);const flying=useRef(false);
   const setQ=f=>{const n=typeof f==='function'?f(qR.current):f;qR.current=n;lsSet(n);setQueue(n);};
@@ -435,7 +468,7 @@ function CounterPage(){
   useEffect(()=>{sync();const t=setInterval(()=>{if(!document.hidden)sync();},10000);const t2=setInterval(()=>setTick(x=>x+1),1000);
     const vis=()=>{sync();};document.addEventListener('visibilitychange',vis);window.addEventListener('pagehide',vis);
     return()=>{clearInterval(t);clearInterval(t2);document.removeEventListener('visibilitychange',vis);window.removeEventListener('pagehide',vis);};},[]);
-  const act=(o)=>{const op=Object.assign({id:rid(),ts:Date.now()+skew},o);setQ(q=>q.concat([op]));setSel(null);};
+  const act=(o)=>{const op=Object.assign({id:rid(),ts:Date.now()+skew,by:who},o);setQ(q=>q.concat([op]));setSel(null);};
   if(!server&&!err)return(<Loading text="讀取號碼牌…"/>);
   if(!server)return(<Msg text={err+'\n(重新開啟頁面可再試)'}/>);
   const D=applyAll(server,queue);const find=code=>[].concat(D.white,D.gray,D.red,D.off,D.leave).filter(x=>x.code===code)[0]||null;
@@ -448,7 +481,8 @@ function CounterPage(){
       <div className="flex gap-2"><button onClick={()=>setArranging(true)} className="text-xs text-white bg-emerald-600 rounded-lg px-3 py-1 font-bold">安排客人</button><button onClick={()=>setOpening('')} className="text-xs text-white bg-violet-600 rounded-lg px-3 py-1 font-bold">＋開單</button><button onClick={sync} className="text-xs text-gray-300 border border-gray-600 rounded-lg px-2 py-1">{syncing?<Spinner size={12}/>:'🔄'}</button><button onClick={()=>setOpen(!open)} className="text-xs text-violet-200 border border-violet-500 rounded-lg px-3 py-1">{open?'收合 ▲':'展開 ▼'}</button></div></div>
     <p className="text-[11px] text-gray-500 -mt-2">{queue.length>0?<span className="text-amber-300">⏳ 待上傳 {queue.length} 筆(每 10 秒自動送出)</span>:<span>✓ 已同步{syncAt?' '+hmFull(syncAt)+':'+p2(tzp(syncAt).s):''}</span>}</p>
     {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
-    {req&&<RecBlock D={D} now={now} req={req} onClear={()=>setReq(null)} onEdit={()=>setArranging(true)} adopt={ops=>{ops.forEach(o=>act(o));setReq(null);}}/>}
+    {req&&<RecBlock D={D} now={now} req={req} ahead={(fromWait?D.waits.slice(0,Math.max(0,D.waits.findIndex(x=>x.id===fromWait))):D.waits).map(x=>x.items)} onClear={()=>{setReq(null);setFromWait('');}} onEdit={()=>setArranging(true)} onWait={fromWait?null:()=>setWaitSheet(true)} adopt={ops=>{ops.forEach(o=>act(o));if(fromWait)act({act:'wdone',wid:fromWait,status:'seated'});setReq(null);setFromWait('');}}/>}
+    <WaitList D={D} now={now} onPick={w=>setWaitSel(w.id)}/>
     {notes.length>0&&<div className="rounded-xl border border-amber-500 bg-amber-950 text-amber-200 px-3 py-2 text-sm space-y-1"><p className="font-bold">有操作沒有成功(可能別台櫃台已先處理),畫面已更新為最新牌況:</p>{notes.map((n,i)=><p key={i}>・{n}</p>)}<button onClick={()=>setNotes([])} className="text-xs underline">知道了</button></div>}
     {lateN>0&&<div className="rounded-xl border border-red-500 bg-red-950 text-red-300 px-3 py-2 text-sm font-bold">⚠ 未到未電 {lateN} 位:{D.gray.filter(p=>isLate(p,now)).map(p=>p.code).join('、')}</div>}
     {!open?(<React.Fragment>
@@ -466,10 +500,12 @@ function CounterPage(){
     </React.Fragment>)}
     <SeatMap D={D} now={now} onSeat={pos=>{const m=seatMap(D)[pos];if(m)setSel(m.p.code);else setOpening(pos);}}/>
     {selP&&<PlateSheet key={selP.code+selP.state} p={selP} D={D} now={now} act={act} onClose={()=>setSel(null)}/>}
+    {waitSheet&&req&&<WaitSheet req={req} onClose={()=>setWaitSheet(false)} onDone={v=>{act({act:'wadd',phone:v.phone,name:v.name,items:req});setWaitSheet(false);setReq(null);}}/>}
+    {waitSel&&D.waits.some(x=>x.id===waitSel)&&<WaitEntrySheet w={D.waits.find(x=>x.id===waitSel)} idx={D.waits.findIndex(x=>x.id===waitSel)} act={o=>{act(o);setWaitSel(null);}} onSeat={w=>{setReq(w.items);setFromWait(w.id);setWaitSel(null);}} onClose={()=>setWaitSel(null)}/>}
     {arranging&&<ArrangeSheet init={req} onDone={its=>{setReq(its);setArranging(false);}} onClose={()=>setArranging(false)}/>}
     {opening!==null&&<OpenSheet D={D} now={now} presetPos={opening} act={o=>{act(o);setOpening(null);}} onClose={()=>setOpening(null)}/>}
   </Box>);
 }
-function Counter2Routes(){return(<NeedUser render={()=><CounterPage/>}/>);}
+function Counter2Routes(){return(<NeedUser render={(me)=><CounterPage who={(me.user&&me.user.code)||'櫃台'}/>}/>);}
 window.Counter2Routes=Counter2Routes;
 })();
