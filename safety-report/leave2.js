@@ -2,6 +2,8 @@
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 lv2:  ?lv2=l  預排休假(月曆)
    規則與後端見 gas-leave2.gs.txt:每月 9 日 00:00 ~ 12 日 24:00 可登記「下個月」休假,期間免審批(超休需主管簽字);之後的送出需主管審批;可提前 2 個月暫存。
    早/晚班分開統計:每人每月各 6 天、每店每日各班別最多 6 人。 */
+// v1.0-061 / 調整表通知/簽核按鈕:沒被指定的實習副理灰掉、代理期間才亮;休假調整表負責人改多位(晶片);新增「代理人」卡(全主管可看,經理與負責人可設;期間/備註/代理人收通知/原主管也收通知),代理人橘色提示。
+// v1.0-060 / 新增「主管休假表」(經理以下主管,月曆格上方顯示號碼,各主管天數預設收合);設定卡新增「休假調整表負責人」(早/晚班各一位實習副理,每店經理可設定)。
 (function(){
 const{useState,useEffect,useRef}=React;
 const C=window.S2Core;
@@ -9,7 +11,7 @@ if(!C){window.Leave2Routes=()=>React.createElement('div',{className:'p-6 text-ce
 const{api,useLoad,Box,Card,Btn,Loading,Msg,NeedUser,barOf,go,CACHEABLE,WRITE_CLEAR,Spinner}=C;
 // 本機暫存:讀過的月份存手機,切換月份不重讀;點上方「🔄 重新整理」才重讀(12 小時後也會自動重讀);任何寫入動作成功後自動清掉
 if(CACHEABLE.indexOf('lv2Month')<0)CACHEABLE.push('lv2Month');
-['lv2Save','lv2Cancel','lv2Decide','lv2Sign','lv2Notify','lv2SeqSet','lv2SettingsSet','lv2LongSave','lv2LongEnd','lv2LongOccupy','lv2LongCancel','lv2LongDecide','lv2Claim'].forEach(x=>{WRITE_CLEAR[x]=['lv2Month'];});
+['lv2Save','lv2Cancel','lv2Decide','lv2Sign','lv2Notify','lv2SeqSet','lv2SettingsSet','lv2DelegSet','lv2DelegDel','lv2LongSave','lv2LongEnd','lv2LongOccupy','lv2LongCancel','lv2LongDecide','lv2Claim'].forEach(x=>{WRITE_CLEAR[x]=['lv2Month'];});
 const Chip=C.Chip||(({on,children,onClick})=>(<button onClick={onClick} className={'px-4 py-2 rounded-full border text-sm '+(on?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-300')}>{children}</button>));
 
 const L={
@@ -317,7 +319,7 @@ function PdfPage({me}){
 }
 
 function LeavePage({me}){
-  const lang=me.user&&me.user.lang==='vi'?'vi':'zh';const t=L[lang];
+  const lang=me.user&&me.user.lang==='vi'?'vi':'zh';const t=L[lang];const dArr=x=>Array.isArray(x)?x:(x?[x]:[]);
   const cur=todayStr().slice(0,7);
   const[month,setMonth]=useState(()=>{try{const m=new URLSearchParams(location.search).get('month')||'';if(/^\d{4}-(0[1-9]|1[0-2])$/.test(m)&&[addMonth(cur,-2),addMonth(cur,-1),cur,addMonth(cur,1),addMonth(cur,2)].indexOf(m)>=0)return m;if(new URLSearchParams(location.search).get('src')==='entry')return addMonth(cur,1);}catch(_e){}return cur;}); // ?month=yyyy-MM 先看該月(本月~後兩月)，沒帶預設次月
   const[store,setStore]=useState('');
@@ -335,10 +337,12 @@ function LeavePage({me}){
   const[lf,setLf]=useState(null); // 長假/課業申請表單
   const adjSorted=(sh)=>((d.adjust&&d.adjust[sh])||[]).slice().sort((a,b)=>(a.date<b.date?-1:a.date>b.date?1:((a.pos||0)-(b.pos||0)))); // 調整表依日期、名次排序
   const[pop,setPop]=useState(null); // 總休表點號碼的說明彈窗(主管)
+  const[dg,setDg]=useState(null);const[supOpen,setSupOpen]=useState(false);const[supPop,setSupPop]=useState(null); // 主管休假表:各主管天數(預設收合)、點日期格的當日主管名單
   const[seqIn,setSeqIn]=useState({});const[cf,setCf]=useState(null);const[adjShift,setAdjShift]=useState((me.user&&me.user.shift)==='late'?'late':'early');
   const[st,reload]=useLoad('lv2Month',store?{month:month,store:store}:{month:month});
   const rlP=useRef(null);const reloadR=()=>{const p=reload();rlP.current=p;return p;}; // 寫入後的重讀:run 會等它回來才解除按鈕鎖定,避免『按鈕先亮、資料還沒更新』造成重複點擊
   const d=st.data&&st.data.ok&&st.data.month===month?st.data:null;
+  const adjOk=!d||!d.adjCan||d.adjCan[adjShift]!==false; // 調整表按鈕:沒被指定的實習副理只能看
   const[cx,setCx]=useState([]); // 要取消的「已核准」假(id);按送出才真的申請
   const busyR=useRef(false);  const dirtyR=useRef('');const lastMo=useRef('');
   useEffect(()=>{if(d){const same=lastMo.current===d.month;lastMo.current=d.month;if(same&&dirtyR.current===d.month)return;dirtyR.current='';setSel(d.mine.filter(x=>x.status==='draft').map(x=>({date:x.date,shift:x.shift})));setCx([]);}},[d&&d._at,d&&d.month]); // 背景更新回來時,若使用者已動手選日期就不覆蓋
@@ -489,6 +493,7 @@ function LeavePage({me}){
       <p className="text-sm font-bold text-white">{t.mineList}</p>
       {d.mine.slice().sort((a,b)=>a.date<b.date?-1:1).map(x=>(<p key={x.id} className="text-sm text-gray-300">{x.date.slice(5)}　{t[x.shift]}　<span className={x.cx?'text-red-300':x.status==='approved'?'text-emerald-400':x.status==='pending'?'text-amber-300':'text-gray-400'}>{x.cx?t.s_cx:(t['s_'+x.status]||x.status)}</span>{x.over?<span className="text-xs text-orange-400">　{t.overTag}</span>:null}{x.signBy?<span className="text-xs text-gray-400">　{fmt(t.signedBy,{c:x.signBy})}</span>:null}{x.flags&&x.status==='pending'?<span className="text-xs text-gray-500">　（{flagText(x.flags)}）</span>:null}</p>))}
     </Card>}
+    {d.isMgr&&d.deleg&&d.deleg.mine&&d.deleg.mine.length>0&&<div className="rounded-xl border border-amber-700 bg-amber-950/40 px-3 py-2 text-[13px] text-amber-200 leading-relaxed">👤 {lang==='vi'?'Bạn đang là người đại diện của ':'你目前是 '}<b>{d.deleg.mine.map(x=>x.fromName).join('、')}</b>{lang==='vi'?'':' 的代理人'}（{d.deleg.mine.map(x=>parseInt(x.start.slice(5,7),10)+'/'+parseInt(x.start.slice(8),10)+' ~ '+parseInt(x.end.slice(5,7),10)+'/'+parseInt(x.end.slice(8),10)).join('、')}）<br/>{lang==='vi'?'Trong thời gian này bạn có thể ký duyệt đơn nghỉ phép của cửa hàng.':'期間可簽核本店休假申請、收到調整表推播。'}</div>}
     {d.isMgr&&!desk&&d.state!=='past'&&<Card className="space-y-2">
       <p className="text-sm font-bold text-white">{t.pendingTitle}（{d.pending.length}）</p>
       {d.pending.length===0&&<p className="text-xs text-gray-500">{t.noPending}</p>}
@@ -511,6 +516,29 @@ function LeavePage({me}){
           <button disabled={busy} onClick={()=>longAct('lv2LongDecide',{id:x.id,approve:false})} className="flex-1 py-2 rounded-xl text-sm font-bold bg-gray-700 text-gray-200 disabled:opacity-50">{t.rej}</button></div>
       </div>))}
     </Card>}
+    {/* v1.13-146相關:主管休假表(經理以下主管:實習副理/櫃台組長/副理;不含經理、區經理、執行長、管理者)。月曆格上方顯示排休主管號碼,下方日期;各主管天數預設收合 */}
+    {!anonView&&d.roster&&!desk&&(()=>{const SUP_OK=['實習副理','櫃台組長','副理'];const zh=lang!=='vi';
+      const byDay={},byCode={};
+      Object.keys(d.roster).forEach(dt=>['early','late'].forEach(sh=>(d.roster[dt][sh]||[]).forEach(x=>{if(!x.m)return;if(x.lv&&SUP_OK.indexOf(x.lv)<0)return;const c=String(x.c);(byDay[dt]=byDay[dt]||[]).push({c:c,sh:sh,p:x.p,lv:x.lv||''});(byCode[c]=byCode[c]||[]).push({dt:dt,sh:sh});})));
+      const codes=Object.keys(byCode).sort((a,b)=>(parseInt(a,10)||1e9)-(parseInt(b,10)||1e9));
+      const dd=x=>parseInt(x.slice(8),10);const wdn=dt=>(zh?['日','一','二','三','四','五','六']:['CN','T2','T3','T4','T5','T6','T7'])[new Date(parseInt(dt.slice(0,4),10),parseInt(dt.slice(5,7),10)-1,parseInt(dt.slice(8),10)).getDay()];
+      return(<Card className="space-y-2"><p className="text-sm font-bold text-white">👔 {zh?'主管休假表':'Bảng nghỉ phép quản lý'}</p>
+        <p className="text-[11px] text-gray-500">{zh?'本店經理以下主管（實習副理、櫃台組長、副理）排休；不含經理以上與管理員。有排休的日子，號碼在日期上方。':'Quản lý dưới cấp Quản lý của cửa hàng; số ở phía trên ngày.'}</p>
+        <div className="grid grid-cols-7 text-center text-xs text-gray-500">{(zh?['日','一','二','三','四','五','六']:['CN','T2','T3','T4','T5','T6','T7']).map(w=><div key={w}>{w}</div>)}</div>
+        <div className="grid grid-cols-7 gap-1">{cells.map((date,i)=>{if(!date)return <div key={'s'+i}/>;const L=byDay[date]||[];
+          const sorted=L.slice().sort((a,b)=>(a.sh===b.sh?(parseInt(a.c,10)||0)-(parseInt(b.c,10)||0):a.sh==='early'?-1:1));const show=sorted.slice(0,3);const extra=sorted.length-show.length;
+          return(<button key={date} disabled={!L.length} onClick={()=>L.length&&setSupPop({date:date,list:sorted})} className={'rounded-lg border min-h-[58px] p-1 flex flex-col justify-between '+(date===today?'border-violet-400 ':L.length?'border-gray-700 bg-gray-900 ':'border-gray-800 ')}>
+            <span className="flex flex-wrap justify-center gap-x-1 leading-tight">{show.map((x,k)=><b key={k} className={'text-xs '+(x.sh==='early'?'text-amber-300':'text-indigo-300')+(x.p?' opacity-60':'')}>{x.c}</b>)}{extra>0&&<span className="text-[10px] text-gray-400">+{extra}</span>}</span>
+            <span className={'text-xs self-start '+(date===today?'text-violet-300 font-bold':'text-gray-400')}>{parseInt(date.slice(8),10)}</span></button>);})}</div>
+        <p className="text-[11px] text-gray-500"><span className="text-amber-300 font-bold">12</span> {t.early}　<span className="text-indigo-300 font-bold">34</span> {t.late}　{zh?'每格最多顯示 3 個，其餘「+N」；半透明＝待簽核':'Tối đa 3 số mỗi ô, còn lại “+N”; mờ = chờ duyệt'}</p>
+        <button onClick={()=>setSupOpen(!supOpen)} className="w-full flex items-center justify-between min-h-[44px] text-sm font-bold text-gray-200 border-t border-gray-800 pt-1"><span>{zh?'各主管本月天數':'Số ngày nghỉ của từng quản lý'}</span><span className="text-gray-400 text-sm">{codes.length} {zh?'人':''} {supOpen?'▾':'▸'}</span></button>
+        {supOpen&&(codes.length?codes.map(c=>(<div key={c} className="flex items-start gap-3 py-1.5 border-t border-gray-900 text-sm"><span className="w-12 font-bold text-white">{c}</span><span className="flex-1 text-gray-300 text-[13px] leading-relaxed">{byCode[c].slice().sort((a,b)=>a.dt<b.dt?-1:1).map(x=>dd(x.dt)+'日').join('、')}</span><span className="text-xs text-gray-400 whitespace-nowrap">{byCode[c].length} {zh?'天':''}</span></div>)):<p className="text-xs text-gray-500">{zh?'本月沒有主管排休':'Tháng này chưa có quản lý nghỉ'}</p>)}
+        {supPop&&(<div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6" onClick={()=>setSupPop(null)}><div className="w-full max-w-sm rounded-2xl bg-gray-800 border border-gray-700 p-4 space-y-2" onClick={e=>e.stopPropagation()}>
+          <p className="text-base font-bold text-white">{parseInt(supPop.date.slice(5,7),10)}/{dd(supPop.date)}（{wdn(supPop.date)}）{zh?'主管排休':''}</p>
+          {supPop.list.map((x,k)=>(<p key={k} className="text-sm text-gray-200"><b className="text-white">{x.c}</b> {zh?'號':''}　<span className={x.sh==='early'?'text-amber-300':'text-indigo-300'}>{t[x.sh]}</span>　<span className="text-xs text-gray-400">{x.lv||''}{x.p?(zh?'　待簽核':'  chờ duyệt'):''}</span></p>))}
+          <p className="text-[11px] text-gray-500">{zh?'主管排休不佔一般名額':'Nghỉ của quản lý không chiếm hạn mức'}</p>
+          <button onClick={()=>setSupPop(null)} className="w-full rounded-xl bg-gray-700 text-white py-2 text-sm">{zh?'關閉':'Đóng'}</button></div></div>)}
+      </Card>);})()}
     <Card className="space-y-2">
       <div className="flex items-center justify-between"><p className="text-sm font-bold text-white">🗓️ {t.rosterTitle}</p>
         {isV&&vMode==='mgr'&&<button onClick={()=>go('lv2=pdf&month='+month+(store?'&store='+encodeURIComponent(store):''))} className="text-xs border border-gray-600 text-gray-200 rounded-xl px-3 py-1.5">📄 PDF</button>}</div>
@@ -606,10 +634,11 @@ function LeavePage({me}){
     {d.canLeave&&d.seqMode==='paper'&&<p className="text-xs text-gray-400">{t.seqMine}：{d.mySeq?'#'+d.mySeq:t.seqWait}</p>}
     {d.isMgr&&d.state!=='past'&&<Card className="space-y-2" id="lv2-adjust">
       <div className="flex items-center justify-between"><p className="text-sm font-bold text-white">📋 {t.adjTitle}</p>
-        {(()=>{const ids=adjSorted(adjShift).filter(x=>!x.signBy&&!x.notifiedAt).map(x=>x.id);return ids.length>0?<button disabled={busy} onClick={()=>longAct('lv2Notify',{ids:JSON.stringify(ids)},t.notifyAsk)} className="text-xs bg-sky-700 text-white rounded-xl px-3 py-1.5">{t.notifyAll}（{ids.length}）</button>:null;})()}</div>
+        {(()=>{const ids=adjSorted(adjShift).filter(x=>!x.signBy&&!x.notifiedAt).map(x=>x.id);return ids.length>0?<button disabled={busy||!adjOk} onClick={()=>longAct('lv2Notify',{ids:JSON.stringify(ids)},t.notifyAsk)} className={'text-xs rounded-xl px-3 py-1.5 '+(adjOk?'bg-sky-700 text-white':'bg-gray-800 text-gray-500')}>{t.notifyAll}（{ids.length}）</button>:null;})()}</div>
       <div className="flex gap-2">{['early','late'].map(s=>(<Chip key={s} on={adjShift===s} onClick={()=>setAdjShift(s)}>{t[s]}（{adjSorted(s).filter(x=>!x.signBy&&!x.notifiedAt).length}／{d.adjust[s].length}）</Chip>))}</div>
       <p className="text-[11px] text-gray-500">{lang==='vi'?'Số trong ngoặc: chưa xử lý／tổng cần điều chỉnh':'括號內：未處理／全部應調整筆數（已通知或已簽核算已處理）'}</p>
       <p className="text-[11px] text-gray-500">{t.adjHint}</p>
+      {!adjOk&&<p className="text-[11px] text-amber-300">{lang==='vi'?'Bạn không phải người phụ trách ca này nên chỉ xem được; chỉ khi được chỉ định đại diện mới thao tác được.':'你不是這個班別的調整表負責人，只能查看；被設為代理人的期間才可通知／簽核。'}</p>}
       {d.adjust[adjShift].length===0&&<p className="text-xs text-gray-500">{t.adjNone}</p>}
       {(()=>{
         const groups=[];adjSorted(adjShift).forEach(x=>{let g=groups[groups.length-1];if(!g||g.date!==x.date){g={date:x.date,cap:x.cap,list:[]};groups.push(g);}g.list.push(x);});
@@ -629,9 +658,9 @@ function LeavePage({me}){
               <span className="text-[11px] text-gray-400 flex-1">{fmt(t.pos,{n:x.pos,k:x.over})}<br/>{(x.submittedAt||'').slice(5,16)}</span>
               {x.signBy?<span className="text-[11px] rounded-full bg-emerald-700 text-white px-2 py-0.5">{fmt(t.signedBy,{c:x.signBy})}</span>:x.notifiedAt?<span className="text-[11px] rounded-full bg-sky-800 text-white px-2 py-0.5">{fmt(t.notified,{t:x.notifiedAt.slice(5,16)})}</span>:null}</div>
             <div className="flex gap-2">
-              {!x.signBy&&<button disabled={busy} onClick={()=>longAct('lv2Notify',{ids:JSON.stringify([x.id])})} className="flex-1 py-1.5 rounded-lg text-xs font-bold bg-sky-700 text-white disabled:opacity-50">{x.notifiedAt?t.notifyAgain:t.notify}</button>}
-              {!x.signBy&&<button disabled={busy} onClick={()=>longAct('lv2Sign',{id:x.id,on:true},t.signAsk)} className="flex-1 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white disabled:opacity-50">{t.sign}</button>}
-              {x.signBy&&<button disabled={busy} onClick={()=>{if(armed===x.id){setArmed('');longAct('lv2Sign',{id:x.id,on:false});}else{setArmed(x.id);setTimeout(()=>setArmed(a=>a===x.id?'':a),4000);}}} className={'flex-1 py-1.5 rounded-lg text-xs font-bold disabled:opacity-50 '+(armed===x.id?'bg-red-600 text-white':'bg-gray-700 text-gray-200')}>{armed===x.id?t.unsignSure:t.unsign}</button>}</div></div>))}</div>}
+              {!x.signBy&&<button disabled={busy||!adjOk} onClick={()=>longAct('lv2Notify',{ids:JSON.stringify([x.id])})} className={'flex-1 py-1.5 rounded-lg text-xs font-bold disabled:opacity-50 '+(adjOk?'bg-sky-700 text-white':'bg-gray-800 text-gray-500')}>{x.notifiedAt?t.notifyAgain:t.notify}</button>}
+              {!x.signBy&&<button disabled={busy||!adjOk} onClick={()=>longAct('lv2Sign',{id:x.id,on:true},t.signAsk)} className={'flex-1 py-1.5 rounded-lg text-xs font-bold disabled:opacity-50 '+(adjOk?'bg-emerald-600 text-white':'bg-gray-800 text-gray-500')}>{t.sign}</button>}
+              {x.signBy&&<button disabled={busy||!adjOk} onClick={()=>{if(armed===x.id){setArmed('');longAct('lv2Sign',{id:x.id,on:false});}else{setArmed(x.id);setTimeout(()=>setArmed(a=>a===x.id?'':a),4000);}}} className={'flex-1 py-1.5 rounded-lg text-xs font-bold disabled:opacity-50 '+(armed===x.id?'bg-red-600 text-white':'bg-gray-700 text-gray-200')}>{armed===x.id?t.unsignSure:t.unsign}</button>}</div></div>))}</div>}
             </div>);})}
         </div>);})()}
     </Card>}
@@ -655,7 +684,7 @@ function LeavePage({me}){
         {d.canSeq&&<button disabled={busy} onClick={()=>longAct('lv2SeqSet',{month:month,userId:x.userId,seq:seqIn[x.userId]!==undefined?seqIn[x.userId]:String(x.seq)})} className="px-3 py-1.5 rounded-lg text-xs bg-gray-700 text-white disabled:opacity-50">{t.seqSave}</button>}</div>))}
       </div>}
     </Card>}
-    {d.isMgr&&(()=>{const cv=cf||{wd:String(lim.weekday),we:String(lim.weekend),mode:d.seqMode,groups:d.groups||[]};const grs=cv.groups||[];const inp="w-20 text-center rounded-lg bg-gray-800 border border-gray-700 py-1.5 text-white";
+    {d.isMgr&&(()=>{const cv=cf||{wd:String(lim.weekday),we:String(lim.weekend),mode:d.seqMode,groups:d.groups||[],duty:{early:dArr((d.duty||{}).early),late:dArr((d.duty||{}).late)}};const grs=cv.groups||[];const inp="w-20 text-center rounded-lg bg-gray-800 border border-gray-700 py-1.5 text-white";
       return(<Card className="space-y-2"><p className="text-sm font-bold text-white">⚙ {fmt(t.setTitle,{s:d.store})}</p>
         <div className="flex items-center gap-2"><span className="text-sm text-gray-300 flex-1">{t.wdQ}</span><input value={cv.wd} inputMode="numeric" onChange={e=>setCf({...cv,wd:e.target.value.replace(/\D/g,'').slice(0,2)})} className={inp}/></div>
         <div className="flex items-center gap-2"><span className="text-sm text-gray-300 flex-1">{t.weQ}</span><input value={cv.we} inputMode="numeric" onChange={e=>setCf({...cv,we:e.target.value.replace(/\D/g,'').slice(0,2)})} className={inp}/></div>
@@ -668,7 +697,39 @@ function LeavePage({me}){
               <button type="submit" className="px-2.5 py-1 rounded-lg text-xs bg-gray-700 text-white">＋</button></form>
             <button onClick={()=>{let a=gDraft.slice();if(gCode&&a.indexOf(gCode)<0)a.push(gCode);if(a.length<2){setGErr(t.grpMin);return;}setGErr('');setCf({...cv,groups:grs.concat([a])});setGDraft([]);setGCode('');}} className="px-3 py-1 rounded-lg text-xs bg-violet-700 text-white">{t.grpAdd}</button></div>
           {gErr&&<p className="text-xs text-red-400">{gErr}</p>}</div>
-        <Btn loading={busy} onClick={()=>run(async()=>{const r=await api('lv2SettingsSet',{store:d.store,wd:cv.wd,we:cv.we,seqMode:cv.mode,groups:JSON.stringify(grs)});if(r&&r.ok){setMsg(t.setOk);setCf(null);reloadR();}else setErr((r&&r.error)||t.fail);})}>{t.setSave}</Btn></Card>);})()}
+        {(d.dutyCands||[]).length>0||d.canDuty?(<div className="space-y-1.5"><p className="text-xs text-gray-400">{lang==='vi'?'Người phụ trách bảng điều chỉnh nghỉ phép (Phó quản lý thực tập)':'休假調整表負責人（實習副理）'}</p>
+          <p className="text-[11px] text-gray-500">{lang==='vi'?'Mỗi ca có thể chọn nhiều người; ngày 13 hằng tháng bảng cần điều chỉnh sẽ gửi cho tất cả. Chưa chọn thì gửi theo cài đặt cũ/toàn bộ quản lý cửa hàng.':'早班、晚班各可指定多位；每月 13 日休假調整表會推播給所有負責人。沒指定就依原設定（人事差勤欄位）或發給該店所有主管。'}</p>
+          {['early','late'].map(sh=>{const sel=dArr((cv.duty||{})[sh]);const rest=(d.dutyCands||[]).filter(c=>sel.indexOf(c.id)<0);const nameOf=id=>{const c=(d.dutyCands||[]).filter(x=>x.id===id)[0];return c?c.label:id;};
+            return(<div key={sh} className="flex items-start gap-2"><span className="w-12 text-sm text-gray-300 pt-2">{t[sh]}</span>
+              <div className="flex-1 flex flex-wrap items-center gap-1.5">{sel.map(id=>(<span key={id} className="inline-flex items-center gap-1.5 min-h-[36px] rounded-full bg-indigo-900 text-indigo-100 text-[13px] pl-3 pr-2">{nameOf(id)}{d.canDuty&&<button aria-label="remove" className="w-6 h-6 text-indigo-300" onClick={()=>setCf({...cv,duty:{...(cv.duty||{}),[sh]:sel.filter(x=>x!==id)}})}>✕</button>}</span>))}
+                {d.canDuty&&rest.length>0&&<select value="" onChange={e=>{if(e.target.value)setCf({...cv,duty:{...(cv.duty||{}),[sh]:sel.concat([e.target.value])}});}} className="min-h-[36px] rounded-full bg-gray-800 border border-dashed border-gray-600 px-3 text-[13px] text-gray-300"><option value="">{lang==='vi'?'＋ Thêm':'＋ 新增'}</option>{rest.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select>}
+                {!sel.length&&<span className="text-[13px] text-gray-500 pt-2">{lang==='vi'?'(Chưa chỉ định)':'（未指定）'}</span>}</div></div>);})}
+          {!d.canDuty&&<p className="text-[11px] text-amber-300">{lang==='vi'?'Chỉ quản lý cửa hàng mới được chỉ định.':'只有該店經理可以指定。'}</p>}</div>):null}
+        <Btn loading={busy} onClick={()=>run(async()=>{const r=await api('lv2SettingsSet',Object.assign({store:d.store,wd:cv.wd,we:cv.we,seqMode:cv.mode,groups:JSON.stringify(grs)},d.canDuty?{duty:JSON.stringify({early:dArr((cv.duty||{}).early),late:dArr((cv.duty||{}).late)})}:{}));if(r&&r.ok){setMsg(t.setOk);setCf(null);reloadR();}else setErr((r&&r.error)||t.fail);})}>{t.setSave}</Btn></Card>);})()}
+    {d.isMgr&&(()=>{const dl=d.deleg||{list:[],sups:[],mine:[]};const vi=lang==='vi';const can=!!d.canDeleg;const sups=dl.sups||[];const nm=id=>{const x=sups.filter(y=>y.id===id)[0];return x?x.label:id;};
+      const stTxt={on:vi?'Đang đại diện':'代理中',wait:vi?'Chưa bắt đầu':'未開始',ended:vi?'Đã kết thúc':'已結束'};const stCls={on:'bg-emerald-900 text-emerald-200',wait:'bg-amber-900 text-amber-200',ended:'bg-gray-700 text-gray-300'};
+      const md=x=>parseInt(x.slice(5,7),10)+'/'+parseInt(x.slice(8),10);
+      const F=dg;const fromList=d.canDuty?sups:sups.filter(x=>x.id===d.myId);
+      const open=()=>setDg({from:d.myId&&fromList.some(x=>x.id===d.myId)?d.myId:(fromList[0]?fromList[0].id:''),to:'',start:d.today||'',end:'',note:'',nTo:true,nFrom:false});
+      const Sw=({on,onClick})=>(<button type="button" role="switch" aria-checked={on} onClick={onClick} className={'relative w-[46px] h-[28px] rounded-full flex-none '+(on?'bg-violet-600':'bg-gray-700')}><span className={'absolute top-[3px] w-[22px] h-[22px] rounded-full bg-white transition-all '+(on?'left-[21px]':'left-[3px]')}/></button>);
+      const inp2="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2.5 text-sm text-white";
+      return(<Card className="space-y-2"><p className="text-sm font-bold text-white">🧳 {vi?'Người đại diện':'代理人'}</p>
+        <p className="text-[11px] text-gray-500">{vi?'Khi quản lý đi vắng dài ngày (ra nước ngoài…), chỉ định người đại diện xử lý đơn nghỉ phép trong thời gian đó.':'主管因出國或其他事請長假時，指定代理人處理期間的休假申請。期間內待簽核與調整表推播改發給代理人，結束自動恢復。'}</p>
+        {dl.list.length?dl.list.map(x=>(<div key={x.id} className={'rounded-xl border border-gray-700 px-3 py-2 text-[13px] leading-relaxed '+(x.st==='ended'?'opacity-60':'')}><div className="text-gray-100"><b>{nm(x.from)}</b> → {vi?'đại diện: ':'代理：'}<b>{nm(x.to)}</b><span className={'ml-1.5 text-[11px] font-bold rounded-full px-2 py-0.5 '+stCls[x.st]}>{stTxt[x.st]}</span></div>
+          <div className="text-gray-400">{md(x.start)} ~ {md(x.end)}{x.note?'（'+x.note+'）':''}</div>
+          <div className="text-[12px] text-gray-500">🔔 {x.nTo==='1'?(vi?'Người đại diện nhận thông báo':'代理人收通知'):(vi?'Người đại diện không nhận':'代理人不收通知')} · {x.nFrom==='1'?(vi?'Quản lý gốc cũng nhận':'原主管也收'):(vi?'Quản lý gốc tạm dừng':'原主管不收')}</div>
+          {can&&x.st!=='ended'&&(d.canDuty||x.from===d.myId)&&<button onClick={()=>run(async()=>{const r=await api('lv2DelegDel',{store:d.store,id:x.id});if(r&&r.ok){setMsg(vi?'Đã hủy':'已取消代理');reloadR();}else setErr((r&&r.error)||t.fail);})} className="mt-1 min-h-[36px] text-red-400 text-[13px]">{vi?'Hủy đại diện':'取消代理'}</button>}</div>)):<p className="text-xs text-gray-500">{vi?'Chưa có thiết lập đại diện':'目前沒有代理設定'}</p>}
+        {F?(<div className="rounded-xl border border-violet-700 p-3 space-y-2">
+          {d.canDuty?(<div><p className="text-xs text-gray-400 mb-1">{vi?'Quản lý gốc':'原主管'}</p><select value={F.from} onChange={e=>setDg({...F,from:e.target.value})} className={inp2}>{fromList.map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select></div>):(<div><p className="text-xs text-gray-400 mb-1">{vi?'Quản lý gốc':'原主管'}</p><p className="text-sm text-white">{vi?'Tôi':'我'}</p></div>)}
+          <div><p className="text-xs text-gray-400 mb-1">{vi?'Người đại diện (quản lý cửa hàng)':'代理人（本店主管）'}</p><select value={F.to} onChange={e=>setDg({...F,to:e.target.value})} className={inp2}><option value="">{vi?'(Chọn)':'（請選擇）'}</option>{sups.filter(x=>x.id!==F.from&&(d.canDuty||x.id!==d.myId)).map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select></div>
+          <div className="grid grid-cols-2 gap-2"><div><p className="text-xs text-gray-400 mb-1">{vi?'Từ ngày':'開始日'}</p><input type="date" value={F.start} onChange={e=>setDg({...F,start:e.target.value})} className={inp2}/></div><div><p className="text-xs text-gray-400 mb-1">{vi?'Đến ngày':'結束日'}</p><input type="date" value={F.end} min={F.start} onChange={e=>setDg({...F,end:e.target.value})} className={inp2}/></div></div>
+          <div><p className="text-xs text-gray-400 mb-1">{vi?'Ghi chú (tùy chọn)':'備註（選填）'}</p><input value={F.note} maxLength={40} onChange={e=>setDg({...F,note:e.target.value})} placeholder={vi?'Ra nước ngoài':'出國'} className={inp2}/></div>
+          <p className="text-xs font-bold text-gray-300 pt-1">{vi?'Thông báo trong thời gian đại diện':'代理期間通知'}</p>
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-700 px-3 py-2"><div className="text-sm text-white">{vi?'Người đại diện nhận thông báo':'代理人收到通知'}<p className="text-[11px] text-gray-500">{vi?'Đơn chờ ký, bảng cần điều chỉnh':'待簽核、休假調整表推播'}</p></div><Sw on={F.nTo} onClick={()=>setDg({...F,nTo:!F.nTo})}/></div>
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-700 px-3 py-2"><div className="text-sm text-white">{vi?'Quản lý gốc cũng nhận':'原主管也收到通知'}<p className="text-[11px] text-gray-500">{vi?'Tắt: tạm dừng nhận trong thời gian này':'關閉時，期間內原主管暫停收到'}</p></div><Sw on={F.nFrom} onClick={()=>setDg({...F,nFrom:!F.nFrom})}/></div>
+          <div className="flex gap-2"><button onClick={()=>setDg(null)} className="flex-1 min-h-[44px] rounded-xl bg-gray-700 text-white text-sm">{vi?'Hủy':'取消'}</button>
+            <div className="flex-[2]"><Btn loading={busy} onClick={()=>{if(!F.to){setErr(vi?'Vui lòng chọn người đại diện':'請選擇代理人');return;}if(!F.start||!F.end){setErr(vi?'Vui lòng chọn ngày':'請選擇開始日與結束日');return;}run(async()=>{const r=await api('lv2DelegSet',{store:d.store,from:F.from,to:F.to,start:F.start,end:F.end,note:F.note,nTo:F.nTo?'1':'0',nFrom:F.nFrom?'1':'0'});if(r&&r.ok){setMsg(vi?'Đã lưu':'已儲存代理設定');setDg(null);reloadR();}else setErr((r&&r.error)||t.fail);});}}>{t.setSave}</Btn></div></div></div>)
+        :(<div><button disabled={!can} onClick={open} className={'w-full min-h-[44px] rounded-xl text-sm font-bold '+(can?'bg-gray-700 text-white':'bg-gray-800 text-gray-500')}>＋ {vi?'Chỉ định người đại diện':'設定代理人'}</button>{!can&&<p className="text-[11px] text-gray-500 mt-1">{vi?'Chỉ quản lý cửa hàng hoặc người phụ trách mới được thiết lập.':'只有該店經理或休假調整表負責人可以設定。'}</p>}</div>)}</Card>);})()}
     {(d.isMgr||d.staff)&&<Card><Btn color="bg-gray-700 text-white" onClick={()=>go('lv2=stats')}>📊 預排休統計（入口點擊／註冊／暫存）</Btn></Card>}
     {d.isMgr&&<Card className="space-y-2"><p className="text-sm font-bold text-white">📤 {t.promoT}</p><p className="text-xs text-gray-500">{t.promoHint}</p>
       <Btn color="bg-blue-600 text-white" onClick={async()=>{try{if(!liff.isApiAvailable('shareTargetPicker')){setErr(t.shareNo);return;}
