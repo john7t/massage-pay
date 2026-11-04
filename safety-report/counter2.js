@@ -1,4 +1,4 @@
-/* counter2.js — 主櫃「老師號碼牌區」(v1.0-012,P1~P3+候位+訂單流水+先付/支數表/交班/結帳/日報表)
+/* counter2.js — 主櫃「老師號碼牌區」(v1.0-015,P1~P3+候位+訂單流水+先付/支數表/交班/結帳/日報表)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 cn2:  ?cn2=1  主櫃現況表(目前只有老師號碼牌區)
    規則見 counter-rules.md(R5.x、R6.6~R6.8);後端 gas-counter2.gs.txt(cnPlates / cnAct)。
    牌:白(等待派工)/綠(休息,可分段,累計每班 1 小時)/灰(未上牌)/紅(做事中)/下牌(實框透明)/請假(虛框)。 */
@@ -45,6 +45,7 @@ const CN_CSS=String.raw`
 .cn-st{white-space:nowrap;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px}.cn-dot{width:8px;height:8px;border-radius:50%}
 .cn-act{height:38px;padding:0 18px;border-radius:10px;font-weight:700;font-size:14px;color:#111;border:0;margin-top:10px}
 .cn-money{font-weight:700;font-variant-numeric:tabular-nums}
+.cn-act+.cn-act{margin-left:8px}
 .cn-sk{display:inline-block;background:linear-gradient(90deg,#e9ebf0,#f4f5f8,#e9ebf0);background-size:200% 100%;animation:cnsk 1.3s linear infinite;border-radius:8px}
 @keyframes cnsk{to{background-position:-200% 0}}
 .cn-skrow{display:flex;gap:6px;overflow:hidden}
@@ -66,6 +67,27 @@ const CN_CSS=String.raw`
 .cn-light .bg-violet-600{background:#6d28d9;border-color:#6d28d9}.cn-light .bg-violet-600.text-white,.cn-light .bg-emerald-600.text-white{color:#fff}
 .cn-light .active\:bg-gray-800:active{background:#eceef2}
 .cn-light input::placeholder{color:#9aa0ad}
+/* iPad / 平板:600px 以上放寬單欄;900px 以上(iPad 橫放)左右兩欄——左:牌區+推薦+候位+預約+訂單,右:位置圖(手機/直放維持 牌區→位置圖→預約→訂單) */
+@media (min-width:600px){
+ .cn-wrap{max-width:720px;padding:22px 24px 56px}
+ .cn-hd h1{font-size:24px}.cn-tm{font-size:14px}.cn-sync{font-size:14px}
+ .cn-btn{height:46px;padding:0 20px;font-size:16px;border-radius:12px}
+ .cn-tools{gap:10px;margin:0 0 14px}.cn-tools .cn-btn{flex:0 0 auto;min-width:112px}
+ .cn-chips{gap:10px;margin-bottom:16px}.cn-chip{padding:10px 14px;border-radius:12px}.cn-chip b{font-size:24px}.cn-chip span{font-size:13px}
+ .cn-alert{font-size:15px;padding:10px 14px}
+ .cn-sh h2{font-size:14px}.cn-sh em,.cn-link{font-size:14px}
+ .cn-tab{font-size:15px;padding:11px 0}
+ .cn-gn{font-size:17px}.cn-no{font-size:13px}.cn-cnt{font-size:13px}.cn-m{font-size:15px}.cn-meta{font-size:13px}.cn-st{font-size:13px}
+ .cn-act{height:44px;font-size:15px;padding:0 22px}
+ .cn-bk .tm{font-size:17px}.cn-bk .bt{height:40px;font-size:14px}
+ .cn-light .fixed.inset-0>div{max-width:600px}
+}
+@media (min-width:900px){
+ .cn-wrap{max-width:1240px;padding:22px 28px 56px}
+ .cn-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 28px;align-items:start}
+ .cn-ca{grid-column:1;grid-row:1}.cn-cr{grid-column:1;grid-row:2}.cn-cs{grid-column:2;grid-row:1 / span 2}
+ .cn-hd{padding-bottom:14px}
+}
 `;
 
 
@@ -312,7 +334,7 @@ function groupOrders(O){
     g.ordBy=(L.find(x=>x.ordBy)||{}).ordBy||'';g.paidBy=(L.find(x=>x.paidBy)||{}).paidBy||'';g.openBy=h.openBy;
     g.guest=guestTxt(h);g.gnm=(h.gname||'')+(h.title||'');g.sub=[h.src,h.phone?'…'+String(h.phone).slice(-3):''].filter(Boolean).join(' · ');g.no=(L.find(x=>x.no)||{}).no||'';
     const pi=(L.find(x=>x.payInfo)||{}).payInfo;try{g.pay=pi?JSON.parse(pi):null;}catch(_e){g.pay=null;}
-    const pr=L.map(x=>priceOf(x.item,x.createdAt));g.due=pr.every(x=>x!==null)?pr.reduce((a,b)=>a+b,0):null;g.paid=L.reduce((a,x)=>a+(x.price||0),0);g.prepaid=L.some(x=>x.prepaid);g.canPre=L.some(x=>(x.status==='seating'||x.status==='serving')&&!x.prepaid);return g;});
+    const pr=L.map(x=>priceOf(x.item,x.createdAt));g.due=pr.every(x=>x!==null)?pr.reduce((a,b)=>a+b,0):null;g.paid=L.reduce((a,x)=>a+(x.price||0),0);g.start0=Math.min.apply(null,L.map(x=>x.start0||x.createdAt||0));g.prepaid=L.some(x=>x.prepaid);g.canPre=L.some(x=>(x.status==='seating'||x.status==='serving')&&!x.prepaid);return g;});
 }
 function OrderLog({D,onOpen,onPay,onPre,act}){
   const A=groupOrders(D.orders||[]);const[tab,setTab]=useState('');
@@ -327,11 +349,11 @@ function OrderLog({D,onOpen,onPay,onPre,act}){
   const Mem=({o})=>(<div className="cn-m"><span className="c">{o.item}</span><span>老師 <b>{o.code}</b></span><span>位置 {o.pos0}{o.pos&&o.pos!==o.pos0?' → '+o.pos:''}</span>
     <span className="tt">{o.status==='wait_pay'?'完成 '+hmFull(o.doneAt):o.status==='seating'?hmFull(o.createdAt)+' 開單':hmFull(o.start)+(o.end?' – '+hmFull(o.end):'')}{o.status==='serving'&&o.transfer>0?'　轉'+hm(o.transfer):''}</span></div>);
   const Ord=({g})=>{const st=ST[g.st];const clickable=g.st==='serving';
-    return(<div className={'cn-ord'+(clickable?' click':'')} onClick={clickable?()=>onOpen(g.key):undefined}>
+    return(<div className="cn-ord click" onClick={()=>onOpen(g.key)}>
       <div className="cn-oh"><span className="cn-no">{g.no||'…'}</span><span className="cn-gn">{g.gnm||'客人未登記'}</span>{g.list.length>1?<span className="cn-cnt">{g.list.length} 位</span>:null}<span className="cn-sp"></span>
         {g.st==='wait_pay'&&g.due!==null?<span className="cn-money">應收 {g.due}</span>:g.st==='done'?<span className="cn-money">{g.pay?g.pay.total:g.paid}</span>:<span className="cn-st" style={{color:st[2]}}><i className="cn-dot" style={{background:st[1]}}></i>{st[0]}</span>}</div>
       {g.list.map(o=><Mem key={o.id} o={o}/>)}
-      <div className="cn-meta"><span>{g.sub?g.sub+' · ':''}{g.openBy?'開單 '+g.openBy:''}{g.ordAt>0?' · 打單 '+hmFull(g.ordAt)+(g.ordBy?' '+g.ordBy:''):''}{g.st==='done'?' · 買單 '+hmFull(g.paidAt)+(g.paidBy?' '+g.paidBy:'')+(g.pay?' · '+payTxt(g.pay):''):''}</span>{clickable?<span style={{color:'#6d28d9',fontWeight:600}}>回牌 · 轉場 · 加時 ›</span>:null}</div>
+      {clickable&&<div className="cn-meta"><span></span><span style={{color:'#6d28d9',fontWeight:600}}>回牌 · 轉場 · 加時 ›</span></div>}
       {g.st==='seating'&&<button className="cn-act" style={{background:'#38bdf8'}} onClick={()=>{if(confirm(nm(g)+'已打單?\n(會以打單時間重算轉場與結束時間)'))act({act:'dadan',wid:g.key});}}>打單</button>}
       {g.st==='wait_pay'&&<button className="cn-act" style={{background:'#f59e0b'}} onClick={()=>onPay(g.key)}>買單</button>}
       {g.prepaid&&g.st!=='done'&&<div className="cn-meta"><span style={{color:'#0f8a5f',fontWeight:700}}>✔ 已先付 {g.pay?g.pay.total:g.paid}{g.pay?' · '+payTxt(g.pay):''}</span></div>}
@@ -365,7 +387,10 @@ function OrderSheet({g,D,act,onClose}){
   const mem=g.list;
   const go=(a,o)=>act(Object.assign({act:a},o));
   return(<Sheet title={'訂單 #'+(g.no||'…')} onClose={onClose}>
-    <p className="text-sm text-violet-200">{g.guest||'客人未登記'}{mem.length>1?'　'+mem.length+' 位':''}{g.ordAt>0?'　打單 '+hmFull(g.ordAt):''}</p>
+    <p className="text-sm text-violet-200">{g.guest||'客人未登記'}{mem.length>1?'　'+mem.length+' 位':''}</p>
+    <div className="rounded-xl bg-black/30 p-3 space-y-1"><Info k="開單時間" v={hmFull(g.createdAt)+(g.openBy?'　'+g.openBy:'')}/><Info k="帶位時間" v={g.start0>0?hmFull(g.start0):'—'}/><Info k="打單時間" v={g.ordAt>0?hmFull(g.ordAt)+(g.ordBy?'　'+g.ordBy:''):'尚未打單'}/>
+      {mem.map(o=>(<div key={o.id} className="pt-1 border-t border-gray-800 space-y-1"><p className="text-xs text-gray-400">老師 {o.code}　{o.item}</p><Info k="轉場時間" v={o.movedAt>0?hmFull(o.movedAt):(o.transfer>0?'預定 '+hmFull(o.transfer):'—')}/><Info k="回牌時間" v={o.doneAt>0?hmFull(o.doneAt)+(o.doneBy?'　'+o.doneBy:''):'—'}/></div>))}
+      {g.paidAt>0&&<Info k="買單時間" v={hmFull(g.paidAt)+(g.paidBy?'　'+g.paidBy:'')+(g.prepaid?'(先付)':'')+(g.pay?'　'+payTxt(g.pay):'')}/>}</div>
     {mem.map(o=>{const p=D.red.find(x=>x.code===o.code&&x.redItem===o.item);
       if(o.status!=='serving'||!p)return(<div key={o.id} className="rounded-xl border border-gray-800 p-3"><p className="text-sm text-gray-300">老師 <b>{o.code}</b>　{o.item}　{o.status==='wait_pay'?'已完成 '+hmFull(o.doneAt):'—'}</p></div>);
       const second=itemCalc(p.redItem.replace(/\+\d+$/,''),0,0);const needType=second&&second.second?(isFoot(p.redPos)?'bed':'foot'):'';
@@ -693,7 +718,7 @@ function applyOp(D,o){
   if(o.act==='prepay'){let pm={};try{pm=JSON.parse(o.prices||'{}')||{};}catch(_e){}let first=true;
     D.orders.forEach(od=>{if((od.id===o.wid||od.gid===o.wid)&&(od.status==='seating'||od.status==='serving')&&!od.prepaid){od.prepaid='1';od.paidAt=o.ts;od.paidBy=o.by||'';od.price=Math.round(Number(pm[od.id])||0);if(first){first=false;od.payInfo=JSON.stringify(payCalc(Object.keys(pm).filter(k=>D.orders.some(z=>z.id===k)).reduce((a,k)=>a+Math.round(Number(pm[k])||0),0),o.method,o.t400,o.t200));}}});return;}
   if(o.act==='extend'){const pl=D.red.find(x=>x.code===o.code);if(pl&&pl.redEnd){const n=Math.max(1,Math.min(4,parseInt(o.n,10)||1));const m=/^(.*?)(?:\+(\d+))?$/.exec(pl.redItem||'');pl.redEnd+=n*30*MIN;pl.redItem=m[1]+'+'+((parseInt(m[2],10)||0)+n);const od=D.orders.find(x=>x.code===o.code&&(x.status==='serving'||x.status==='seating'));if(od){od.end=pl.redEnd;od.item=pl.redItem;}}return;}
-  const serving=c=>D.orders.find(x=>x.code===c&&(x.status==='serving'||x.status==='seating'));const finish=c=>{const od=serving(c);if(od){od.status=od.prepaid?'done':'wait_pay';od.doneAt=o.ts;}}; // 已先付的做完直接已完成
+  const serving=c=>D.orders.find(x=>x.code===c&&(x.status==='serving'||x.status==='seating'));const finish=c=>{const od=serving(c);if(od){od.status=od.prepaid?'done':'wait_pay';od.doneAt=o.ts;od.doneBy=o.by||'';}}; // 已先付的做完直接已完成
   const lists=['white','gray','red','off','leave'];let p=null;
   for(const k of lists){const i=D[k].findIndex(x=>x.code===o.code);if(i>=0){p=D[k][i];D[k].splice(i,1);break;}}
   if(!p)return;
@@ -704,8 +729,8 @@ function applyOp(D,o){
   if(o.act==='on'&&!inP){p.state='white';p.seq=Math.max(ts,maxSeq+1);p.onAt=ts;p.onBy=o.by||'';p.onNote=(p.due&&p.due-ts>40*MIN)?'提前'+Math.round((p.due-ts)/MIN)+'分上牌(應到 '+hmFull(p.due)+')':'';delete p.lateTo;delete p.lateKind;delete p.due;}
   else if(o.act==='back'&&st==='red'){finish(p.code);p.state='white';p.seq=Math.max(ts,maxSeq+1);p.redPos='';p.redPos2='';p.redTransfer=0;}
   else if(o.act==='back'&&st==='green'){closeG();p.state='white';}
-  else if(o.act==='red'&&st==='white'){if(o.bid)D.bookings=D.bookings.filter(x=>x.id!==o.bid);p.state='red';p.redItem=o.item||'';p.redPos=o.pos||'';p.redPos2=o.pos2||'';p.redStart=(o.start>=ts-2*3600e3&&o.start<=ts+3*3600e3)?o.start:ts;p.redEnd=parseInt(o.end,10)||0;p.redTransfer=parseInt(o.transfer,10)||0;D.orders.push({id:o.id,code:p.code,item:p.redItem,pos0:p.redPos,pos:p.redPos,start:p.redStart,end:p.redEnd,transfer:p.redTransfer,createdAt:o.ts,status:'seating',doneAt:0,paidAt:0,openBy:o.by||'',paidBy:'',title:o.title||'',src:o.src||'',gname:o.gname||'',phone:o.phone||'',gid:o.gid||o.id,ordAt:0,ordBy:''});}
-  else if(o.act==='move'&&st==='red'){const q=o.pos2||p.redPos2;if(q){p.redPos=q;p.redPos2='';p.redTransfer=0;const od=serving(p.code);if(od){od.pos=q;od.transfer=0;}}}
+  else if(o.act==='red'&&st==='white'){if(o.bid)D.bookings=D.bookings.filter(x=>x.id!==o.bid);p.state='red';p.redItem=o.item||'';p.redPos=o.pos||'';p.redPos2=o.pos2||'';p.redStart=(o.start>=ts-2*3600e3&&o.start<=ts+3*3600e3)?o.start:ts;p.redEnd=parseInt(o.end,10)||0;p.redTransfer=parseInt(o.transfer,10)||0;D.orders.push({id:o.id,code:p.code,item:p.redItem,pos0:p.redPos,pos:p.redPos,start:p.redStart,start0:p.redStart,end:p.redEnd,transfer:p.redTransfer,createdAt:o.ts,status:'seating',doneAt:0,paidAt:0,openBy:o.by||'',paidBy:'',title:o.title||'',src:o.src||'',gname:o.gname||'',phone:o.phone||'',gid:o.gid||o.id,ordAt:0,ordBy:''});}
+  else if(o.act==='move'&&st==='red'){const q=o.pos2||p.redPos2;if(q){p.redPos=q;p.redPos2='';p.redTransfer=0;const od=serving(p.code);if(od){od.pos=q;od.transfer=0;od.movedAt=o.ts;}}}
   else if(o.act==='adjust'&&st==='red'){if(o.transfer!==undefined)p.redTransfer=parseInt(o.transfer,10)||0;if(o.end!==undefined)p.redEnd=parseInt(o.end,10)||0;const od=serving(p.code);if(od){od.transfer=p.redTransfer;od.end=p.redEnd;}}
   else if(o.act==='green'&&st==='white'){p.state='green';p.greenStart=ts;}
   else if(o.act==='late'&&st==='gray'){p.lateTo=o.to;p.lateKind=(p.due&&ts>p.due)?'after':'late';}
@@ -807,6 +832,8 @@ function CounterPage({who}){
   useEffect(()=>{sync();const t=setInterval(()=>{if(!document.hidden)sync();},10000);const t2=setInterval(()=>setTick(x=>x+1),1000);
     const vis=()=>{sync();};document.addEventListener('visibilitychange',vis);window.addEventListener('pagehide',vis);
     return()=>{clearInterval(t);clearInterval(t2);document.removeEventListener('visibilitychange',vis);window.removeEventListener('pagehide',vis);};},[]);
+  const doReset=async()=>{if(!confirm('還原牌況(測試用)?\n\n・已到上牌時間的老師直接上白牌\n・已過下牌時間的下牌\n・所有位置清空,進行中的訂單作廢\n・本機尚未上傳的操作會丟掉\n\n確定要還原嗎?'))return;
+    try{const r=await api('cnReset',{});if(r&&r.ok){setQ([]);setServer(r);setNotes([]);setSel(null);setOrdSel('');setPaySel('');setPreGid('');setErr('');setFresh(true);alert('已還原:上牌 '+r.reset.on+' 位、下牌 '+r.reset.off+' 位、作廢訂單 '+r.reset.voided+' 筆');}else alert((r&&r.error)||'還原失敗');}catch(_e){alert('網路不通,無法還原');}};
   const act=(o)=>{const op=Object.assign({id:rid(),ts:Date.now()+skew,by:who},o);setQ(q=>q.concat([op]));setSel(null);
     if(op.phone&&op.sur&&String(op.phone).length>=8){gcMerge([{phone:String(op.phone).replace(/[^0-9]/g,''),sur:op.sur,giv:op.giv||'',title:op.title,src:op.src,lastAt:Date.now()}]);gcSave();}};
   if(!server){return(<div className="cn-light"><style>{CN_CSS}</style><div className="cn-wrap">
@@ -827,8 +854,9 @@ function CounterPage({who}){
   return(<div className="cn-light"><style>{CN_CSS}</style><div className="cn-wrap">
     <div className="cn-hd"><div><h1>主櫃 · {D.store}</h1><div className="cn-tm"><span>{hmFull(now)}:{p2(tzp(now).s)}</span><button onClick={sync} className={'cn-sync'+(queue.length>0?' w':'')}>{syncing?<Spinner size={12}/>:'●'} {queue.length>0?'待上傳 '+queue.length+' 筆':fresh?'已同步'+(syncAt?' '+hmFull(syncAt):''):(c0.current.at?'本機資料 '+hmFull(c0.current.at)+' · 更新中':'載入中')}</button></div></div>
       <div className="cn-acts"><button onClick={()=>setArranging(true)} className="cn-btn">安排客人</button><button onClick={()=>setOpening('')} className="cn-btn p">＋開單</button></div></div>
-    <div className="cn-tools"><button onClick={()=>setTool('cnt')} className="cn-btn">支數表</button><button onClick={()=>setTool('rep')} className="cn-btn">日報表</button><button onClick={()=>setTool('shift')} className="cn-btn">交班</button><button onClick={()=>{const bad={};(D.orders||[]).forEach(o=>{if((o.status==='seating'||o.status==='serving'||o.status==='wait_pay')&&!o.prepaid)bad[o.gid||o.id]=1;});const n=Object.keys(bad).length;if(n>0){setToolN(n);setTool('unpaid');}else setTool('close');}} className="cn-btn" style={{borderColor:'#b45309',color:'#b45309'}}>結帳</button></div>
+    <div className="cn-tools"><button onClick={()=>setTool('cnt')} className="cn-btn">支數表</button><button onClick={()=>setTool('rep')} className="cn-btn">日報表</button><button onClick={()=>setTool('shift')} className="cn-btn">交班</button><button onClick={()=>{const bad={};(D.orders||[]).forEach(o=>{if((o.status==='seating'||o.status==='serving'||o.status==='wait_pay')&&!o.prepaid)bad[o.gid||o.id]=1;});const n=Object.keys(bad).length;if(n>0){setToolN(n);setTool('unpaid');}else setTool('close');}} className="cn-btn" style={{borderColor:'#b45309',color:'#b45309'}}>結帳</button>{(who&&D.canReset!==false)&&<button onClick={doReset} className="cn-btn" style={{borderColor:'#b91c1c',color:'#b91c1c'}}>還原</button>}</div>
     <div className="cn-chips"><div className="cn-chip"><b>{cnt('white')}</b><span>白牌</span></div><div className="cn-chip"><b style={{color:'#0f8a5f'}}>{cnt('green')}</b><span>綠牌</span></div><div className="cn-chip"><b style={{color:'#6b7280'}}>{D.gray.length}</b><span>灰牌</span></div><div className="cn-chip"><b style={{color:'#b91c1c'}}>{D.red.length}</b><span>紅牌</span></div></div>
+    <div className="cn-cols"><div className="cn-ca">
     {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
     {lateN>0&&<div className="cn-alert"><b>未到未電 {lateN} 位</b>　{D.gray.filter(p=>isLate(p,now)).map(p=>p.code).join('、')}</div>}
     {req&&<RecBlock D={D} now={now} req={req} bid={bid} ahead={(fromWait?D.waits.slice(0,Math.max(0,D.waits.findIndex(x=>x.id===fromWait))):D.waits).map(x=>x.items)} onClear={()=>{setReq(null);setFromWait('');setBid('');setGuest(G0());}} onEdit={()=>setArranging(true)} onWait={fromWait?null:()=>setWaitSheet(true)} adopt={(ops,pre)=>{const gid=rid();if(pre)setPreGid(gid);ops.forEach((o,i)=>act(Object.assign({},o,gFields(guest),{gid:gid},i===0&&bid?{bid:bid}:{})));setBid('');if(fromWait)act({act:'wdone',wid:fromWait,status:'seated'});setReq(null);setFromWait('');setGuest(G0());}}/>}
@@ -845,15 +873,18 @@ function CounterPage({who}){
       <Zone title="下牌" count={D.off.length}>{D.off.length?<Row>{D.off.map(p=><Plate key={p.code} p={p} now={now} onClick={click(p)}/>)}</Row>:<p className="text-sm text-gray-500">沒有</p>}</Zone>
       <Zone title="請假" count={D.leave.length}>{D.leave.length?<Row>{D.leave.map(p=><Plate key={p.code} p={p} now={now} onClick={click(p)}/>)}</Row>:<p className="text-sm text-gray-500">沒有</p>}</Zone>
     </React.Fragment>)}
+    </div><div className="cn-cs">
     <SeatMap D={D} now={now} onSeat={pos=>{const m=seatMap(D)[pos];if(m)setSel(m.p.code);else setOpening(pos);}}/>
+    </div><div className="cn-cr">
     <BookList D={D} now={now} onCancel={b=>act({act:'bk_cancel',wid:b.id})} onArrive={b=>{setReq([Object.assign(newItem(),b.it||{},{n:1,teacher:b.code})]);setGuest({title:b.title||'',src:b.src||'',phone:b.phone||'',sur:b.sur||'',giv:b.giv||''});setBid(b.id);setFromWait('');}}/>
     <OrderLog D={D} act={act} onOpen={setOrdSel} onPay={setPaySel} onPre={setPreGid}/>
-    {ordSel&&(()=>{const g=groupOrders(D.orders||[]).find(x=>x.key===ordSel);return g&&g.st==='serving'?<OrderSheet g={g} D={D} act={o=>{act(o);}} onClose={()=>setOrdSel('')}/>:null;})()}
+    </div></div>
+    {ordSel&&(()=>{const g=groupOrders(D.orders||[]).find(x=>x.key===ordSel);return g?<OrderSheet g={g} D={D} act={o=>{act(o);}} onClose={()=>setOrdSel('')}/>:null;})()}
     {paySel&&(()=>{const g=groupOrders(D.orders||[]).find(x=>x.key===paySel);return g&&g.st==='wait_pay'?<PaySheet g={g} onClose={()=>setPaySel('')} onDone={v=>{act(Object.assign({act:'pay',wid:g.key},v));setPaySel('');}}/>:null;})()}
     {preGid&&(()=>{const g=groupOrders(D.orders||[]).find(x=>x.key===preGid);return g&&g.canPre?<PaySheet pre g={g} onClose={()=>setPreGid('')} onDone={v=>{act(Object.assign({act:'prepay',wid:g.key},v));setPreGid('');}}/>:null;})()}
     {tool==='cnt'&&<CountSheet onClose={()=>setTool('')}/>}
     {tool==='rep'&&<ReportSheet onClose={()=>setTool('')}/>}
-    {(tool==='shift'||tool==='close')&&<ShiftSheet kind={tool} queueN={queue.length} onClose={()=>setTool('')}/>}
+    {(tool==='shift'||tool==='close')&&<ShiftSheet kind={tool} queueN={queue.length} onClose={()=>{if(tool==='close')sync();setTool('');}}/>}
     {tool==='unpaid'&&<Sheet title="還不能結帳" onClose={()=>setTool('')}><p className="text-base text-red-300 font-bold">未付有 {toolN} 筆,請先完成付款再結帳</p><p className="text-sm text-gray-400">帶位中、服務中、待買單的訂單都要先付款(先付也算)。</p><Bt onClick={()=>setTool('')}>知道了</Bt></Sheet>}
     {selP&&<PlateSheet key={selP.code+selP.state} p={selP} D={D} now={now} act={act} onClose={()=>setSel(null)}/>}
     {waitSheet&&req&&<WaitSheet req={req} guest={guest} onClose={()=>setWaitSheet(false)} onDone={v=>{act({act:'wadd',phone:v.phone,name:v.name,sur:v.sur,giv:v.giv,title:guest.title,src:guest.src,items:req});setWaitSheet(false);setReq(null);setGuest(G0());}}/>}
