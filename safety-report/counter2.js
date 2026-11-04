@@ -1,4 +1,4 @@
-/* counter2.js — 主櫃「老師號碼牌區」(v1.0-015,P1~P3+候位+訂單流水+先付/支數表/交班/結帳/日報表)
+/* counter2.js — 主櫃「老師號碼牌區」(v1.0-016,P1~P3+候位+訂單流水+先付/支數表/交班/結帳/日報表)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 cn2:  ?cn2=1  主櫃現況表(目前只有老師號碼牌區)
    規則見 counter-rules.md(R5.x、R6.6~R6.8);後端 gas-counter2.gs.txt(cnPlates / cnAct)。
    牌:白(等待派工)/綠(休息,可分段,累計每班 1 小時)/灰(未上牌)/紅(做事中)/下牌(實框透明)/請假(虛框)。 */
@@ -17,6 +17,8 @@ const dur=sec=>Math.round(sec/60)+' 分';
 const nextMark=(now,stepMin)=>{const st=stepMin*60000;return Math.floor((now+8*3600e3)/st)*st+st-8*3600e3;}; // 台北時間的下一個整/半點
 const LIMIT=3600;
 // ── 白底主題:版面用 cn-* 類別;其餘沿用的 Tailwind 深色類別,在 .cn-light 內改成淺色對應 ──
+const CN_VER='v1.0-016'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
+window.__cnVer=CN_VER;
 const CN_CSS=String.raw`
 .cn-light{background:#f7f7f9;color:#1b1f2a;min-height:100vh;font-feature-settings:"tnum"}
 .cn-wrap{max-width:448px;margin:0 auto;padding:18px 16px 40px}
@@ -852,7 +854,7 @@ function CounterPage({who}){
   const wtxt=D.window?hm(D.window[0])+'~'+(hm(D.window[1]+1).replace(/^0:00$/,'24:00')):'';
   const cnt=k=>D.white.filter(p=>p.state===k).length;
   return(<div className="cn-light"><style>{CN_CSS}</style><div className="cn-wrap">
-    <div className="cn-hd"><div><h1>主櫃 · {D.store}</h1><div className="cn-tm"><span>{hmFull(now)}:{p2(tzp(now).s)}</span><button onClick={sync} className={'cn-sync'+(queue.length>0?' w':'')}>{syncing?<Spinner size={12}/>:'●'} {queue.length>0?'待上傳 '+queue.length+' 筆':fresh?'已同步'+(syncAt?' '+hmFull(syncAt):''):(c0.current.at?'本機資料 '+hmFull(c0.current.at)+' · 更新中':'載入中')}</button></div></div>
+    <div className="cn-hd"><div><h1>主櫃 · {D.store} <small style={{fontSize:11,fontWeight:500,color:'#9aa0ad'}}>{CN_VER}</small></h1><div className="cn-tm"><span>{hmFull(now)}:{p2(tzp(now).s)}</span><button onClick={sync} className={'cn-sync'+(queue.length>0?' w':'')}>{syncing?<Spinner size={12}/>:'●'} {queue.length>0?'待上傳 '+queue.length+' 筆':fresh?'已同步'+(syncAt?' '+hmFull(syncAt):''):(c0.current.at?'本機資料 '+hmFull(c0.current.at)+' · 更新中':'載入中')}</button></div></div>
       <div className="cn-acts"><button onClick={()=>setArranging(true)} className="cn-btn">安排客人</button><button onClick={()=>setOpening('')} className="cn-btn p">＋開單</button></div></div>
     <div className="cn-tools"><button onClick={()=>setTool('cnt')} className="cn-btn">支數表</button><button onClick={()=>setTool('rep')} className="cn-btn">日報表</button><button onClick={()=>setTool('shift')} className="cn-btn">交班</button><button onClick={()=>{const bad={};(D.orders||[]).forEach(o=>{if((o.status==='seating'||o.status==='serving'||o.status==='wait_pay')&&!o.prepaid)bad[o.gid||o.id]=1;});const n=Object.keys(bad).length;if(n>0){setToolN(n);setTool('unpaid');}else setTool('close');}} className="cn-btn" style={{borderColor:'#b45309',color:'#b45309'}}>結帳</button>{(who&&D.canReset!==false)&&<button onClick={doReset} className="cn-btn" style={{borderColor:'#b91c1c',color:'#b91c1c'}}>還原</button>}</div>
     <div className="cn-chips"><div className="cn-chip"><b>{cnt('white')}</b><span>白牌</span></div><div className="cn-chip"><b style={{color:'#0f8a5f'}}>{cnt('green')}</b><span>綠牌</span></div><div className="cn-chip"><b style={{color:'#6b7280'}}>{D.gray.length}</b><span>灰牌</span></div><div className="cn-chip"><b style={{color:'#b91c1c'}}>{D.red.length}</b><span>紅牌</span></div></div>
