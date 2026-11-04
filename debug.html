@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-<title>診斷頁 v2</title>
+<title>診斷頁 v3</title>
 <style>
   body{background:#0a0a0f;color:#e5e7eb;font-family:-apple-system,sans-serif;padding:16px;margin:0;font-size:14px;line-height:1.6}
   h1{font-size:18px;margin:0 0 16px}
@@ -92,7 +92,10 @@ async function checkVersions() {
 }
 
 const SR_DIR = './safety-report/';
-const SR_JS = ['safety2.js', 'notice2.js', 'blacklist2.js', 'gloves2.js', 'leave2.js', 'my2.js', 'shop2.js']; // 載入順序同 safety-report/index.html
+const SR_JS = ['safety2.js', 'notice2.js', 'blacklist2.js', 'gloves2.js', 'leave2.js', 'my2.js', 'shop2.js', 'counter2.js'];
+// 特徵檢查:確認檔案內真的有某版的功能(檔頭版號有時沒跟著改);沒有就代表上傳的是舊檔
+const SR_FEATURES = { 'counter2.js': [['還原按鈕(v1.0-014)', 'doReset'], ['iPad 版面(v1.0-015)', 'min-width:900px'], ['先付/交班/結帳(v1.0-012)', 'prepay'], ['日報表(v1.0-012)', 'ReportSheet'], ['訂單詳情時間(v1.0-013)', 'movedAt']] };
+ // 載入順序同 safety-report/index.html
 async function checkSafetyReport() {
   const el = document.getElementById('sr');
   let html = '';
@@ -120,7 +123,23 @@ async function checkSafetyReport() {
       const lines = text.split('\n').length;
       const tail = text.trimEnd().slice(-40).replace(/\s+/g, ' ');
       const msg = `頁面宣告 v${declared || '(沒有)'}　檔頭 v${hm ? hm[1] : '?'}　${(text.length / 1024).toFixed(1)}KB／${lines}行`;
-      add(f, msg, declared ? 'ok' : 'fail', '檔尾: …' + tail + '　最後修改: ' + (res.headers.get('last-modified') || '(伺服器沒提供)'));
+      let extra = '檔尾: …' + tail + '　最後修改: ' + (res.headers.get('last-modified') || '(伺服器沒提供)');
+      let cls = declared ? 'ok' : 'fail';
+      // 頁面實際會載入的那份(用頁面宣告的 ?v= 網址、走瀏覽器快取)是否和伺服器最新版一致
+      if (declared) {
+        try {
+          const r2 = await fetch(SR_DIR + f + '?v=' + declared);
+          const t2 = await r2.text();
+          if (t2 !== text) { cls = 'fail'; extra += '<br>⚠ 瀏覽器快取的是舊版(長度 ' + t2.length + ' ≠ 伺服器 ' + text.length + '),請清除網站資料或關掉分頁重開'; }
+        } catch (_e) {}
+      }
+      const feats = SR_FEATURES[f];
+      if (feats) {
+        const miss = feats.filter(x => text.indexOf(x[1]) < 0).map(x => x[0]);
+        extra += '<br>功能檢查: ' + feats.map(x => (text.indexOf(x[1]) >= 0 ? '✓ ' : '✗ ') + x[0]).join('　');
+        if (miss.length) { cls = 'fail'; extra += '<br>⚠ 伺服器上的 ' + f + ' 是舊檔(缺:' + miss.join('、') + '),請重新上傳'; }
+      }
+      add(f, msg, cls, extra);
     } catch (e) { add(f, '讀取失敗: ' + e.message, 'fail'); }
   }
   el.innerHTML = html;
