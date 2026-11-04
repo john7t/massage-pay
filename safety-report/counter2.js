@@ -1,4 +1,4 @@
-/* counter2.js — 主櫃「老師號碼牌區」(v1.0-016,P1~P3+候位+訂單流水+先付/支數表/交班/結帳/日報表)
+/* counter2.js — 主櫃「老師號碼牌區」(v1.0-017,P1~P3+候位+訂單流水+先付/支數表/交班/結帳/日報表)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 cn2:  ?cn2=1  主櫃現況表(目前只有老師號碼牌區)
    規則見 counter-rules.md(R5.x、R6.6~R6.8);後端 gas-counter2.gs.txt(cnPlates / cnAct)。
    牌:白(等待派工)/綠(休息,可分段,累計每班 1 小時)/灰(未上牌)/紅(做事中)/下牌(實框透明)/請假(虛框)。 */
@@ -17,7 +17,7 @@ const dur=sec=>Math.round(sec/60)+' 分';
 const nextMark=(now,stepMin)=>{const st=stepMin*60000;return Math.floor((now+8*3600e3)/st)*st+st-8*3600e3;}; // 台北時間的下一個整/半點
 const LIMIT=3600;
 // ── 白底主題:版面用 cn-* 類別;其餘沿用的 Tailwind 深色類別,在 .cn-light 內改成淺色對應 ──
-const CN_VER='v1.0-016'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
+const CN_VER='v1.0-018'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
 window.__cnVer=CN_VER;
 const CN_CSS=String.raw`
 .cn-light{background:#f7f7f9;color:#1b1f2a;min-height:100vh;font-feature-settings:"tnum"}
@@ -28,7 +28,7 @@ const CN_CSS=String.raw`
 .cn-tools{display:flex;gap:8px;margin:-2px 0 10px}.cn-tools .cn-btn{flex:1;padding:0 6px}
 .cn-btn.p{background:#6d28d9;border-color:#6d28d9;color:#fff}
 .cn-sync{font-size:13px;color:#0f8a5f;font-weight:600;background:none;border:0;padding:0}.cn-sync.w{color:#b45309}
-.cn-chips{display:flex;gap:8px;margin-bottom:12px}.cn-chip{flex:1;background:#fff;border:1px solid #e3e5eb;border-radius:10px;padding:8px 10px}
+.cn-chip small{display:block;font-size:10px;color:#9aa0ad;margin-top:1px;white-space:nowrap}.cn-chips{display:flex;gap:8px;margin-bottom:12px}.cn-chip{flex:1;background:#fff;border:1px solid #e3e5eb;border-radius:10px;padding:8px 10px}
 .cn-chip b{display:block;font-size:20px;line-height:1.1;font-variant-numeric:tabular-nums}.cn-chip span{font-size:12px;color:#5b6270}
 .cn-alert{border-left:3px solid #dc2626;background:#fdecee;border-radius:6px;padding:8px 10px;font-size:13px;margin-bottom:12px;color:#9b1c1c}
 .cn-sec{padding:14px 0;border-top:1px solid #e3e5eb}.cn-sec.f{border-top:0;padding-top:4px;margin-top:8px}
@@ -69,7 +69,7 @@ const CN_CSS=String.raw`
 .cn-light .bg-violet-600{background:#6d28d9;border-color:#6d28d9}.cn-light .bg-violet-600.text-white,.cn-light .bg-emerald-600.text-white{color:#fff}
 .cn-light .active\:bg-gray-800:active{background:#eceef2}
 .cn-light input::placeholder{color:#9aa0ad}
-/* iPad / 平板:600px 以上放寬單欄;900px 以上(iPad 橫放)左右兩欄——左:牌區+推薦+候位+預約+訂單,右:位置圖(手機/直放維持 牌區→位置圖→預約→訂單) */
+/* iPad / 平板:600px 以上放寬單欄;900px 以上(iPad 橫放)左右兩欄——左:牌區+推薦+候位+位置圖+預約+支出,右:訂單(獨立一欄、頂端對齊、自己捲動)(手機/直放維持 牌區→位置圖→預約/支出→訂單) */
 @media (min-width:600px){
  .cn-wrap{max-width:720px;padding:22px 24px 56px}
  .cn-hd h1{font-size:24px}.cn-tm{font-size:14px}.cn-sync{font-size:14px}
@@ -87,7 +87,7 @@ const CN_CSS=String.raw`
 @media (min-width:900px){
  .cn-wrap{max-width:1240px;padding:22px 28px 56px}
  .cn-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 28px;align-items:start}
- .cn-ca{grid-column:1;grid-row:1}.cn-cr{grid-column:1;grid-row:2}.cn-cs{grid-column:2;grid-row:1 / span 2}
+ .cn-ca{grid-column:1;grid-row:1}.cn-cs{grid-column:1;grid-row:2}.cn-cb{grid-column:1;grid-row:3}.cn-co{grid-column:2;grid-row:1 / span 3;position:sticky;top:8px;max-height:calc(100vh - 16px);overflow-y:auto;-webkit-overflow-scrolling:touch}
  .cn-hd{padding-bottom:14px}
 }
 `;
@@ -98,12 +98,13 @@ const FEET=['1','2','3','4','5','6','7','8','9','10','11','12'];
 const BEDS=['21','22','23','31','32','33','34','35','36','37','38','39','310','311'];
 const CAM=['7','10','37','311']; // 監視器位置(R1.5)
 const isFoot=p=>FEET.indexOf(p)>=0;
+const PL=x=>x?(isFoot(x)?'腳'+x:x+'床'):''; // 位置顯示名:腳1~腳12、21床~311床
 const MIN=60000;
 // 項目:segs=依序的各段 [種類(b身/f腳/o油壓),分鐘];轉場在第一段結束。1 支=35~40 分,套餐含轉場(R2、R8.2~R8.4)
 const ITEMS={
   b1:[['b',35]],f1:[['f',40]],b2:[['b',70]],f2:[['f',70]],b3:[['b',110]],f3:[['f',110]],bo2:[['o',70]],bo3:[['o',110]],
-  bf2:[['b',35],['f',35]],fb2:[['f',35],['b',35]],bf3:[['b',70],['f',50]],fb3:[['f',40],['b',80]],
-  bof3:[['o',70],['f',50]],fbo3:[['f',40],['o',80]]};
+  bf2:[['b',35],['f',35]],fb2:[['f',35],['b',35]],bf3:[['b',70],['f',50]],fb3:[['f',50],['b',70]],
+  bof3:[['o',70],['f',50]],fbo3:[['f',50],['o',70]]};
 const ITEM_GROUPS=[['單項',['b1','f1','b2','f2','b3','f3']],['套餐(先做的在前)',['bf2','fb2','bf3','fb3']],['油壓(70 分以上,女老師)',['bo2','bo3','bof3','fbo3']]];
 function itemCalc(code,extra,start){
   const segs=ITEMS[code];if(!segs)return null;
@@ -348,7 +349,7 @@ function OrderLog({D,onOpen,onPay,onPre,act}){
   const list=(TABS.find(x=>x[0]===cur)||TABS[1])[2];
   const nm=g=>g.list.length>1?'這組客人('+g.list.length+' 位)':'老師 '+g.list[0].code+'('+g.list[0].item+')';
   const ST={seating:['帶位中','#0284c7','#0369a1'],serving:['服務中','#0f8a5f','#0f8a5f'],wait_pay:['待買單','#d99a06','#b45309'],done:['已完成','#9aa0ad','#5b6270']};
-  const Mem=({o})=>(<div className="cn-m"><span className="c">{o.item}</span><span>老師 <b>{o.code}</b></span><span>位置 {o.pos0}{o.pos&&o.pos!==o.pos0?' → '+o.pos:''}</span>
+  const Mem=({o})=>(<div className="cn-m"><span className="c">{o.item}</span><span>老師 <b>{o.code}</b></span><span>位置 {PL(o.pos0)}{o.pos&&o.pos!==o.pos0?' → '+PL(o.pos):''}</span>
     <span className="tt">{o.status==='wait_pay'?'完成 '+hmFull(o.doneAt):o.status==='seating'?hmFull(o.createdAt)+' 開單':hmFull(o.start)+(o.end?' – '+hmFull(o.end):'')}{o.status==='serving'&&o.transfer>0?'　轉'+hm(o.transfer):''}</span></div>);
   const Ord=({g})=>{const st=ST[g.st];const clickable=g.st==='serving';
     return(<div className="cn-ord click" onClick={()=>onOpen(g.key)}>
@@ -398,12 +399,12 @@ function OrderSheet({g,D,act,onClose}){
       const second=itemCalc(p.redItem.replace(/\+\d+$/,''),0,0);const needType=second&&second.second?(isFoot(p.redPos)?'bed':'foot'):'';
       const frees=(needType==='foot'?FEET:needType==='bed'?BEDS:FEET.concat(BEDS)).filter(x=>!M[x]||(M[x].p===p&&M[x].kind==='rsv')).sort((a,b)=>(b===p.redPos2)-(a===p.redPos2));const canMove=p.redTransfer>0;
       return(<div key={o.id} className="rounded-xl border border-gray-700 p-3 space-y-2">
-        <p className="text-sm text-gray-100">老師 <b className="text-white">{o.code}</b>　<b style={{fontFamily:'monospace'}}>{p.redItem}</b>　位置 {p.redPos}{p.redPos2?' → '+p.redPos2:''}</p>
+        <p className="text-sm text-gray-100">老師 <b className="text-white">{o.code}</b>　<b style={{fontFamily:'monospace'}}>{p.redItem}</b>　位置 {PL(p.redPos)}{p.redPos2?' → '+PL(p.redPos2):''}</p>
         <p className="text-xs text-gray-400">{hmFull(p.redStart)}{p.redTransfer>0?'　轉場 '+hmFull(p.redTransfer):''}　結束 {p.redEnd?hmFull(p.redEnd):'—'}</p>
-        {pick===o.code?(<div className="space-y-2"><p className="text-sm text-gray-300">轉到哪個位置?</p><div className="flex flex-wrap gap-2">{frees.map(x=><button key={x} onClick={()=>{go('move',{code:o.code,pos2:x});setPick('');}} className={'rounded-lg border px-3 py-2 '+(x===p.redPos2?'border-violet-400 bg-violet-600 text-white font-bold':'border-violet-500 text-violet-200')}>{x}{x===p.redPos2?'(建議)':''}</button>)}</div><Bt tone="gray" onClick={()=>setPick('')}>返回</Bt></div>)
+        {pick===o.code?(<div className="space-y-2"><p className="text-sm text-gray-300">轉到哪個位置?</p><div className="flex flex-wrap gap-2">{frees.map(x=><button key={x} onClick={()=>{go('move',{code:o.code,pos2:x});setPick('');}} className={'rounded-lg border px-3 py-2 '+(x===p.redPos2?'border-violet-400 bg-violet-600 text-white font-bold':'border-violet-500 text-violet-200')}>{PL(x)}{x===p.redPos2?'(建議)':''}</button>)}</div><Bt tone="gray" onClick={()=>setPick('')}>返回</Bt></div>)
         :(<div className="flex gap-2">
           <button onClick={()=>{if(confirm('老師 '+o.code+' 回牌?'))go('back',{code:o.code});}} className="flex-1 rounded-xl border border-red-500 text-red-300 py-2 font-bold">回牌</button>
-          <button disabled={!canMove} onClick={()=>setPick(o.code)} className={'flex-1 rounded-xl py-2 font-bold '+(canMove?'bg-violet-600 text-white':'border border-gray-700 text-gray-600')}>{canMove?(p.redPos2?'轉場→'+p.redPos2+' ›':'轉場'):'無轉場'}</button>
+          <button disabled={!canMove} onClick={()=>setPick(o.code)} className={'flex-1 rounded-xl py-2 font-bold '+(canMove?'bg-violet-600 text-white':'border border-gray-700 text-gray-600')}>{canMove?(p.redPos2?'轉場→'+PL(p.redPos2)+' ›':'轉場'):'無轉場'}</button>
           <button onClick={()=>{const n=prompt('加時幾個 30 分?(1=30 分、2=60 分)','1');const k=parseInt(n,10);if(k>=1&&k<=4)go('extend',{code:o.code,n:k});}} className="flex-1 rounded-xl border border-emerald-500 text-emerald-300 py-2 font-bold">加時</button></div>)}
       </div>);})}
     <Bt tone="gray" onClick={onClose}>關閉</Bt></Sheet>);
@@ -420,7 +421,7 @@ function Seat({pos,occ,now,onClick}){
       body=<React.Fragment><span style={{fontSize:p.code.length>2?17:20,fontWeight:800,color:fem?'#be123c':'#111',lineHeight:1}}>{p.code}</span><span style={{fontSize:10,fontWeight:700,color:'#3a4050'}}>{p.redItem}</span>
         {p.redTransfer>0&&<span style={{fontSize:10,color:'#92400e'}}>轉{hm(p.redTransfer)}</span>}{p.redEnd>0&&<span style={{fontSize:10,color:over?'#b91c1c':'#0b6b46'}}>{hm(p.redEnd)}到</span>}</React.Fragment>;}}
   return(<button onClick={onClick} style={{flex:'1 1 0',minWidth:0,minHeight:92,borderRadius:8,border:'1.5px '+bs+' '+bd,background:bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:1,padding:'2px 0'}}>
-    <span style={{fontSize:11,color:'#6b7280',alignSelf:'flex-start',paddingLeft:4}}>{pos}{CAM.indexOf(pos)>=0?' 📷':''}</span>{body}</button>);
+    <span style={{fontSize:11,color:'#6b7280',alignSelf:'flex-start',paddingLeft:4}}>{PL(pos)}{CAM.indexOf(pos)>=0?' 📷':''}</span>{body}</button>);
 }
 const Grp=({children})=>(<div style={{display:'flex',gap:3,flex:'1 1 0',minWidth:0,border:'1px solid #e3e5eb',borderRadius:10,padding:3}}>{children}</div>);
 function SeatMap({D,now,onSeat}){
@@ -579,13 +580,13 @@ function RecBlock({D,now,req,bid,ahead,onClear,onEdit,adopt,onWait}){
   return(<div className="rounded-2xl border border-violet-500 bg-indigo-950 p-3 space-y-3">
     <div className="flex items-center justify-between"><p className="text-base font-bold text-white">排客人後的推薦</p><span className="text-xs text-indigo-200">{req.length} 項・{req.reduce((a,x)=>a+x.n,0)} 位</span></div>
     {(ahead||[]).length>0&&<p className="text-sm font-bold text-amber-300">前面還有 {(ahead||[]).length} 組候位,以下推薦已排在他們後面(R9.16)</p>}
-    {R.full&&<p className="text-sm font-bold text-red-300">客滿!最快 {R.soon.pos} 號位 {hmFull(R.soon.at)} 空出</p>}
+    {R.full&&<p className="text-sm font-bold text-red-300">客滿!最快 {PL(R.soon.pos)} {hmFull(R.soon.at)} 空出</p>}
     {!R.full&&D.white.filter(p=>p.state==='white').length===0&&<p className="text-sm font-bold text-amber-300">老師全在紅牌區(或休息中)</p>}
     {plans.length>1&&<div className="flex gap-2">{plans.map((p,i)=>(<button key={i} onClick={()=>{setPi(i);setUseAlt(false);}} className={'rounded-xl border px-3 py-1.5 text-sm font-bold '+(i===pi?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-200')}>{p.label}</button>))}</div>}
     {pl.items.map(r=>(<div key={r.label} className="rounded-xl bg-black/30 p-2 space-y-1">
       <div className="flex items-center gap-2 flex-wrap"><span className="text-violet-200 font-bold">{r.label}</span><span className="text-white font-bold text-lg" style={{fontFamily:'monospace'}}>{r.code}</span><span className="text-xs text-gray-300">{r.n} 位</span><span className={'text-xs font-bold '+(r.wait>0?'text-amber-300':'text-emerald-300')}>{r.wait>0?'稍候 '+r.wait+' 分':'現在開始'}</span>{r.rules.concat(pl.rules||[]).filter((x,i,a)=>a.indexOf(x)===i).map(x=><RuleTag key={x} r={x}/>)}</div>
       {r.people.map((p,i)=>(<p key={i} className="text-sm text-gray-100">
-        <b className={p.white?'text-white':'text-amber-300'}>{p.teacher}</b>{p.teacher2?<span className="text-rose-300"> → {p.teacher2}</span>:null}{p.white?'':'(紅牌)'}　{p.pos1}{p.pos2?' → 轉場 '+p.pos2:''}　{hmFull(p.start)}{p.transfer?'　轉'+hm(p.transfer):''}　{hm(p.end)}到</p>))}
+        <b className={p.white?'text-white':'text-amber-300'}>{p.teacher}</b>{p.teacher2?<span className="text-rose-300"> → {p.teacher2}</span>:null}{p.white?'':'(紅牌)'}　{PL(p.pos1)}{p.pos2?' → 轉場 '+PL(p.pos2):''}　{hmFull(p.start)}{p.transfer?'　轉'+hm(p.transfer):''}　{hm(p.end)}到</p>))}
       {r.notes.map((n,i)=><p key={i} className="text-xs text-amber-200">・{n}</p>)}</div>))}
     {R.femaleWait&&R.femaleWait.length>0&&<p className="text-xs text-rose-200">白牌沒有女老師;紅牌女老師:{R.femaleWait.slice(0,4).map(x=>x.code+'(約 '+x.wait+' 分)').join('、')}　可先請客人稍候,或改非指定(R9.6)</p>}
     <div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-indigo-200">稍候</span>{[0,10,20,30].map(m=><button key={m} onClick={()=>setWait(m)} className={'rounded-lg border px-3 py-1 text-sm '+(wait===m?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-200')}>{m?m+' 分':'不等'}</button>)}</div>
@@ -604,10 +605,10 @@ function RedPanel({p,D,now,go,onClose}){
   const frees=(needType==='foot'?FEET:needType==='bed'?BEDS:FEET.concat(BEDS)).filter(x=>!M[x]||(M[x].p===p&&M[x].kind==='rsv')).sort((a,b)=>(b===p.redPos2)-(a===p.redPos2));
   const pending=p.redTransfer>0;
   return(<div className="space-y-2">
-    <Info k="項目" v={p.redItem||'—'}/><Info k="位置" v={p.redPos+(p.redPos2?' → '+p.redPos2:'')}/>
+    <Info k="項目" v={p.redItem||'—'}/><Info k="位置" v={PL(p.redPos)+(p.redPos2?' → '+PL(p.redPos2):'')}/>
     <Info k="開始" v={p.redStart?hmFull(p.redStart):'—'}/>{pending&&<Info k="轉場時間" v={hmFull(p.redTransfer)}/>}<Info k="預計結束" v={p.redEnd?hmFull(p.redEnd):'—'}/>
-    {pending&&(pick?(<div className="space-y-2"><p className="text-sm text-gray-300">轉到哪個位置?</p><div className="flex flex-wrap gap-2">{frees.map(x=><button key={x} onClick={()=>go('move',{pos2:x})} className={'rounded-lg border px-3 py-2 '+(x===p.redPos2?'border-violet-400 bg-violet-600 text-white font-bold':'border-violet-500 text-violet-200')}>{x}{x===p.redPos2?'(建議)':''}</button>)}</div><Bt tone="gray" onClick={()=>setPick(false)}>返回</Bt></div>)
-      :(<React.Fragment><Bt onClick={()=>setPick(true)}>{p.redPos2?'轉場(建議 '+p.redPos2+',可改選)':'轉場(選位置)'}</Bt>
+    {pending&&(pick?(<div className="space-y-2"><p className="text-sm text-gray-300">轉到哪個位置?</p><div className="flex flex-wrap gap-2">{frees.map(x=><button key={x} onClick={()=>go('move',{pos2:x})} className={'rounded-lg border px-3 py-2 '+(x===p.redPos2?'border-violet-400 bg-violet-600 text-white font-bold':'border-violet-500 text-violet-200')}>{PL(x)}{x===p.redPos2?'(建議)':''}</button>)}</div><Bt tone="gray" onClick={()=>setPick(false)}>返回</Bt></div>)
+      :(<React.Fragment><Bt onClick={()=>setPick(true)}>{p.redPos2?'轉場(建議 '+PL(p.redPos2)+',可改選)':'轉場(選位置)'}</Bt>
         <div><p className="text-xs text-gray-400 mb-1">調節口訣(客滿時)</p><div className="flex gap-2">{['11','滿包','40','80'].map(c=><button key={c} onClick={()=>{const r=callCode(p,c);if(r)go('adjust',r);}} className="flex-1 rounded-lg border border-gray-600 text-gray-100 py-2">{c}</button>)}</div></div></React.Fragment>))}
     {!pick&&<React.Fragment><Bt onClick={()=>go('back',{})}>回牌(排到白牌最後)</Bt><ZhunBt p={p} now={now} go={go}/><Bt tone="red" onClick={()=>{if(confirm(p.code+' 號下牌?'))go('off',{});}}>下牌</Bt></React.Fragment>}
   </div>);
@@ -635,8 +636,8 @@ function OpenSheet({D,now,presetPos,act,onClose}){
     {c&&c.transfer>0&&<p className="text-sm text-amber-300">轉場 {hmFull(c.transfer)}(第一段 {c.segs[0][1]} 分)・{c.second==='foot'?'再轉腳位':'再轉床位'}</p>}
     <div><p className="text-xs text-gray-400 mb-1">老師(白牌順序{c&&c.oil?',油壓只能女老師':''})</p>
       {teachers.length===0?<p className="text-sm text-red-300">目前沒有可派的白牌老師</p>:<div className="space-y-1">{teachers.map((p,i)=>(<button key={p.code} onClick={()=>setCode(p.code)} className={'w-full text-left rounded-xl border px-3 py-2 flex items-center gap-3 '+(code===p.code?'border-violet-500 bg-violet-950':'border-gray-700')}><span className={'text-xl font-bold '+(p.gender==='F'?'text-rose-300':'text-white')}>{p.code}</span><span className="text-sm text-gray-300">白牌第 {i+1} 位・{p.gender==='F'?'女':'男'}{p.onAt?'・'+hm(p.onAt)+' 上牌':''}</span></button>))}</div>}</div>
-    <div><p className="text-xs text-gray-400 mb-1">位置{need?(need==='foot'?'(腳位)':'(床位)'):''}</p><div className="flex flex-wrap gap-2">{(need?freeFor(need):FEET.concat(BEDS).filter(x=>!M[x])).map(x=><Chip key={x} on={pos===x} onClick={()=>{setPos(x);if(pos2===x)setPos2('');}}>{x}</Chip>)}</div></div>
-    {c&&c.second&&<div><p className="text-xs text-gray-400 mb-1">轉場後位置(可稍後再選)</p><div className="flex flex-wrap gap-2"><Chip on={!pos2} onClick={()=>setPos2('')}>稍後選</Chip>{freeFor(c.second).filter(x=>x!==pos).map(x=><Chip key={x} on={pos2===x} onClick={()=>setPos2(x)}>{x}</Chip>)}</div></div>}
+    <div><p className="text-xs text-gray-400 mb-1">位置{need?(need==='foot'?'(腳位)':'(床位)'):''}</p><div className="flex flex-wrap gap-2">{(need?freeFor(need):FEET.concat(BEDS).filter(x=>!M[x])).map(x=><Chip key={x} on={pos===x} onClick={()=>{setPos(x);if(pos2===x)setPos2('');}}>{PL(x)}</Chip>)}</div></div>
+    {c&&c.second&&<div><p className="text-xs text-gray-400 mb-1">轉場後位置(可稍後再選)</p><div className="flex flex-wrap gap-2"><Chip on={!pos2} onClick={()=>setPos2('')}>稍後選</Chip>{freeFor(c.second).filter(x=>x!==pos).map(x=><Chip key={x} on={pos2===x} onClick={()=>setPos2(x)}>{PL(x)}</Chip>)}</div></div>}
     <Bt disabled={!ready} onClick={()=>act(Object.assign({act:'red',code:code,item:c.label,pos:pos,pos2:pos2,start:start,end:end,transfer:c.transfer},gFields(g)))}>{ready?'確認開單 '+c.label+'　老師 '+code+'　位置 '+pos:'請選稱謂、客源、項目、老師、位置'}</Bt>
     <Bt disabled={!ready} tone="green" onClick={()=>act(Object.assign({act:'red',code:code,item:c.label,pos:pos,pos2:pos2,start:start,end:end,transfer:c.transfer},gFields(g),{gid:rid()}),true)}>先付(開單後立刻收款)</Bt>
     <Bt tone="gray" onClick={onClose}>取消</Bt></Sheet>);
@@ -684,10 +685,10 @@ function PlateSheet({p,D,now,act,onClose}){
 // ── 本機暫存與背景上傳 ──
 // 操作先寫進本機(立即反映在畫面),每 10 秒(及離開頁面時)用 cnBatch 背景送出,伺服器回最新牌況後,再把還沒送出的操作疊上去顯示。
 const QK='cn2:queue:v1';
-const lsGet=()=>{try{const a=JSON.parse(localStorage.getItem(QK)||'[]');return Array.isArray(a)?a.filter(o=>o&&o.id&&Date.now()-o.ts<6*3600e3):[];}catch(_e){return [];}};
+const lsGet=()=>{try{const a=JSON.parse(localStorage.getItem(QK)||'[]');return Array.isArray(a)?a.filter(o=>o&&o.id&&Date.now()-o.ts<72*3600e3):[];}catch(_e){return [];}};
 const lsSet=q=>{try{localStorage.setItem(QK,JSON.stringify(q));}catch(_e){}};
 // ── 本機暫存:先出框架、先用本機資料,背景更新;客人檔(手機)也下載到本機 ──
-const SK='cn2:srv:v1',GK='cn2:guests:v1',WK='cn2:who:v1';
+const DK='cn2:day:v1',SK='cn2:srv:v1',GK='cn2:guests:v1',WK='cn2:who:v1';
 const lsJ=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v;}catch(_e){return d;}};
 const lsW=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(_e){}};
 let GC=null;
@@ -705,8 +706,12 @@ async function gcSync(force){const c=gcLoad();if(!force&&Date.now()-(c.syncAt||0
 const dkey=ms=>new Date(ms+8*3600e3).toISOString().slice(0,10);
 const bday=ms=>dkey(ms-3*3600e3); // 營業日:03:00~隔天 02:59 算同一天(凌晨 3 點結帳)
 const rid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-function cloneData(S){const c=l=>(l||[]).map(x=>Object.assign({},x));return Object.assign({},S,{bookings:(S.bookings||[]).map(x=>Object.assign({},x)),orders:(S.orders||[]).map(x=>Object.assign({},x)),waits:(S.waits||[]).map(x=>Object.assign({},x)),white:c(S.white),gray:c(S.gray),red:c(S.red),off:c(S.off),leave:c(S.leave)});}
+function cloneLedger(L){L=L||{};return {shifts:(L.shifts||[]).map(x=>Object.assign({},x)),exps:(L.exps||[]).map(x=>Object.assign({},x)),prevPetty:L.prevPetty||0};}
+function cloneData(S){const c=l=>(l||[]).map(x=>Object.assign({},x));return Object.assign({},S,{bookings:(S.bookings||[]).map(x=>Object.assign({},x)),orders:(S.orders||[]).map(x=>Object.assign({},x)),waits:(S.waits||[]).map(x=>Object.assign({},x)),ledger:cloneLedger(S.ledger),white:c(S.white),gray:c(S.gray),red:c(S.red),off:c(S.off),leave:c(S.leave)});}
 function applyOp(D,o){
+  if(o.act==='exp_add'){const a=Math.round(Number(o.amount));if(a>0&&!D.ledger.exps.some(x=>x.id===o.id))D.ledger.exps.push({id:o.id,at:o.ts,by:o.by||'',amount:a,note:String(o.note||'').slice(0,40),bday:bday(o.ts)});return;}
+  if(o.act==='exp_del'){D.ledger.exps=D.ledger.exps.filter(x=>x.id!==o.eid);return;}
+  if(o.act==='shift'){if(!D.ledger.shifts.some(x=>x.id===o.id))D.ledger.shifts.push({id:o.id,kind:o.kind==='close'?'close':'shift',at:o.ts,by:o.by||'',bday:bday(o.ts),since:Number(o.since)||0,petty:Number(o.petty)||0,cash:Number(o.cash)||0,expense:Number(o.expense)||0,expNote:String(o.expNote||'').slice(0,60),expected:Number(o.expected)||0,actual:(o.actual===''||o.actual==null)?null:Number(o.actual),unpaid:Number(o.unpaid)||0});return;}
   if(o.act==='wadd'){if(!D.waits.some(x=>x.id===o.id)&&o.phone&&o.name)D.waits.push({id:o.id,phone:String(o.phone).replace(/[^0-9+]/g,''),name:o.name,sur:o.sur||'',title:o.title||'',src:o.src||'',items:o.items||[],createdAt:o.ts});return;}
   if(o.act==='bk_add'){if(!D.bookings.some(x=>x.id===o.id)&&o.code&&o.at){let it=null;try{it=typeof o.it==='string'?JSON.parse(o.it):o.it;}catch(_e){}D.bookings.push({id:o.id,code:o.code,at:o.at,it:it,item:o.item||'',title:o.title||'',sur:o.sur||'',giv:o.giv||'',phone:o.phone||'',src:o.src||'',createdBy:o.by||''});D.bookings.sort((a,b)=>a.at-b.at);}return;}
   if(o.act==='bk_cancel'){D.bookings=D.bookings.filter(x=>x.id!==o.wid);return;}
@@ -755,22 +760,45 @@ function applyAll(S,q){
 const itemCnt=item=>{const m=/^[a-z]+(\d+)(?:\+(\d+))?$/.exec(String(item||''));return m?(parseInt(m[1],10)||0)+(parseInt(m[2],10)||0):0;};
 function cntTable(orders){const M={};(orders||[]).forEach(o=>{if(o.status!=='wait_pay'&&o.status!=='done')return;const r=M[o.code]=M[o.code]||{code:o.code,cnt:0,n:0,items:[]};r.cnt+=itemCnt(o.item);r.n++;r.items.push(o.item);});
   return Object.keys(M).map(k=>M[k]).sort((a,b)=>(parseInt(a.code,10)||0)-(parseInt(b.code,10)||0));}
+// ── 本機計算:交班/結帳/支出/支數/今日日報全部用本機資料算(離線可用),操作進離線佇列,有網路再補送 ──
+const lgDayStart=day=>Date.parse(day+'T03:00:00+08:00');
+function lgPaid(orders,from,to){const out={cash:0,ticket:0,t400:0,t200:0,total:0,n:0};
+  (orders||[]).forEach(x=>{if(!x.payInfo)return;const t=x.paidAt||0;if(!(t>from&&t<=to))return;let i=null;try{i=JSON.parse(x.payInfo);}catch(_e){}if(!i)return;
+    out.cash+=Number(i.cash)||0;out.t400+=Number(i.t400)||0;out.t200+=Number(i.t200)||0;out.total+=Number(i.total)||0;out.n++;});
+  out.ticket=out.t400*400+out.t200*200;return out;}
+function lgUnpaid(orders){const g={};(orders||[]).forEach(x=>{if((x.status==='seating'||x.status==='serving'||x.status==='wait_pay')&&!x.prepaid)g[x.gid||x.id]=1;});return Object.keys(g).length;}
+function lgInfo(L,orders,now,kind){
+  const day=bday(now),ds=lgDayStart(day);L=L||{};
+  const recs=(L.shifts||[]).filter(r=>r.bday===day).sort((a,b)=>a.at-b.at);const last=recs[recs.length-1]||null;
+  const lastSh=recs.filter(r=>r.kind==='shift').slice(-1)[0]||null;
+  const since=kind==='close'?ds-1:(last?last.at:ds-1);
+  const expDay=recs.filter(r=>r.kind==='shift').reduce((a,r)=>a+(Number(r.expense)||0),0);
+  const expBlock=(L.exps||[]).filter(e=>bday(e.at)===day&&e.at>(lastSh?lastSh.at:ds-1)).reduce((a,e)=>a+e.amount,0);
+  return {ok:true,bday:day,kind:kind,since:since,now:now,paid:lgPaid(orders,since,now),petty:last?(Number(last.petty)||0):(L.prevPetty||0),expenseBefore:kind==='close'?expDay:0,expBlock:expBlock,unpaid:lgUnpaid(orders),closed:recs.some(r=>r.kind==='close'),records:recs};}
+function lgReport(L,orders,now){
+  const day=bday(now),ds=lgDayStart(day);L=L||{};
+  const os=(orders||[]).filter(x=>x.status!=='void'&&bday(x.createdAt||0)===day).sort((a,b)=>a.createdAt-b.createdAt);
+  const recs=(L.shifts||[]).filter(r=>r.bday===day).sort((a,b)=>a.at-b.at);
+  const lastSh=recs.filter(r=>r.kind==='shift').slice(-1)[0]||null;
+  const exps=(L.exps||[]).filter(e=>bday(e.at)===day).sort((a,b)=>a.at-b.at).map(e=>Object.assign({},e,{canDel:e.at>(lastSh?lastSh.at:ds-1)}));
+  return {ok:true,local:true,date:day,today:day,orders:os,paid:lgPaid(orders,ds-1,ds+24*3600e3-1),records:recs,exps:exps,closed:recs.some(r=>r.kind==='close')};}
 function useRpt(date){const[R,setR]=useState(null);const[err,setErr]=useState('');const[n,setN]=useState(0);
-  useEffect(()=>{let dead=false;setR(null);setErr('');api('cnReport',date?{date:date}:{}).then(r=>{if(dead)return;if(r&&r.ok)setR(r);else setErr((r&&r.error)||'讀取失敗');}).catch(()=>{if(!dead)setErr('網路不通,無法讀取');});return()=>{dead=true;};},[date,n]);
+  useEffect(()=>{if(date==='__skip__')return;let dead=false;setR(null);setErr('');const ck='cn2:rpt:'+date;
+    api('cnReport',date?{date:date}:{}).then(r=>{if(dead)return;if(r&&r.ok){setR(r);lsW(ck,r);}else{const c=lsJ(ck,null);if(c)setR(Object.assign({},c,{cached:true}));else setErr((r&&r.error)||'讀取失敗');}}).catch(()=>{if(dead)return;const c=lsJ(ck,null);if(c)setR(Object.assign({},c,{cached:true}));else setErr('離線中,這一天沒有存過本機資料');});return()=>{dead=true;};},[date,n]);
   return[R,err,()=>setN(n+1)];}
 function CntTable({orders}){const T=cntTable(orders);const sum=T.reduce((a,x)=>a+x.cnt,0);
   return(<div className="space-y-1">{T.length===0?<p className="text-sm text-gray-500">還沒有完成做事的老師</p>:T.map(x=>(<div key={x.code} className="flex items-center gap-3 rounded-xl border border-gray-800 px-3 py-2"><b className="text-white text-lg w-14">{x.code}</b><span className="text-xs text-gray-400 flex-1">{x.items.join('、')}</span><span className="text-xs text-gray-400">{x.n} 單</span><b className="text-violet-300 text-lg w-14 text-right">{x.cnt} 支</b></div>))}
     <div className="flex justify-between text-sm pt-1"><span className="text-gray-400">合計 {T.length} 位老師</span><b className="text-white">{sum} 支</b></div></div>);}
-function CountSheet({onClose}){const[R,err,reload]=useRpt('');
+function CountSheet({onClose,local}){const R=local(),err='',reload=()=>{};
   return(<Sheet title="支數表(現在)" onClose={onClose}><p className="text-xs text-gray-400">只算已完成做事的老師(待買單、已完成),服務中、帶位中不算。營業日 {R?R.date:'…'}</p>
-    {err&&<p className="text-sm text-red-400">{err}</p>}{!R&&!err&&<p className="text-sm text-gray-500">讀取中…</p>}{R&&<CntTable orders={R.orders}/>}<Bt tone="gray" onClick={reload}>重新整理</Bt></Sheet>);}
-function ReportSheet({onClose}){const[date,setDate]=useState('');const[tab,setTab]=useState('log');const[R,err]=useRpt(date);
+    {R&&<CntTable orders={R.orders}/>}<Bt tone="gray" onClick={onClose}>關閉</Bt></Sheet>);}
+function ReportSheet({onClose,local}){const[date,setDate]=useState('');const[tab,setTab]=useState('log');const lc=local();const isT=!date||date===lc.date;const[R2,err]=useRpt(isT?'__skip__':date);const R=isT?lc:R2;
   const G=R?groupOrders(R.orders).sort((a,b)=>a.createdAt-b.createdAt):[];const pd=R?R.paid:null;
   const Tb=({k,children})=>(<button onClick={()=>setTab(k)} className={'flex-1 py-2 text-sm font-bold rounded-lg '+(tab===k?'bg-violet-600 text-white':'text-gray-300 border border-gray-700')}>{children}</button>);
   const KN={shift:'交班',close:'結帳'};
   return(<Sheet title="日報表" onClose={onClose}>
     <div className="flex items-center gap-2"><input type="date" value={date||(R?R.date:'')} max={R?R.today:undefined} onChange={e=>setDate(e.target.value)} className="flex-1 rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/>{R&&<span className={'text-xs font-bold '+(R.closed?'text-emerald-400':'text-amber-300')}>{R.closed?'已結帳':'未結帳'}</span>}</div>
-    <p className="text-[11px] text-gray-500">營業日 03:00 ~ 隔天 02:59。</p>
+    <p className="text-[11px] text-gray-500">營業日 03:00 ~ 隔天 02:59。{isT?'今天的資料來自這台本機(離線也能看)。':(R&&R.cached?'離線中:顯示上次載入的資料。':'其他天需要連線讀取。')}</p>
     {err&&<p className="text-sm text-red-400">{err}</p>}{!R&&!err&&<p className="text-sm text-gray-500">讀取中…</p>}
     {R&&<React.Fragment>
       <div className="rounded-xl bg-black/30 p-3 space-y-1"><Info k="訂單" v={G.length+' 組'}/><Info k="收款合計" v={pd.total}/><Info k="現金" v={pd.cash}/><Info k="票券抵用" v={pd.ticket+(pd.t400||pd.t200?'(400×'+pd.t400+'、200×'+pd.t200+')':'')}/></div>
@@ -779,57 +807,75 @@ function ReportSheet({onClose}){const[date,setDate]=useState('');const[tab,setTa
         <p className="text-xs text-gray-300">{g.list.map(o=>o.code+'號 '+o.item+(o.status==='wait_pay'?'(待買單)':o.status==='seating'?'(帶位中)':o.status==='serving'?'(服務中)':'')).join('、')}</p>
         <p className="text-[11px] text-gray-500">{g.pay?payTxt(g.pay):''}{g.prepaid?' · 先付':''}{g.paidBy?' · '+g.paidBy:''}</p></div>)))}
       {tab==='cnt'&&<CntTable orders={R.orders}/>}
+      {tab==='sh'&&(R.exps&&R.exps.length>0)&&<div className="rounded-xl border border-gray-800 p-2 space-y-0.5"><p className="text-sm font-bold text-white">支出登記 {R.exps.reduce((a,e)=>a+e.amount,0)}</p>{R.exps.map(e=><p key={e.id} className="text-xs text-gray-300">{hmFull(e.at)}　{e.amount}　{e.note||'—'}　{e.by}</p>)}</div>}
       {tab==='sh'&&(R.records.length===0?<p className="text-sm text-gray-500">這天沒有交班或結帳紀錄</p>:R.records.map(r=>(<div key={r.id} className="rounded-xl border border-gray-800 p-2 space-y-0.5"><div className="flex justify-between text-sm"><b className="text-white">{KN[r.kind]} {hmFull(r.at)}　{r.by}</b><b className="text-violet-300">應結 {r.expected}</b></div>
         <p className="text-xs text-gray-400">零用金 {r.petty} ＋ 現金 {r.cash} − 支出 {r.expense}{r.expNote?'('+r.expNote+')':''}{r.actual!==null?' · 實點 '+r.actual+'(差 '+(r.actual-r.expected)+')':''}</p></div>)))}
     </React.Fragment>}
     <Bt tone="gray" onClick={onClose}>關閉</Bt></Sheet>);}
-function ShiftSheet({kind,queueN,onClose}){
-  const close=kind==='close';const[I,setI]=useState(null);const[err,setErr]=useState('');const[petty,setPetty]=useState('');const[exp,setExp]=useState('');const[note,setNote]=useState('');const[actual,setActual]=useState('');const[step,setStep]=useState(0);const[busy,setBusy]=useState(false);const[done,setDone]=useState(null);
-  useEffect(()=>{let dead=false;api('cnShiftInfo',{kind:kind}).then(r=>{if(dead)return;if(r&&r.ok){setI(r);setPetty(String(r.petty||0));}else setErr((r&&r.error)||'讀取失敗');}).catch(()=>{if(!dead)setErr('網路不通,無法讀取');});return()=>{dead=true;};},[]);
+// 支出費用(單獨一個區塊):登記今天(營業日)每一筆支出;交班/結帳的「應結現金」自動扣掉,日報表可看
+function ExpBlock({L,now,act}){
+  const[amt,setAmt]=useState('');const[note,setNote]=useState('');
+  const day=bday(now),ds=lgDayStart(day);L=L||{};
+  const lastSh=(L.shifts||[]).filter(r=>r.bday===day&&r.kind==='shift').sort((a,b)=>a.at-b.at).slice(-1)[0];const closed=(L.shifts||[]).some(r=>r.bday===day&&r.kind==='close');
+  const list=(L.exps||[]).filter(e=>bday(e.at)===day).sort((a,b)=>a.at-b.at);const total=list.reduce((a,e)=>a+e.amount,0);
+  const n=parseInt(String(amt).replace(/\D/g,''),10)||0;
+  const add=()=>{if(n<=0||closed)return;act({act:'exp_add',amount:n,note:note});setAmt('');setNote('');};
+  const del=e=>{if(!confirm('刪除這筆支出 '+e.amount+(e.note?'('+e.note+')':'')+'?'))return;act({act:'exp_del',eid:e.id});};
+  return(<CSec title="支出費用" right={'今日 '+total}>
+    {closed?<p className="text-sm text-amber-300">本日已結帳,不能再記支出。</p>:<div className="flex items-center gap-2"><input value={amt} inputMode="numeric" onChange={e=>setAmt(e.target.value.replace(/\D/g,'').slice(0,7))} placeholder="金額" style={{width:'30%'}} className="rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/><input value={note} maxLength={40} onChange={e=>setNote(e.target.value)} placeholder="說明(例:買衛生紙)" className="flex-1 min-w-0 rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/><button onClick={add} disabled={n<=0} className="cn-btn p" style={{opacity:n>0?1:.45,flex:'0 0 auto'}}>記一筆</button></div>}
+    {list.length===0&&<p className="text-sm text-gray-500 py-1">今天還沒有支出</p>}
+    {list.map(e=>(<div key={e.id} className="flex items-center gap-2 text-sm py-1 border-t border-gray-800"><span className="text-gray-400 w-12">{hmFull(e.at)}</span><b className="text-white w-16">{e.amount}</b><span className="flex-1 min-w-0 text-gray-300 truncate">{e.note||'—'}</span><span className="text-xs text-gray-500">{e.by}</span>{!closed&&e.at>(lastSh?lastSh.at:ds-1)&&<button onClick={()=>del(e)} className="text-xs text-red-400 underline">刪</button>}</div>))}
+  </CSec>);
+}
+function ShiftSheet({kind,getInfo,onSubmit,onClose}){
+  const close=kind==='close';const I=getInfo(kind);const[err,setErr]=useState('');const[petty,setPetty]=useState(()=>String(getInfo(kind).petty||0));const[exp,setExp]=useState('');const[note,setNote]=useState('');const[actual,setActual]=useState('');const[step,setStep]=useState(0);const[done,setDone]=useState(null);
   const num=v=>Math.max(0,parseInt(String(v).replace(/\D/g,''),10)||0);
-  const cash=I?I.paid.cash:0;const expAll=num(exp)+(I?I.expenseBefore:0);const expected=num(petty)+cash-expAll;
+  const cash=I.paid.cash;const expAll=num(exp)+I.expenseBefore+(I.expBlock||0);const expected=num(petty)+cash-expAll;
   const F=({l,v,set,ph})=>(<div className="flex items-center gap-2"><span className="text-sm text-gray-300 flex-1">{l}</span><input value={v} onChange={e=>set(e.target.value.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder={ph||'0'} className="w-28 rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white text-right"/></div>);
-  const submit=async()=>{setBusy(true);setErr('');try{const r=await api('cnShiftSet',{kind:kind,petty:num(petty),expense:num(exp),expNote:note,actual:actual===''?'':num(actual)});if(r&&r.ok)setDone(r.record);else{setErr((r&&r.error)||'失敗');setStep(0);}}catch(_e){setErr('網路不通,請再試一次');}finally{setBusy(false);}};
+  const submit=()=>{const J=getInfo(kind);if(J.closed){setErr('本日已結帳');return;}if(close&&J.unpaid>0){setErr('未付有 '+J.unpaid+' 筆,請先完成付款再結帳');setStep(0);return;}
+    const ex=num(exp)+J.expenseBefore+(J.expBlock||0);const exd=num(petty)+J.paid.cash-ex;
+    const op={act:'shift',kind:kind,petty:num(petty),cash:J.paid.cash,expense:ex,expNote:note,expected:exd,actual:actual===''?'':num(actual),since:J.since,unpaid:J.unpaid};
+    onSubmit(op);setDone({expected:exd,petty:num(petty),cash:J.paid.cash,expense:ex,actual:actual===''?null:num(actual)});};
   const title=close?'結帳':'交班';
-  if(done)return(<Sheet title={title+'完成'} onClose={onClose}><div className="rounded-xl bg-black/30 p-3 space-y-1"><Info k="應結現金" v={done.expected}/><Info k="零用金" v={done.petty}/><Info k="現金收款" v={done.cash}/><Info k="支出" v={done.expense}/>{done.actual!==null&&<Info k="實點現金" v={done.actual+'(差 '+(done.actual-done.expected)+')'}/>}</div>{close&&<p className="text-sm text-gray-300">本日已結帳。凌晨 3 點後自動進入下一個營業日。</p>}<Bt onClick={onClose}>完成</Bt></Sheet>);
-  return(<Sheet title={title+(I?'　'+I.bday:'')} onClose={onClose}>
-    {err&&<p className="text-sm text-red-400">{err}</p>}{!I&&!err&&<p className="text-sm text-gray-500">讀取中…</p>}
-    {I&&I.closed&&<p className="text-base text-amber-300 font-bold">本日已結帳</p>}
-    {I&&!I.closed&&(<React.Fragment>
-      {queueN>0&&<p className="text-sm text-amber-300">還有 {queueN} 筆操作待上傳,建議等同步完成再{title}(否則收款可能沒算進去)。</p>}
+  if(done)return(<Sheet title={title+'完成'} onClose={onClose}><div className="rounded-xl bg-black/30 p-3 space-y-1"><Info k="應結現金" v={done.expected}/><Info k="零用金" v={done.petty}/><Info k="現金收款" v={done.cash}/><Info k="支出" v={done.expense}/>{done.actual!==null&&<Info k="實點現金" v={done.actual+'(差 '+(done.actual-done.expected)+')'}/>}</div>{close&&<p className="text-sm text-gray-300">本日已結帳。凌晨 3 點後自動進入下一個營業日。</p>}<p className="text-xs text-gray-500">已記在這台本機,有網路時自動上傳。</p><Bt onClick={onClose}>完成</Bt></Sheet>);
+  return(<Sheet title={title+'　'+I.bday} onClose={onClose}>
+    {err&&<p className="text-sm text-red-400">{err}</p>}
+    {I.closed&&<p className="text-base text-amber-300 font-bold">本日已結帳</p>}
+    {!I.closed&&(<React.Fragment>
       {close&&I.unpaid>0&&<p className="text-base text-red-300 font-bold">未付有 {I.unpaid} 筆,請先完成付款再結帳</p>}
       <p className="text-xs text-gray-400">{close?'全日':'本班(自上次交班 '+(I.since>0&&I.records.length?hmFull(I.since):'營業日開始')+' 起)'}現金收款 {I.paid.n} 筆</p>
       {step===0&&(<React.Fragment>
         <div className="space-y-2"><F l="零用金" v={petty} set={setPetty}/><F l={close?'今天再補的支出':'支出'} v={exp} set={setExp}/><div className="flex items-center gap-2"><span className="text-sm text-gray-300 w-20">支出說明</span><input value={note} maxLength={40} onChange={e=>setNote(e.target.value)} placeholder="例:買衛生紙" className="flex-1 rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/></div><F l="實點現金(選填)" v={actual} set={setActual} ph="不填"/></div>
-        <div className="rounded-xl bg-black/30 p-3 space-y-1"><Info k="零用金" v={num(petty)}/><Info k={close?'全日現金收款':'本班現金收款'} v={cash}/>{I.paid.ticket>0&&<Info k="票券抵用(不算現金)" v={I.paid.ticket}/>}<Info k="支出" v={'− '+expAll}/><div className="flex justify-between text-base pt-1 border-t border-gray-700"><span className="text-gray-200 font-bold">應結現金</span><b className="text-violet-300 text-xl">{expected}</b></div>{actual!==''&&<p className={'text-sm '+(num(actual)===expected?'text-emerald-300':'text-amber-300')}>實點 {num(actual)}　差 {num(actual)-expected}</p>}</div>
-        {close?<Bt disabled={I.unpaid>0} onClick={()=>setStep(1)}>下一步:確認收支</Bt>:<Bt disabled={busy} onClick={submit}>確認交班</Bt>}</React.Fragment>)}
+        <div className="rounded-xl bg-black/30 p-3 space-y-1"><Info k="零用金" v={num(petty)}/><Info k={close?'全日現金收款':'本班現金收款'} v={cash}/>{I.paid.ticket>0&&<Info k="票券抵用(不算現金)" v={I.paid.ticket}/>}<Info k={'支出'+(I.expBlock?'(含登記 '+I.expBlock+')':'')} v={'− '+expAll}/><div className="flex justify-between text-base pt-1 border-t border-gray-700"><span className="text-gray-200 font-bold">應結現金</span><b className="text-violet-300 text-xl">{expected}</b></div>{actual!==''&&<p className={'text-sm '+(num(actual)===expected?'text-emerald-300':'text-amber-300')}>實點 {num(actual)}　差 {num(actual)-expected}</p>}</div>
+        {close?<Bt disabled={I.unpaid>0} onClick={()=>setStep(1)}>下一步:確認收支</Bt>:<Bt onClick={submit}>確認交班</Bt>}</React.Fragment>)}
       {step===1&&(<React.Fragment><p className="text-lg text-amber-300 font-bold">請確認收支是否正確</p><div className="rounded-xl bg-black/30 p-3 space-y-1"><Info k="零用金" v={num(petty)}/><Info k="全日現金收款" v={cash}/><Info k="支出合計" v={expAll}/><Info k="應結現金" v={expected}/>{actual!==''&&<Info k="實點現金" v={num(actual)}/>}</div>
-        <Bt disabled={busy} onClick={submit}>{busy?'處理中…':'收支正確,確認結帳'}</Bt><Bt tone="gray" onClick={()=>setStep(0)}>回去修改</Bt></React.Fragment>)}
+        <Bt onClick={submit}>收支正確,確認結帳</Bt><Bt tone="gray" onClick={()=>setStep(0)}>回去修改</Bt></React.Fragment>)}
     </React.Fragment>)}
     <Bt tone="gray" onClick={onClose}>關閉</Bt></Sheet>);}
 // ── 主頁 ──
 function CounterPage({who}){
-  const c0=useRef(null);if(c0.current===null){const c=lsJ(SK,null);c0.current=(c&&c.srv&&c.at&&Date.now()-c.at<12*3600e3)?c:{};}
+  const c0=useRef(null);if(c0.current===null){const c=lsJ(SK,null);c0.current=(c&&c.srv&&c.at)?c:{};}
   const[server,setServer]=useState(c0.current.srv||null);const[fresh,setFresh]=useState(false);const[bid,setBid]=useState('');const[queue,setQueue]=useState(()=>lsGet());const[err,setErr]=useState('');const[notes,setNotes]=useState([]);
   const[open,setOpen]=useState(false);const[sel,setSel]=useState(null);const[opening,setOpening]=useState(null);const[arranging,setArranging]=useState(false);const[req,setReq]=useState(null);const[waitSheet,setWaitSheet]=useState(false);const[fromWait,setFromWait]=useState('');const[waitSel,setWaitSel]=useState(null);const[guest,setGuest]=useState(G0());const[ordSel,setOrdSel]=useState('');const[paySel,setPaySel]=useState('');const[preGid,setPreGid]=useState('');const[tool,setTool]=useState('');const[toolN,setToolN]=useState(0);
   const[skew,setSkew]=useState(c0.current.skew||0);const[,setTick]=useState(0);const[syncAt,setSyncAt]=useState(0);const[syncing,setSyncing]=useState(false);
-  const qR=useRef(queue);const flying=useRef(false);
+  const qR=useRef(queue);const flying=useRef(false);const dayRefH=useRef(null);if(dayRefH.current===null){const d=lsJ(DK,null);dayRefH.current={orders:(d&&d.orders)||{}};}const aoRef=useRef({});
+  useEffect(()=>{if(!server)return;const m={};Object.keys(aoRef.current).forEach(k=>{const x=aoRef.current[k];if(Date.now()-(x.createdAt||0)<3*86400e3)m[k]=x;});dayRefH.current.orders=m;lsW(DK,{orders:m});},[server,queue]);
   const setQ=f=>{const n=typeof f==='function'?f(qR.current):f;qR.current=n;lsSet(n);setQueue(n);};
   const now=Date.now()+skew;
   const sync=async()=>{
     if(flying.current)return;flying.current=true;setSyncing(true);
-    const sent=qR.current.slice();
+    const sent=qR.current.slice(0,50);let more=false;
     try{
       const r=await api('cnBatch',{ops:JSON.stringify(sent)},true);
       if(r&&r.ok){
-        const ids={};sent.forEach(o=>{ids[o.id]=1;});setQ(q=>q.filter(o=>!ids[o.id]));
+        const ids={};sent.forEach(o=>{ids[o.id]=1;});setQ(q=>q.filter(o=>!ids[o.id]));more=qR.current.length>0&&sent.length>=50;
         setServer(r);const sk=(r.now||Date.now())-Date.now();setSkew(sk);setSyncAt(Date.now());setErr('');setFresh(true);
         try{const c=Object.assign({},r);delete c.results;lsW(SK,{srv:c,skew:sk,at:Date.now()});}catch(_e){}
         gcSync();
         const bad=(r.results||[]).filter(x=>!x.ok);if(bad.length)setNotes(bad.map(x=>(x.code?x.code+' 號:':'')+(x.error||'操作失敗')));
       }else setErr((r&&r.error)||'同步失敗,稍後自動重試');
     }catch(e){setErr('網路不通,操作已存在本機,稍後自動重試');}
-    finally{flying.current=false;setSyncing(false);}
+    finally{flying.current=false;setSyncing(false);if(more)setTimeout(sync,50);}
   };
   useEffect(()=>{sync();const t=setInterval(()=>{if(!document.hidden)sync();},10000);const t2=setInterval(()=>setTick(x=>x+1),1000);
     const vis=()=>{sync();};document.addEventListener('visibilitychange',vis);window.addEventListener('pagehide',vis);
@@ -841,13 +887,17 @@ function CounterPage({who}){
   if(!server){return(<div className="cn-light"><style>{CN_CSS}</style><div className="cn-wrap">
     <div className="cn-hd"><div><h1>主櫃</h1><div className="cn-tm"><span>{hmFull(Date.now())}</span><span className={'cn-sync'+(err?' w':'')}>{err?'● 連線失敗':'● 載入中…'}</span></div></div>
       <div className="cn-acts"><button disabled className="cn-btn" style={{opacity:.45}}>安排客人</button><button disabled className="cn-btn p" style={{opacity:.45}}>＋開單</button></div></div>
-    <div className="cn-chips">{['白牌','綠牌','灰牌','紅牌'].map(t=>(<div key={t} className="cn-chip"><b><i className="cn-sk" style={{width:22,height:20,display:'block'}}></i></b><span>{t}</span></div>))}</div>
+    <div className="cn-chips">{['待派工','服務中','已買單','已完成'].map(t=>(<div key={t} className="cn-chip"><b><i className="cn-sk" style={{width:22,height:20,display:'block'}}></i></b><span>{t}</span></div>))}</div>
     {err&&<div className="cn-alert" style={{borderColor:'#d99a06',background:'#fff6e0',color:'#92400e'}}>{err}　<button onClick={sync} style={{fontWeight:700,textDecoration:'underline'}}>重試</button></div>}
     <CSec first title="待派工" right=""><div className="cn-skrow">{[0,1,2,3,4,5].map(i=><i key={i} className="cn-sk" style={{width:50,height:60,borderRadius:10,flex:'0 0 auto'}}></i>)}</div></CSec>
     <CSec title="做事中" right=""><div className="cn-skrow">{[0,1,2].map(i=><i key={i} className="cn-sk" style={{width:60,height:60,borderRadius:10,flex:'0 0 auto'}}></i>)}</div></CSec>
     <CSec title="訂單" right=""><i className="cn-sk" style={{width:'100%',height:36,display:'block',marginBottom:12}}></i><i className="cn-sk" style={{width:'100%',height:90,display:'block'}}></i></CSec></div></div>);}
   const D=applyAll(server,queue);const find=code=>[].concat(D.white,D.gray,D.red,D.off,D.leave).filter(x=>x.code===code)[0]||null;
   D.white.forEach(p=>{if(p.state==='white'){const b=(D.bookings||[]).filter(x=>x.code===p.code&&x.at>=now-20*MIN&&x.at<=now+120*MIN).sort((a,c)=>a.at-c.at)[0];if(b)p.bk=b;}});
+  const dayRef=dayRefH;
+  const allOrders=(()=>{const m=dayRef.current.orders||{};const o={};const ids={};D.orders.forEach(x=>{ids[x.id]=1;});Object.keys(m).forEach(k=>{const x=m[k];const fin=x.status==='done'||x.status==='void';if(fin||ids[k])o[k]=x;});D.orders.forEach(x=>{o[x.id]=x;});return o;})();
+  const AO=Object.keys(allOrders).map(k=>allOrders[k]);aoRef.current=allOrders;
+  const getInfo=kind=>lgInfo(D.ledger,AO,now,kind);const getRpt=()=>lgReport(D.ledger,AO,now);
   const selP=sel?find(sel):null;
   const lateN=D.gray.filter(p=>isLate(p,now)).length;
   const click=p=>()=>setSel(p.code);
@@ -857,7 +907,8 @@ function CounterPage({who}){
     <div className="cn-hd"><div><h1>主櫃 · {D.store} <small style={{fontSize:11,fontWeight:500,color:'#9aa0ad'}}>{CN_VER}</small></h1><div className="cn-tm"><span>{hmFull(now)}:{p2(tzp(now).s)}</span><button onClick={sync} className={'cn-sync'+(queue.length>0?' w':'')}>{syncing?<Spinner size={12}/>:'●'} {queue.length>0?'待上傳 '+queue.length+' 筆':fresh?'已同步'+(syncAt?' '+hmFull(syncAt):''):(c0.current.at?'本機資料 '+hmFull(c0.current.at)+' · 更新中':'載入中')}</button></div></div>
       <div className="cn-acts"><button onClick={()=>setArranging(true)} className="cn-btn">安排客人</button><button onClick={()=>setOpening('')} className="cn-btn p">＋開單</button></div></div>
     <div className="cn-tools"><button onClick={()=>setTool('cnt')} className="cn-btn">支數表</button><button onClick={()=>setTool('rep')} className="cn-btn">日報表</button><button onClick={()=>setTool('shift')} className="cn-btn">交班</button><button onClick={()=>{const bad={};(D.orders||[]).forEach(o=>{if((o.status==='seating'||o.status==='serving'||o.status==='wait_pay')&&!o.prepaid)bad[o.gid||o.id]=1;});const n=Object.keys(bad).length;if(n>0){setToolN(n);setTool('unpaid');}else setTool('close');}} className="cn-btn" style={{borderColor:'#b45309',color:'#b45309'}}>結帳</button>{(who&&D.canReset!==false)&&<button onClick={doReset} className="cn-btn" style={{borderColor:'#b91c1c',color:'#b91c1c'}}>還原</button>}</div>
-    <div className="cn-chips"><div className="cn-chip"><b>{cnt('white')}</b><span>白牌</span></div><div className="cn-chip"><b style={{color:'#0f8a5f'}}>{cnt('green')}</b><span>綠牌</span></div><div className="cn-chip"><b style={{color:'#6b7280'}}>{D.gray.length}</b><span>灰牌</span></div><div className="cn-chip"><b style={{color:'#b91c1c'}}>{D.red.length}</b><span>紅牌</span></div></div>
+    {(()=>{const GA=groupOrders(D.orders||[]);const gN=f=>GA.filter(f).length;const sg=gN(x=>x.st==='seating'),sv=gN(x=>x.st==='serving'),wp=gN(x=>x.st==='wait_pay'),dn=gN(x=>x.st==='done');
+      return(<div className="cn-chips"><div className="cn-chip"><b>{cnt('white')}</b><span>待派工</span><small>白牌老師{sg>0?' · 帶位中 '+sg+' 組':''}</small></div><div className="cn-chip"><b style={{color:'#b91c1c'}}>{D.red.length}</b><span>服務中</span><small>老師 · {sv} 組</small></div><div className="cn-chip"><b style={{color:'#0f8a5f'}}>{dn}</b><span>已買單</span><small>組</small></div><div className="cn-chip"><b style={{color:'#6b7280'}}>{wp+dn}</b><span>已完成</span><small>做完 · 待買單 {wp} 組</small></div></div>);})()}
     <div className="cn-cols"><div className="cn-ca">
     {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
     {lateN>0&&<div className="cn-alert"><b>未到未電 {lateN} 位</b>　{D.gray.filter(p=>isLate(p,now)).map(p=>p.code).join('、')}</div>}
@@ -877,16 +928,18 @@ function CounterPage({who}){
     </React.Fragment>)}
     </div><div className="cn-cs">
     <SeatMap D={D} now={now} onSeat={pos=>{const m=seatMap(D)[pos];if(m)setSel(m.p.code);else setOpening(pos);}}/>
-    </div><div className="cn-cr">
+    </div><div className="cn-cb">
     <BookList D={D} now={now} onCancel={b=>act({act:'bk_cancel',wid:b.id})} onArrive={b=>{setReq([Object.assign(newItem(),b.it||{},{n:1,teacher:b.code})]);setGuest({title:b.title||'',src:b.src||'',phone:b.phone||'',sur:b.sur||'',giv:b.giv||''});setBid(b.id);setFromWait('');}}/>
+    <ExpBlock L={D.ledger} now={now} act={act}/>
+    </div><div className="cn-co">
     <OrderLog D={D} act={act} onOpen={setOrdSel} onPay={setPaySel} onPre={setPreGid}/>
     </div></div>
     {ordSel&&(()=>{const g=groupOrders(D.orders||[]).find(x=>x.key===ordSel);return g?<OrderSheet g={g} D={D} act={o=>{act(o);}} onClose={()=>setOrdSel('')}/>:null;})()}
     {paySel&&(()=>{const g=groupOrders(D.orders||[]).find(x=>x.key===paySel);return g&&g.st==='wait_pay'?<PaySheet g={g} onClose={()=>setPaySel('')} onDone={v=>{act(Object.assign({act:'pay',wid:g.key},v));setPaySel('');}}/>:null;})()}
     {preGid&&(()=>{const g=groupOrders(D.orders||[]).find(x=>x.key===preGid);return g&&g.canPre?<PaySheet pre g={g} onClose={()=>setPreGid('')} onDone={v=>{act(Object.assign({act:'prepay',wid:g.key},v));setPreGid('');}}/>:null;})()}
-    {tool==='cnt'&&<CountSheet onClose={()=>setTool('')}/>}
-    {tool==='rep'&&<ReportSheet onClose={()=>setTool('')}/>}
-    {(tool==='shift'||tool==='close')&&<ShiftSheet kind={tool} queueN={queue.length} onClose={()=>{if(tool==='close')sync();setTool('');}}/>}
+    {tool==='cnt'&&<CountSheet local={getRpt} onClose={()=>setTool('')}/>}
+    {tool==='rep'&&<ReportSheet local={getRpt} onClose={()=>setTool('')}/>}
+    {(tool==='shift'||tool==='close')&&<ShiftSheet kind={tool} getInfo={getInfo} onSubmit={act} onClose={()=>{if(tool==='close')sync();setTool('');}}/>}
     {tool==='unpaid'&&<Sheet title="還不能結帳" onClose={()=>setTool('')}><p className="text-base text-red-300 font-bold">未付有 {toolN} 筆,請先完成付款再結帳</p><p className="text-sm text-gray-400">帶位中、服務中、待買單的訂單都要先付款(先付也算)。</p><Bt onClick={()=>setTool('')}>知道了</Bt></Sheet>}
     {selP&&<PlateSheet key={selP.code+selP.state} p={selP} D={D} now={now} act={act} onClose={()=>setSel(null)}/>}
     {waitSheet&&req&&<WaitSheet req={req} guest={guest} onClose={()=>setWaitSheet(false)} onDone={v=>{act({act:'wadd',phone:v.phone,name:v.name,sur:v.sur,giv:v.giv,title:guest.title,src:guest.src,items:req});setWaitSheet(false);setReq(null);setGuest(G0());}}/>}
