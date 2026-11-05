@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>員工專區 v1.13-154</title>
+<title>員工專區 v1.13-156</title>
 <meta property="og:title" content="員工專區">
 <meta property="og:description" content="公告、安全回報、拒接名單、手套團購、價目表等功能入口與說明">
 <meta property="og:type" content="website">
@@ -25,6 +25,10 @@
     }catch(_e){}
   };
   window.addEventListener("error",function(e){window.__showFallback(1,{lineno:e.lineno,msg:(e.message||'')+(e.filename?(' @'+e.filename.split('/').pop()+':'+e.lineno+':'+e.colno):'')});},true);
+</script>
+<script>
+/* 公務機鎖定:本機有 mp:kiosk:v1(on=1)時,這個資料夾底下任何網址都導回主櫃(?cn2=1);只放行 LIFF 登入回來的參數與 unlock=1 */
+try{var __k=JSON.parse(localStorage.getItem('mp:kiosk:v1')||'null');if(__k&&__k.on&&__k.token){var __q=new URLSearchParams(location.search),__bad=!__q.has('cn2');__q.forEach(function(v,key){if(!/^(cn2|unlock|code|state|liff.*|access_token|id_token|friendship_status_changed|utm_.*|fbclid)$/.test(key))__bad=true;});if(__bad)location.replace(location.pathname+'?cn2=1');}}catch(_e){}
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
@@ -50,14 +54,14 @@
 
 <script>try{if('serviceWorker' in navigator&&location.protocol==='https:'){window.addEventListener('load',function(){navigator.serviceWorker.register('../sw.js').catch(function(){});});}}catch(_e){}</script>
 <script src="../common.js"></script>
-<script type="text/babel" src="./safety2.js?v=1.13-045"></script>
+<script type="text/babel" src="./safety2.js?v=1.13-046"></script>
 <script type="text/babel" src="./notice2.js?v=1.0-016"></script>
 <script type="text/babel" src="./blacklist2.js?v=1.0-009"></script>
 <script type="text/babel" src="./gloves2.js?v=1.0-007"></script>
-<script type="text/babel" src="./leave2.js?v=1.0-061"></script>
+<script type="text/babel" src="./leave2.js?v=1.0-062"></script>
 <script type="text/babel" src="./my2.js?v=1.0-010"></script>
 <script type="text/babel" src="./shop2.js?v=1.0-001"></script>
-<script type="text/babel" src="./counter2.js?v=1.0-022"></script>
+<script type="text/babel" src="./counter2.js?v=1.0-023"></script>
 <script type="text/babel">
 (function(){
 const{useState,useEffect,useMemo}=React;
@@ -1121,7 +1125,9 @@ function IntroPage(){
 function App(){
   const noParam=!location.search||/^\?\s*$/.test(location.search)||(()=>{try{return Array.from(new URLSearchParams(location.search).keys()).every(k=>(/^(liff\.|utm_|fbclid)/.test(k)&&k!=='liff.state')||k==='openExternalBrowser');}catch(_e){return false;}})(); // 沒帶任何功能參數 → 說明頁(LINE 自己加的 liff.* 參數不算)
   // 主櫃(?cn2)離線優先:本機已有操作人記錄時,不等 LIFF 登入就直接進主櫃(用本機資料畫面),LIFF 登入在背景補;離線時一直重試到連上為止
-  const cn2Cached=(()=>{try{if(new URLSearchParams(location.search).get('cn2')===null)return false;const w=JSON.parse(localStorage.getItem('cn2:who:v1')||'null');return !!(w&&w.code);}catch(_e){return false;}})();
+  const kioskOn=(()=>{try{const k=JSON.parse(localStorage.getItem('mp:kiosk:v1')||'null');return !!(k&&k.on&&k.token);}catch(_e){return false;}})();
+  const kioskUnlockFlow=kioskOn&&new URLSearchParams(location.search).get('unlock')==='1'; // 解除鎖定:允許 LIFF 登入
+  const cn2Cached=(()=>{try{if(kioskOn)return true;if(new URLSearchParams(location.search).get('cn2')===null)return false;const w=JSON.parse(localStorage.getItem('cn2:who:v1')||'null');return !!(w&&w.code);}catch(_e){return false;}})();
   const[phase,setPhase]=useState(noParam?'intro':(cn2Cached?'s2':'liffInit')); // intro/liffInit/loading/register/main/error
   const[profile,setProfile]=useState(null);
   const[userProfile,setUserProfile]=useState(null);
@@ -1176,7 +1182,8 @@ function App(){
       });
     };
     if(LIFF_ID_HARDCODED){
-      if(cn2Cached){ // 背景登入:失敗(多半是離線)不影響主櫃使用,每 20 秒及網路恢復時再試
+      if(kioskOn&&!kioskUnlockFlow)return; // 公務機鎖定中:完全不碰 LIFF 登入
+      if(cn2Cached&&!kioskUnlockFlow&&!kioskOn){ // 背景登入:失敗(多半是離線)不影響主櫃使用,每 20 秒及網路恢復時再試
         let tm=0,done=false;const go=()=>{if(done)return;clearTimeout(tm);initLiff(LIFF_ID_HARDCODED).then(()=>{done=true;}).catch(()=>{tm=setTimeout(go,20000);});};
         window.addEventListener('online',go);go();return;
       }
