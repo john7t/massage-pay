@@ -1,4 +1,4 @@
-/* my2.js — 「我的」頁面 (v1.0-012)
+/* my2.js — 「我的」頁面 (v1.0-013)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 my2:  ?my2=1  我的(待我處理 + 公告 + 安全回報 + 手套團購 + 預排休假 + 拒接名單)
    只讀取各模組既有的 API(n2List / s2TodaySurveys / s2MyReports / gb2List / lv2Month / b2List),不新增後端;任何一區讀取失敗只隱藏該區。 */
 (function(){
@@ -54,7 +54,10 @@ function UsageBanner({lang}){
   const[dMode,setDMode]=useState('pv');    // pv=人次 / uv=人數
   const[st,reload]=useLoad('my2OpenStats',{date});
   useEffect(()=>{if(window.__my2Logged)return;window.__my2Logged=1;C.api('my2Open',{}).then(()=>{try{reload()}catch(_e){}});},[]);
-  const d=st.data&&st.data.ok?st.data:null;
+  let d=st.data&&st.data.ok?st.data:null;
+  // 後端若還是舊版(欄位不齊)就整塊不顯示,避免整頁掛掉
+  if(d&&!(d.today&&typeof d.today==='object'&&d.yesterday&&typeof d.yesterday==='object'))d=null;
+  if(d&&d.mgr&&!(Array.isArray(d.hoursDay)&&Array.isArray(d.hours30)&&Array.isArray(d.days)&&d.shift&&d.day&&Array.isArray(d.stores)))d={ok:true,mgr:false,today:d.today,yesterday:d.yesterday};
   if(!d)return null;
   const U=vi?'người':'人',V=vi?'lượt':'人次';
   const shift=n=>{const x=new Date(date+'T00:00:00Z');x.setUTCDate(x.getUTCDate()+n);setDate(x.toISOString().slice(0,10));setPick(null);};
@@ -116,6 +119,13 @@ function UsageBanner({lang}){
   </div>);
 }
 
+class UsageGuard extends React.Component{ // 統計區塊出任何錯都只隱藏自己,不影響「我的」其他區
+  constructor(p){super(p);this.state={e:false};}
+  static getDerivedStateFromError(){return {e:true};}
+  componentDidCatch(){}
+  render(){return this.state.e?null:this.props.children;}
+}
+
 function My2Page({me}){
   const lang=me.user&&me.user.lang==='vi'?'vi':'zh';const t=L[lang];
   const today=todayStr();const nextM=addMonth(today.slice(0,7),1);
@@ -170,7 +180,7 @@ function My2Page({me}){
     <div className="flex items-start justify-between"><div><h1 className="text-2xl font-bold text-white">{t.title}</h1>
       <p className="text-xs text-gray-400 mt-0.5">{u.store||''}{u.code?'　'+u.code+(lang==='vi'?'':' 號'):''}{roleName?'　'+roleName:''}</p></div></div>
 
-    <UsageBanner lang={lang}/>
+    <UsageGuard><UsageBanner lang={lang}/></UsageGuard>
 
     <div className="rounded-3xl border border-violet-700 p-4 space-y-2" style={{background:'linear-gradient(135deg,#2e1d5e,#1b1840)'}}>
       <SecHead icon="⚡" title={t.todo} n={todo.length} t={t}/>
