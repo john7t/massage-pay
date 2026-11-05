@@ -1,6 +1,6 @@
 /* ════════════════════════════════════════════════════════════
    common.js — 薪資追蹤系統 共用工具
-   v1.13-042 / 越南文「老師」改譯 Sư phụ。
+   v1.13-043 / 備份安全網:本機無記錄不上傳、綁LINE待處理時暫停自動上傳(localHasPersonalData/backupUploadAllowed)。 | 前: v1.13-042 / 越南文「老師」改譯 Sư phụ。
    v1.13-041 / gasCallPost 失敗時把原因記在 window.__gasErr(逾時秒數/HTTP 狀態/回傳格式/網路錯誤),讓畫面顯示「連不上伺服器(原因)」。
    v1.13-040 / 新增骨架載入元件 SkReveal(window.MP.SkReveal),樣式在 index.html .sk-*。
    v1.13-039 / gasLogDailyCheck、gasLogFlowEnter 也帶 env/os(Log 工作表新增 env、os 欄)。
@@ -993,6 +993,10 @@ function exportPersonalData(code,year){
   const th=LS.get('tag-history-'+code);if(th)out.tagHistory=th;
   return out;
 }
+// v1.13-043:備份安全網——本機沒有任何記錄(月份流水/客戶資料)就不准上傳,避免在「新環境(例如LINE app內、本機還是空的)」綁LINE或每日自動備份時,
+// 把雲端原本(例如Safari上傳的)有資料的備份覆蓋成空的。另外「綁定LINE後待處理」旗標 my-bind-pending 存在時也暫停所有自動上傳
+function localHasPersonalData(code,year){try{const d=exportPersonalData(code,year);if(d.months&&Object.keys(d.months).length)return true;if(d.custdb&&Object.keys(d.custdb).length)return true;return false}catch(_e){return false}}
+function backupUploadAllowed(code,year){try{if(localStorage.getItem('my-bind-pending'))return false}catch(_e){}return localHasPersonalData(code,year)}
 function makePersonalBackup(code,year){
   const data=exportPersonalData(code,year);
   const json=JSON.stringify(data);
@@ -1224,7 +1228,7 @@ window.MP={
   THEMES,
   // data helpers
   SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,
-  toB36,fromB36,dim,dow,bizDate,bizParts,BIZ_CUTOFF_MIN,getBizCutoff,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,
+  localHasPersonalData,backupUploadAllowed,toB36,fromB36,dim,dow,bizDate,bizParts,BIZ_CUTOFF_MIN,getBizCutoff,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,
   newSlip,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,saveCustDB,getCust,getGasUrl,setGasUrl,getBuiltinGasUrl,shouldClaimKey,autoClaimKey,diagClaimKey,gasCall,gasCallPost,gasWarmup,getNoticesLocal,saveNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,getNoticeListText,getNoticeCountType,getNoticeMainCats,publishNotices,noticeBody,noticeTitle,noticeSummary,noticeCats,noticeTags,getMyKey,setMyKey,hasMyKey,HIDE_COMPANY_FEATURES,DISABLE_GH_DATA_FETCH,INDEX_LIFF_ID,getMyLineUserId,setMyLineUserId,clearMyLineUserId,getLineLogoutFlag,setLineLogoutFlag,clearLineLogoutFlag,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,getNoticeUnread,gasTranslate,gasAnalyze,gasUsage,gasAddNotice,gasEditNotice,gasSubmitAction,gasCheckAction,gasApproveAction,gasBlacklistSubmit,gasBlacklistCheck,gasBlacklistApprove,gasBlacklistSearch,gasBackupSubmit,gasBackupCheck,gasBackupFetch,gasSfGetPendingDetail,gasSfApprovePendingRegistration,gasUpdatePwd,gasLoginPwd,gasSetInitialPwd,gasResetLockPwd,gasSyncProfile,gasCheckCode,gasCheckStaffCode,gasAuthStaffList,gasGetGHConfigForSupervisor,gasRevokeSup,gasRejectAction,gasVerifyKey,gasLogNoticeOpen,gasLeaveTeacher,gasPreApprove,gasGetPreApprove,gasCancelPreApprove,gasToggleNoticeStatus,gasSubmitSuggestion,gasListSuggestions,gasPushNoticeFlexToMe,gasLogDailyCheck,gasLogFlowEnter,gasDebugEcho,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasSubmitDisasterReport,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasCloseGroupBuy,gasGroupBuyDetail,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasCreateDisasterSurvey,gasEndDisasterSurvey,gasDeleteDisasterSurvey,gasListDisasterSurveys,gasMyDisasterReports,gasDisasterDayStatus,getAdminSecret,setAdminSecret,hasAdminSecret,issueKey,claimMyKey,upsertCust,deleteCust,searchCustDB,recentCust,custLastSlip,migrateDayGroups,migrateMonthGroups,slipSvcLabel,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,personalChartStats,normEmail,isValidEmail,gasEmailBackupCheck,doEmailBackupNow,emailRestore,CARD_STORE_DEFAULTS,loadCardStores,CARD_BRAND,getCardData,sendCardFlex,breakDayKey,loadBreakStatus,breakFlipGreenLocal,breakFlipWhiteLocal,
   getCustomers,saveCustomers,getBookings,saveBookings,uid,upsertCustomer,normPhone,searchCustomers,addBooking,updateBooking,deleteBooking,confirmBooking,BOOK_TITLES,bookTitleName,fetchAcupoints,clearAcupointsCache,checkCredentialValid,
   SERVICES,svcByCode,bookUnits,bookMinutes,bookLabel,bookRange,findConflicts,dayOffStatus,bookLog,skName,
