@@ -2,6 +2,7 @@
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 lv2:  ?lv2=l  預排休假(月曆)
    規則與後端見 gas-leave2.gs.txt:每月 9 日 00:00 ~ 12 日 24:00 可登記「下個月」休假,期間免審批(超休需主管簽字);之後的送出需主管審批;可提前 2 個月暫存。
    早/晚班分開統計:每人每月各 6 天、每店每日各班別最多 6 人。 */
+// v1.0-062 / 主管休假表說明改「經理以下主管」不提管理員;設定卡新增「測試階段」兩個勾選(送出休假時提醒小白單);待簽核改二階段(勾選同意→存檔);調整表新增「通知交小白單」按鈕(測試階段第 1 項勾選後)。
 // v1.0-061 / 調整表通知/簽核按鈕:沒被指定的實習副理灰掉、代理期間才亮;休假調整表負責人改多位(晶片);新增「代理人」卡(全主管可看,經理與負責人可設;期間/備註/代理人收通知/原主管也收通知),代理人橘色提示。
 // v1.0-060 / 新增「主管休假表」(經理以下主管,月曆格上方顯示號碼,各主管天數預設收合);設定卡新增「休假調整表負責人」(早/晚班各一位實習副理,每店經理可設定)。
 (function(){
@@ -11,7 +12,7 @@ if(!C){window.Leave2Routes=()=>React.createElement('div',{className:'p-6 text-ce
 const{api,useLoad,Box,Card,Btn,Loading,Msg,NeedUser,barOf,go,CACHEABLE,WRITE_CLEAR,Spinner}=C;
 // 本機暫存:讀過的月份存手機,切換月份不重讀;點上方「🔄 重新整理」才重讀(12 小時後也會自動重讀);任何寫入動作成功後自動清掉
 if(CACHEABLE.indexOf('lv2Month')<0)CACHEABLE.push('lv2Month');
-['lv2Save','lv2Cancel','lv2Decide','lv2Sign','lv2Notify','lv2SeqSet','lv2SettingsSet','lv2DelegSet','lv2DelegDel','lv2LongSave','lv2LongEnd','lv2LongOccupy','lv2LongCancel','lv2LongDecide','lv2Claim'].forEach(x=>{WRITE_CLEAR[x]=['lv2Month'];});
+['lv2Save','lv2Cancel','lv2Decide','lv2Sign','lv2Notify','lv2DecideBatch','lv2PaperNotify','lv2SeqSet','lv2SettingsSet','lv2DelegSet','lv2DelegDel','lv2LongSave','lv2LongEnd','lv2LongOccupy','lv2LongCancel','lv2LongDecide','lv2Claim'].forEach(x=>{WRITE_CLEAR[x]=['lv2Month'];});
 const Chip=C.Chip||(({on,children,onClick})=>(<button onClick={onClick} className={'px-4 py-2 rounded-full border text-sm '+(on?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-300')}>{children}</button>));
 
 const L={
@@ -338,7 +339,7 @@ function LeavePage({me}){
   const adjSorted=(sh)=>((d.adjust&&d.adjust[sh])||[]).slice().sort((a,b)=>(a.date<b.date?-1:a.date>b.date?1:((a.pos||0)-(b.pos||0)))); // 調整表依日期、名次排序
   const[pop,setPop]=useState(null); // 總休表點號碼的說明彈窗(主管)
   const[dg,setDg]=useState(null);const[supOpen,setSupOpen]=useState(false);const[supPop,setSupPop]=useState(null); // 主管休假表:各主管天數(預設收合)、點日期格的當日主管名單
-  const[seqIn,setSeqIn]=useState({});const[cf,setCf]=useState(null);const[adjShift,setAdjShift]=useState((me.user&&me.user.shift)==='late'?'late':'early');
+  const[seqIn,setSeqIn]=useState({});const[cf,setCf]=useState(null);const[pick,setPick]=useState({});const[adjShift,setAdjShift]=useState((me.user&&me.user.shift)==='late'?'late':'early');
   const[st,reload]=useLoad('lv2Month',store?{month:month,store:store}:{month:month});
   const rlP=useRef(null);const reloadR=()=>{const p=reload();rlP.current=p;return p;}; // 寫入後的重讀:run 會等它回來才解除按鈕鎖定,避免『按鈕先亮、資料還沒更新』造成重複點擊
   const d=st.data&&st.data.ok&&st.data.month===month?st.data:null;
@@ -385,8 +386,10 @@ function LeavePage({me}){
     if(submit){
       const fullDays=[];sel.forEach(x=>{if(((d.counts[x.date]||{})[x.shift]||0)>=capOf(x.date)&&!holOk(x.date)){const k=parseInt(x.date.slice(5,7),10)+'/'+parseInt(x.date.slice(8),10);if(fullDays.indexOf(k)<0)fullDays.push(k);}});
       const overP=!d.isMgr&&(used.early>lim.person||used.late>lim.person);
-      if(fullDays.length){if(!window.confirm(fmt(t.fullWarn,{d:fullDays.join(' ')})))return;}
-      else if(!window.confirm((cx.length?fmt(t.changeAskT,{c:cx.length,n:sel.length})+'\n'+(d.state==='late'?t.changeLate:t.changeOpen):t.submitAsk)+(overP?'\n'+t.submitOver:'')))return;
+      const pp=d.slip||{};const dom=new Date(Date.now()+8*3600e3).getUTCDate();const vi0=lang==='vi';
+      const remTxt=(pp.p1&&dom>=10&&dom<=12?'\n\n'+(vi0?'Giai đoạn thử nghiệm: khi mở đăng ký nghỉ (từ 0:00 ngày 10 đến 23:59 ngày 12), ngoài đăng ký trực tuyến, vẫn phải điền phiếu giấy nhỏ theo quy định công ty và tự tay dán tại nơi chỉ định ở quầy. Trong thời gian thử nghiệm, thứ tự trên phiếu giấy là chuẩn.':'測試階段提醒:10號00:00~12號23:59 開放排休時,除線上申請外,仍需依公司規定填寫小白單並由本人親自張貼於櫃台指定地點,測試期間,將以小白單上的順序為主。'):'')+(pp.p2&&(cx.length>0||d.state==='late')?'\n\n'+(vi0?'Giai đoạn thử nghiệm: đổi nghỉ / nghỉ đột xuất / thêm ngày nghỉ / hủy nghỉ — sau khi đăng ký trực tuyến, vẫn phải viết phiếu giấy nhỏ gửi quản lý và nêu lý do theo quy định công ty.':'測試階段提醒:改休 / 臨時休 / 增加休假 / 取消休假,線上申請後,仍請依公司規定寫小白單給主管說明原因。'):'');
+      if(fullDays.length){if(!window.confirm(fmt(t.fullWarn,{d:fullDays.join(' ')})+remTxt))return;}
+      else if(!window.confirm((cx.length?fmt(t.changeAskT,{c:cx.length,n:sel.length})+'\n'+(d.state==='late'?t.changeLate:t.changeOpen):t.submitAsk)+(overP?'\n'+t.submitOver:'')+remTxt))return;
     }
     const r=await api('lv2Save',{month:month,items:JSON.stringify(sel),submit:!!submit,cancel:submit&&cx.length?JSON.stringify(cx):''});
     if(r&&r.ok){setMsg(submit?fmt(t.sent,{a:r.approved,p:r.pending})+((r.cancelled||r.cxPending)?'；'+fmt(t.cxSent,{a:r.cancelled||0,p:r.cxPending||0}):''):fmt(t.saved,{n:r.saved}));setCx([]);reloadR();}
@@ -503,9 +506,12 @@ function LeavePage({me}){
           {x.add.map((c,i)=>(<p key={'a'+i} className="text-sm text-emerald-300">{t.pendTo}　{c.date.slice(5).replace('-','/')} {t[c.shift]}</p>))}</div>)
         :<p className="text-sm text-white">{x.store}　{x.code} 號　{x.date.slice(5)}　{t[x.shift]}</p>}
         {x.flags?<p className="text-xs text-amber-300">{flagText(x.flags)}</p>:null}
-        <div className="flex gap-2"><button disabled={busy} onClick={()=>decide(x.id,true)} className="flex-1 py-2 rounded-xl text-sm font-bold bg-emerald-600 text-white disabled:opacity-50">{t.ok}</button>
+        <div className="flex gap-2"><button disabled={busy} onClick={()=>setPick({...pick,[x.id]:!pick[x.id]})} className={'flex-1 py-2 rounded-xl text-sm font-bold disabled:opacity-50 '+(pick[x.id]?'bg-emerald-600 text-white':'border border-emerald-600 text-emerald-300')}>{pick[x.id]?'✓ ':''}{lang==='vi'?'Đồng ý':'同意'}</button>
           <button disabled={busy} onClick={()=>decide(x.id,false)} className="flex-1 py-2 rounded-xl text-sm font-bold bg-gray-700 text-gray-200 disabled:opacity-50">{t.rej}</button></div>
       </div>))}
+      {d.pending.length>0&&(()=>{const ids=d.pending.filter(x=>pick[x.id]).map(x=>x.id);const allOn=ids.length===d.pending.length;return(<div className="flex gap-2 pt-1">
+        <button disabled={busy} onClick={()=>{const o={};if(!allOn)d.pending.forEach(x=>{o[x.id]=true;});setPick(o);}} className="px-4 py-2.5 rounded-xl text-sm text-gray-200 border border-gray-600 disabled:opacity-50">{allOn?(lang==='vi'?'Bỏ chọn':'取消全選'):(lang==='vi'?'Chọn tất cả':'全選')}</button>
+        <button disabled={busy||ids.length===0} onClick={()=>{if(!window.confirm(lang==='vi'?('Đồng ý '+ids.length+' đơn đã chọn?'):('同意勾選的 '+ids.length+' 張申請並存檔？')))return;run(async()=>{const r=await api('lv2DecideBatch',{ids:JSON.stringify(ids)});if(r&&r.ok){setPick({});if(r.failed)setErr((lang==='vi'?'Không xử lý được ':'有 ')+r.failed+(lang==='vi'?' đơn: ':' 張沒處理成功:')+(r.fail[0]&&r.fail[0].error||''));reloadR();}else setErr((r&&r.error)||t.fail);});}} className={'flex-1 py-2.5 rounded-xl text-sm font-bold '+(ids.length?'bg-violet-600 text-white':'bg-gray-800 text-gray-500')}>{lang==='vi'?'Lưu':'存檔'}（{ids.length}）</button></div>);})()}
     </Card>}
     {d.isMgr&&!desk&&d.long.pending.length>0&&<Card className="space-y-2">
       <p className="text-sm font-bold text-white">{t.longTitle} · {t.pendingTitle}（{d.long.pending.length}）</p>
@@ -516,14 +522,14 @@ function LeavePage({me}){
           <button disabled={busy} onClick={()=>longAct('lv2LongDecide',{id:x.id,approve:false})} className="flex-1 py-2 rounded-xl text-sm font-bold bg-gray-700 text-gray-200 disabled:opacity-50">{t.rej}</button></div>
       </div>))}
     </Card>}
-    {/* v1.13-146相關:主管休假表(經理以下主管:實習副理/櫃台組長/副理;不含經理、區經理、執行長、管理者)。月曆格上方顯示排休主管號碼,下方日期;各主管天數預設收合 */}
+    {/* v1.13-146相關:主管休假表(經理以下主管)。月曆格上方顯示排休主管號碼,下方日期;各主管天數預設收合 */}
     {!anonView&&d.roster&&!desk&&(()=>{const SUP_OK=['實習副理','櫃台組長','副理'];const zh=lang!=='vi';
       const byDay={},byCode={};
       Object.keys(d.roster).forEach(dt=>['early','late'].forEach(sh=>(d.roster[dt][sh]||[]).forEach(x=>{if(!x.m)return;if(x.lv&&SUP_OK.indexOf(x.lv)<0)return;const c=String(x.c);(byDay[dt]=byDay[dt]||[]).push({c:c,sh:sh,p:x.p,lv:x.lv||''});(byCode[c]=byCode[c]||[]).push({dt:dt,sh:sh});})));
       const codes=Object.keys(byCode).sort((a,b)=>(parseInt(a,10)||1e9)-(parseInt(b,10)||1e9));
       const dd=x=>parseInt(x.slice(8),10);const wdn=dt=>(zh?['日','一','二','三','四','五','六']:['CN','T2','T3','T4','T5','T6','T7'])[new Date(parseInt(dt.slice(0,4),10),parseInt(dt.slice(5,7),10)-1,parseInt(dt.slice(8),10)).getDay()];
       return(<Card className="space-y-2"><p className="text-sm font-bold text-white">👔 {zh?'主管休假表':'Bảng nghỉ phép quản lý'}</p>
-        <p className="text-[11px] text-gray-500">{zh?'本店經理以下主管（實習副理、櫃台組長、副理）排休；不含經理以上與管理員。有排休的日子，號碼在日期上方。':'Quản lý dưới cấp Quản lý của cửa hàng; số ở phía trên ngày.'}</p>
+        <p className="text-[11px] text-gray-500">{zh?'本店經理以下主管排休。有排休的日子，號碼在日期上方。':'Quản lý dưới cấp Quản lý của cửa hàng; số ở phía trên ngày.'}</p>
         <div className="grid grid-cols-7 text-center text-xs text-gray-500">{(zh?['日','一','二','三','四','五','六']:['CN','T2','T3','T4','T5','T6','T7']).map(w=><div key={w}>{w}</div>)}</div>
         <div className="grid grid-cols-7 gap-1">{cells.map((date,i)=>{if(!date)return <div key={'s'+i}/>;const L=byDay[date]||[];
           const sorted=L.slice().sort((a,b)=>(a.sh===b.sh?(parseInt(a.c,10)||0)-(parseInt(b.c,10)||0):a.sh==='early'?-1:1));const show=sorted.slice(0,3);const extra=sorted.length-show.length;
@@ -635,6 +641,7 @@ function LeavePage({me}){
     {d.isMgr&&d.state!=='past'&&<Card className="space-y-2" id="lv2-adjust">
       <div className="flex items-center justify-between"><p className="text-sm font-bold text-white">📋 {t.adjTitle}</p>
         {(()=>{const ids=adjSorted(adjShift).filter(x=>!x.signBy&&!x.notifiedAt).map(x=>x.id);return ids.length>0?<button disabled={busy||!adjOk} onClick={()=>longAct('lv2Notify',{ids:JSON.stringify(ids)},t.notifyAsk)} className={'text-xs rounded-xl px-3 py-1.5 '+(adjOk?'bg-sky-700 text-white':'bg-gray-800 text-gray-500')}>{t.notifyAll}（{ids.length}）</button>:null;})()}</div>
+      {d.slip&&d.slip.p1&&(()=>{const ids=adjSorted(adjShift).filter(x=>!x.signBy).map(x=>x.id);return ids.length>0?<div className="text-right"><button disabled={busy||!adjOk} onClick={()=>longAct('lv2PaperNotify',{ids:JSON.stringify(ids)},'推播「請交小白單」給這 '+ids.length+' 筆申請的同仁？')} className={'text-xs rounded-xl px-3 py-1.5 '+(adjOk?'bg-amber-700 text-white':'bg-gray-800 text-gray-500')}>全部通知交小白單（{ids.length}）</button></div>:null;})()}
       <div className="flex gap-2">{['early','late'].map(s=>(<Chip key={s} on={adjShift===s} onClick={()=>setAdjShift(s)}>{t[s]}（{adjSorted(s).filter(x=>!x.signBy&&!x.notifiedAt).length}／{d.adjust[s].length}）</Chip>))}</div>
       <p className="text-[11px] text-gray-500">{lang==='vi'?'Số trong ngoặc: chưa xử lý／tổng cần điều chỉnh':'括號內：未處理／全部應調整筆數（已通知或已簽核算已處理）'}</p>
       <p className="text-[11px] text-gray-500">{t.adjHint}</p>
@@ -659,6 +666,7 @@ function LeavePage({me}){
               {x.signBy?<span className="text-[11px] rounded-full bg-emerald-700 text-white px-2 py-0.5">{fmt(t.signedBy,{c:x.signBy})}</span>:x.notifiedAt?<span className="text-[11px] rounded-full bg-sky-800 text-white px-2 py-0.5">{fmt(t.notified,{t:x.notifiedAt.slice(5,16)})}</span>:null}</div>
             <div className="flex gap-2">
               {!x.signBy&&<button disabled={busy||!adjOk} onClick={()=>longAct('lv2Notify',{ids:JSON.stringify([x.id])})} className={'flex-1 py-1.5 rounded-lg text-xs font-bold disabled:opacity-50 '+(adjOk?'bg-sky-700 text-white':'bg-gray-800 text-gray-500')}>{x.notifiedAt?t.notifyAgain:t.notify}</button>}
+              {!x.signBy&&d.slip&&d.slip.p1&&<button disabled={busy||!adjOk} onClick={()=>longAct('lv2PaperNotify',{ids:JSON.stringify([x.id])},'推播「請交小白單」給 '+x.code+' 號？')} className={'flex-1 py-1.5 rounded-lg text-xs font-bold disabled:opacity-50 '+(adjOk?'bg-amber-700 text-white':'bg-gray-800 text-gray-500')}>通知交小白單</button>}
               {!x.signBy&&<button disabled={busy||!adjOk} onClick={()=>longAct('lv2Sign',{id:x.id,on:true},t.signAsk)} className={'flex-1 py-1.5 rounded-lg text-xs font-bold disabled:opacity-50 '+(adjOk?'bg-emerald-600 text-white':'bg-gray-800 text-gray-500')}>{t.sign}</button>}
               {x.signBy&&<button disabled={busy||!adjOk} onClick={()=>{if(armed===x.id){setArmed('');longAct('lv2Sign',{id:x.id,on:false});}else{setArmed(x.id);setTimeout(()=>setArmed(a=>a===x.id?'':a),4000);}}} className={'flex-1 py-1.5 rounded-lg text-xs font-bold disabled:opacity-50 '+(armed===x.id?'bg-red-600 text-white':'bg-gray-700 text-gray-200')}>{armed===x.id?t.unsignSure:t.unsign}</button>}</div></div>))}</div>}
             </div>);})}
@@ -684,7 +692,7 @@ function LeavePage({me}){
         {d.canSeq&&<button disabled={busy} onClick={()=>longAct('lv2SeqSet',{month:month,userId:x.userId,seq:seqIn[x.userId]!==undefined?seqIn[x.userId]:String(x.seq)})} className="px-3 py-1.5 rounded-lg text-xs bg-gray-700 text-white disabled:opacity-50">{t.seqSave}</button>}</div>))}
       </div>}
     </Card>}
-    {d.isMgr&&(()=>{const cv=cf||{wd:String(lim.weekday),we:String(lim.weekend),mode:d.seqMode,groups:d.groups||[],duty:{early:dArr((d.duty||{}).early),late:dArr((d.duty||{}).late)}};const grs=cv.groups||[];const inp="w-20 text-center rounded-lg bg-gray-800 border border-gray-700 py-1.5 text-white";
+    {d.isMgr&&(()=>{const cv=cf||{wd:String(lim.weekday),we:String(lim.weekend),mode:d.seqMode,groups:d.groups||[],paper:d.slip||{p1:false,p2:false},duty:{early:dArr((d.duty||{}).early),late:dArr((d.duty||{}).late)}};const grs=cv.groups||[];const pap=cv.paper||{p1:false,p2:false};const inp="w-20 text-center rounded-lg bg-gray-800 border border-gray-700 py-1.5 text-white";
       return(<Card className="space-y-2"><p className="text-sm font-bold text-white">⚙ {fmt(t.setTitle,{s:d.store})}</p>
         <div className="flex items-center gap-2"><span className="text-sm text-gray-300 flex-1">{t.wdQ}</span><input value={cv.wd} inputMode="numeric" onChange={e=>setCf({...cv,wd:e.target.value.replace(/\D/g,'').slice(0,2)})} className={inp}/></div>
         <div className="flex items-center gap-2"><span className="text-sm text-gray-300 flex-1">{t.weQ}</span><input value={cv.we} inputMode="numeric" onChange={e=>setCf({...cv,we:e.target.value.replace(/\D/g,'').slice(0,2)})} className={inp}/></div>
@@ -705,7 +713,9 @@ function LeavePage({me}){
                 {d.canDuty&&rest.length>0&&<select value="" onChange={e=>{if(e.target.value)setCf({...cv,duty:{...(cv.duty||{}),[sh]:sel.concat([e.target.value])}});}} className="min-h-[36px] rounded-full bg-gray-800 border border-dashed border-gray-600 px-3 text-[13px] text-gray-300"><option value="">{lang==='vi'?'＋ Thêm':'＋ 新增'}</option>{rest.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select>}
                 {!sel.length&&<span className="text-[13px] text-gray-500 pt-2">{lang==='vi'?'(Chưa chỉ định)':'（未指定）'}</span>}</div></div>);})}
           {!d.canDuty&&<p className="text-[11px] text-amber-300">{lang==='vi'?'Chỉ quản lý cửa hàng mới được chỉ định.':'只有該店經理可以指定。'}</p>}</div>):null}
-        <Btn loading={busy} onClick={()=>run(async()=>{const r=await api('lv2SettingsSet',Object.assign({store:d.store,wd:cv.wd,we:cv.we,seqMode:cv.mode,groups:JSON.stringify(grs)},d.canDuty?{duty:JSON.stringify({early:dArr((cv.duty||{}).early),late:dArr((cv.duty||{}).late)})}:{}));if(r&&r.ok){setMsg(t.setOk);setCf(null);reloadR();}else setErr((r&&r.error)||t.fail);})}>{t.setSave}</Btn></Card>);})()}
+        <div className="space-y-1.5 pt-1 border-t border-gray-800"><p className="text-xs text-gray-400">{lang==='vi'?'Giai đoạn thử nghiệm (nhắc khi gửi đơn nghỉ)':'測試階段（勾選後，送出休假時會提醒）'}</p>
+          {[['p1','10號00:00~12號23:59 開放排休時，除線上申請外，仍需依公司規定填寫小白單並由本人親自張貼於櫃台指定地點，測試期間，將以小白單上的順序為主。'],['p2','改休 / 臨時休 / 增加休假 / 取消休假，線上申請後，仍請依公司規定寫小白單給主管說明原因。']].map(o=>(<label key={o[0]} className="flex items-start gap-2 text-[13px] text-gray-200 leading-snug"><input type="checkbox" checked={!!pap[o[0]]} onChange={e=>setCf({...cv,paper:{...pap,[o[0]]:e.target.checked}})} className="mt-1 w-4 h-4 accent-violet-600"/><span>{o[1]}</span></label>))}</div>
+        <Btn loading={busy} onClick={()=>run(async()=>{const r=await api('lv2SettingsSet',Object.assign({store:d.store,wd:cv.wd,we:cv.we,seqMode:cv.mode,groups:JSON.stringify(grs),paper:JSON.stringify({p1:!!pap.p1,p2:!!pap.p2})},d.canDuty?{duty:JSON.stringify({early:dArr((cv.duty||{}).early),late:dArr((cv.duty||{}).late)})}:{}));if(r&&r.ok){setMsg(t.setOk);setCf(null);reloadR();}else setErr((r&&r.error)||t.fail);})}>{t.setSave}</Btn></Card>);})()}
     {d.isMgr&&(()=>{const dl=d.deleg||{list:[],sups:[],mine:[]};const vi=lang==='vi';const can=!!d.canDeleg;const sups=dl.sups||[];const nm=id=>{const x=sups.filter(y=>y.id===id)[0];return x?x.label:id;};
       const stTxt={on:vi?'Đang đại diện':'代理中',wait:vi?'Chưa bắt đầu':'未開始',ended:vi?'Đã kết thúc':'已結束'};const stCls={on:'bg-emerald-900 text-emerald-200',wait:'bg-amber-900 text-amber-200',ended:'bg-gray-700 text-gray-300'};
       const md=x=>parseInt(x.slice(5,7),10)+'/'+parseInt(x.slice(8),10);
