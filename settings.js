@@ -1,3 +1,4 @@
+// v1.13-072 / LINE登入按鈕:已登入直接取userId;LINE內建瀏覽器非LIFF網址→導去liff.line.me(避免access.line.me 400)。
 // v1.13-068 / UI改版(參考 impeccable):名片/穴道知識/備份/月曆/自約/流水記錄彈窗/LINE QR;穴道頁有本機快取+仍在解鎖期時先直接顯示,憑證改背景確認。
 // settings.js — 設定頁相關元件(從 index.html 抽離,降低 index 體積)
 // v1.13-022 / UI 改版:(1)客戶管理:拿掉「拒接名單」分頁(隱藏不刪,函式與區塊保留)、底線式2分頁、列表60px、標籤膠囊、編輯面板欄位放大;(2)設定首頁:改 iOS/LINE 風格分組清單(外觀/帳號與備份/首頁/資料與隱私),年份加減隱藏,LINE登入縮成一列,隱私說明收合,登出改紅字鈕。
@@ -939,27 +940,38 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme,onClose,onLogout}){
         if(liff.isLoggedIn()){
           const profile=await liff.getProfile();
           if(profile&&profile.userId){
-            setMyLineUserId(profile.userId);setLineUserIdState(profile.userId);
-            // v1.13-015:【測試用】登入LINE成功當下立刻備份一次,不等每日自動備份——
-            // 目的是讓老師點完「使用LINE登入」馬上就能在GAS Sheet看到一筆新紀錄,方便逐一測試不同老師的手機LINE登入
-            // 到底能不能正常運作(跟目前還在排查的LINE登入真實環境失敗問題有關),不用等到隔天才能確認這支手機有沒有成功
-            try{
-              const obj=makePersonalBackup(settings.code,settings.year||bizParts().y);
-              const pj=JSON.stringify({store:settings.store||'',gender:settings.gender||'',shift:settings.shift||'',workStart:settings.workStart||'',workEnd:settings.workEnd||''});
-              gasBackupSubmit(profile.userId,settings.code,settings.year||bizParts().y,JSON.stringify(obj),pj).catch(()=>{});
-            }catch(_e){}
+            saveLineProfile(profile); // 含登入當下立刻備份一次(v1.13-015)
           }
         }
       }catch(_e){}
     })();
   },[]);
+  // v1.13-072:LINE 登入按鈕改成「先看環境再決定」——
+  //  (1) liff.init 後已是登入狀態(在 LINE 用 LIFF 網址開、或這個瀏覽器之前登入過):直接 getProfile 取 userId,不登出、不跳轉
+  //  (2) 在 LINE 內建瀏覽器、但不是用 LIFF 網址開的(例如貼連結點開):這種情況 LINE 不會帶身分,硬走 liff.login 會跳到 access.line.me 並出現「400 Bad Request」;
+  //      改導去 LIFF 正式網址(liff.line.me/…?lineBind=1),LINE 會自動帶入身分,回來後自動開設定頁並存下 userId
+  //  (3) 外部瀏覽器(Safari/Chrome):維持原本 liff.login 導去 LINE 登入頁
+  const saveLineProfile=(profile)=>{
+    setMyLineUserId(profile.userId);setLineUserIdState(profile.userId);
+    try{ // 登入成功當下立刻備份一次(v1.13-015 起的測試用行為,保留)
+      const obj=makePersonalBackup(settings.code,settings.year||bizParts().y);
+      const pj=JSON.stringify({store:settings.store||'',gender:settings.gender||'',shift:settings.shift||'',workStart:settings.workStart||'',workEnd:settings.workEnd||''});
+      gasBackupSubmit(profile.userId,settings.code,settings.year||bizParts().y,JSON.stringify(obj),pj).catch(()=>{});
+    }catch(_e){}
+  };
   const doLineLogin=async()=>{
     if(typeof liff==='undefined'){setLiffErr(t.liffSdkFail||'LINE SDK載入失敗，請檢查網路');return}
     setLiffBusy(true);setLiffErr('');
-    clearLineLogoutFlag(); // 使用者主動要重新登入,解除登出旗標,允許下面的liff.login()跟導轉回來後的靜默偵測正常運作
+    clearLineLogoutFlag(); // 使用者主動要登入,解除登出旗標,允許導轉回來後的靜默偵測正常運作
     try{
       await liff.init({liffId:INDEX_LIFF_ID});
-      if(liff.isLoggedIn())liff.logout();
+      const inLineApp=/Line\//i.test(navigator.userAgent||'');
+      const inLiff=!!(liff.isInClient&&liff.isInClient());
+      if(liff.isLoggedIn()){
+        try{const profile=await liff.getProfile();if(profile&&profile.userId){saveLineProfile(profile);setLiffBusy(false);return}}
+        catch(_e){liff.logout()} // 有登入狀態卻拿不到 profile(舊 token 缺權限):清掉再重登(§26)
+      }
+      if(inLineApp&&!inLiff){location.href='https://liff.line.me/'+INDEX_LIFF_ID+'?lineBind=1';return}
       const cleanUrl=location.origin+location.pathname+location.hash;
       liff.login({redirectUri:cleanUrl});
     }catch(e){setLiffBusy(false);setLiffErr(String(e))}
