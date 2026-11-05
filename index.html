@@ -2,1228 +2,684 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>員工專區 v1.13-158</title>
-<meta property="og:title" content="員工專區">
-<meta property="og:description" content="公告、安全回報、拒接名單、手套團購、價目表等功能入口與說明">
-<meta property="og:type" content="website">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <script>
-  // ══════════ 全域錯誤攔截(白畫面診斷用,比照專案裡其他頁面的做法) ══════════
-  var PAGE="safety",PCODE="02";
-  var __fbL={zh:{title:"網站更新中",info:function(p,v,c){return p+" 網頁 v"+v+" 更新中　代碼 "+c},keep:"你所輸入的舊資料仍保存在你的手機暫存檔中。",warn:"資料只存在本機，不會上傳雲端。"}};
-  window.__fbLang='zh';
-  window.__fbApply=function(){var L=__fbL.zh;var t=document.getElementById('__fbtitle');if(t)t.textContent=L.title;var k=document.getElementById('__fbkeep');if(k)k.textContent=L.keep;var w=document.getElementById('__fbwarn');if(w)w.textContent=L.warn;if(window.__fbData){var info=document.getElementById("__fbinfo");if(info)info.textContent=L.info(window.__fbData.page,window.__fbData.ver,window.__fbData.code);try{var md=document.getElementById("__fbmsg");if(md&&window.__fbData.msg){md.textContent=window.__fbData.msg;md.style.display="block";}}catch(_e){}}};
+/* ── 錯誤兜底攔截器（最早執行） ── */
+(function(){
+  var PAGE="index",PCODE="00";
+  window.__shownFallback=false;
+  var __fbL={zh:{title:"網站更新中",info:function(p,v,c){return p+" 網頁 v"+v+" 更新中　代碼 "+c},keep:"你所輸入的舊資料仍保存在你的手機暫存檔中。",warn:"資料只存在本機，不會上傳雲端。"},vi:{title:"Đang cập nhật",info:function(p,v,c){return p+" v"+v+" đang cập nhật　Mã "+c},keep:"Dữ liệu bạn nhập vẫn được lưu trong bộ nhớ tạm của điện thoại.",warn:"Dữ liệu chỉ lưu trên máy, không tải lên đám mây."}};
+  window.__fbLang=(function(){try{var s=localStorage.getItem('app-settings');if(s){var o=JSON.parse(s);if(o&&o.lang)return o.lang}}catch(e){}return 'zh'})();
+  window.__fbApply=function(){var L=__fbL[window.__fbLang]||__fbL.zh;var t=document.getElementById('__fbtitle');if(t)t.textContent=L.title;var k=document.getElementById('__fbkeep');if(k)k.textContent=L.keep;var w=document.getElementById('__fbwarn');if(w)w.textContent=L.warn;var b1=document.getElementById('__fblang_zh'),b2=document.getElementById('__fblang_vi');if(b1)b1.style.color=window.__fbLang==='zh'?'#f3f4f6':'#4b5563';if(b2)b2.style.color=window.__fbLang==='vi'?'#f3f4f6':'#4b5563';if(window.__fbData){var L2=__fbL[window.__fbLang]||__fbL.zh;var info=document.getElementById("__fbinfo");if(info)info.textContent=L2.info(window.__fbData.page,window.__fbData.ver,window.__fbData.code)}};
+  window.__fbSetLang=function(lang){window.__fbLang=lang;try{}catch(e){}window.__fbApply()};
   window.__showFallback=function(src,detail){
     if(window.__shownFallback)return;window.__shownFallback=true;
     try{
-      var ver=(document.title.match(/v?(\d+\.\d+[-.]\d+)/)||[])[1]||"?";
+      var ver=(document.title.match(/v?(\d+\.\d+[-.]\d+(?:\.\d+)?)/)||[])[1]||"?";
       var line=(detail&&detail.lineno)?detail.lineno:0;
       var ecode=PCODE+String(src).padStart(2,"0")+String(line%10000).padStart(4,"0");
       window.__fbData={page:PAGE,ver:ver,code:ecode,msg:(detail&&detail.msg)||''};
       var el=document.getElementById("__fallback");
-      if(el){window.__fbApply();el.style.display="flex";}
-    }catch(_e){}
+      if(el){
+        window.__fbApply();
+        try{var md=document.getElementById("__fbmsg");if(md&&window.__fbData.msg){md.textContent=window.__fbData.msg;md.style.display="block";}}catch(_e){}
+        try{var dv=document.getElementById("__fbdev");if(dv){var ua=navigator.userAgent||'';var os='?';if(/iPhone|iPad|iPod/.test(ua)){var m=ua.match(/OS (\d+[_\d]*)/);os='iOS '+(m?m[1].replace(/_/g,'.'):'?');}else if(/Android/.test(ua)){var m2=ua.match(/Android ([\d.]+)/);os='Android '+(m2?m2[1]:'?');}else if(/Mac OS X/.test(ua)){os='macOS';}else if(/Windows/.test(ua)){os='Windows';}var br='?';if(/CriOS/.test(ua))br='Chrome(iOS)';else if(/FxiOS/.test(ua))br='Firefox(iOS)';else if(/Line/.test(ua))br='LINE';else if(/EdgA?/.test(ua))br='Edge';else if(/Chrome/.test(ua))br='Chrome';else if(/Safari/.test(ua))br='Safari';else if(/Firefox/.test(ua))br='Firefox';dv.textContent='📱 '+os+' · '+br+' · '+screen.width+'x'+screen.height;}}catch(_e){}
+        el.style.display="flex";
+      }
+      var root=document.getElementById("root");if(root)root.style.display="none";
+    }catch(e){}
   };
-  window.addEventListener("error",function(e){window.__showFallback(1,{lineno:e.lineno,msg:(e.message||'')+(e.filename?(' @'+e.filename.split('/').pop()+':'+e.lineno+':'+e.colno):'')});},true);
+  window.addEventListener("error",function(e){window.__showFallback(1,{lineno:e.lineno})},true);
+  window.addEventListener("unhandledrejection",function(e){window.__showFallback(2,{lineno:0,msg:(e.reason&&e.reason.message)||String(e.reason||'')})});
+  window.addEventListener("unhandledrejection",function(e){try{console.warn('unhandledrejection:',e&&e.reason)}catch(_e){}try{if(e&&e.preventDefault)e.preventDefault()}catch(_e){}});
+})();
 </script>
-<script>
-/* 公務機鎖定:本機有 mp:kiosk:v1(on=1)時,這個資料夾底下任何網址都導回主櫃(?cn2=1);只放行 LIFF 登入回來的參數與 unlock=1 */
-try{var __k=JSON.parse(localStorage.getItem('mp:kiosk:v1')||'null');if(__k&&__k.on&&__k.token){var __q=new URLSearchParams(location.search),__bad=!__q.has('cn2');__q.forEach(function(v,key){if(!/^(cn2|unlock|code|state|liff.*|access_token|id_token|friendship_status_changed|utm_.*|fbclid)$/.test(key))__bad=true;});if(__bad)location.replace(location.pathname+'?cn2=1');}}catch(_e){}
-</script>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#030712">
+<title>薪資追蹤 v1.13-071</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<style>body{background:#0a0a0f;color:#e5e7eb;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}#root{min-height:100vh}</style>
+<style>
+*{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+html{background:var(--bg,#030712)}body{margin:0;background:var(--bg,#030712);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none;min-height:100vh}
+/* v1.9-012 #11 S22U修正:各主題背景改純CSS靜態定義(不靠JS動態改色,Samsung Internet才會確實重繪) */
+html[data-theme="black"],html[data-theme="black"] body{background:#030712 !important}
+html[data-theme="pink"],html[data-theme="pink"] body{background:#fce4f6 !important}
+html[data-theme="white"],html[data-theme="white"] body{background:#f9fafb !important}
+html[data-theme="gray"],html[data-theme="gray"] body{background:#1f2937 !important}
+.no-sb::-webkit-scrollbar{display:none}.no-sb{-ms-overflow-style:none;scrollbar-width:none}
+select option{background:#111827;color:#f3f4f6}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes ledGreen{0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,.5),0 0 4px 1px rgba(16,185,129,.7)}50%{box-shadow:0 0 0 4px rgba(16,185,129,0),0 0 8px 2px rgba(16,185,129,.9)}}
+@keyframes ledGray{0%,100%{box-shadow:0 0 0 0 rgba(156,163,175,.35),0 0 3px 1px rgba(156,163,175,.4)}50%{box-shadow:0 0 0 4px rgba(156,163,175,0),0 0 5px 1px rgba(156,163,175,.55)}}
+@keyframes arrowBlink{0%,100%{opacity:1}50%{opacity:.25}}
+.led-green{background:#10b981;animation:ledGreen 1.6s ease-in-out infinite}
+.led-gray{background:#9ca3af;animation:ledGray 2s ease-in-out infinite}
+.arrow-blink{animation:arrowBlink 1s ease-in-out infinite}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.fi{animation:fadeIn .2s ease-out}.su{animation:slideUp .25s ease-out}
+/* 骨架載入 Skeleton Shimmer:亮帶 background-size:300% 由左掃到右;顏色用變數,跟著主題(淺色主題在 [data-light] 覆寫) */
+:root{--sk-base:rgba(255,255,255,0.05);--sk-shine:rgba(255,255,255,0.14)}
+[data-light]{--sk-base:rgba(80,30,100,0.07);--sk-shine:rgba(255,255,255,0.75)}
+@keyframes skShimmer{0%{background-position:100% 0}100%{background-position:0 0}}
+.sk{background:linear-gradient(100deg,var(--sk-base) 35%,var(--sk-shine) 50%,var(--sk-base) 65%);background-size:300% 100%;animation:skShimmer 1.4s ease-in-out infinite;border-radius:.5rem}
+.sk-wrap{display:flex;flex-direction:column;gap:.75rem;padding:.25rem 0}
+.sk-card{background:var(--sk-base);border-radius:.75rem;padding:.75rem;display:flex;flex-direction:column;gap:.75rem}
+.sk-row{display:flex;align-items:center;gap:.75rem}.sk-col{flex:1;display:flex;flex-direction:column;gap:.5rem}
+.sk-avatar{width:2.5rem;height:2.5rem;border-radius:9999px;flex:none}
+.sk-line{height:.75rem}.sk-line-s{height:.625rem}
+.sk-block{height:7rem;border-radius:.625rem}
+.sk-stage{position:relative}
+.sk-in{animation:skIn .45s ease-out both}
+.sk-out{position:absolute;inset:0;pointer-events:none;animation:skOut .3s ease-out forwards}
+@keyframes skIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes skOut{from{opacity:1}to{opacity:0}}
+@media (prefers-reduced-motion:reduce){.sk{animation:none}.sk-in{animation:fadeIn .01s}}
+.pinGateBackdrop{background-color:#000000!important;opacity:1!important}
+.pinGateBtn{background-color:rgba(255,255,255,0.12)!important;color:#f3f4f6!important}
+.pinGateTitle{color:#f9fafb!important}
+.pinGateBody{color:#9ca3af!important}
+</style>
+<style>
+/* ── v1.8-006: Light theme (pink/white) — 文字改深色，降低對比刺眼感 ── */
+[data-light] select option { background:#f3e8f5;color:#2d1a35; }
+
+/* Borders */
+[data-light] [class*="border-white"] { border-color: rgba(80,40,100,0.15) !important; }
+
+/* Card/surface backgrounds */
+[data-light] [class*="bg-white/[0.0"]  { background-color: rgba(80,30,100,0.04) !important; }
+[data-light] [class*="bg-white/[0.02"] { background-color: rgba(80,30,100,0.03) !important; }
+[data-light] [class*="bg-white/[0.03"] { background-color: rgba(80,30,100,0.04) !important; }
+[data-light] [class*="bg-white/[0.04"] { background-color: rgba(80,30,100,0.05) !important; }
+[data-light] [class*="bg-white/[0.05"] { background-color: rgba(80,30,100,0.06) !important; }
+[data-light] [class*="bg-white/[0.06"] { background-color: rgba(80,30,100,0.07) !important; }
+[data-light] [class*="bg-white/[0.08"] { background-color: rgba(80,30,100,0.08) !important; }
+[data-light] [class*="bg-white/[0.1"]  { background-color: rgba(80,30,100,0.09) !important; }
+[data-light] [class*="bg-white/10"]    { background-color: rgba(80,30,100,0.10) !important; }
+[data-light] [class*="bg-gray-900"]    { background-color: #f7eefa !important; }
+[data-light] [class*="bg-gray-950"]    { background-color: #f3e8f6 !important; }
+[data-light] [class*="bg-black/80"]    { background-color: rgba(20,10,25,0.85) !important; }
+[data-light] [class*="bg-gray-800"]    { background-color: rgba(80,30,100,0.12) !important; }
+
+/* ── Text ── 比原本深很多，在粉紅底上清晰易讀 */
+[data-light] .text-gray-100 { color: #1a0d22 !important; }
+[data-light] .text-gray-200 { color: #2d1a38 !important; }
+[data-light] .text-gray-300 { color: #3d2450 !important; }
+[data-light] .text-gray-400 { color: #5b3a70 !important; }
+[data-light] .text-gray-500 { color: #7a5490 !important; }
+[data-light] .text-gray-600 { color: #9a74aa !important; }
+[data-light] .text-gray-700 { color: #b896c8 !important; }
+
+/* Inputs */
+[data-light] input, [data-light] textarea, [data-light] select {
+  color: #1a0d22 !important;
+  background-color: rgba(80,30,100,0.06) !important;
+}
+[data-light] input::placeholder, [data-light] textarea::placeholder { color: #9a74aa !important; }
+[data-light] input:disabled, [data-light] textarea:disabled {
+  color: #9a74aa !important;
+  background-color: rgba(80,30,100,0.03) !important;
+}
+
+/* ── Amber ── */
+[data-light] .text-amber-400  { color: #92400e !important; }
+[data-light] .text-amber-300  { color: #78350f !important; }
+[data-light] .text-amber-500  { color: #b45309 !important; }
+[data-light] [class*="bg-amber-600"]    { background-color: #b45309 !important; }
+[data-light] [class*="bg-amber-500/10"] { background-color: rgba(180,83,9,0.10) !important; }
+[data-light] [class*="bg-amber-500/20"] { background-color: rgba(180,83,9,0.14) !important; }
+[data-light] [class*="bg-amber-500/25"] { background-color: rgba(180,83,9,0.20) !important; }
+[data-light] [class*="bg-amber-600/10"] { background-color: rgba(180,83,9,0.10) !important; }
+[data-light] [class*="bg-amber-600/15"] { background-color: rgba(180,83,9,0.12) !important; }
+[data-light] [class*="bg-amber-600/20"] { background-color: rgba(180,83,9,0.14) !important; }
+[data-light] [class*="bg-amber-600/\[0"] { background-color: rgba(180,83,9,0.06) !important; }
+[data-light] [class*="border-amber-500"]  { border-color: rgba(180,83,9,0.35) !important; }
+[data-light] [class*="border-amber-600"]  { border-color: rgba(180,83,9,0.30) !important; }
+
+/* ── Emerald ── */
+[data-light] .text-emerald-400  { color: #065f46 !important; }
+[data-light] .text-emerald-300  { color: #047857 !important; }
+[data-light] [class*="text-emerald-400"] { color: #065f46 !important; }
+[data-light] [class*="text-emerald-300"] { color: #047857 !important; }
+[data-light] [class*="bg-emerald-500/10"] { background-color: rgba(6,95,70,0.08) !important; }
+[data-light] [class*="bg-emerald-500/15"] { background-color: rgba(6,95,70,0.10) !important; }
+[data-light] [class*="bg-emerald-600/20"] { background-color: rgba(6,95,70,0.10) !important; }
+[data-light] [class*="bg-emerald-600"]    { background-color: #047857 !important; }
+[data-light] [class*="border-emerald-500"] { border-color: rgba(6,95,70,0.30) !important; }
+
+/* ── Orange ── */
+[data-light] .text-orange-400  { color: #9a3412 !important; }
+[data-light] [class*="text-orange-400"]  { color: #9a3412 !important; }
+[data-light] [class*="text-orange-400/80"] { color: rgba(154,52,18,0.80) !important; }
+[data-light] [class*="bg-orange-500/10"] { background-color: rgba(154,52,18,0.08) !important; }
+[data-light] [class*="bg-orange-500/15"] { background-color: rgba(154,52,18,0.10) !important; }
+[data-light] [class*="border-orange-500"] { border-color: rgba(154,52,18,0.25) !important; }
+
+/* ── Red ── */
+[data-light] [class*="text-red-400"]    { color: #991b1b !important; }
+[data-light] [class*="text-red-300"]    { color: #7f1d1d !important; }
+[data-light] [class*="bg-red-500/10"]   { background-color: rgba(153,27,27,0.08) !important; }
+[data-light] [class*="bg-red-500/15"]   { background-color: rgba(153,27,27,0.10) !important; }
+[data-light] [class*="bg-red-500/20"]   { background-color: rgba(153,27,27,0.12) !important; }
+[data-light] [class*="bg-red-500/30"]   { background-color: rgba(153,27,27,0.16) !important; }
+[data-light] [class*="border-red-500"]  { border-color: rgba(153,27,27,0.25) !important; }
+
+/* ── Status badge text ── */
+[data-light] .text-yellow-300 { color: #78350f !important; }
+[data-light] .text-blue-300   { color: #1e40af !important; }
+[data-light] [class*="text-blue-3"] { color: #1e40af !important; }
+[data-light] [class*="text-blue-4"] { color: #1e40af !important; }
+[data-light] .text-purple-300 { color: #5b21b6 !important; }
+[data-light] .text-orange-300 { color: #9a3412 !important; }
+[data-light] .bg-yellow-500\/20 { background-color: rgba(161,98,7,0.12) !important; }
+[data-light] .bg-blue-500\/20   { background-color: rgba(29,78,216,0.10) !important; }
+[data-light] [class*="bg-blue-500"] { background-color: rgba(29,78,216,0.10) !important; }
+[data-light] [class*="bg-blue-600"] { background-color: rgba(29,78,216,0.12) !important; }
+[data-light] .bg-purple-500\/20 { background-color: rgba(109,40,217,0.10) !important; }
+
+/* ── Skill colours ── */
+[data-light] .text-cyan-400   { color: #0e7490 !important; }
+[data-light] .text-violet-400 { color: #6d28d9 !important; }
+[data-light] .text-pink-400   { color: #be185d !important; }
+[data-light] .text-sky-400    { color: #0369a1 !important; }
+[data-light] [class*="text-sky-3"],[data-light] [class*="text-sky-4"] { color: #0369a1 !important; }
+[data-light] [class*="border-sky-400"] { border-color: rgba(3,105,161,0.55) !important; }
+[data-light] [class*="bg-sky-400/10"] { background-color: rgba(3,105,161,0.10) !important; }
+[data-light] [class*="text-[#aab2c0]"] { color: #5b3a70 !important; }
+
+/* Nav */
+[data-light] nav { border-top-color: rgba(80,30,100,0.15) !important; }
+[data-light] .animate-pulse { opacity: 0.85; }
+
+/* ══════ 質感玻璃主題(smooth,SmoothUI風格):深色底+玻璃模糊卡片+大圓角+紫色強調色 ══════ */
+html[data-theme="smooth"],html[data-theme="smooth"] body{background:#0d0d18 !important}
+[data-theme="smooth"] [class*="bg-white/[0.02"]{background-color:rgba(255,255,255,0.03) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
+[data-theme="smooth"] [class*="bg-white/[0.03"]{background-color:rgba(255,255,255,0.04) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
+[data-theme="smooth"] [class*="bg-white/[0.04"]{background-color:rgba(255,255,255,0.05) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
+[data-theme="smooth"] [class*="bg-white/[0.05"]{background-color:rgba(255,255,255,0.06) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
+[data-theme="smooth"] [class*="bg-white/[0.06"]{background-color:rgba(255,255,255,0.07) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
+[data-theme="smooth"] [class*="bg-white/[0.08"]{background-color:rgba(255,255,255,0.08) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
+[data-theme="smooth"] [class*="bg-white/[0.1"]{background-color:rgba(255,255,255,0.09) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
+[data-theme="smooth"] [class*="bg-white/10"]{background-color:rgba(255,255,255,0.1) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important}
+[data-theme="smooth"] [class*="bg-gray-900"]{background-color:rgba(22,22,36,0.85) !important;backdrop-filter:blur(20px) !important;-webkit-backdrop-filter:blur(20px) !important}
+[data-theme="smooth"] [class*="bg-gray-950"]{background-color:rgba(13,13,24,0.92) !important;backdrop-filter:blur(20px) !important;-webkit-backdrop-filter:blur(20px) !important}
+[data-theme="smooth"] [class*="bg-gray-800"]{background-color:rgba(30,30,48,0.7) !important}
+[data-theme="smooth"] [class*="bg-black/80"]{background-color:rgba(6,6,14,0.75) !important;backdrop-filter:blur(8px) !important;-webkit-backdrop-filter:blur(8px) !important}
+[data-theme="smooth"] [class*="border-white"]{border-color:rgba(255,255,255,0.1) !important}
+/* 圓角加大,呼應SmoothUI大量使用的rounded-2xl以上圓角風格 */
+[data-theme="smooth"] [class*="rounded-lg"]{border-radius:0.875rem !important}
+[data-theme="smooth"] [class*="rounded-xl"]{border-radius:1.25rem !important}
+[data-theme="smooth"] [class*="rounded-2xl"]{border-radius:1.5rem !important}
+/* 強調色從amber換成鮮豔紫色,更貼近SmoothUI的現代感配色 */
+[data-theme="smooth"] [class*="text-amber"]{color:#c4b5fd !important}
+[data-theme="smooth"] [class*="bg-amber-6"]{background-color:#7c3aed !important}
+[data-theme="smooth"] [class*="bg-amber-5"]{background-color:#8b5cf6 !important}
+[data-theme="smooth"] [class*="bg-amber-4"]{background-color:#a78bfa !important}
+[data-theme="smooth"] [class*="border-amber"]{border-color:#8b5cf6 !important}
+[data-theme="smooth"] [class*="accent-amber"]{accent-color:#8b5cf6 !important}
+[data-theme="smooth"] [class*="ring-amber"]{--tw-ring-color:#8b5cf6 !important}
+
+/* ══════ 霓虹科技主題(neon):沉浸式深色科技藍黑背景(#0b0f19)+青藍霓虹毛玻璃卡片,強調色升級為電光青色系(#38bdf8/#0ea5e9) ══════ */
+html[data-theme="neon"],html[data-theme="neon"] body{background:#0b0f19 !important}
+[data-theme="neon"] [class*="bg-white/[0.02"]{background-color:rgba(56,189,248,0.04) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(56,189,248,0.15) !important}
+[data-theme="neon"] [class*="bg-white/[0.03"]{background-color:rgba(56,189,248,0.05) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(56,189,248,0.15) !important}
+[data-theme="neon"] [class*="bg-white/[0.04"]{background-color:rgba(56,189,248,0.06) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(56,189,248,0.15) !important}
+[data-theme="neon"] [class*="bg-white/[0.05"]{background-color:rgba(56,189,248,0.07) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(56,189,248,0.15) !important}
+[data-theme="neon"] [class*="bg-white/[0.06"]{background-color:rgba(56,189,248,0.08) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(56,189,248,0.18) !important}
+[data-theme="neon"] [class*="bg-white/[0.08"]{background-color:rgba(56,189,248,0.09) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(56,189,248,0.18) !important}
+[data-theme="neon"] [class*="bg-white/[0.1"]{background-color:rgba(56,189,248,0.1) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(56,189,248,0.2) !important}
+[data-theme="neon"] [class*="bg-white/10"]{background-color:rgba(56,189,248,0.1) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(56,189,248,0.2) !important}
+[data-theme="neon"] [class*="bg-gray-900"]{background-color:rgba(15,20,35,0.85) !important;backdrop-filter:blur(20px) !important;-webkit-backdrop-filter:blur(20px) !important;border-color:rgba(56,189,248,0.2) !important;box-shadow:0 0 28px rgba(14,165,233,0.16) !important}
+[data-theme="neon"] [class*="bg-gray-950"]{background-color:rgba(11,15,25,0.92) !important;backdrop-filter:blur(20px) !important;-webkit-backdrop-filter:blur(20px) !important}
+[data-theme="neon"] [class*="bg-gray-800"]{background-color:rgba(20,26,45,0.7) !important}
+[data-theme="neon"] [class*="bg-black/80"]{background-color:rgba(5,8,16,0.8) !important;backdrop-filter:blur(8px) !important;-webkit-backdrop-filter:blur(8px) !important}
+[data-theme="neon"] [class*="border-white"]{border-color:rgba(56,189,248,0.25) !important}
+/* 輸入框聚焦時加青色霓虹光暈,強化互動回饋的科技感 */
+[data-theme="neon"] input:focus,[data-theme="neon"] select:focus,[data-theme="neon"] textarea:focus{border-color:#38bdf8 !important;box-shadow:0 0 0 1px #38bdf8,0 0 14px rgba(56,189,248,0.45) !important}
+/* 強調色統一升級為電光青色系,取代amber,邊框/實心按鈕帶霓虹發光陰影 */
+[data-theme="neon"] [class*="text-amber"]{color:#38bdf8 !important;text-shadow:0 0 8px rgba(56,189,248,0.35) !important}
+[data-theme="neon"] [class*="bg-amber-6"]{background-color:#0ea5e9 !important;box-shadow:0 0 18px rgba(14,165,233,0.55) !important}
+[data-theme="neon"] [class*="bg-amber-5"]{background-color:#38bdf8 !important;box-shadow:0 0 18px rgba(56,189,248,0.55) !important}
+[data-theme="neon"] [class*="bg-amber-4"]{background-color:#7dd3fc !important}
+[data-theme="neon"] [class*="border-amber"]{border-color:#38bdf8 !important;box-shadow:0 0 10px rgba(56,189,248,0.45) !important}
+[data-theme="neon"] [class*="accent-amber"]{accent-color:#0ea5e9 !important}
+[data-theme="neon"] [class*="ring-amber"]{--tw-ring-color:#38bdf8 !important}
+
+/* 修正:上面的萬用選擇器([class*="bg-amber-6"]等)會把「帶透明度」的amber class(如bg-amber-600/15)誤判成跟純色一樣,
+   直接套用完全不透明的強調色,導致原本設計成柔和半透明的按鈕變成過曝的實心色塊。這裡針對實際用到的透明度組合,
+   加上精確比對規則,寫在後面靠source order覆蓋掉前面的粗略規則,還原原本的透明層次感 */
+[data-theme="neon"] [class*="bg-amber-500/10"]{background-color:rgba(56,189,248,0.1) !important}
+[data-theme="neon"] [class*="bg-amber-500/15"]{background-color:rgba(56,189,248,0.15) !important}
+[data-theme="neon"] [class*="bg-amber-500/20"]{background-color:rgba(56,189,248,0.2) !important}
+[data-theme="neon"] [class*="bg-amber-500/25"]{background-color:rgba(56,189,248,0.25) !important}
+[data-theme="neon"] [class*="bg-amber-600/10"]{background-color:rgba(56,189,248,0.1) !important}
+[data-theme="neon"] [class*="bg-amber-600/15"]{background-color:rgba(56,189,248,0.15) !important}
+[data-theme="neon"] [class*="bg-amber-600/20"]{background-color:rgba(56,189,248,0.2) !important}
+[data-theme="neon"] [class*="bg-amber-600/25"]{background-color:rgba(56,189,248,0.25) !important}
+[data-theme="neon"] [class*="bg-amber-600/30"]{background-color:rgba(56,189,248,0.3) !important}
+[data-theme="neon"] [class*="border-amber-500/10"]{border-color:rgba(56,189,248,0.1) !important}
+[data-theme="neon"] [class*="border-amber-500/20"]{border-color:rgba(56,189,248,0.2) !important}
+[data-theme="neon"] [class*="border-amber-500/25"]{border-color:rgba(56,189,248,0.25) !important}
+[data-theme="neon"] [class*="border-amber-500/30"]{border-color:rgba(56,189,248,0.3) !important}
+[data-theme="neon"] [class*="border-amber-500/40"]{border-color:rgba(56,189,248,0.4) !important}
+[data-theme="neon"] [class*="border-amber-500/50"]{border-color:rgba(56,189,248,0.5) !important}
+[data-theme="neon"] [class*="border-amber-600/20"]{border-color:rgba(56,189,248,0.2) !important}
+[data-theme="neon"] [class*="text-amber-500/70"]{color:rgba(56,189,248,0.7) !important}
+[data-theme="neon"] [class*="text-amber-500/80"]{color:rgba(56,189,248,0.8) !important}
+[data-theme="neon"] [class*="bg-amber-600/[0.06"]{background-color:rgba(56,189,248,0.08) !important}
+
+
+/* ══════ 森系植癒風(Forest/Matcha)主題(forest) ══════ */
+html[data-theme="forest"],html[data-theme="forest"] body{background:#121a15 !important}
+[data-theme="forest"] [class*="bg-white/[0.02"]{background-color:rgba(27,38,31,0.55) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(74,222,128,0.15) !important}
+[data-theme="forest"] [class*="bg-white/[0.03"]{background-color:rgba(27,38,31,0.6) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(74,222,128,0.15) !important}
+[data-theme="forest"] [class*="bg-white/[0.04"]{background-color:rgba(27,38,31,0.65) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(74,222,128,0.15) !important}
+[data-theme="forest"] [class*="bg-white/[0.05"]{background-color:rgba(27,38,31,0.7) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(74,222,128,0.15) !important}
+[data-theme="forest"] [class*="bg-white/[0.06"]{background-color:rgba(27,38,31,0.75) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(74,222,128,0.18) !important}
+[data-theme="forest"] [class*="bg-white/[0.08"]{background-color:rgba(27,38,31,0.8) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(74,222,128,0.18) !important}
+[data-theme="forest"] [class*="bg-white/[0.1"]{background-color:rgba(27,38,31,0.85) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(74,222,128,0.2) !important}
+[data-theme="forest"] [class*="bg-white/10"]{background-color:rgba(27,38,31,0.85) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(74,222,128,0.2) !important}
+[data-theme="forest"] [class*="bg-gray-900"]{background-color:rgba(27,38,31,0.9) !important;backdrop-filter:blur(20px) !important;-webkit-backdrop-filter:blur(20px) !important;border-color:rgba(74,222,128,0.2) !important}
+[data-theme="forest"] [class*="bg-gray-950"]{background-color:rgba(18,26,21,0.94) !important;backdrop-filter:blur(20px) !important;-webkit-backdrop-filter:blur(20px) !important}
+[data-theme="forest"] [class*="bg-gray-800"]{background-color:rgba(27,38,31,0.7) !important}
+[data-theme="forest"] [class*="bg-black/80"]{background-color:rgba(7,10,8,0.82) !important;backdrop-filter:blur(8px) !important;-webkit-backdrop-filter:blur(8px) !important}
+[data-theme="forest"] [class*="border-white"]{border-color:rgba(74,222,128,0.22) !important}
+[data-theme="forest"] .text-gray-100{color:#e2e8f0 !important}
+/* 強調色統一改成本主題主色,取代amber */
+[data-theme="forest"] [class*="text-amber"]{color:#4ade80 !important}
+[data-theme="forest"] [class*="bg-amber-6"]{background-color:#84cc16 !important}
+[data-theme="forest"] [class*="bg-amber-5"]{background-color:#4ade80 !important}
+[data-theme="forest"] [class*="bg-amber-4"]{background-color:rgba(74,222,128,0.75) !important}
+[data-theme="forest"] [class*="border-amber"]{border-color:#4ade80 !important}
+[data-theme="forest"] [class*="accent-amber"]{accent-color:#4ade80 !important}
+[data-theme="forest"] [class*="ring-amber"]{--tw-ring-color:#4ade80 !important}
+
+/* 修正:上面的萬用選擇器([class*="bg-amber-6"]等)會把「帶透明度」的amber class(如bg-amber-600/15)誤判成跟純色一樣,
+   直接套用完全不透明的強調色,導致原本設計成柔和半透明的按鈕變成過曝的實心色塊。這裡針對實際用到的透明度組合,
+   加上精確比對規則,寫在後面靠source order覆蓋掉前面的粗略規則,還原原本的透明層次感 */
+[data-theme="forest"] [class*="bg-amber-500/10"]{background-color:rgba(74,222,128,0.1) !important}
+[data-theme="forest"] [class*="bg-amber-500/15"]{background-color:rgba(74,222,128,0.15) !important}
+[data-theme="forest"] [class*="bg-amber-500/20"]{background-color:rgba(74,222,128,0.2) !important}
+[data-theme="forest"] [class*="bg-amber-500/25"]{background-color:rgba(74,222,128,0.25) !important}
+[data-theme="forest"] [class*="bg-amber-600/10"]{background-color:rgba(74,222,128,0.1) !important}
+[data-theme="forest"] [class*="bg-amber-600/15"]{background-color:rgba(74,222,128,0.15) !important}
+[data-theme="forest"] [class*="bg-amber-600/20"]{background-color:rgba(74,222,128,0.2) !important}
+[data-theme="forest"] [class*="bg-amber-600/25"]{background-color:rgba(74,222,128,0.25) !important}
+[data-theme="forest"] [class*="bg-amber-600/30"]{background-color:rgba(74,222,128,0.3) !important}
+[data-theme="forest"] [class*="border-amber-500/10"]{border-color:rgba(74,222,128,0.1) !important}
+[data-theme="forest"] [class*="border-amber-500/20"]{border-color:rgba(74,222,128,0.2) !important}
+[data-theme="forest"] [class*="border-amber-500/25"]{border-color:rgba(74,222,128,0.25) !important}
+[data-theme="forest"] [class*="border-amber-500/30"]{border-color:rgba(74,222,128,0.3) !important}
+[data-theme="forest"] [class*="border-amber-500/40"]{border-color:rgba(74,222,128,0.4) !important}
+[data-theme="forest"] [class*="border-amber-500/50"]{border-color:rgba(74,222,128,0.5) !important}
+[data-theme="forest"] [class*="border-amber-600/20"]{border-color:rgba(74,222,128,0.2) !important}
+[data-theme="forest"] [class*="text-amber-500/70"]{color:rgba(74,222,128,0.7) !important}
+[data-theme="forest"] [class*="text-amber-500/80"]{color:rgba(74,222,128,0.8) !important}
+[data-theme="forest"] [class*="bg-amber-600/[0.06"]{background-color:rgba(74,222,128,0.08) !important}
+
+
+/* ══════ 秋日暖陽/日落金(Sunset/Warm Amber)主題(sunset) ══════ */
+html[data-theme="sunset"],html[data-theme="sunset"] body{background:#18120b !important}
+[data-theme="sunset"] [class*="bg-white/[0.02"]{background-color:rgba(38,28,20,0.55) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(245,158,11,0.15) !important}
+[data-theme="sunset"] [class*="bg-white/[0.03"]{background-color:rgba(38,28,20,0.6) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(245,158,11,0.15) !important}
+[data-theme="sunset"] [class*="bg-white/[0.04"]{background-color:rgba(38,28,20,0.65) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(245,158,11,0.15) !important}
+[data-theme="sunset"] [class*="bg-white/[0.05"]{background-color:rgba(38,28,20,0.7) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(245,158,11,0.15) !important}
+[data-theme="sunset"] [class*="bg-white/[0.06"]{background-color:rgba(38,28,20,0.75) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(245,158,11,0.18) !important}
+[data-theme="sunset"] [class*="bg-white/[0.08"]{background-color:rgba(38,28,20,0.8) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(245,158,11,0.18) !important}
+[data-theme="sunset"] [class*="bg-white/[0.1"]{background-color:rgba(38,28,20,0.85) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(245,158,11,0.2) !important}
+[data-theme="sunset"] [class*="bg-white/10"]{background-color:rgba(38,28,20,0.85) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(245,158,11,0.2) !important}
+[data-theme="sunset"] [class*="bg-gray-900"]{background-color:rgba(38,28,20,0.9) !important;backdrop-filter:blur(20px) !important;-webkit-backdrop-filter:blur(20px) !important;border-color:rgba(245,158,11,0.2) !important}
+[data-theme="sunset"] [class*="bg-gray-950"]{background-color:rgba(24,18,11,0.94) !important;backdrop-filter:blur(20px) !important;-webkit-backdrop-filter:blur(20px) !important}
+[data-theme="sunset"] [class*="bg-gray-800"]{background-color:rgba(38,28,20,0.7) !important}
+[data-theme="sunset"] [class*="bg-black/80"]{background-color:rgba(9,7,4,0.82) !important;backdrop-filter:blur(8px) !important;-webkit-backdrop-filter:blur(8px) !important}
+[data-theme="sunset"] [class*="border-white"]{border-color:rgba(245,158,11,0.22) !important}
+[data-theme="sunset"] .text-gray-100{color:#fef3c7 !important}
+/* 強調色統一改成本主題主色,取代amber */
+[data-theme="sunset"] [class*="text-amber"]{color:#f59e0b !important}
+[data-theme="sunset"] [class*="bg-amber-6"]{background-color:#d97706 !important}
+[data-theme="sunset"] [class*="bg-amber-5"]{background-color:#f59e0b !important}
+[data-theme="sunset"] [class*="bg-amber-4"]{background-color:rgba(245,158,11,0.75) !important}
+[data-theme="sunset"] [class*="border-amber"]{border-color:#f59e0b !important}
+[data-theme="sunset"] [class*="accent-amber"]{accent-color:#f59e0b !important}
+[data-theme="sunset"] [class*="ring-amber"]{--tw-ring-color:#f59e0b !important}
+
+/* 修正:上面的萬用選擇器([class*="bg-amber-6"]等)會把「帶透明度」的amber class(如bg-amber-600/15)誤判成跟純色一樣,
+   直接套用完全不透明的強調色,導致原本設計成柔和半透明的按鈕變成過曝的實心色塊。這裡針對實際用到的透明度組合,
+   加上精確比對規則,寫在後面靠source order覆蓋掉前面的粗略規則,還原原本的透明層次感 */
+[data-theme="sunset"] [class*="bg-amber-500/10"]{background-color:rgba(245,158,11,0.1) !important}
+[data-theme="sunset"] [class*="bg-amber-500/15"]{background-color:rgba(245,158,11,0.15) !important}
+[data-theme="sunset"] [class*="bg-amber-500/20"]{background-color:rgba(245,158,11,0.2) !important}
+[data-theme="sunset"] [class*="bg-amber-500/25"]{background-color:rgba(245,158,11,0.25) !important}
+[data-theme="sunset"] [class*="bg-amber-600/10"]{background-color:rgba(245,158,11,0.1) !important}
+[data-theme="sunset"] [class*="bg-amber-600/15"]{background-color:rgba(245,158,11,0.15) !important}
+[data-theme="sunset"] [class*="bg-amber-600/20"]{background-color:rgba(245,158,11,0.2) !important}
+[data-theme="sunset"] [class*="bg-amber-600/25"]{background-color:rgba(245,158,11,0.25) !important}
+[data-theme="sunset"] [class*="bg-amber-600/30"]{background-color:rgba(245,158,11,0.3) !important}
+[data-theme="sunset"] [class*="border-amber-500/10"]{border-color:rgba(245,158,11,0.1) !important}
+[data-theme="sunset"] [class*="border-amber-500/20"]{border-color:rgba(245,158,11,0.2) !important}
+[data-theme="sunset"] [class*="border-amber-500/25"]{border-color:rgba(245,158,11,0.25) !important}
+[data-theme="sunset"] [class*="border-amber-500/30"]{border-color:rgba(245,158,11,0.3) !important}
+[data-theme="sunset"] [class*="border-amber-500/40"]{border-color:rgba(245,158,11,0.4) !important}
+[data-theme="sunset"] [class*="border-amber-500/50"]{border-color:rgba(245,158,11,0.5) !important}
+[data-theme="sunset"] [class*="border-amber-600/20"]{border-color:rgba(245,158,11,0.2) !important}
+[data-theme="sunset"] [class*="text-amber-500/70"]{color:rgba(245,158,11,0.7) !important}
+[data-theme="sunset"] [class*="text-amber-500/80"]{color:rgba(245,158,11,0.8) !important}
+[data-theme="sunset"] [class*="bg-amber-600/[0.06"]{background-color:rgba(245,158,11,0.08) !important}
+
+
+/* ══════ 海洋藍(Ocean Blue)主題(ocean) ══════ */
+html[data-theme="ocean"],html[data-theme="ocean"] body{background:#0b1329 !important}
+[data-theme="ocean"] [class*="bg-white/[0.02"]{background-color:rgba(19,34,56,0.55) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(14,165,233,0.15) !important}
+[data-theme="ocean"] [class*="bg-white/[0.03"]{background-color:rgba(19,34,56,0.6) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(14,165,233,0.15) !important}
+[data-theme="ocean"] [class*="bg-white/[0.04"]{background-color:rgba(19,34,56,0.65) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(14,165,233,0.15) !important}
+[data-theme="ocean"] [class*="bg-white/[0.05"]{background-color:rgba(19,34,56,0.7) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(14,165,233,0.15) !important}
+[data-theme="ocean"] [class*="bg-white/[0.06"]{background-color:rgba(19,34,56,0.75) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(14,165,233,0.18) !important}
+[data-theme="ocean"] [class*="bg-white/[0.08"]{background-color:rgba(19,34,56,0.8) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(14,165,233,0.18) !important}
+[data-theme="ocean"] [class*="bg-white/[0.1"]{background-color:rgba(19,34,56,0.85) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(14,165,233,0.2) !important}
+[data-theme="ocean"] [class*="bg-white/10"]{background-color:rgba(19,34,56,0.85) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(14,165,233,0.2) !important}
+[data-theme="ocean"] [class*="bg-gray-900"]{background-color:rgba(19,34,56,0.9) !important;backdrop-filter:blur(20px) !important;-webkit-backdrop-filter:blur(20px) !important;border-color:rgba(14,165,233,0.2) !important}
+[data-theme="ocean"] [class*="bg-gray-950"]{background-color:rgba(11,19,41,0.94) !important;backdrop-filter:blur(20px) !important;-webkit-backdrop-filter:blur(20px) !important}
+[data-theme="ocean"] [class*="bg-gray-800"]{background-color:rgba(19,34,56,0.7) !important}
+[data-theme="ocean"] [class*="bg-black/80"]{background-color:rgba(4,7,16,0.82) !important;backdrop-filter:blur(8px) !important;-webkit-backdrop-filter:blur(8px) !important}
+[data-theme="ocean"] [class*="border-white"]{border-color:rgba(14,165,233,0.22) !important}
+[data-theme="ocean"] .text-gray-100{color:#e0f2fe !important}
+/* 強調色統一改成本主題主色,取代amber */
+[data-theme="ocean"] [class*="text-amber"]{color:#0ea5e9 !important}
+[data-theme="ocean"] [class*="bg-amber-6"]{background-color:#38bdf8 !important}
+[data-theme="ocean"] [class*="bg-amber-5"]{background-color:#0ea5e9 !important}
+[data-theme="ocean"] [class*="bg-amber-4"]{background-color:rgba(14,165,233,0.75) !important}
+[data-theme="ocean"] [class*="border-amber"]{border-color:#0ea5e9 !important}
+[data-theme="ocean"] [class*="accent-amber"]{accent-color:#0ea5e9 !important}
+[data-theme="ocean"] [class*="ring-amber"]{--tw-ring-color:#0ea5e9 !important}
+
+/* 修正:上面的萬用選擇器([class*="bg-amber-6"]等)會把「帶透明度」的amber class(如bg-amber-600/15)誤判成跟純色一樣,
+   直接套用完全不透明的強調色,導致原本設計成柔和半透明的按鈕變成過曝的實心色塊。這裡針對實際用到的透明度組合,
+   加上精確比對規則,寫在後面靠source order覆蓋掉前面的粗略規則,還原原本的透明層次感 */
+[data-theme="ocean"] [class*="bg-amber-500/10"]{background-color:rgba(14,165,233,0.1) !important}
+[data-theme="ocean"] [class*="bg-amber-500/15"]{background-color:rgba(14,165,233,0.15) !important}
+[data-theme="ocean"] [class*="bg-amber-500/20"]{background-color:rgba(14,165,233,0.2) !important}
+[data-theme="ocean"] [class*="bg-amber-500/25"]{background-color:rgba(14,165,233,0.25) !important}
+[data-theme="ocean"] [class*="bg-amber-600/10"]{background-color:rgba(14,165,233,0.1) !important}
+[data-theme="ocean"] [class*="bg-amber-600/15"]{background-color:rgba(14,165,233,0.15) !important}
+[data-theme="ocean"] [class*="bg-amber-600/20"]{background-color:rgba(14,165,233,0.2) !important}
+[data-theme="ocean"] [class*="bg-amber-600/25"]{background-color:rgba(14,165,233,0.25) !important}
+[data-theme="ocean"] [class*="bg-amber-600/30"]{background-color:rgba(14,165,233,0.3) !important}
+[data-theme="ocean"] [class*="border-amber-500/10"]{border-color:rgba(14,165,233,0.1) !important}
+[data-theme="ocean"] [class*="border-amber-500/20"]{border-color:rgba(14,165,233,0.2) !important}
+[data-theme="ocean"] [class*="border-amber-500/25"]{border-color:rgba(14,165,233,0.25) !important}
+[data-theme="ocean"] [class*="border-amber-500/30"]{border-color:rgba(14,165,233,0.3) !important}
+[data-theme="ocean"] [class*="border-amber-500/40"]{border-color:rgba(14,165,233,0.4) !important}
+[data-theme="ocean"] [class*="border-amber-500/50"]{border-color:rgba(14,165,233,0.5) !important}
+[data-theme="ocean"] [class*="border-amber-600/20"]{border-color:rgba(14,165,233,0.2) !important}
+[data-theme="ocean"] [class*="text-amber-500/70"]{color:rgba(14,165,233,0.7) !important}
+[data-theme="ocean"] [class*="text-amber-500/80"]{color:rgba(14,165,233,0.8) !important}
+[data-theme="ocean"] [class*="bg-amber-600/[0.06"]{background-color:rgba(14,165,233,0.08) !important}
+
+/* ══════ 靜謐灰調(Quiet)主題(quiet):參考 Hallmark 設計技能裡「Quiet」目錄主題的精神——低彩度/近中性色調,
+   靠明暗與粗細建立層次,不靠鮮豔色相搶眼。跟這個專案其他深色主題(neon青/forest綠/sunset琥珀/ocean藍,
+   清一色高飽和度)在強調色的色相軸上明顯不同,是唯一走低彩度中性路線的深色主題 ══════ */
+html[data-theme="quiet"],html[data-theme="quiet"] body{background:#17161a !important}
+[data-theme="quiet"] [class*="bg-white/[0.02"]{background-color:rgba(32,31,36,0.55) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(138,131,119,0.12) !important}
+[data-theme="quiet"] [class*="bg-white/[0.03"]{background-color:rgba(32,31,36,0.6) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(138,131,119,0.12) !important}
+[data-theme="quiet"] [class*="bg-white/[0.04"]{background-color:rgba(32,31,36,0.65) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(138,131,119,0.12) !important}
+[data-theme="quiet"] [class*="bg-white/[0.05"]{background-color:rgba(32,31,36,0.7) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(138,131,119,0.12) !important}
+[data-theme="quiet"] [class*="bg-white/[0.06"]{background-color:rgba(32,31,36,0.75) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(138,131,119,0.15) !important}
+[data-theme="quiet"] [class*="bg-white/[0.08"]{background-color:rgba(32,31,36,0.8) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(138,131,119,0.15) !important}
+[data-theme="quiet"] [class*="bg-white/[0.1"]{background-color:rgba(32,31,36,0.85) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(138,131,119,0.18) !important}
+[data-theme="quiet"] [class*="bg-white/10"]{background-color:rgba(32,31,36,0.85) !important;backdrop-filter:blur(16px) !important;-webkit-backdrop-filter:blur(16px) !important;border-color:rgba(138,131,119,0.18) !important}
+[data-theme="quiet"] [class*="bg-gray-900"]{background-color:rgba(32,31,36,0.9) !important;backdrop-filter:blur(20px) !important;-webkit-backdrop-filter:blur(20px) !important;border-color:rgba(138,131,119,0.18) !important}
+[data-theme="quiet"] [class*="bg-gray-950"]{background-color:rgba(23,22,26,0.94) !important;backdrop-filter:blur(20px) !important;-webkit-backdrop-filter:blur(20px) !important}
+[data-theme="quiet"] [class*="bg-gray-800"]{background-color:rgba(32,31,36,0.7) !important}
+[data-theme="quiet"] [class*="bg-black/80"]{background-color:rgba(9,8,10,0.82) !important;backdrop-filter:blur(8px) !important;-webkit-backdrop-filter:blur(8px) !important}
+[data-theme="quiet"] [class*="border-white"]{border-color:rgba(138,131,119,0.2) !important}
+[data-theme="quiet"] .text-gray-100{color:#ece8de !important}
+/* 強調色統一改成低彩度暖灰褐色(靜謐,不搶眼),取代amber */
+[data-theme="quiet"] [class*="text-amber"]{color:#c9c1af !important}
+[data-theme="quiet"] [class*="bg-amber-6"]{background-color:#6b6459 !important}
+[data-theme="quiet"] [class*="bg-amber-5"]{background-color:#8a8377 !important}
+[data-theme="quiet"] [class*="bg-amber-4"]{background-color:rgba(138,131,119,0.75) !important}
+[data-theme="quiet"] [class*="border-amber"]{border-color:#8a8377 !important}
+[data-theme="quiet"] [class*="accent-amber"]{accent-color:#6b6459 !important}
+[data-theme="quiet"] [class*="ring-amber"]{--tw-ring-color:#8a8377 !important}
+[data-theme="quiet"] input:focus,[data-theme="quiet"] select:focus,[data-theme="quiet"] textarea:focus{border-color:#8a8377 !important;box-shadow:0 0 0 1px rgba(138,131,119,0.5) !important}
+/* 精確比對透明度組合的amber class,避免被上面的萬用選擇器誤判成不透明色套用(這個問題在之前的主題上修過,這裡新主題一開始就照正確方式寫) */
+[data-theme="quiet"] [class*="bg-amber-500/10"]{background-color:rgba(138,131,119,0.1) !important}
+[data-theme="quiet"] [class*="bg-amber-500/15"]{background-color:rgba(138,131,119,0.15) !important}
+[data-theme="quiet"] [class*="bg-amber-500/20"]{background-color:rgba(138,131,119,0.2) !important}
+[data-theme="quiet"] [class*="bg-amber-500/25"]{background-color:rgba(138,131,119,0.25) !important}
+[data-theme="quiet"] [class*="bg-amber-600/10"]{background-color:rgba(138,131,119,0.1) !important}
+[data-theme="quiet"] [class*="bg-amber-600/15"]{background-color:rgba(138,131,119,0.15) !important}
+[data-theme="quiet"] [class*="bg-amber-600/20"]{background-color:rgba(138,131,119,0.2) !important}
+[data-theme="quiet"] [class*="bg-amber-600/25"]{background-color:rgba(138,131,119,0.25) !important}
+[data-theme="quiet"] [class*="bg-amber-600/30"]{background-color:rgba(138,131,119,0.3) !important}
+[data-theme="quiet"] [class*="border-amber-500/10"]{border-color:rgba(138,131,119,0.1) !important}
+[data-theme="quiet"] [class*="border-amber-500/20"]{border-color:rgba(138,131,119,0.2) !important}
+[data-theme="quiet"] [class*="border-amber-500/25"]{border-color:rgba(138,131,119,0.25) !important}
+[data-theme="quiet"] [class*="border-amber-500/30"]{border-color:rgba(138,131,119,0.3) !important}
+[data-theme="quiet"] [class*="border-amber-500/40"]{border-color:rgba(138,131,119,0.4) !important}
+[data-theme="quiet"] [class*="border-amber-500/50"]{border-color:rgba(138,131,119,0.5) !important}
+[data-theme="quiet"] [class*="border-amber-600/20"]{border-color:rgba(138,131,119,0.2) !important}
+[data-theme="quiet"] [class*="text-amber-500/70"]{color:rgba(138,131,119,0.7) !important}
+[data-theme="quiet"] [class*="text-amber-500/80"]{color:rgba(138,131,119,0.8) !important}
+[data-theme="quiet"] [class*="bg-amber-600/[0.06"]{background-color:rgba(138,131,119,0.08) !important}
+
+
+
+/* ══════ 極簡白主題(apple):依Apple官方網站設計語言分析 —— 中性灰階(不帶紫色調)+單一藍色強調色(#0066cc)+膠囊按鈕 ══════ */
+html[data-theme="apple"],html[data-theme="apple"] body{background:#f5f5f7 !important}
+/* 這個主題也是淺色系,沿用[data-light]的基礎邏輯,但用更高specificity的組合選擇器覆蓋掉預設的紫色調,改成中性灰階 */
+html[data-theme="apple"] [data-light] [class*="bg-white/[0.0"]{background-color:rgba(0,0,0,0.03) !important}
+html[data-theme="apple"] [data-light] [class*="bg-white/[0.02"]{background-color:rgba(0,0,0,0.025) !important}
+html[data-theme="apple"] [data-light] [class*="bg-white/[0.03"]{background-color:rgba(0,0,0,0.03) !important}
+html[data-theme="apple"] [data-light] [class*="bg-white/[0.04"]{background-color:rgba(0,0,0,0.035) !important}
+html[data-theme="apple"] [data-light] [class*="bg-white/[0.05"]{background-color:rgba(0,0,0,0.04) !important}
+html[data-theme="apple"] [data-light] [class*="bg-white/[0.06"]{background-color:rgba(0,0,0,0.045) !important}
+html[data-theme="apple"] [data-light] [class*="bg-white/[0.08"]{background-color:rgba(0,0,0,0.05) !important}
+html[data-theme="apple"] [data-light] [class*="bg-white/[0.1"]{background-color:rgba(0,0,0,0.055) !important}
+html[data-theme="apple"] [data-light] [class*="bg-white/10"]{background-color:rgba(0,0,0,0.06) !important}
+html[data-theme="apple"] [data-light] [class*="bg-gray-900"]{background-color:#ffffff !important}
+html[data-theme="apple"] [data-light] [class*="bg-gray-950"]{background-color:#f5f5f7 !important}
+html[data-theme="apple"] [data-light] [class*="bg-black/80"]{background-color:rgba(0,0,0,0.75) !important}
+html[data-theme="apple"] [data-light] [class*="bg-gray-800"]{background-color:rgba(0,0,0,0.08) !important}
+html[data-theme="apple"] [data-light] [class*="border-white"]{border-color:rgba(0,0,0,0.08) !important}
+/* 文字改成Apple的近黑ink色,不帶紫色調 */
+html[data-theme="apple"] [data-light] .text-gray-100{color:#1d1d1f !important}
+html[data-theme="apple"] [data-light] .text-gray-200{color:#2c2c2e !important}
+html[data-theme="apple"] [data-light] .text-gray-300{color:#3a3a3c !important}
+html[data-theme="apple"] [data-light] .text-gray-400{color:#636366 !important}
+html[data-theme="apple"] [data-light] .text-gray-500{color:#8e8e93 !important}
+html[data-theme="apple"] [data-light] .text-gray-600{color:#aeaeb2 !important}
+html[data-theme="apple"] [data-light] .text-gray-700{color:#c7c7cc !important}
+html[data-theme="apple"] [data-light] input,html[data-theme="apple"] [data-light] textarea,html[data-theme="apple"] [data-light] select{color:#1d1d1f !important;background-color:rgba(0,0,0,0.04) !important}
+html[data-theme="apple"] [data-light] input::placeholder,html[data-theme="apple"] [data-light] textarea::placeholder{color:#8e8e93 !important}
+/* 強調色統一改成Apple招牌藍,取代amber——DESIGN.md強調全站只用單一互動色 */
+html[data-theme="apple"] [data-light] [class*="text-amber"]{color:#0066cc !important}
+html[data-theme="apple"] [data-light] [class*="bg-amber-600"]{background-color:#0066cc !important}
+html[data-theme="apple"] [data-light] [class*="bg-amber-500"]{background-color:#0071e3 !important}
+html[data-theme="apple"] [data-light] [class*="bg-amber-500/10"]{background-color:rgba(0,102,204,0.08) !important}
+html[data-theme="apple"] [data-light] [class*="bg-amber-500/20"]{background-color:rgba(0,102,204,0.12) !important}
+html[data-theme="apple"] [data-light] [class*="bg-amber-500/25"]{background-color:rgba(0,102,204,0.16) !important}
+html[data-theme="apple"] [data-light] [class*="bg-amber-600/10"]{background-color:rgba(0,102,204,0.08) !important}
+html[data-theme="apple"] [data-light] [class*="bg-amber-600/15"]{background-color:rgba(0,102,204,0.10) !important}
+html[data-theme="apple"] [data-light] [class*="bg-amber-600/20"]{background-color:rgba(0,102,204,0.12) !important}
+html[data-theme="apple"] [data-light] [class*="border-amber-500"]{border-color:rgba(0,102,204,0.4) !important}
+html[data-theme="apple"] [data-light] [class*="border-amber-600"]{border-color:rgba(0,102,204,0.35) !important}
+html[data-theme="apple"] [data-light] [class*="accent-amber"]{accent-color:#0066cc !important}
+/* 按鈕改成膠囊型圓角,呼應DESIGN.md裡rounded.pill是「唯一動作訊號」的招牌形狀;卡片類容器只是稍微加大圓角,不做成膠囊 */
+[data-theme="apple"] button[class*="rounded-xl"],[data-theme="apple"] button[class*="rounded-lg"]{border-radius:9999px !important}
+[data-theme="apple"] [class*="rounded-2xl"]{border-radius:1.125rem !important}
+</style>
 </head>
 <body>
-<div id="root"></div>
-
-<!-- 白畫面救援畫面(語法/執行錯誤時顯示) -->
-<div id="__fallback" style="display:none;position:fixed;inset:0;z-index:99999;background:#0a0a0f;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;font-family:-apple-system,sans-serif">
-  <div style="width:64px;height:64px;border-radius:50%;border:3px solid #d97706;display:flex;align-items:center;justify-content:center;margin-bottom:24px">🔧</div>
+<div id="root"><div id="__shell" style="min-height:100vh;box-sizing:border-box;padding:18px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans TC',sans-serif"></div></div>
+<script>
+/* v1.13-067 離線優先:不等 React/Babel 編譯完,先用本機資料把首頁框架畫出來(App 掛載時會自動取代) */
+(function(){try{
+  var $=document.getElementById('__shell');if(!$)return;
+  var th={pink:'#fce4f6',black:'#030712',white:'#f9fafb',gray:'#1f2937',smooth:'#0d0d18',apple:'#f5f5f7',neon:'#0b0f19',forest:'#121a15',sunset:'#18120b',ocean:'#0b1329',quiet:'#17161a'};
+  var tn=localStorage.getItem('app-theme');var bg=th[tn]||th.black;var light=(tn==='white'||tn==='pink'||tn==='apple');
+  var fg=light?'#111827':'#f3f4f6',fg2=light?'#4b5563':'#aab2c0',ln=light?'rgba(0,0,0,.1)':'rgba(255,255,255,.1)',card=light?'rgba(0,0,0,.04)':'rgba(255,255,255,.05)';
+  document.documentElement.style.background=bg;document.body.style.background=bg;$.style.background=bg;$.style.color=fg;
+  var st=JSON.parse(localStorage.getItem('app-settings')||'null');if(!st||!st.code){return}
+  var vi=st.lang==='vi';var cut=180;try{if(st.bizCutoff){var p=String(st.bizCutoff).split(':');var mm=parseInt(p[0],10)*60+parseInt(p[1]||'0',10);if(!isNaN(mm))cut=mm}}catch(e){}
+  var n=new Date();if(n.getHours()*60+n.getMinutes()<cut)n.setDate(n.getDate()-1);
+  var y=n.getFullYear(),m=n.getMonth()+1,d=n.getDate();
+  var mon=null;try{mon=JSON.parse(localStorage.getItem('data-'+st.code+'-'+y+'-'+(m<10?'0'+m:m))||'null')}catch(e){}
+  var day=(mon&&mon.days&&mon.days[d])||{};var u=day.total||0,lo=day.laodian||0;
+  var dn=vi?['CN','T2','T3','T4','T5','T6','T7']:['日','一','二','三','四','五','六'];
+  var bar=function(w,h){return '<div style="width:'+w+';height:'+h+'px;border-radius:10px;background:'+card+'"></div>'};
+  $.innerHTML='<div style="max-width:512px;margin:0 auto">'
+   +'<div style="border-radius:16px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);padding:16px 18px;display:flex;align-items:center;justify-content:space-between">'
+   +'<div style="font-size:17px;font-weight:800">'+m+'/'+d+' <span style="font-size:14px;font-weight:500;color:'+fg2+'">('+dn[n.getDay()]+')</span></div>'
+   +'<div style="text-align:right"><div style="font-size:26px;font-weight:800;font-variant-numeric:tabular-nums">'+u+'<span style="font-size:14px;font-weight:500;color:'+fg2+';margin-left:3px">'+(vi?'SL':'支')+'</span></div>'+(lo>0?'<div style="font-size:13px;color:#fb923c">'+(vi?'KH quen ':'老點 ')+lo+'</div>':'')+'</div></div>'
+   +'<div style="display:grid;grid-template-columns:1fr 1fr 1.25fr 1.1fr;gap:3px;margin-top:6px">'+bar('100%',60)+bar('100%',60)+bar('100%',60)+bar('100%',60)+'</div>'
+   +'<div style="margin-top:22px;display:grid;gap:10px">'+bar('100%',48)+bar('72%',48)+'</div></div>';
+}catch(e){}})();
+</script>
+<div id="__fallback" style="display:none;position:fixed;inset:0;z-index:99999;min-height:100svh;flex-direction:column;align-items:center;justify-content:center;padding:3rem 1.5rem;text-align:center;background:#030712;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <div style="position:absolute;top:1rem;right:1rem;display:flex;gap:2px;font-size:13px;font-family:monospace"><span id="__fblang_zh" onclick="window.__fbSetLang('zh')" style="color:#f3f4f6;cursor:pointer;padding:4px 8px">中</span><span style="color:#374151;padding:4px 0">/</span><span id="__fblang_vi" onclick="window.__fbSetLang('vi')" style="color:#4b5563;cursor:pointer;padding:4px 8px">VI</span></div>
+  <div style="position:relative;width:72px;height:72px;margin-bottom:2rem">
+    <svg viewBox="0 0 72 72" width="72" height="72" style="position:absolute;top:0;left:0;animation:fbspin 1.8s linear infinite">
+      <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="3"/>
+      <circle cx="36" cy="36" r="30" fill="none" stroke="#BA7517" stroke-width="3" stroke-dasharray="60 130" stroke-linecap="round"/>
+    </svg>
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#BA7517" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+    </div>
+  </div>
   <h1 id="__fbtitle" style="font-size:22px;font-weight:500;color:#f3f4f6;margin:0 0 1rem;line-height:1.3">網站更新中</h1>
   <p id="__fbinfo" style="font-size:12px;color:#6b7280;margin:0 0 2rem;font-family:monospace"></p>
   <div id="__fbmsg" style="display:none;margin:-1rem 0 2rem;padding:10px 12px;background:#1e1b1b;border:1px solid #7f1d1d;border-radius:8px;font-family:monospace;font-size:11px;color:#fca5a5;max-width:90%;word-break:break-all;white-space:pre-wrap"></div>
-  <div style="max-width:320px;padding:16px;background:#111114;border-radius:12px;border:1px solid #27272a">
-    <p id="__fbkeep" style="font-size:13px;color:#9ca3af;margin:0 0 8px;line-height:1.5"></p>
-    <p id="__fbwarn" style="font-size:12px;color:#f59e0b;margin:0">⚠️ <span id="__fbwarn2"></span></p>
+  <div id="__fbdev" style="font-size:11px;color:#4b5563;margin:0 0 1.5rem;font-family:monospace;max-width:90%;word-break:break-all"></div>
+  <div style="display:flex;gap:6px;margin-bottom:3rem">
+    <span style="width:7px;height:7px;border-radius:50%;background:#BA7517;display:block;animation:fbpulse 1.4s ease-in-out infinite"></span>
+    <span style="width:7px;height:7px;border-radius:50%;background:#BA7517;display:block;animation:fbpulse 1.4s ease-in-out .2s infinite"></span>
+    <span style="width:7px;height:7px;border-radius:50%;background:#BA7517;display:block;animation:fbpulse 1.4s ease-in-out .4s infinite"></span>
+  </div>
+  <div style="border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:1rem 1.25rem;max-width:300px;text-align:left">
+    <p id="__fbkeep" style="font-size:13px;color:#9ca3af;margin:0 0 .5rem;line-height:1.7">你所輸入的舊資料仍保存在你的手機暫存檔中。</p>
+    <p style="font-size:12px;color:#6b7280;margin:0;display:flex;align-items:flex-start;gap:6px"><span style="flex-shrink:0">⚠️</span><span id="__fbwarn">資料只存在本機，不會上傳雲端。</span></p>
   </div>
 </div>
-
-<script>try{if('serviceWorker' in navigator&&location.protocol==='https:'){window.addEventListener('load',function(){navigator.serviceWorker.register('../sw.js').catch(function(){});});}}catch(_e){}</script>
-<script src="../common.js"></script>
-<script type="text/babel" src="./safety2.js?v=1.13-046"></script>
-<script type="text/babel" src="./notice2.js?v=1.0-016"></script>
-<script type="text/babel" src="./blacklist2.js?v=1.0-009"></script>
-<script type="text/babel" src="./gloves2.js?v=1.0-008"></script>
-<script type="text/babel" src="./leave2.js?v=1.0-064"></script>
-<script type="text/babel" src="./my2.js?v=1.0-010"></script>
-<script type="text/babel" src="./shop2.js?v=1.0-001"></script>
-<script type="text/babel" src="./counter2.js?v=1.0-023"></script>
+<style>@keyframes fbspin{to{transform:rotate(360deg)}}@keyframes fbpulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
+<script src="./common.js?v=1.13-042"></script>
+<script type="text/babel" src="./notice-modal.js?v=1.12-047"></script>
+<script type="text/babel" src="./settings.js?v=1.13-071"></script>
+<script type="text/babel" src="./app-core.js?v=1.13-071"></script>
 <script type="text/babel">
-(function(){
-const{useState,useEffect,useMemo}=React;
-const{gasCall,gasCallPost,getGasUrl,setGasUrl,TW_REGIONS,LANG_SCHOOLS,isValidPin,lockPwdCred,gasSetInitialPwd,gasLoginPwd}=window.MP||{};
-
-const STORES=['龍山寺店','東門店','古亭店','公館店','本部','教學處'];
-const CITY_PRIORITY=['桃園市','新北市','臺北市','宜蘭縣'];
-const CITY_OPTIONS=[...CITY_PRIORITY,...Object.keys(TW_REGIONS||{}).filter(c=>!CITY_PRIORITY.includes(c))];
-
-// 這個頁面獨立於主系統,自己帶一份輕量翻譯字典(語系選擇是進頁面第一步,選了之後全程套用)
-const SF_T={
-  zh:{
-    appTitle:'安全回報登記',appSubtitle:'第一次使用請先完成人員登記',
-    chooseLang:'選擇語系',chooseStore:'選擇店別',choosePersonType:'選擇人員別',
-    typeManager:'主管',typeFrontdesk:'櫃台',typeTeacher:'老師',typeStudent:'教學處學生',
-    chooseSubType:'選擇主管別',subTypes:['執行長','區經理','經理','副理','實習副理','櫃台組長'],
-    customNameLabel:'自訂名稱',customNamePh:'請輸入自訂名稱(或直接輸入編號)',
-    teacherCode:'老師編號',teacherCodePh:'編號',gender:'性別',genderM:'男',genderF:'女',
-    codeHintForNonTeacher:'這欄填的是老師編號，如果你同時有老師的身分就可以填上，編號跟名稱建議擇一填寫',
-    codeOrNameHint:'編號跟名稱可以擇一填寫，都填的話兩個都會顯示',
-    shift:'班別',shiftDay:'早班',shiftNight:'晚班',
-    addr:'居住地區',addrCity:'縣市',addrDist:'鄉鎮市區',
-    submitBtn:'完成登記',submitting:'處理中…',
-    statusSafe:'我很安全',statusFlooded:'道路積水封路',statusSick:'人不舒服',
-    otherLabel:'其他',otherPh:'自行填寫狀況',submitReportBtn:'送出回報',submitting2:'…',
-    createNewBtn:'發起新的',createTitleLabel:'發起通報標題',createTitlePh:'例如：0710強颱安全回報',createBtn:'發起',
-    selectDay:'選擇天數',endBtn:'結束通報',reportedCount:'已回報',notReportedCount:'未回報',
-    reportedList:'已回報人員',noReports:'尚無人回報',loading:'載入中…',noActiveSurvey:'目前沒有進行中的通報',
-    historyTitle:'歷史通報(可刪除)',ended:'已結束',
-    centerTitle:'天然災害每日安全回報中心',sortByTime:'時間',sortByCode:'編號',sortByCity:'居住地',sortByStore:'店名',shareBtn:'分享',
-    pushFlexBtn:'推播到我的LINE',pushedMsg:'✓ 已推播',
-    backHomeBtn:'回主頁',
-    listQueryBtn:'查詢',backToList:'← 列表',noSurveys:'目前沒有進行中的通報',
-    myProfileTitle:'我的資料',editBtn:'編輯',saveBtn:'更新',cancelBtn:'取消',saved:'已更新',
-    myReportsSectionTitle:'我回報過的項目',noMyReports:'目前沒有回報過的項目',thisSurveyEnded:'本項安全回報已結束',
-    surveyListTab:'通報列表',userListTab:'人員列表',
-    deleteUserConfirm:'確定要刪除這個人的登記資料嗎？刪除後他可以重新登記。',
-    blockBtn:'封鎖',unblockBtn:'解除封鎖',blockedTag:'已封鎖',
-    invalidParam:'參數錯誤',accountBlocked:'此帳號已被封鎖,無法使用本服務',
-    storeFilterAll:'全部店別',
-    copyDayBtn:'複製當天回報名單',copiedMsg:'已複製',
-    notReportedShareBtn:'未回報人員',
-    switchRoleLabel:'切換角色',roleManager:'主管',roleFrontdesk:'櫃台',roleTeacher:'老師',
-  },
-  vi:{
-    appTitle:'Đăng ký báo cáo an toàn',appSubtitle:'Lần đầu sử dụng vui lòng hoàn tất đăng ký',
-    chooseLang:'Chọn ngôn ngữ',chooseStore:'Chọn cửa hàng',choosePersonType:'Chọn loại nhân sự',
-    typeManager:'Quản lý',typeFrontdesk:'Lễ tân',typeTeacher:'Nhân viên kỹ thuật',typeStudent:'Học viên phòng đào tạo',
-    chooseSubType:'Chọn cấp bậc quản lý',subTypes:['Giám đốc điều hành','Quản lý khu vực','Quản lý','Phó quản lý','Phó quản lý thực tập','Tổ trưởng lễ tân'],
-    customNameLabel:'Tên tùy chỉnh',customNamePh:'Nhập tên tùy chỉnh (hoặc nhập mã số)',
-    teacherCode:'Mã nhân viên',teacherCodePh:'Mã số',gender:'Giới tính',genderM:'Nam',genderF:'Nữ',
-    codeHintForNonTeacher:'Mục này là mã nhân viên kỹ thuật, nếu bạn cũng có thân phận nhân viên kỹ thuật thì có thể điền vào, nên chọn 1 trong 2 (mã số hoặc tên)',
-    codeOrNameHint:'Có thể chỉ điền 1 trong 2 (mã số hoặc tên), nếu điền cả 2 thì cả 2 đều hiển thị',
-    shift:'Ca làm',shiftDay:'Ca sáng',shiftNight:'Ca tối',
-    addr:'Khu vực sinh sống',addrCity:'Tỉnh/Thành',addrDist:'Quận/Huyện',
-    submitBtn:'Hoàn tất đăng ký',submitting:'Đang xử lý…',
-    statusSafe:'Tôi an toàn',statusFlooded:'Đường ngập/tắc',statusSick:'Không khỏe',
-    otherLabel:'Khác',otherPh:'Tự điền tình trạng',submitReportBtn:'Gửi báo cáo',submitting2:'…',
-    createNewBtn:'Phát động mới',createTitleLabel:'Tiêu đề thông báo',createTitlePh:'VD: Báo cáo an toàn bão 0710',createBtn:'Phát động',
-    selectDay:'Chọn ngày thứ mấy',endBtn:'Kết thúc',reportedCount:'Đã báo cáo',notReportedCount:'Chưa báo cáo',
-    reportedList:'Người đã báo cáo',noReports:'Chưa có ai báo cáo',loading:'Đang tải…',noActiveSurvey:'Hiện không có thông báo nào',
-    historyTitle:'Lịch sử (có thể xóa)',ended:'Đã kết thúc',
-    centerTitle:'Trung tâm báo cáo an toàn thiên tai hàng ngày',sortByTime:'Thời gian',sortByCode:'Mã số',sortByCity:'Nơi ở',sortByStore:'Cửa hàng',shareBtn:'Chia sẻ',
-    pushFlexBtn:'Gửi đến LINE của tôi',pushedMsg:'✓ Đã gửi',
-    backHomeBtn:'Về trang chính',
-    listQueryBtn:'Tra cứu',backToList:'← Danh sách',noSurveys:'Hiện không có thông báo nào',
-    myProfileTitle:'Thông tin của tôi',editBtn:'Sửa',saveBtn:'Cập nhật',cancelBtn:'Hủy',saved:'Đã cập nhật',
-    myReportsSectionTitle:'Các mục tôi đã báo cáo',noMyReports:'Chưa có mục nào',thisSurveyEnded:'Báo cáo an toàn này đã kết thúc',
-    surveyListTab:'Danh sách thông báo',userListTab:'Danh sách nhân sự',
-    deleteUserConfirm:'Xác nhận xóa đăng ký của người này? Sau khi xóa họ có thể đăng ký lại.',
-    blockBtn:'Khóa',unblockBtn:'Mở khóa',blockedTag:'Đã khóa',
-    invalidParam:'Tham số không hợp lệ',accountBlocked:'Tài khoản này đã bị khóa, không thể sử dụng dịch vụ',
-    storeFilterAll:'Tất cả cửa hàng',
-    copyDayBtn:'Sao chép DS báo cáo ngày này',copiedMsg:'Đã sao chép',
-    notReportedShareBtn:'Người chưa báo cáo',
-    switchRoleLabel:'Chuyển vai trò',roleManager:'Quản lý',roleFrontdesk:'Lễ tân',roleTeacher:'Nhân viên',
-  }
-};
-const STATUS_KEYS=['safe','flooded','sick'];
-// 測速用:如果這裡填了LIFF ID,會直接跳過問GAS要LIFF_ID那一次來回(省一段網路延遲)。
-// 留空的話會照原本方式去問GAS的指令碼屬性(多一次來回,但LIFF ID要改的話不用重新部署前端)。
-const LIFF_ID_HARDCODED='2010673151-kemVP4Pi';
-const Spinner=({size})=>(<svg className="animate-spin" width={size||14} height={size||14} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>);
-function MiniPinDots({length,total,digits}){
-  return(<div className="flex gap-2.5 justify-center py-1">{Array.from({length:total}).map((_,i)=>{
-    const filled=length>i;const ch=digits&&digits[i];
-    return(<div key={i} className={`flex items-center justify-center rounded-full border-2 ${ch?'w-7 h-7 text-sm font-bold':'w-3.5 h-3.5'} ${filled?'bg-amber-500 border-amber-500 text-white':'border-white/[0.25]'}`}>{ch||''}</div>);
-  })}</div>);
-}
-function MiniPinKeypad({onDigit,onBackspace}){
-  const BtnCls="w-11 h-12 rounded-lg bg-white/[0.08] text-gray-100 text-base font-semibold active:bg-white/[0.15] flex items-center justify-center flex-shrink-0";
-  return(<div className="grid grid-cols-3 gap-5 justify-items-center max-w-[260px] mx-auto">
-    {['1','2','3','4','5','6','7','8','9'].map(k=>(<button key={k} type="button" onClick={()=>onDigit(k)} className={BtnCls}>{k}</button>))}
-    <div/>
-    <button type="button" onClick={()=>onDigit('0')} className={BtnCls}>0</button>
-    <button type="button" onClick={onBackspace} className={BtnCls+" text-gray-400"}>⌫</button>
-  </div>);
-}
-function MiniPinDotsClickable({length,total,digits,active,onClick,onClear}){
-  return(<div className="flex items-center justify-center gap-2">
-    <button type="button" onClick={onClick} className={`flex gap-2.5 p-1.5 rounded-xl ${active?'bg-white/[0.06] ring-1 ring-amber-500/40':''}`}>
-      {Array.from({length:total}).map((_,i)=>{
-        const filled=length>i;const ch=digits&&digits[i];
-        return(<div key={i} className={`flex items-center justify-center rounded-full border-2 ${ch?'w-7 h-7 text-sm font-bold':'w-3.5 h-3.5'} ${filled?'bg-amber-500 border-amber-500 text-white':'border-white/[0.25]'}`}>{ch||''}</div>);
-      })}
-    </button>
-    {length>0&&<button type="button" onClick={onClear} className="w-6 h-6 rounded-full bg-white/[0.06] text-gray-500 text-xs flex items-center justify-center flex-shrink-0">✕</button>}
-  </div>);
-}
-// 主管的自訂名稱如果純數字(例如管理者直接輸入編號當識別碼),自動補上「號」讀起來才順(例如「5」顯示成「5號」);如果是打真的名字就照原樣顯示
-const fmtManagerName=(name)=>/^\d+$/.test(String(name||''))?(name+'號'):name;
-
-async function sfConfig(){const r=await gasCall('sfConfig',{},10000);return r||{ok:false,error:'GAS無回應'};}
-async function sfGetUser(lineUserId){const r=await gasCall('sfGetUser',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
-async function sfRegister(data){const r=await gasCallPost('sfRegister',data,15000);return r||{ok:false,error:'GAS無回應'};}
-async function sfCreateSurvey(title,lineUserId){const r=await gasCallPost('sfCreateSurvey',{title,lineUserId},15000);return r||{ok:false,error:'GAS無回應'};}
-async function sfPushFlexToMe(id,lineUserId){const r=await gasCallPost('sfPushFlexToMe',{id,lineUserId},15000);return r||{ok:false,error:'GAS無回應'};}
-async function sfGetFlexContent(id,liffId){const r=await gasCall('sfGetFlexContent',{id,liffId},10000);return r||{ok:false,error:'GAS無回應'};}
-async function sfEndSurvey(id){const r=await gasCallPost('sfEndSurvey',{id},10000);return r||{ok:false,error:'GAS無回應'};}
-async function sfDeleteSurvey(id,lineUserId){const r=await gasCallPost('sfDeleteSurvey',{id,lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
-async function sfListSurveys(lineUserId){const r=await gasCall('sfListSurveys',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
-async function sfGetSurvey(id,lineUserId){const r=await gasCall('sfGetSurvey',{id,lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
-async function sfListUsers(lineUserId){const r=await gasCall('sfListUsers',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
-async function sfRegisterRequest(data){const r=await gasCallPost('sfRegisterRequest',data,15000);return r||{ok:false,error:'GAS無回應'};}
-async function sfCheckPendingStatus(reqId){const r=await gasCall('sfCheckPendingStatus',{reqId},10000);return r||{ok:false,error:'GAS無回應'};}
-async function sfGetPendingDetail(lineUserId,reqId){const r=await gasCall('sfGetPendingDetail',{lineUserId,reqId},10000);return r||{ok:false,error:'GAS無回應'};}
-async function sfApprovePendingRegistration(lineUserId,reqId,approve){const r=await gasCallPost('sfApprovePendingRegistration',{lineUserId,reqId,approve},10000);return r||{ok:false,error:'GAS無回應'};}
-async function sfDeleteUser(lineUserId,targetLineUserId){const r=await gasCallPost('sfDeleteUser',{lineUserId,targetLineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
-async function sfBlockUser(lineUserId,targetLineUserId){const r=await gasCallPost('sfBlockUser',{lineUserId,targetLineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
-async function sfMyReportedSurveys(lineUserId){const r=await gasCall('sfMyReportedSurveys',{lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
-async function sfSubmitReport(surveyId,lineUserId,status,otherText){const r=await gasCallPost('sfSubmitReport',{surveyId,lineUserId,status,otherText},15000);return r||{ok:false,error:'GAS無回應'};}
-async function sfTodayReports(surveyId,lineUserId){const r=await gasCall('sfTodayReports',{surveyId,lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
-async function sfDayStatus(surveyId,date,lineUserId){const r=await gasCall('sfDayStatus',{surveyId,date,lineUserId},10000);return r||{ok:false,error:'GAS無回應'};}
-async function checkStaffCode(code){const r=await gasCall('checkStaffCode',{code},10000);return r||{ok:false,error:'GAS無回應'};}
-
-function PendingApprovalScreen({reqId,store,onApproved}){
-  const[shareStatus,setShareStatus]=useState(''); // ''/sharing/done/cancelled/error
-  const[checkStatus,setCheckStatus]=useState(''); // ''/checking/pending/approved/rejected
-  const doShare=async()=>{
-    setShareStatus('sharing');
-    try{
-      if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setShareStatus('error');return}
-      const uri='https://john7t.github.io/massage-pay/auth.html#req='+reqId;
-      const res=await liff.shareTargetPicker([{type:'flex',altText:'審核通知',contents:{
-        type:'bubble',
-        body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
-          {type:'text',text:'📝 人員登記審核通知',weight:'bold',size:'md',color:'#111111'},
-          {type:'text',text:'請主管協助審核此筆登記申請',size:'sm',color:'#666666',wrap:true,margin:'md'},
-          {type:'text',text:'審核代碼：'+reqId,size:'xs',color:'#999999',margin:'md'}
-        ]},
-        footer:{type:'box',layout:'vertical',paddingAll:'lg',contents:[
-          {type:'button',style:'primary',color:'#d97706',height:'sm',action:{type:'uri',label:'前往審核',uri:uri}}
-        ]}
-      }}]);
-      setShareStatus(res?'done':'cancelled');
-    }catch(_e){setShareStatus('error')}
-  };
-  const doCheck=async()=>{
-    setCheckStatus('checking');
-    try{
-      const r=await sfCheckPendingStatus(reqId);
-      if(r&&r.ok)setCheckStatus(r.status);else setCheckStatus('')
-    }catch(_e){setCheckStatus('')}
-  };
-  if(checkStatus==='approved')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center"><p className="text-base text-emerald-500 font-semibold">✓ 已核准！</p><button onClick={onApproved} className="px-6 py-3 rounded-xl bg-amber-600 text-white text-sm font-bold">開始使用</button></div>);
-  return(<div className="min-h-screen flex flex-col items-center justify-center gap-5 p-6 text-center">
-    <div className="w-16 h-16 rounded-full bg-amber-500/15 flex items-center justify-center text-2xl">⏳</div>
-    <div><p className="text-base text-gray-100 font-semibold">查無此編號的員工資料</p><p className="text-sm text-gray-400 mt-1">已建立審核申請，請將下方通知分享給主管審核</p></div>
-    <div className="bg-white/[0.04] rounded-xl px-4 py-2.5"><p className="text-xs text-gray-500">審核代碼</p><p className="text-lg text-amber-400 font-bold font-mono">{reqId}</p></div>
-    <div className="w-full max-w-xs space-y-2.5">
-      <button onClick={doShare} disabled={shareStatus==='sharing'} className="w-full py-3 rounded-xl bg-[#06C755] text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{shareStatus==='sharing'?<Spinner size={14}/>:<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.5 2 2 5.6 2 10c0 3.9 3.6 7.2 8.4 7.9.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1.1 1 .6 1.1-.5 6.2-3.7 8.5-6.3C22.1 12.6 22 11.3 22 10c0-4.4-4.5-8-10-8z"/></svg>}分享給主管審核</button>
-      {shareStatus==='done'&&<p className="text-xs text-emerald-400">✓ 已分享</p>}
-      {shareStatus==='cancelled'&&<p className="text-xs text-gray-500">已取消分享</p>}
-      {shareStatus==='error'&&<p className="text-xs text-red-400">分享失敗，請確認在LINE App內開啟</p>}
-      <button onClick={doCheck} disabled={checkStatus==='checking'} className="w-full py-3 rounded-xl bg-white/[0.06] border border-white/[0.1] text-gray-300 text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">{checkStatus==='checking'&&<Spinner size={14}/>}檢查核准情形</button>
-      <a href="https://lin.ee/58Dsob3" target="_blank" rel="noopener" className="w-full py-3 rounded-xl bg-[#06C755] text-white text-sm font-bold flex items-center justify-center gap-2"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.5 2 2 5.6 2 10c0 3.9 3.6 7.2 8.4 7.9.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1.1 1 .6 1.1-.5 6.2-3.7 8.5-6.3C22.1 12.6 22 11.3 22 10c0-4.4-4.5-8-10-8z"/></svg>加入 LINE 官方帳號</a>
-      {checkStatus==='pending'&&<p className="text-xs text-gray-500">尚未核准，請耐心等候</p>}
-      {checkStatus==='rejected'&&<p className="text-xs text-red-400">很抱歉，這筆申請已被拒絕</p>}
-    </div>
-  </div>);
-}
-
-function RegisterFlow({profile,onDone,sid}){
-  const[lang,setLang]=useState('');
-  const t=SF_T[lang||'zh'];
-  const[store,setStore]=useState('');
-  const[personType,setPersonType]=useState(''); // manager/frontdesk/teacher/student(admin不開放自選,只能後台改)
-  const[subType,setSubType]=useState('');
-  const[name,setName]=useState('');
-  const[code,setCode]=useState('');
-  const[gender,setGender]=useState('');
-  const[shift,setShift]=useState('');
-  const[city,setCity]=useState('');const[dist,setDist]=useState('');
-  const[busy,setBusy]=useState(false);const[err,setErr]=useState('');
-  const[checkBusy,setCheckBusy]=useState(false);const[checkMsg,setCheckMsg]=useState('');const[checkFound,setCheckFound]=useState(null); // null=還沒檢查過,true=查到,false=查無
-  const[pendingReqId,setPendingReqId]=useState(''); // 查無資料時,送出審核請求後拿到的審核代碼
-  const[pwdMode,setPwdMode]=useState(''); // ''=不用處理密碼(非老師身分)/verify=既有密碼要先登入/setup=設定新密碼(雙欄同時顯示)
-  const[pwdInput,setPwdInput]=useState('');const[pwdInput2,setPwdInput2]=useState('');const[pwdErr,setPwdErr]=useState('');const[pwdBusy,setPwdBusy]=useState(false);
-  const[pwdVerified,setPwdVerified]=useState(false);const[finalPwd,setFinalPwd]=useState(''); // 通過驗證/設定完成後的密碼(setup情境下submit時要用)
-  const[activeField,setActiveField]=useState(''); // 目前哪個PIN欄位開著鍵盤:code/pwd/pwd2
-  const toggleField=(f)=>setActiveField(a=>a===f?'':f);
-  const langDone=!!lang;
-  const step1Done=langDone&&!!store;
-  const canSubmit=(()=>{
-    if(!step1Done||!personType)return false;
-    if(personType==='manager')return subType&&(code.trim()||name.trim())&&gender&&shift&&city&&dist;
-    if(personType==='frontdesk')return code.trim()||name.trim();
-    if(personType==='student')return code.trim()||name.trim();
-    if(personType==='teacher')return code.trim()&&gender&&shift&&city&&dist&&pwdVerified;
-    return false;
-  })();
-  const doCheck=async()=>{
-    if(!code.trim())return;
-    setCheckBusy(true);setCheckMsg('');setPwdVerified(false);setPwdInput('');setPwdInput2('');setPwdErr('');setActiveField('');
-    try{
-      const r=await checkStaffCode(code.trim());
-      if(r&&r.ok&&r.found){
-        if(r.gender)setGender(r.gender);
-        if(r.shift)setShift(r.shift);
-        setCheckFound(true);
-        if(r.hasLockPwd){setPwdMode('verify');setCheckMsg('✓ 查到員工資料，請輸入你原本設定的密碼')}
-        else{setPwdMode('setup');setCheckMsg('✓ 查到員工資料，請設定4位數密碼')}
-      }else{setCheckFound(false);setPwdMode('setup');setCheckMsg('查無此編號，填完資料後將送交主管審核')}
-    }catch(_e){setCheckMsg('查詢失敗')}
-    setCheckBusy(false);
-  };
-  const doPwdVerify=async()=>{
-    if(pwdInput.length!==4)return;
-    setPwdBusy(true);setPwdErr('');
-    try{
-      const r=await gasLoginPwd(code.trim(),lockPwdCred(code.trim(),pwdInput));
-      if(r&&r.ok){setPwdVerified(true);setFinalPwd(pwdInput)}else{setPwdErr('密碼錯誤');setPwdInput('')}
-    }catch(e){setPwdErr(String(e))}
-    setPwdBusy(false);
-  };
-  // 設定新密碼:雙欄同時顯示可互相對照,點哪個欄位就對哪個輸入,不會卡住回不去
-  const pwd1Digit=(d)=>{if(pwdInput.length>=4)return;const next=pwdInput+d;setPwdInput(next);setPwdErr('');if(next.length>=4)setActiveField('')};
-  const pwd1Backspace=()=>setPwdInput(v=>v.slice(0,-1));
-  const pwd1Clear=()=>setPwdInput('');
-  const pwd2Digit=(d)=>{if(pwdInput2.length>=4)return;const next=pwdInput2+d;setPwdInput2(next);setPwdErr('');if(next.length>=4)setActiveField('')};
-  const pwd2Backspace=()=>setPwdInput2(v=>v.slice(0,-1));
-  const pwd2Clear=()=>setPwdInput2('');
-  const pwd1Ok=isValidPin(pwdInput);
-  const confirmPwdSetup=()=>{
-    if(!pwd1Ok){setPwdErr('密碼不可4碼相同或連續遞增/遞減');return}
-    if(pwdInput!==pwdInput2){setPwdErr('兩次輸入不一致');return}
-    setPwdVerified(true);setFinalPwd(pwdInput);setPwdErr('');
-  };
-  const submit=async()=>{
-    if(!canSubmit)return;
-    setBusy(true);setErr('');
-    const payload={lineUserId:profile.userId,displayName:profile.displayName,store,personType,subType,name:personType==='teacher'?code.trim():name.trim(),code:personType==='teacher'?'':code.trim(),lang,gender,shift,city,dist};
-    try{
-      if(personType==='teacher'&&checkFound===false){
-        // 查無此編號:不直接登記,改送交主管審核(密碼先存起來,之後這個人正式建檔時再套用)
-        const r=await sfRegisterRequest({...payload,pwdCred:lockPwdCred(code.trim(),finalPwd)});
-        if(r&&r.ok){setPendingReqId(r.reqId);setBusy(false);return}
-        setErr((r&&r.error)||'送出失敗');setBusy(false);return;
-      }
-      const r=await sfRegister(payload);
-      if(r&&r.ok){
-        // 老師身分且是第一次設定密碼(setup情境)的話,順便同步存回staff.json
-        if(personType==='teacher'&&checkFound===true&&pwdMode==='setup'){
-          try{await gasSetInitialPwd(code.trim(),lockPwdCred(code.trim(),finalPwd))}catch(_e){}
-        }
-        onDone();return; // 成功就不把busy設回false,按鈕保持灰色直到頁面跳轉,避免誤點兩次
-      }
-      setErr((r&&r.error)||'登記失敗');
-    }catch(e){setErr(String(e))}
-    setBusy(false);
-  };
-  if(pendingReqId)return(<PendingApprovalScreen reqId={pendingReqId} store={store} onApproved={onDone}/>);
-  return(<div className="min-h-screen flex items-center justify-center p-4">
-    <div className="w-full max-w-md bg-gray-900 rounded-2xl border border-white/[0.08] p-5 space-y-5">
-      <div className="text-center"><h1 className="text-lg font-bold text-gray-100">{t.appTitle}</h1><p className="text-xs text-gray-500 mt-1">{t.appSubtitle}</p></div>
-
-      <div><label className="text-sm text-gray-400 block mb-2">{SF_T.zh.chooseLang} / {SF_T.vi.chooseLang}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setLang('zh')} className={`py-3 rounded-xl text-sm font-semibold ${lang==='zh'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>中文</button><button onClick={()=>setLang('vi')} className={`py-3 rounded-xl text-sm font-semibold ${lang==='vi'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>Tiếng Việt</button></div></div>
-
-      {langDone&&(<div><label className="text-sm text-gray-400 block mb-2">{t.chooseStore}</label><div className="grid grid-cols-2 gap-2">{STORES.map(s=>(<button key={s} onClick={()=>setStore(s)} className={`py-3 rounded-xl text-sm font-semibold ${store===s?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{s}</button>))}</div></div>)}
-
-      {step1Done&&(<div><label className="text-sm text-gray-400 block mb-2">{t.choosePersonType}</label><div className="grid grid-cols-1 gap-2">
-        <button onClick={()=>setPersonType('manager')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='manager'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.typeManager}</button>
-        <button onClick={()=>setPersonType('frontdesk')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='frontdesk'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.typeFrontdesk}</button>
-        <button onClick={()=>setPersonType('teacher')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='teacher'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.typeTeacher}</button>
-        {store==='教學處'&&<button onClick={()=>setPersonType('student')} className={`py-3 rounded-xl text-sm font-semibold ${personType==='student'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.typeStudent}</button>}
-      </div></div>)}
-
-      {personType==='manager'&&(<div className="space-y-3">
-        <div><label className="text-sm text-gray-400 block mb-2">{t.chooseSubType}</label><div className="grid grid-cols-2 gap-2">{t.subTypes.map((s,i)=>(<button key={s} onClick={()=>setSubType(SF_T.zh.subTypes[i])} className={`py-2.5 rounded-xl text-xs font-semibold ${subType===SF_T.zh.subTypes[i]?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{s}</button>))}</div></div>
-        <div><label className="text-sm text-gray-400 block mb-2">{t.teacherCode}</label><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={t.teacherCodePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 text-center tracking-widest"/><p className="text-xs text-red-400 mt-1">{t.codeHintForNonTeacher}</p></div>
-        <div><label className="text-sm text-gray-400 block mb-2">{t.customNameLabel}</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/><p className="text-xs text-gray-600 mt-1">{t.codeOrNameHint}</p></div>
-        <div><label className="text-sm text-gray-400 block mb-2">{t.gender}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setGender('M')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='M'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderM}</button><button onClick={()=>setGender('F')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='F'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderF}</button></div></div>
-        <div><label className="text-sm text-gray-400 block mb-2">{t.shift}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setShift('day')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='day'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.shiftDay}</button><button onClick={()=>setShift('night')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='night'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.shiftNight}</button></div></div>
-        <div><label className="text-sm text-gray-400 block mb-2">{t.addr}</label><div className="grid grid-cols-2 gap-2">
-          <select value={city} onChange={e=>{setCity(e.target.value);setDist('')}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100"><option value="">{t.addrCity}</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select>
-          <select value={dist} onChange={e=>setDist(e.target.value)} disabled={!city} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100 disabled:opacity-40"><option value="">{t.addrDist}</option>{(TW_REGIONS&&TW_REGIONS[city]||[]).map(d=><option key={d} value={d}>{d}</option>)}</select>
-        </div></div>
-      </div>)}
-
-      {personType==='student'&&(<div className="space-y-3">
-        <div><label className="text-sm text-gray-400 block mb-2">{t.teacherCode}</label><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={t.teacherCodePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 text-center tracking-widest"/><p className="text-xs text-red-400 mt-1">{t.codeHintForNonTeacher}</p></div>
-        <div><label className="text-sm text-gray-400 block mb-2">{t.customNameLabel}</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/><p className="text-xs text-gray-600 mt-1">{t.codeOrNameHint}</p></div>
-      </div>)}
-
-      {personType==='frontdesk'&&(<div className="space-y-3">
-        <div><label className="text-sm text-gray-400 block mb-2">{t.teacherCode}</label><input value={code} onChange={e=>setCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={t.teacherCodePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100 text-center tracking-widest"/><p className="text-xs text-red-400 mt-1">{t.codeHintForNonTeacher}</p></div>
-        <div><label className="text-sm text-gray-400 block mb-2">{t.customNameLabel}</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-gray-100"/><p className="text-xs text-gray-600 mt-1">{t.codeOrNameHint}</p></div>
-      </div>)}
-
-      {personType==='teacher'&&(<div className="space-y-3">
-        <div className="space-y-2">
-          <label className="text-sm text-gray-400 block text-center">{t.teacherCodePh}</label>
-          <div className="relative flex justify-center">
-            <MiniPinDotsClickable length={code.length} total={3} digits={code} active={activeField==='code'} onClick={()=>toggleField('code')} onClear={()=>{setCode('');setCheckFound(null);setCheckMsg('');setPwdMode('');setPwdVerified(false);setPwdInput('');setPwdInput2('');setPwdErr('')}}/>
-            {activeField==='code'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><MiniPinKeypad onDigit={d=>{if(code.length>=3)return;const next=code+d;setCode(next);setCheckFound(null);setCheckMsg('');setPwdMode('');setPwdVerified(false);setPwdInput('');setPwdInput2('');setPwdErr('');if(next.length>=3)setActiveField('')}} onBackspace={()=>{setCode(c=>c.slice(0,-1));setCheckFound(null);setCheckMsg('');setPwdMode('');setPwdVerified(false);setPwdInput('');setPwdInput2('');setPwdErr('')}}/></div>}
-          </div>
-          <button onClick={doCheck} disabled={checkBusy||!code.trim()} className="w-full py-2.5 rounded-xl bg-white/[0.08] text-gray-300 text-sm font-semibold disabled:opacity-50">{checkBusy?<Spinner size={14}/>:'檢查'}</button>
-          {checkMsg&&<p className={`text-xs text-center ${checkFound?'text-emerald-400':'text-amber-400'}`}>{checkMsg}</p>}
-        </div>
-        {pwdMode==='verify'&&!pwdVerified&&(<div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-3 space-y-2"><p className="text-xs text-gray-400 text-center">請輸入你原本設定的4位數密碼</p><div className="relative flex justify-center"><MiniPinDotsClickable length={pwdInput.length} total={4} active={activeField==='pwd'} onClick={()=>toggleField('pwd')} onClear={()=>{setPwdInput('');setPwdErr('')}}/>{activeField==='pwd'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><MiniPinKeypad onDigit={d=>{if(pwdInput.length>=4)return;const next=pwdInput+d;setPwdInput(next);setPwdErr('');if(next.length>=4)setActiveField('')}} onBackspace={()=>{setPwdInput(v=>v.slice(0,-1));setPwdErr('')}}/></div>}</div>{pwdErr&&<p className="text-xs text-red-400 text-center">{pwdErr}</p>}<button onClick={doPwdVerify} disabled={pwdBusy||pwdInput.length!==4} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 disabled:bg-white/[0.06] disabled:text-gray-600">{pwdBusy?<Spinner size={14}/>:'登入'}</button></div>)}
-        {pwdMode==='setup'&&!pwdVerified&&(<div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-3 space-y-3">
-          <div className="space-y-1.5"><p className="text-xs text-gray-400 text-center">設定4位數密碼（不可4碼相同或連續遞增/遞減）</p><div className="relative flex justify-center"><MiniPinDotsClickable length={pwdInput.length} total={4} active={activeField==='pwd'} onClick={()=>toggleField('pwd')} onClear={pwd1Clear}/>{activeField==='pwd'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><MiniPinKeypad onDigit={pwd1Digit} onBackspace={pwd1Backspace}/></div>}</div></div>
-          <div className="space-y-1.5"><p className="text-xs text-gray-400 text-center">請再輸入一次確認</p><div className="relative flex justify-center"><MiniPinDotsClickable length={pwdInput2.length} total={4} active={activeField==='pwd2'} onClick={()=>toggleField('pwd2')} onClear={pwd2Clear}/>{activeField==='pwd2'&&<div className="absolute z-30 top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 border border-white/[0.1] rounded-xl p-2.5 shadow-2xl"><MiniPinKeypad onDigit={pwd2Digit} onBackspace={pwd2Backspace}/></div>}</div></div>
-          {pwdErr&&<p className="text-xs text-red-400 text-center">{pwdErr}</p>}
-          <button onClick={confirmPwdSetup} disabled={pwdInput.length!==4||pwdInput2.length!==4} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 disabled:bg-white/[0.06] disabled:text-gray-600">確認設定</button>
-        </div>)}
-        {pwdVerified&&<p className="text-xs text-emerald-400">✓ 密碼{pwdMode==='verify'?'驗證':'設定'}完成</p>}
-        {pwdVerified&&(<>
-        <div><label className="text-sm text-gray-400 block mb-2">{t.gender}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setGender('M')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='M'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderM}</button><button onClick={()=>setGender('F')} className={`py-2.5 rounded-xl text-sm font-semibold ${gender==='F'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.genderF}</button></div></div>
-        <div><label className="text-sm text-gray-400 block mb-2">{t.shift}</label><div className="grid grid-cols-2 gap-2"><button onClick={()=>setShift('day')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='day'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.shiftDay}</button><button onClick={()=>setShift('night')} className={`py-2.5 rounded-xl text-sm font-semibold ${shift==='night'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.shiftNight}</button></div></div>
-        <div><label className="text-sm text-gray-400 block mb-2">{t.addr}</label><div className="grid grid-cols-2 gap-2">
-          <select value={city} onChange={e=>{setCity(e.target.value);setDist('')}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100"><option value="">{t.addrCity}</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select>
-          <select value={dist} onChange={e=>setDist(e.target.value)} disabled={!city} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-2 py-3 text-sm text-gray-100 disabled:opacity-40"><option value="">{t.addrDist}</option>{(TW_REGIONS&&TW_REGIONS[city]||[]).map(d=><option key={d} value={d}>{d}</option>)}</select>
-        </div></div>
-        </>)}
-      </div>)}
-
-      {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
-      {personType&&<button onClick={submit} disabled={!canSubmit||busy} className={`w-full py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${canSubmit&&!busy?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-600 cursor-not-allowed'}`}>{busy&&<Spinner/>}{busy?t.submitting:t.submitBtn}</button>}
-    </div>
-  </div>);
-}
-
-function ListPage({profile,userProfile,liffId}){
-  const t=SF_T[userProfile.lang||'zh'];
-  const isRealAdmin=userProfile.personType==='admin';
-  const[viewAsRole,setViewAsRole]=useState(''); // admin專用:模擬用其他身分瀏覽,純前端切換,不影響GAS上真正的身分
-  const effType=isRealAdmin&&viewAsRole?viewAsRole:userProfile.personType;
-  const isManagerLevel=effType==='manager'||effType==='admin';
-  const isAdmin=effType==='admin';
-  const canSeeAllStores=effType==='admin'||(effType==='manager'&&(userProfile.subType==='執行長'||userProfile.subType==='區經理'));
-  const[tab,setTab]=useState('survey'); // survey/users
-  const[list,setList]=useState(undefined);
-  const[showCreate,setShowCreate]=useState(false);
-  const[newTitle,setNewTitle]=useState('');const[createBusy,setCreateBusy]=useState(false);
-  const[queryOpenId,setQueryOpenId]=useState('');const[queryResult,setQueryResult]=useState(null);
-  const[history,setHistory]=useState(null);const[showHistory,setShowHistory]=useState(false);
-  const[users,setUsers]=useState(undefined);const[storeFilter,setStoreFilter]=useState('');
-  const[busyUser,setBusyUser]=useState('');
-  const load=()=>{
-    sfListSurveys(profile.userId).then(r=>{
-      if(r&&r.ok&&Array.isArray(r.list)){
-        setList(r.list.filter(s=>!s.endDate));
-        if(isAdmin)setHistory(r.list.filter(s=>s.endDate));
-      }else{setList([])}
-    }).catch(()=>setList([]));
-  };
-  const loadUsers=()=>{
-    sfListUsers(profile.userId).then(r=>{if(r&&r.ok)setUsers(r.list||[]);else setUsers([])}).catch(()=>setUsers([]));
-  };
-  useEffect(()=>{if(isManagerLevel){load();loadUsers()}},[]);
-  const doCreate=async()=>{
-    if(!newTitle.trim())return;
-    setCreateBusy(true);
-    try{const r=await sfCreateSurvey(newTitle.trim(),profile.userId);if(r&&r.ok){setShowCreate(false);setNewTitle('');load()}}catch(_e){}
-    setCreateBusy(false);
-  };
-  const[busyEnd,setBusyEnd]=useState('');
-  const doEnd=async(id)=>{setBusyEnd(id);try{await sfEndSurvey(id);load()}catch(_e){}setBusyEnd('')};
-  const[busyDelHist,setBusyDelHist]=useState('');
-  const doDeleteHistory=async(id)=>{setBusyDelHist(id);try{await sfDeleteSurvey(id,profile.userId);load()}catch(_e){}setBusyDelHist('')};
-  const doDeleteUser=async(targetId)=>{
-    setBusyUser(targetId);
-    try{await sfDeleteUser(profile.userId,targetId);loadUsers()}catch(_e){}
-    setBusyUser('');
-  };
-  const doBlockUser=async(targetId)=>{
-    setBusyUser(targetId);
-    try{await sfBlockUser(profile.userId,targetId);loadUsers()}catch(_e){}
-    setBusyUser('');
-  };
-  const dayOptions=(s)=>{
-    const start=new Date(s.createdAt||Date.now());start.setHours(0,0,0,0);
-    const now=new Date();now.setHours(0,0,0,0);
-    const days=Math.floor((now-start)/86400000)+1;
-    const opts=[];
-    for(let n=1;n<=Math.max(1,days);n++){
-      const d=new Date(start.getTime()+(n-1)*86400000);
-      const p=x=>String(x).padStart(2,'0');
-      opts.push({n:n,date:d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())});
-    }
-    return opts;
-  };
-  const doQuery=async(surveyId,date)=>{
-    setQueryOpenId(surveyId);setQueryResult(null);
-    if(!date)return;
-    const r=await sfDayStatus(surveyId,date,profile.userId);
-    if(r&&r.ok)setQueryResult(r);
-  };
-  const[histQueryOpenId,setHistQueryOpenId]=useState('');
-  const[histQueryResult,setHistQueryResult]=useState(null);
-  const[histQueryDay,setHistQueryDay]=useState({n:0,date:''});
-  const[copyDayMsg,setCopyDayMsg]=useState('');
-  const doHistQuery=async(surveyId,dayObj)=>{
-    setHistQueryOpenId(surveyId);setHistQueryResult(null);setHistQueryDay(dayObj);
-    const r=await sfDayStatus(surveyId,dayObj.date,profile.userId);
-    if(r&&r.ok)setHistQueryResult(r);
-  };
-  const copyDayText=()=>{
-    if(!histQueryResult)return;
-    const text='day '+histQueryDay.n+' :'+histQueryDay.date+'\n'+t.reportedCount+'：'+histQueryResult.did.length+'人 分別是：'+histQueryResult.did.map(r=>r.display).join('、')+'\n'+t.notReportedCount+'：'+histQueryResult.notDid.length+'人 分別是：'+histQueryResult.notDid.join('、');
-    try{navigator.clipboard.writeText(text).then(()=>{setCopyDayMsg(t.copiedMsg);setTimeout(()=>setCopyDayMsg(''),2000)}).catch(()=>{})}catch(_e){}
-  };
-  const statusLabel=(k)=>t['status'+k[0].toUpperCase()+k.slice(1)]||k;
-  const fmtTime=(tm)=>{try{const d=new Date(tm);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}catch(_e){return ''}};
-  const detailUrl=(id)=>'https://liff.line.me/'+liffId+'?sid='+id; // 用LIFF專屬網址格式,確保LINE登入導轉不會弄丟參數
-  const[busyPush,setBusyPush]=useState('');const[pushMsg,setPushMsg]=useState('');const[pushErr,setPushErr]=useState('');const[pushAddFriendUrl,setPushAddFriendUrl]=useState('');
-  const doPushFlex=async(id)=>{
-    setBusyPush(id);setPushErr('');setPushAddFriendUrl('');
-    try{
-      const r=await sfPushFlexToMe(id,profile.userId);
-      if(r&&r.ok){setPushMsg(id);setTimeout(()=>setPushMsg(''),2500)}
-      else{setPushErr(id+':'+((r&&r.error)||'推播失敗'));if(r&&r.addFriendUrl)setPushAddFriendUrl(r.addFriendUrl)}
-    }catch(e){setPushErr(id+':'+String(e))}
-    setBusyPush('');
-  };
-  const shareSurvey=(s)=>{
-    sfGetFlexContent(s.id,liffId).then(r=>{
-      if(!r||!r.ok)return;
-      if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){
-        // 不支援的環境(例如非LINE App內開啟)才退回純文字連結分享
-        location.href='https://line.me/R/share?text='+encodeURIComponent(s.title+'\n'+detailUrl(s.id));
-        return;
-      }
-      liff.shareTargetPicker([{type:'flex',altText:r.title,contents:r.flex}]).catch(()=>{});
-    }).catch(()=>{});
-  };
-  const openDetail=(id)=>{location.href=location.href.split('?')[0]+'?sid='+id};
-  const personTypeLabel=(u)=>u.personType==='manager'?(u.subType||t.typeManager):u.personType==='frontdesk'?t.typeFrontdesk:u.personType==='student'?t.typeStudent:u.personType==='admin'?t.typeTeacher:t.typeTeacher;
-  const displayNameOf=(u)=>{
-    if(u.personType==='teacher')return u.name;
-    const code=String(u.code||'').trim();const name=String(u.name||'').trim();
-    if(code&&name)return code+'號 '+name;
-    if(code)return code+'號';
-    if(name)return name;
-    return u.displayName||'';
-  };
-  const USER_TYPE_ORDER={manager:0,admin:0,frontdesk:1,student:2,teacher:3};
-  const displayUsers=useMemo(()=>(users||[]).filter(u=>!storeFilter||u.store===storeFilter).slice().sort((a,b)=>{
-    const oa=USER_TYPE_ORDER[a.personType]??9;const ob=USER_TYPE_ORDER[b.personType]??9;
-    if(oa!==ob)return oa-ob;
-    if(a.personType==='teacher'&&b.personType==='teacher'){
-      const na=parseInt(String(a.name).replace('-',''),10);const nb=parseInt(String(b.name).replace('-',''),10);
-      if(!isNaN(na)&&!isNaN(nb))return na-nb;
-    }
-    return String(displayNameOf(a)).localeCompare(String(displayNameOf(b)));
-  }),[users,storeFilter]);
-  const[myReports,setMyReports]=useState(undefined);
-  const[showProfileDetail,setShowProfileDetail]=useState(false);
-  const[localOverride,setLocalOverride]=useState({});
-  const effProfile=useMemo(()=>({...userProfile,...localOverride}),[userProfile,localOverride]);
-  const[editing,setEditing]=useState(false);
-  const[fCode,setFCode]=useState('');const[fName,setFName]=useState('');const[fCity,setFCity]=useState('');const[fDist,setFDist]=useState('');
-  const[saveBusy,setSaveBusy]=useState(false);const[savedMsg,setSavedMsg]=useState('');
-  const saveProfile=async()=>{
-    if(!fCode.trim()&&!fName.trim())return;
-    setSaveBusy(true);
-    try{
-      const r=await sfRegister({lineUserId:profile.userId,displayName:userProfile.displayName,store:userProfile.store,personType:userProfile.personType,subType:userProfile.subType,name:fName.trim(),code:fCode.trim(),lang:userProfile.lang,gender:userProfile.gender,shift:userProfile.shift,city:fCity,dist:fDist});
-      if(r&&r.ok){setLocalOverride({name:fName.trim(),code:fCode.trim(),city:fCity,dist:fDist});setSavedMsg(t.saved);setEditing(false);setTimeout(()=>setSavedMsg(''),2000)}
-    }catch(_e){}
-    setSaveBusy(false);
-  };
-  useEffect(()=>{if(!isManagerLevel)sfMyReportedSurveys(profile.userId).then(r=>{if(r&&r.ok)setMyReports(r.list||[])})},[]);
-
-  return(<div className="min-h-screen p-4 pb-10">
-    <div className="max-w-md mx-auto space-y-4">
-      <div className="flex items-center justify-between pt-2">
-        <h1 className="text-lg font-bold text-gray-100">{t.centerTitle}</h1>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {isRealAdmin&&<select value={viewAsRole} onChange={e=>setViewAsRole(e.target.value)} className="text-xs px-2 py-2 rounded-lg bg-white/[0.06] border border-white/[0.08] text-gray-300"><option value="">{t.switchRoleLabel}</option><option value="manager">{t.roleManager}</option><option value="frontdesk">{t.roleFrontdesk}</option><option value="teacher">{t.roleTeacher}</option></select>}
-          {isManagerLevel&&<button onClick={()=>setShowCreate(v=>!v)} className="text-xs px-3 py-2 rounded-lg bg-amber-600 text-white font-semibold flex-shrink-0">{t.createNewBtn}</button>}
-        </div>
-      </div>
-
-      <div className="bg-white/[0.03] rounded-xl p-3 space-y-1.5">
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-gray-500">{t.myProfileTitle}</p>
-          {userProfile.personType==='manager'&&!editing&&<button onClick={()=>{setFCode(effProfile.code||'');setFName(effProfile.name||'');setFCity(effProfile.city||'');setFDist(effProfile.dist||'');setEditing(true)}} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-gray-400 font-semibold">{t.editBtn}</button>}
-        </div>
-        {!editing?(<>
-          <p onClick={()=>setShowProfileDetail(v=>!v)} className="text-sm text-gray-300 cursor-pointer">{effProfile.store} · {effProfile.personType==='manager'?(effProfile.subType||t.typeManager):personTypeLabel(effProfile)} · {displayNameOf(effProfile)} <span className="text-gray-600">{showProfileDetail?'▲':'▼'}</span></p>
-          {showProfileDetail&&(effProfile.personType==='teacher'||effProfile.personType==='manager')&&<p className="text-sm text-gray-400">{effProfile.gender==='M'?t.genderM:effProfile.gender==='F'?t.genderF:''} {effProfile.shift==='day'?t.shiftDay:effProfile.shift==='night'?t.shiftNight:''} {effProfile.city}{effProfile.dist}</p>}
-        </>):(<div className="space-y-2 pt-1">
-          <input value={fCode} onChange={e=>setFCode(e.target.value.replace(/[^a-zA-Z0-9]/g,''))} placeholder={t.teacherCodePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100 text-center tracking-widest"/>
-          <input value={fName} onChange={e=>setFName(e.target.value)} placeholder={t.customNamePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100"/>
-          <div className="grid grid-cols-2 gap-2">
-            <select value={fCity} onChange={e=>{setFCity(e.target.value);setFDist('')}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200"><option value="">{t.addrCity}</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select>
-            <select value={fDist} onChange={e=>setFDist(e.target.value)} disabled={!fCity} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200 disabled:opacity-40"><option value="">{t.addrDist}</option>{(TW_REGIONS&&TW_REGIONS[fCity]||[]).map(d=><option key={d} value={d}>{d}</option>)}</select>
-          </div>
-          {savedMsg&&<p className="text-xs text-emerald-500">✓ {savedMsg}</p>}
-          <div className="flex gap-2"><button onClick={()=>setEditing(false)} className="flex-1 py-2 rounded-lg bg-white/[0.06] text-gray-400 text-xs font-semibold">{t.cancelBtn}</button><button onClick={saveProfile} disabled={saveBusy||!fName.trim()} className="flex-1 py-2 rounded-lg bg-amber-600 text-white text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1">{saveBusy&&<Spinner size={11}/>}{t.saveBtn}</button></div>
-        </div>)}
-      </div>
-
-      {!isManagerLevel?(<div className="space-y-2">
-        <p className="text-xs text-gray-500">{t.myReportsSectionTitle}</p>
-        {myReports===undefined?<p className="text-xs text-gray-600 text-center py-3">{t.loading}</p>:myReports.length===0?<p className="text-xs text-gray-600 text-center py-3">{t.noMyReports}</p>:myReports.map(s=>(
-          <div key={s.id} onClick={()=>openDetail(s.id)} className="bg-white/[0.03] rounded-lg px-3 py-2.5 cursor-pointer flex items-center justify-between"><span className="text-sm text-gray-200">{s.title}</span>{s.endDate&&<span className="text-[10px] text-gray-500 flex-shrink-0">{t.ended}</span>}</div>
-        ))}
-      </div>):(<>
-        <div className="flex gap-2"><button onClick={()=>setTab('survey')} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${tab==='survey'?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-400'}`}>{t.surveyListTab}</button><button onClick={()=>setTab('users')} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${tab==='users'?'bg-amber-600 text-white':'bg-white/[0.05] text-gray-400'}`}>{t.userListTab}</button></div>
-
-        {tab==='survey'&&(<>
-        {showCreate&&(<div className="bg-white/[0.03] border border-amber-500/20 rounded-xl p-3 space-y-2">
-          <label className="text-xs text-gray-500 block">{t.createTitleLabel}</label>
-          <input value={newTitle} onChange={e=>setNewTitle(e.target.value)} placeholder={t.createTitlePh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-gray-100"/>
-          <button onClick={doCreate} disabled={createBusy||!newTitle.trim()} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">{createBusy&&<Spinner/>}{t.createBtn}</button>
-        </div>)}
-
-        {list===undefined?<p className="text-sm text-gray-600 text-center py-8">{t.loading}</p>:list.length===0?<p className="text-sm text-gray-500 text-center py-8">{t.noSurveys}</p>:list.map(s=>(
-          <div key={s.id} className="bg-white/[0.03] rounded-xl p-3 space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <p onClick={()=>openDetail(s.id)} className="text-sm text-gray-200 font-medium cursor-pointer flex-1">{s.title}</p>
-              <button onClick={()=>doPushFlex(s.id)} disabled={busyPush===s.id} className="text-xs px-2.5 py-1.5 rounded-lg bg-[#06C755] text-white font-semibold flex-shrink-0 disabled:opacity-50 flex items-center gap-1">{busyPush===s.id&&<Spinner size={11}/>}{pushMsg===s.id?t.pushedMsg:t.pushFlexBtn}</button>
-              <button onClick={()=>shareSurvey(s)} className="text-xs px-2.5 py-1.5 rounded-lg bg-white/[0.06] text-gray-300 font-semibold flex-shrink-0">{t.shareBtn}</button>
-            </div>
-            <div className="flex gap-2">
-              <select onChange={e=>doQuery(s.id,e.target.value)} defaultValue="" className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-gray-200"><option value="" disabled>{t.selectDay}</option>{dayOptions(s).map(o=>(<option key={o.n} value={o.date}>{'day'+o.n+': '+o.date}</option>))}</select>
-              <button onClick={()=>doEnd(s.id)} disabled={busyEnd===s.id} className="px-3 py-1.5 rounded-lg bg-red-600/20 text-red-400 text-xs font-semibold flex-shrink-0 disabled:opacity-50 flex items-center gap-1">{busyEnd===s.id&&<Spinner/>}{t.endBtn}</button>
-            </div>
-            {pushErr.startsWith(s.id+':')&&(<div className="space-y-1.5">
-              {pushAddFriendUrl?(<>
-                <p className="text-[11px] text-amber-400">推播失敗，可能是你還沒把安全回報 Bot 加為好友</p>
-                <a href={pushAddFriendUrl} target="_blank" rel="noreferrer" className="block w-full py-2 rounded-lg bg-[#06C755] text-white text-xs font-semibold text-center">➕ 一鍵加好友</a>
-              </>):null}
-              <p className="text-[10px] text-gray-600">{pushErr.slice(s.id.length+1)}</p>
-            </div>)}
-            {queryOpenId===s.id&&queryResult&&(<div className="space-y-1.5 pt-1"><p className="text-[11px] text-gray-500">{t.reportedCount} {queryResult.did.length}｜{t.notReportedCount} {queryResult.notDid.length}</p>{queryResult.did.map((r,i)=>(<div key={i} className="flex items-center justify-between bg-white/[0.03] rounded-lg px-2.5 py-1.5"><span className="text-xs text-gray-300">{r.display} {statusLabel(r.status)}{r.otherText?('、'+r.otherText):''}</span><span className="text-[10px] text-gray-500 flex-shrink-0">{fmtTime(r.time)}</span></div>))}</div>)}
-          </div>
-        ))}
-
-        {isAdmin&&history&&history.length>0&&(<div className="space-y-2 pt-2 border-t border-white/[0.06]">
-          <button onClick={()=>setShowHistory(v=>!v)} className="text-xs text-gray-500">{t.historyTitle}（{history.length}）{showHistory?'▲':'▼'}</button>
-          {showHistory&&history.map(s=>(<div key={s.id} className="bg-white/[0.03] rounded-lg p-2.5 space-y-1.5">
-            <div className="flex items-center justify-between"><span className="text-xs text-gray-400">{s.title}（{t.ended}）</span><button onClick={()=>doDeleteHistory(s.id)} disabled={busyDelHist===s.id} className="text-[10px] px-2 py-1 rounded bg-red-600/20 text-red-400 font-bold flex-shrink-0 disabled:opacity-50 flex items-center gap-1">{busyDelHist===s.id&&<Spinner size={10}/>}✕</button></div>
-            <div className="flex gap-1.5"><select onChange={e=>{const o=JSON.parse(e.target.value);doHistQuery(s.id,o)}} defaultValue="" className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-[11px] text-gray-200"><option value="" disabled>{t.selectDay}</option>{dayOptions(s).map(o=>(<option key={o.n} value={JSON.stringify(o)}>{'day'+o.n+': '+o.date}</option>))}</select></div>
-            {histQueryOpenId===s.id&&histQueryResult&&(<div className="space-y-1.5 pt-1">
-              <p className="text-[11px] text-gray-500">{t.reportedCount} {histQueryResult.did.length}｜{t.notReportedCount} {histQueryResult.notDid.length}</p>
-              <button onClick={copyDayText} className="w-full py-1.5 rounded bg-amber-600/20 text-amber-400 text-[11px] font-semibold">{copyDayMsg||t.copyDayBtn}</button>
-            </div>)}
-          </div>))}
-        </div>)}
-        </>)}
-
-        {tab==='users'&&(<div className="space-y-2">
-          {canSeeAllStores&&<select value={storeFilter} onChange={e=>setStoreFilter(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-200"><option value="">{t.storeFilterAll}</option>{STORES.map(s=><option key={s} value={s}>{s}</option>)}</select>}
-          {users===undefined?<p className="text-sm text-gray-600 text-center py-8">{t.loading}</p>:displayUsers.map(u=>(
-            <div key={u.lineUserId} className={`flex items-center justify-between bg-white/[0.03] rounded-lg px-3 py-2 ${u.blocked?'opacity-40':''}`}>
-              <span className="text-sm text-gray-200">{canSeeAllStores?'['+u.store+'] ':''}{personTypeLabel(u)} · {displayNameOf(u)}{u.blocked?'（'+t.blockedTag+'）':''}</span>
-              <div className="flex gap-1.5 flex-shrink-0">
-                <button onClick={()=>doDeleteUser(u.lineUserId)} disabled={busyUser===u.lineUserId} className="text-[10px] px-2 py-1 rounded bg-white/[0.08] text-gray-400 font-bold disabled:opacity-50 flex items-center gap-1">{busyUser===u.lineUserId?<Spinner size={10}/>:'✕'}</button>
-                <button onClick={()=>doBlockUser(u.lineUserId)} disabled={busyUser===u.lineUserId} className={`text-[10px] px-2 py-1 rounded font-bold disabled:opacity-50 flex items-center gap-1 ${u.blocked?'bg-emerald-600/20 text-emerald-400':'bg-red-600/20 text-red-400'}`}>{busyUser===u.lineUserId?<Spinner size={10}/>:'🚫'}</button>
-              </div>
-            </div>
-          ))}
-        </div>)}
-      </>)}
-    </div>
-  </div>);
-}
-
-function DetailPage({profile,userProfile,sid,liffId}){
-  const t=SF_T[userProfile.lang||'zh'];
-  const displayName=userProfile.personType==='teacher'?userProfile.name:(userProfile.name||userProfile.displayName);
-  const STATUS_OPTS=STATUS_KEYS.map(k=>[k,t['status'+k[0].toUpperCase()+k.slice(1)]]);
-  const PERSON_ORDER={manager:0,admin:0,frontdesk:1,teacher:2};
-  const[survey,setSurvey]=useState(undefined);
-  const[status,setStatus]=useState('');
-  const[otherText,setOtherText]=useState('');
-  const[reports,setReports]=useState(null);
-  const[sortMode,setSortMode]=useState('time'); // time/code/city/store
-  const[showOther,setShowOther]=useState(false);
-  const[noPermission,setNoPermission]=useState(false);
-  const loadReports=()=>sfTodayReports(sid,profile.userId).then(r=>{if(r&&r.ok)setReports(r.list||[])});
-  const loadSurvey=()=>{
-    sfGetSurvey(sid,profile.userId).then(r=>{
-      if(r&&r.ok){
-        if(r.noPermission){setNoPermission(true);setSurvey(null);return}
-        setSurvey(r.survey||null);
-      }else{setSurvey(null)}
-    }).catch(()=>setSurvey(null));
-    loadReports(); // 跟上面sfGetSurvey同時發送,不用等它先回來——這兩個request互不依賴,平行打才不會延遲疊加
-  };
-  useEffect(()=>{loadSurvey()},[]);
-  const[submitted,setSubmitted]=useState(false);
-  const[submitting,setSubmitting]=useState(false);
-  const submit=()=>{
-    if(!survey||(!status&&!otherText.trim()))return;
-    // 請求送出後GAS會在伺服器端繼續執行完成,就算使用者馬上關閉分頁也不影響資料寫入。
-    // 畫面上先跑1秒轉圈圈再顯示完成訊息,純粹是給使用者一個「有在處理」的感覺,不是真的在等GAS回應。
-    setSubmitting(true);
-    sfSubmitReport(survey.id,profile.userId,status,otherText.trim()).catch(()=>{});
-    setTimeout(()=>{setSubmitting(false);setSubmitted(true)},1000);
-  };
-  const statusLabel=(k)=>t['status'+k[0].toUpperCase()+k.slice(1)]||k;
-  const fmtTime=(tm)=>{try{const d=new Date(tm);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}catch(_e){return ''}};
-  const sortedReports=useMemo(()=>{
-    if(!reports)return null;
-    if(sortMode==='time')return [...reports].sort((a,b)=>new Date(b.time)-new Date(a.time));
-    if(sortMode==='store')return [...reports].sort((a,b)=>{
-      const sc=String(a.store||'').localeCompare(String(b.store||''));
-      if(sc!==0)return sc;
-      const oa=PERSON_ORDER[a.personType]??9;const ob=PERSON_ORDER[b.personType]??9;
-      return oa-ob;
-    });
-    if(sortMode==='city')return [...reports].sort((a,b)=>String(a.city||'').localeCompare(String(b.city||'')));
-    // code:依人員別分組,老師組內改用數字比較(不是字串比較,不然"122"會排到"5"前面)
-    return [...reports].sort((a,b)=>{
-      const oa=PERSON_ORDER[a.personType]??9;const ob=PERSON_ORDER[b.personType]??9;
-      if(oa!==ob)return oa-ob;
-      if(a.personType==='teacher'&&b.personType==='teacher'){
-        const na=parseInt(String(a.display).replace('-',''),10);const nb=parseInt(String(b.display).replace('-',''),10);
-        if(!isNaN(na)&&!isNaN(nb))return na-nb;
-      }
-      return String(a.display).localeCompare(String(b.display));
-    });
-  },[reports,sortMode]);
-  const canSeeAllStores=userProfile.personType==='admin'||(userProfile.personType==='manager'&&(userProfile.subType==='執行長'||userProfile.subType==='區經理'));
-  const isManagerLevel=userProfile.personType==='manager'||userProfile.personType==='admin';
-  const[shareBusy,setShareBusy]=useState(false);
-  const shareNotReported=async()=>{
-    if(!survey)return;
-    setShareBusy(true);
-    try{
-      const today=new Date().toISOString().slice(0,10);
-      const r=await sfDayStatus(survey.id,today,profile.userId);
-      if(r&&r.ok){
-        const msg=survey.title+'\n未回報人數 '+r.notDid.length+'人：'+r.notDid.join('、')+'\n請儘速至回報網頁進行回報';
-        if(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker')){
-          await liff.shareTargetPicker([{type:'text',text:msg}]);
-        }else{
-          location.href='https://line.me/R/share?text='+encodeURIComponent(msg);
-        }
-      }
-    }catch(_e){}
-    setShareBusy(false);
-  };
-  if(submitting)return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6"><div className="text-amber-500"><Spinner size={36}/></div><p className="text-base text-gray-400">送出中…</p></div>);
-  if(submitted){
-    const shareRecord=()=>{
-      const now=new Date();
-      const p=x=>String(x).padStart(2,'0');
-      const timeText=now.getFullYear()+'-'+p(now.getMonth()+1)+'-'+p(now.getDate())+' '+p(now.getHours())+':'+p(now.getMinutes());
-      const statusText=statusLabel(status)+(otherText?('、'+otherText):'');
-      const statusColor=status==='safe'?'#2ECC71':'#E67E22'; // 安全是綠色,其他狀況(積水/不舒服/其他)用橘色提醒
-      const flex={
-        type:'bubble',size:'giga',
-        header:{type:'box',layout:'vertical',backgroundColor:'#096acb',paddingAll:'md',contents:[
-          {type:'text',text:'🚨 '+(survey?survey.title:''),weight:'bold',color:'#FFFFFF',wrap:true}
-        ]},
-        body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',spacing:'md',contents:[
-          {type:'text',text:'回報時間：'+timeText+' - '+userProfile.store+' - '+displayName,color:'#555555',size:'sm',align:'start',wrap:true},
-          {type:'text',text:statusText,color:statusColor,size:'xxl',weight:'bold',align:'center',margin:'lg'},
-          {type:'button',action:{type:'uri',label:'天災安全回報平台',uri:'https://liff.line.me/'+liffId+'?sid='+sid},style:'link',height:'sm',color:'#eeeeff',margin:'none'}
-        ]}
-      };
-      if(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker')){
-        liff.shareTargetPicker([{type:'flex',altText:survey?survey.title:'安全回報',contents:flex}]).catch(()=>{});
-      }
-    };
-    return(<div className="min-h-screen flex flex-col items-center justify-center gap-3 p-6 text-center">
-      <p className="text-2xl">✅</p>
-      <p className="text-lg text-gray-100 font-bold">已收到你的回報</p>
-      <p className="text-sm text-gray-400">可關閉此頁面，謝謝</p>
-      <button onClick={shareRecord} className="mt-4 px-6 py-3 rounded-xl bg-[#06C755] text-white text-sm font-semibold">分享完成回報的紀錄</button>
-    </div>);
-  }
-  return(<div className="min-h-screen p-4 pb-10">
-    <div className="max-w-md mx-auto space-y-4">
-      <div className="flex items-center justify-between pt-2">
-        <p className="text-xs text-gray-500">{userProfile.store} · {displayName}</p>
-        <a href={location.href.split('?')[0]} className="text-xs px-3 py-1.5 rounded-lg bg-white/[0.06] text-gray-300 font-semibold flex-shrink-0">{t.backHomeBtn}</a>
-      </div>
-
-      {isManagerLevel&&survey&&!survey.endDate&&(<button onClick={shareNotReported} disabled={shareBusy} className="w-full py-2.5 rounded-xl bg-[#06C755] text-white text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">{shareBusy&&<Spinner/>}{t.notReportedShareBtn}</button>)}
-
-      {survey===undefined?<p className="text-base text-gray-600 text-center py-8">{t.loading}</p>:noPermission?(
-        <p className="text-base text-red-400 text-center py-8">{t.invalidParam}</p>
-      ):!survey?(
-        <p className="text-base text-gray-500 text-center py-8">{t.noActiveSurvey}</p>
-      ):(<>
-        {survey.endDate?(<div className="bg-white/[0.03] rounded-2xl p-5"><p className="text-2xl text-gray-200 text-center font-bold leading-snug">{survey.title}</p><p className="text-lg text-gray-400 text-center mt-2">（{t.thisSurveyEnded||t.ended}）</p></div>):(
-        <div className="bg-white/[0.03] rounded-2xl p-4 space-y-4">
-          <p className="text-2xl text-gray-100 font-bold leading-snug">{survey.title}</p>
-          <div className="grid grid-cols-2 gap-3">
-            {STATUS_OPTS.map(([k,l])=>(<button key={k} onClick={()=>{setStatus(k);setShowOther(false)}} className={`py-7 rounded-2xl text-lg font-bold leading-tight transition-all ${status===k?'bg-amber-600 text-white':'bg-white/[0.07] text-gray-200'}`}>{l}</button>))}
-            <button onClick={()=>{setShowOther(true);setStatus('')}} className={`py-7 rounded-2xl text-lg font-bold transition-all ${showOther?'bg-amber-600 text-white':'bg-white/[0.07] text-gray-200'}`}>{t.otherLabel}</button>
-          </div>
-          {showOther&&<input value={otherText} onChange={e=>setOtherText(e.target.value)} placeholder={t.otherPh} autoFocus className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-4 text-lg text-gray-100"/>}
-          <button onClick={submit} disabled={!status&&!otherText.trim()} className="w-full py-5 rounded-2xl bg-red-600 text-white text-xl font-bold disabled:opacity-50">{t.submitReportBtn}</button>
-        </div>)}
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between flex-wrap gap-2"><p className="text-sm text-gray-400 font-semibold">{(()=>{const d=new Date();return (d.getMonth()+1)+'/'+d.getDate()})()} {t.reportedList}</p><div className="flex gap-1.5 flex-wrap"><button onClick={()=>setSortMode('time')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='time'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByTime}</button>{isManagerLevel&&<button onClick={()=>setSortMode('code')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='code'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByCode}</button>}{isManagerLevel&&<button onClick={()=>setSortMode('city')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='city'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByCity}</button>}{canSeeAllStores&&<button onClick={()=>setSortMode('store')} className={`text-xs px-3 py-2 rounded-lg font-semibold ${sortMode==='store'?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t.sortByStore}</button>}</div></div>
-          {sortedReports===null?<p className="text-sm text-gray-600 text-center py-3">{t.loading}</p>:sortedReports.length===0?<p className="text-sm text-gray-600 text-center py-3">{t.noReports}</p>:sortedReports.map((r,i)=>(
-            <div key={i} className="bg-white/[0.04] rounded-xl px-4 py-3.5 border border-white/[0.05]"><div className="flex items-center justify-between gap-2"><span className="text-base text-gray-100 font-semibold">{canSeeAllStores&&r.store?('['+r.store+'] '):''}{r.display}{r.personType==='manager'&&r.subType?(' '+r.subType):''}</span><span className="text-xs text-gray-500 flex-shrink-0">{fmtTime(r.time)}</span></div><p className="text-sm text-gray-400 mt-0.5">{statusLabel(r.status)}{r.otherText?('、'+r.otherText):''}{isManagerLevel&&r.city?('　'+r.city+(r.dist||'')):''}</p></div>
-          ))}
-        </div>
-      </>)}
-    </div>
-  </div>);
-}
-
-function ShareFlow({sid,liffId}){
-  const[status,setStatus]=useState('loading'); // loading/picking/done/cancelled/error
-  const[err,setErr]=useState('');
-  useEffect(()=>{
-    sfGetFlexContent(sid,liffId).then(r=>{
-      if(!r||!r.ok){setStatus('error');setErr((r&&r.error)||'讀取失敗');return}
-      setStatus('picking');
-      if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setStatus('error');setErr('此環境不支援分享功能，請在LINE App內開啟');return}
-      liff.shareTargetPicker([{type:'flex',altText:r.title,contents:r.flex}]).then(res=>{
-        setStatus(res?'done':'cancelled');
-      }).catch(e=>{setStatus('error');setErr(String(e&&e.message||e))});
-    }).catch(e=>{setStatus('error');setErr(String(e))});
-  },[]);
-  return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
-    {status==='loading'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">準備分享內容…</p></>)}
-    {status==='picking'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">請選擇要分享的對象…</p></>)}
-    {status==='done'&&(<p className="text-base text-emerald-500 font-semibold">✓ 已分享</p>)}
-    {status==='cancelled'&&(<p className="text-sm text-gray-500">已取消分享</p>)}
-    {status==='error'&&(<p className="text-sm text-red-400">{err}</p>)}
-    {(status==='done'||status==='cancelled'||status==='error')&&<button onClick={()=>{try{liff.closeWindow()}catch(_e){location.href=location.href.split('?')[0]}}} className="px-6 py-3 rounded-xl bg-white/[0.06] text-gray-300 text-sm font-semibold">關閉</button>}
-  </div>);
-}
-
-// 通用的行為代碼Flex分享橋接:任何地方要傳代碼都導來這裡,帶title/body/link三個參數,統一組成Flex卡片分享
-// shareTargetPicker一定要透過 liff.line.me/{id} 這個網址正式啟動LIFF才能用,主程式/管理頁/公告頁都不是走這個網址,所以全部導來這裡代發
-// 備份專頁:index.html刻意不呼叫liff.init(保留離線記帳能力),備份的分享功能借這個正式LIFF端點處理
-function BackupViewPage({code,year}){
-  const[jsonStr,setJsonStr]=useState('');
-  const[range,setRange]=useState(null);
-  const[err,setErr]=useState('');
-  const[copied,setCopied]=useState(false);
-  const LINE_SHARE_LIMIT=4500; // LINE文字訊息分享實務上的安全長度,超過這個長度shareTargetPicker容易失敗,改引導用複製
-  useEffect(()=>{
-    try{
-      const MP=window.MP;
-      if(!code||!year){setErr('缺少編號或年份參數');return}
-      const r=MP.dataMonthRange(code,Number(year));
-      if(!r){setErr('這個年度查無資料');return}
-      setRange(r);
-      const obj=MP.makePersonalBackup(code,Number(year));
-      setJsonStr(JSON.stringify(obj));
-    }catch(e){setErr(String(e))}
-  },[]);
-  const doCopy=async()=>{try{await navigator.clipboard.writeText(jsonStr)}catch(_e){};setCopied(true);setTimeout(()=>setCopied(false),2000)};
-  const doShare=()=>{
-    liff.shareTargetPicker([{type:'text',text:jsonStr}]).catch(e=>alert('分享失敗，請改用複製按鈕：'+e));
-  };
-  const goBack=()=>{try{liff.closeWindow()}catch(_e){}};
-  if(err)return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center"><p className="text-sm text-red-400">{err}</p><button onClick={goBack} className="px-6 py-3 rounded-xl bg-amber-600 text-white text-sm font-bold">返回</button></div>);
-  if(!jsonStr)return(<div className="min-h-screen flex items-center justify-center"><Spinner size={28}/></div>);
-  const tooLarge=jsonStr.length>LINE_SHARE_LIMIT;
-  return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
-    <p className="text-lg font-bold text-gray-100">📦 資料備份</p>
-    <p className="text-xs text-gray-500">編號 {code}　{year}年　{range.first}~{range.last}月</p>
-    <p className="text-[11px] text-gray-600">內容長度約 {jsonStr.length} 字元</p>
-    {tooLarge&&<p className="text-xs text-amber-400 max-w-xs">內容較長，直接用LINE分享可能會失敗，建議改用「複製」貼到LINE Keep或記事本保存</p>}
-    <div className="flex gap-3">
-      <button onClick={doCopy} className="px-6 py-3 rounded-xl bg-white/[0.08] text-gray-200 text-sm font-bold">{copied?'✓ 已複製':'📋 複製備份內容'}</button>
-      <button onClick={doShare} disabled={tooLarge} className="px-6 py-3 rounded-xl bg-[#06C755] text-white text-sm font-bold disabled:opacity-40">傳送給自己/好友</button>
-    </div>
-    <button onClick={goBack} className="text-xs text-gray-500 underline mt-2">關閉</button>
-  </div>);
-}
-
-function TicketFlexShare({title,body,link}){
-  const[status,setStatus]=useState('loading'); // loading/picking/done/cancelled/error
-  const[err,setErr]=useState('');
-  const INDEX_URL='https://john7t.github.io/massage-pay/index.html';
-  useEffect(()=>{
-    if(!title||!link){setStatus('error');setErr('缺少參數');return}
-    setStatus('picking');
-    if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setStatus('error');setErr('此環境不支援分享功能，請在LINE App內開啟');return}
-    liff.shareTargetPicker([{type:'flex',altText:title,contents:{
-      type:'bubble',
-      body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
-        {type:'text',text:title,weight:'bold',size:'md',color:'#111111',wrap:true},
-        ...(body?[{type:'text',text:body,size:'sm',color:'#666666',wrap:true,margin:'md'}]:[])
-      ]},
-      footer:{type:'box',layout:'vertical',paddingAll:'lg',contents:[
-        {type:'button',style:'primary',color:'#d97706',height:'sm',action:{type:'uri',label:'前往確認',uri:link}}
-      ]}
-    }}]).then(res=>{setStatus(res?'done':'cancelled')}).catch(e=>{setStatus('error');setErr(String(e&&e.message||e))});
-  },[]);
-  const goBack=()=>{try{liff.closeWindow()}catch(_e){location.href=INDEX_URL}};
-  return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
-    {status==='loading'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">準備中…</p></>)}
-    {status==='picking'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">請選擇要分享的對象…</p></>)}
-    {status==='done'&&(<p className="text-base text-emerald-500 font-semibold">✓ 已分享</p>)}
-    {status==='cancelled'&&(<p className="text-sm text-gray-500">已取消分享</p>)}
-    {status==='error'&&(<p className="text-sm text-red-400">{err}</p>)}
-    {(status==='done'||status==='cancelled'||status==='error')&&<button onClick={goBack} className="px-6 py-3 rounded-xl bg-amber-600 text-white text-sm font-bold">返回</button>}
-  </div>);
-}
-
-function CardShareFlow({data}){
-  const[status,setStatus]=useState('loading');
-  const[err,setErr]=useState('');
-  const INDEX_URL='https://john7t.github.io/massage-pay/index.html';
-  useEffect(()=>{
-    let d=null;try{d=JSON.parse(data)}catch(_e){}
-    if(!d||!d.c){setStatus('error');setErr('缺少參數');return}
-    setStatus('picking');
-    if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setStatus('error');setErr('此環境不支援分享功能，請在LINE App內開啟');return}
-    const tel='tel:'+String(d.p||'').replace(/[^0-9+]/g,'');
-    const mapUri=/^https?:\/\//.test(d.m||'')?d.m:'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(d.a||'');
-    const appleUri=/^https?:\/\//.test(d.am||'')?d.am:'https://maps.apple.com/?q='+encodeURIComponent(d.a||'');
-    // 分享名片按鈕:收到的人點了開同一個LIFF頁,可再轉給別人(URI動作上限1000字,太長就不放)
-    // g=第幾次轉傳(App發出=0,每轉傳一層+1),寫log用
-    const gen=Number(d.g)||0;
-    const shareUri0='https://liff.line.me/'+LIFF_ID_HARDCODED+'?cardShare='+encodeURIComponent(JSON.stringify(Object.assign({},d,{g:gen+1})));
-    const shareUri=shareUri0.length<=1000?shareUri0:'';
-    // 按鈕文字:地址去掉郵遞區號/台北市/XX區;電話去掉02區碼(撥號仍用完整號碼)
-    const shortAddr=String(d.a||'').replace(/^\d*\s*(?:[臺台]北市)?(?:[\u4e00-\u9fa5]{2}區)?/,'')||String(d.a||'');
-    const _dg=String(d.p||'').replace(/\D/g,'');
-    const shortTel=(_dg.length===10&&_dg.indexOf('02')===0)?_dg.slice(2,6)+'-'+_dg.slice(6):String(d.p||'');
-    // 兩行式按鈕(box+action,文字不會被截斷):上行主文字,下行小字說明
-    const cell=(main,sub,uri)=>({type:'box',layout:'vertical',flex:1,paddingAll:'6px',justifyContent:'center',alignItems:'center',action:{type:'uri',label:(main||'名片').slice(0,20),uri:uri},contents:[
-      {type:'text',text:main||'-',size:'sm',weight:'bold',color:'#2563eb',align:'center'},
-      ...(sub?[{type:'text',text:sub,size:'xxs',color:'#6b7280',align:'center'}]:[])
-    ]});
-    const BM=d.bm||'雲心閣',BS=d.bs||'養生會館';
-    const GRAD={type:'linearGradient',angle:'135deg',startColor:'#bcd9f5',endColor:'#6d4aa8'};
-    // 所有頁頂部的「雲心閣」那一排:漸層底色+白字(24h紅標、tag小字可選)
-    const brandRow=(tag)=>({type:'box',layout:'horizontal',spacing:'sm',alignItems:'center',contents:[
-      {type:'text',text:BM,weight:'bold',size:'md',color:'#FFFFFF',flex:0,gravity:'center'},
-      {type:'text',text:BS,size:'xs',color:'#eeeeff',flex:0,gravity:'center'},
-      {type:'box',layout:'vertical',flex:0,backgroundColor:'#dc2626',cornerRadius:'sm',paddingTop:'2px',paddingBottom:'2px',paddingStart:'6px',paddingEnd:'6px',contents:[{type:'text',text:'24h',size:'xxs',weight:'bold',color:'#FFFFFF'}]},
-      ...(tag?[{type:'text',text:tag,size:'xxs',color:'#eeeeff',flex:0,gravity:'center'}]:[])
-    ]});
-    const brandHeader=(tag)=>({type:'box',layout:'vertical',paddingAll:'lg',background:GRAD,contents:[brandRow(tag)]});
-    const _n=new Date();const genDate=String(_n.getFullYear()).slice(2)+'/'+String(_n.getMonth()+1).padStart(2,'0')+'/'+String(_n.getDate()).padStart(2,'0'); // 產生Flex當下的日期,避免有人拿舊表來說事
-    const priceNote={type:'text',text:'本文於'+genDate+'產生，非即時更新，訂位時，務必確認費用',wrap:true,size:'xxs',color:'#9ca3af',align:'center',margin:'lg'};
-    // 第1頁:名片(上下用filler撐開,讓編號在中間;多頁時LINE會把各頁撐成同高)
-    const page1={type:'bubble',size:'mega',
-      header:brandHeader('老師個人名片'),
-      body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
-        {type:'filler'},
-        {type:'box',layout:'baseline',justifyContent:'center',spacing:'sm',contents:[
-          {type:'text',text:String(d.c),size:'5xl',weight:'bold',color:'#111827',flex:0},
-          {type:'text',text:'號老師',size:'sm',weight:'bold',color:'#6b7280',flex:0}
-        ]},
-        {type:'text',text:d.ws+' ~ '+d.we,size:'xs',align:'center',color:'#6b7280',margin:'md'},
-        {type:'filler'},
-        ...(d.n?[{type:'text',text:d.n,size:'xs',color:'#6b7280',align:'end',wrap:true,margin:'xl'}]:[])
-      ]},
-      footer:{type:'box',layout:'vertical',spacing:'xs',paddingAll:'md',contents:[
-        {type:'box',layout:'horizontal',spacing:'sm',contents:[cell(shortAddr,'Apple 地圖',appleUri),cell(shortAddr,'Google 地圖',mapUri)]},
-        {type:'box',layout:'horizontal',spacing:'sm',contents:[cell(shortTel,'訂位電話',tel),shareUri?cell('分享給朋友','',shareUri):{type:'filler'}]}
-      ]}};
-    // 第2頁:早鳥夜貓專案
-    const promoRule=(t)=>({type:'text',text:'◎ '+t,size:'xs',color:'#6b7280',wrap:true,margin:'xs'});
-    const page2={type:'bubble',size:'mega',
-      header:{type:'box',layout:'vertical',paddingAll:'lg',background:GRAD,contents:[
-        brandRow(),
-        {type:'text',text:'☀ 早鳥 · 夜貓 專案 ☾',size:'xl',weight:'bold',color:'#FFFFFF',margin:'md'},
-        {type:'text',text:'平日 凌晨12:00 ~ 中午12:00',size:'xs',color:'#FFFFFF',margin:'xs'}
-      ]},
-      body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
-        {type:'text',text:'腳底+身體按摩 120分鐘',size:'sm',weight:'bold',align:'center',color:'#111827'},
-        {type:'box',layout:'baseline',justifyContent:'center',spacing:'sm',margin:'sm',contents:[
-          {type:'text',text:'1,099',size:'4xl',weight:'bold',color:'#ea580c',flex:0},
-          {type:'text',text:'NT',size:'sm',weight:'bold',color:'#ea580c',flex:0}
-        ]},
-        {type:'box',layout:'vertical',margin:'lg',contents:[
-          promoRule('以實際進場時間為主'),promoRule('不與其他活動合併使用'),promoRule('腳底與身體限定同一位師傅'),
-          promoRule('店家保留活動修改、暫停及終止之權利'),promoRule('周五過12點後是周六，算假日'),promoRule('周日過12點後是周一，算平日')
-        ]},
-        {type:'filler'},
-        priceNote
-      ]}};
-    // 第3、4頁:價目表
-    const row=(n,sub,price,orig)=>({type:'box',layout:'horizontal',margin:'md',contents:[
-      {type:'box',layout:'vertical',flex:1,contents:[
-        {type:'text',text:n,size:'xs',weight:'bold',color:'#111827',wrap:true},
-        ...(sub?[{type:'text',text:sub,size:'xxs',color:'#9ca3af',wrap:true}]:[])
-      ]},
-      {type:'box',layout:'vertical',flex:0,contents:[
-        {type:'text',text:price,size:'sm',weight:'bold',color:'#b91c1c',align:'end'},
-        ...(orig?[{type:'text',text:'原價 '+orig,size:'xxs',color:'#9ca3af',align:'end',decoration:'line-through'}]:[])
-      ]}
-    ]});
-    const sep=()=>({type:'separator',margin:'md'});
-    const pricePage=(title,rows)=>({type:'bubble',size:'mega',
-      header:brandHeader('價目表'),
-      body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
-        {type:'text',text:title,size:'md',weight:'bold',color:'#111827'},
-        ...rows,
-        {type:'filler'},
-        priceNote
-      ]}});
-    const page3=pricePage('最划算套餐',[
-      row('腳底+身體按摩 120分鐘','含轉場時間・含精油泡腳及肩頸按摩','1,299','1,600'),
-      row('腳底+身體按摩 70分鐘','含轉場時間・含精油泡腳及肩頸按摩','850','1,100'),
-      sep(),
-      row('腳底按摩 40分鐘','','500','600'),row('腳底按摩 70分鐘','','850','1,100'),
-      row('身體按摩 35分鐘','','500','600'),row('身體按摩 70分鐘','','850','1,100')
-    ]);
-    const page4=pricePage('加節表',[
-      row('腳底+身體按摩 120分鐘','含轉場時間','1,299','1,600'),
-      row('腳底按摩 110分鐘','','1,299','1,600'),row('身體按摩 110分鐘','','1,299','1,600'),
-      sep(),
-      row('加節 30分鐘','','500'),row('加節 60分鐘','','850')
-    ]);
-    liff.shareTargetPicker([{type:'flex',altText:BM+BS+' '+d.c+'號老師名片',contents:{type:'carousel',contents:[page1,page2,page3,page4]}}]).then(res=>{
-      setStatus(res?'done':'cancelled');
-      // 有人完成分享就記一筆Log(單純記錄:不等回應、不驗證有沒有寫成功;失敗靜默)。code=名片老師編號,flow=cardShare:g{轉傳層數}(g0=老師本人發出,g1=朋友第一次轉傳,g2=再轉傳…)
-      if(res){try{gasCall('logFlowEnter',{code:String(d.c),flow:'cardShare:g'+gen,store:String(d.st||'')},8000)}catch(_e){}}
-    }).catch(e=>{setStatus('error');setErr(String(e&&e.message||e))});
-  },[]);
-  const goBack=()=>{try{liff.closeWindow()}catch(_e){location.href=INDEX_URL}};
-  return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
-    {(status==='loading'||status==='picking')&&(<><Spinner size={32}/><p className="text-sm text-gray-400">請選擇要分享的對象…</p></>)}
-    {status==='done'&&(<p className="text-base text-emerald-500 font-semibold">✓ 已分享</p>)}
-    {status==='cancelled'&&(<p className="text-sm text-gray-500">已取消分享</p>)}
-    {status==='error'&&(<p className="text-sm text-red-400">{err}</p>)}
-    {(status==='done'||status==='cancelled'||status==='error')&&<button onClick={goBack} className="px-6 py-3 rounded-xl bg-amber-600 text-white text-sm font-bold">返回</button>}
-  </div>);
-}
-
-function BreakShareFlow({kind,reqId}){
-  const[status,setStatus]=useState('loading'); // loading/picking/done/cancelled/error
-  const[err,setErr]=useState('');
-  const FD_LIFF_URL='https://john7t.github.io/massage-pay/frontdesk/index.html';
-  const INDEX_URL='https://john7t.github.io/massage-pay/index.html';
-  useEffect(()=>{
-    if(!kind||!reqId){setStatus('error');setErr('缺少參數');return}
-    setStatus('picking');
-    if(!(liff.isApiAvailable&&liff.isApiAvailable('shareTargetPicker'))){setStatus('error');setErr('此環境不支援分享功能，請在LINE App內開啟');return}
-    const uri=FD_LIFF_URL+'?breakConfirm='+kind+'&reqId='+reqId;
-    const label=kind==='green'?'老師開始休息(翻綠)':'老師結束休息(回牌)';
-    liff.shareTargetPicker([{type:'flex',altText:'休息確認通知',contents:{
-      type:'bubble',
-      body:{type:'box',layout:'vertical',backgroundColor:'#FFFFFF',paddingAll:'lg',contents:[
-        {type:'text',text:(kind==='green'?'🟢':'⚪')+' 休息確認通知',weight:'bold',size:'md',color:'#111111'},
-        {type:'text',text:label,size:'sm',color:'#666666',wrap:true,margin:'md'},
-        {type:'text',text:'代碼：'+reqId,size:'xs',color:'#999999',margin:'md'}
-      ]},
-      footer:{type:'box',layout:'vertical',paddingAll:'lg',contents:[
-        {type:'button',style:'primary',color:'#d97706',height:'sm',action:{type:'uri',label:'前往確認',uri:uri}}
-      ]}
-    }}]).then(res=>{setStatus(res?'done':'cancelled')}).catch(e=>{setStatus('error');setErr(String(e&&e.message||e))});
-  },[]);
-  const goBack=()=>{try{liff.closeWindow()}catch(_e){location.href=INDEX_URL}};
-  return(<div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
-    {status==='loading'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">準備中…</p></>)}
-    {status==='picking'&&(<><Spinner size={32}/><p className="text-sm text-gray-400">請選擇要分享的對象…</p></>)}
-    {status==='done'&&(<p className="text-base text-emerald-500 font-semibold">✓ 已分享</p>)}
-    {status==='cancelled'&&(<p className="text-sm text-gray-500">已取消分享</p>)}
-    {status==='error'&&(<p className="text-sm text-red-400">{err}</p>)}
-    {(status==='done'||status==='cancelled'||status==='error')&&<button onClick={goBack} className="px-6 py-3 rounded-xl bg-amber-600 text-white text-sm font-bold">返回</button>}
-  </div>);
-}
-
-function ApproveRegFlow({reqId,profile}){
-  const[phase,setPhase]=useState('checking'); // checking/denied/detail/done
-  const[detail,setDetail]=useState(null);
-  const[err,setErr]=useState('');
-  const[busy,setBusy]=useState(false);
-  const load=()=>{
-    setPhase('checking');
-    sfGetPendingDetail(profile.userId,reqId).then(r=>{
-      if(r&&r.ok){setDetail(r.detail);setPhase('detail')}
-      else{setErr((r&&r.error)||'查詢失敗');setPhase('denied')}
-    }).catch(e=>{setErr(String(e));setPhase('denied')});
-  };
-  useEffect(()=>{load()},[]);
-  const doApprove=async(approve)=>{
-    setBusy(true);
-    try{
-      const r=await sfApprovePendingRegistration(profile.userId,reqId,approve);
-      if(r&&r.ok){setPhase('done');setDetail(d=>({...d,status:approve?'approved':'rejected'}))}else{setErr((r&&r.error)||'操作失敗')}
-    }catch(e){setErr(String(e))}
-    setBusy(false);
-  };
-  const personTypeLabel=(pt)=>({manager:'主管',frontdesk:'櫃台',teacher:'老師',student:'教學處學生'}[pt]||pt);
-  const genderLabel=(g)=>g==='M'?'男':g==='F'?'女':'—';
-  const shiftLabel=(s)=>s==='day'?'早班':s==='night'?'晚班':'—';
-  if(phase==='checking')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><Spinner size={32}/><p className="text-sm text-gray-400">確認權限中…</p></div>);
-  if(phase==='denied')return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{err}</p></div>);
-  if(!detail)return null;
-  return(<div className="min-h-screen p-4">
-    <div className="max-w-sm mx-auto space-y-4">
-      <h1 className="text-lg font-bold text-gray-100 text-center pt-4">登記審核</h1>
-      <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-4 space-y-2 text-sm">
-        <div className="flex justify-between"><span className="text-gray-500">審核代碼</span><span className="text-gray-200 font-mono">{detail.reqId}</span></div>
-        <div className="flex justify-between"><span className="text-gray-500">店別</span><span className="text-gray-200">{detail.store}</span></div>
-        <div className="flex justify-between"><span className="text-gray-500">身分別</span><span className="text-gray-200">{personTypeLabel(detail.personType)}{detail.subType?('・'+detail.subType):''}</span></div>
-        <div className="flex justify-between"><span className="text-gray-500">編號/名稱</span><span className="text-gray-200">{detail.code||detail.name||'—'}</span></div>
-        {(detail.personType==='teacher'||detail.personType==='manager')&&(<>
-          <div className="flex justify-between"><span className="text-gray-500">性別</span><span className="text-gray-200">{genderLabel(detail.gender)}</span></div>
-          <div className="flex justify-between"><span className="text-gray-500">班別</span><span className="text-gray-200">{shiftLabel(detail.shift)}</span></div>
-          <div className="flex justify-between"><span className="text-gray-500">居住地</span><span className="text-gray-200">{detail.city}{detail.dist}</span></div>
-        </>)}
-        <div className="flex justify-between"><span className="text-gray-500">申請時間</span><span className="text-gray-200 text-xs">{detail.createdAt}</span></div>
-      </div>
-      {detail.status==='pending'?(
-        <div className="grid grid-cols-2 gap-3">
-          <button onClick={()=>doApprove(false)} disabled={busy} className="py-3 rounded-xl bg-red-500/15 border border-red-500/25 text-red-400 font-semibold disabled:opacity-50">拒絕</button>
-          <button onClick={()=>doApprove(true)} disabled={busy} className="py-3 rounded-xl bg-emerald-600 text-white font-bold disabled:opacity-50">核准</button>
-        </div>
-      ):(
-        <p className={`text-center text-sm font-semibold ${detail.status==='approved'?'text-emerald-400':'text-red-400'}`}>{detail.status==='approved'?'✓ 已核准':'已拒絕'}</p>
-      )}
-      {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
-      <button onClick={()=>{try{liff.closeWindow()}catch(_e){}}} className="w-full py-2.5 rounded-xl bg-white/[0.06] text-gray-400 text-sm font-semibold">關閉</button>
-    </div>
-  </div>);
-}
-
-// ══════════ 員工專區 功能說明頁(網址沒帶任何參數時顯示;第一版「安全回報列表」已從預設入口移除,程式保留未刪) ══════════
-function IntroPage(){
-  const items=[
-    {ic:'📢',n:'公司公告',d:'看公司與各店發布的公告,會記錄已讀。主管可發布、設定推播。',q:'n2=l',who:'老師・櫃台・主管'},
-    {ic:'🛡️',n:'安全回報',d:'天然災害等事件發生時,回報自己平安或需要協助;主管可發起並看名單。',q:'s2=my',who:'老師・櫃台・主管'},
-    {ic:'🚫',n:'拒接名單',d:'櫃台・主管查詢與新增拒接客人(跨店只看到手機、姓、稱謂);老師可新增申請(待主管核准),並看到「拒接老師編號」含自己的名單;名單可依拒接級距／老師分群。',q:'b2=l',who:'老師・櫃台・主管'},
-    {ic:'🏖️',n:'預排休假',d:'每月 10~12 日登記下個月休假（免審批，個人超過 6 天需主管簽字）；早晚班分開統計，每月各 6 天、各店平日每班 6 人（週六日 0 人，可設定）；可提前 2 個月先暫存；另可申請長假（回越南）或課業固定上班日，總休表會列出。',q:'lv2=l',who:'老師・主管'},
-    {ic:'🧤',n:'手套團購',d:'各店湊箱數叫貨:選顏色、尺寸、箱數報名;達標後由認領人收錢、叫貨並更新狀態。',q:'gb2=l',who:'老師・櫃台・主管'},
-    {ic:'💰',n:'價目表',d:'各店服務價目。',q:'sp=price',who:'公開'},
-    {ic:'🌙',n:'早鳥夜貓',d:'早鳥、夜貓優惠說明。',q:'sp=early',who:'公開'},
-    {ic:'👔',n:'主管專區',d:'人員管理、公告設定、拒接名單設定等(需有主管權限)。',q:'s2=mgr',who:'主管'}
-  ];
-  const ver=(document.title.match(/v\d+\.\d+-\d+/)||[''])[0];
-  return(<div className="min-h-screen px-4 py-6"><div className="max-w-md mx-auto space-y-4">
-    <div className="text-center space-y-1"><h1 className="text-2xl font-bold text-white">員工專區</h1><p className="text-sm text-gray-400">功能說明與入口</p></div>
-    <div className="rounded-2xl bg-gray-900 border border-gray-800 p-4 text-sm text-gray-300 space-y-1.5">
-      <p>• 平常請從 LINE 聊天室下方的選單進入各功能。</p>
-      <p>• 第一次使用需先完成人員登記(角色、店別、編號),之後會自動辨識。</p>
-      <p>• 下列按鈕也可直接點入。</p></div>
-    <div className="space-y-3">{items.map(x=>(<a key={x.q} href={'?'+x.q} className="block rounded-2xl bg-gray-900 border border-gray-800 p-4 active:bg-gray-800">
-      <div className="flex items-start gap-3"><span className="text-2xl">{x.ic}</span>
-        <div className="flex-1 min-w-0"><div className="flex items-center justify-between gap-2"><p className="font-bold text-white">{x.n}</p><span className="text-[11px] text-gray-500 shrink-0">{x.who}</span></div>
-          <p className="text-sm text-gray-400 mt-1">{x.d}</p></div><span className="text-gray-600 self-center">›</span></div></a>))}</div>
-    <p className="text-center text-[10px] text-gray-600 pb-6 select-all">{ver}</p>
-  </div></div>);
-}
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,DISABLE_GH_DATA_FETCH,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,hasMyKey,isNoticeRead,getNoticeReadCount,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{useState,useEffect,useCallback,useMemo}=React;
 
 function App(){
-  const noParam=!location.search||/^\?\s*$/.test(location.search)||(()=>{try{return Array.from(new URLSearchParams(location.search).keys()).every(k=>(/^(liff\.|utm_|fbclid)/.test(k)&&k!=='liff.state')||k==='openExternalBrowser');}catch(_e){return false;}})(); // 沒帶任何功能參數 → 說明頁(LINE 自己加的 liff.* 參數不算)
-  // 主櫃(?cn2)離線優先:本機已有操作人記錄時,不等 LIFF 登入就直接進主櫃(用本機資料畫面),LIFF 登入在背景補;離線時一直重試到連上為止
-  const kioskOn=(()=>{try{const k=JSON.parse(localStorage.getItem('mp:kiosk:v1')||'null');return !!(k&&k.on&&k.token);}catch(_e){return false;}})();
-  const kioskUnlockFlow=kioskOn&&new URLSearchParams(location.search).get('unlock')==='1'; // 解除鎖定:允許 LIFF 登入
-  const cn2Cached=(()=>{try{if(kioskOn)return true;if(new URLSearchParams(location.search).get('cn2')===null)return false;const w=JSON.parse(localStorage.getItem('cn2:who:v1')||'null');return !!(w&&w.code);}catch(_e){return false;}})();
-  const[phase,setPhase]=useState(noParam?'intro':(cn2Cached?'s2':'liffInit')); // intro/liffInit/loading/register/main/error
-  const[profile,setProfile]=useState(null);
-  const[userProfile,setUserProfile]=useState(null);
-  const[liffErr,setLiffErr]=useState('');
-  const[blocked,setBlocked]=useState(false);
-  const[liffId,setLiffId]=useState('');
-  const sid=new URLSearchParams(location.search).get('sid')||''; // 網址帶?sid=SF0001時直接顯示該筆通報,沒帶就顯示目前進行中的列表頁
-  const action=new URLSearchParams(location.search).get('action')||''; // action=share時,Flex卡片上的分享按鈕點進來,直接跳shareTargetPicker
-  const approveReg=new URLSearchParams(location.search).get('approveReg')||''; // 待審核登記的審核代碼,FLEX按鈕點進來走這個,不用先走登記流程
-  const breakShare=new URLSearchParams(location.search).get('breakShare')||''; // green或white,翻綠計時器要借這裡發Flex(index.html不是走liff.line.me網址,不能直接用shareTargetPicker)
-  const breakReqId=new URLSearchParams(location.search).get('reqId')||'';
-  const flexTitle=new URLSearchParams(location.search).get('flexTitle')||''; // 通用行為代碼Flex分享,標題/內文/連結三個參數
-  const flexBody=new URLSearchParams(location.search).get('flexBody')||'';
-  const flexLink=new URLSearchParams(location.search).get('flexLink')||'';
-  const spp=new URLSearchParams(location.search).get('sp')||''; // 價目表/早鳥夜貓(shop2.js)
-  const b2p=new URLSearchParams(location.search).get('b2'); // 拒接名單 2.0(blacklist2.js)
-  const my2p=new URLSearchParams(location.search).get('my2');
-  const cn2p=new URLSearchParams(location.search).get('cn2'); // 主櫃號碼牌(counter2.js)
-  const lv2p=new URLSearchParams(location.search).get('lv2'); // 預排休假 2.0(leave2.js)
-  const gb2p=new URLSearchParams(location.search).get('gb2'); // 手套團購 2.0(gloves2.js)
-  const n2p=new URLSearchParams(location.search).get('n2'); // 公司公告 2.0(notice2.js):n2=l/v/new/edit/r/set;跟 s2 一樣由 GAS 驗證 accessToken
-  const s2p=new URLSearchParams(location.search).get('s2')||''; // 安全回報2.0(safety2.js):s2=r/l/mine/new/share/mgr/apv
-  const cardShare=new URLSearchParams(location.search).get('cardShare')||''; // 老師名片Flex分享(index.html的名片彈窗借這裡發)
-  const backupView=new URLSearchParams(location.search).get('backupView')||''; // 備份專頁:index.html不呼叫liff.init(刻意保留離線記帳能力),備份的分享功能借這裡處理
-  const backupCode=new URLSearchParams(location.search).get('code')||'';
-  const backupYear=new URLSearchParams(location.search).get('year')||'';
-
-  useEffect(()=>{
-    if(noParam)return; // 說明頁不需要登入 LIFF
-    const initLiff=(id)=>{
-      setLiffId(id);
-      return liff.init({liffId:id}).then(()=>{
-        if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return} // 明確帶目前完整網址(含?sid=...),避免LINE登入導轉過程弄丟參數
-        {const sp0=new URLSearchParams(location.search);if(sp0.get('liff.state'))return;} // LIFF 帶 liff.state 進來(從 liff.line.me/ID?參數 開):SDK 會自己導向真正網址,這裡不要先判斷成說明頁
-        if(s2p||spp||n2p!==null||b2p!==null||gb2p!==null||lv2p!==null||my2p!==null||cn2p!==null){setPhase('s2');return} // 安全回報2.0:不走舊的登記/審核流程,身分由 GAS 用 accessToken 驗證
-        if(cardShare){setPhase('cardShare');return}
-        if(flexTitle&&flexLink){setPhase('ticketFlex');return} // 通用行為代碼分享,不用先查有沒有登記過,直接進分享流程
-        if(backupView){setPhase('backupView');return} // 備份專頁,不用先查有沒有登記過,直接進備份流程
-        if(approveReg){return liff.getProfile().then(p=>{setProfile(p);setPhase('approveReg')})} // 審核模式:不用先查有沒有登記過,直接進審核流程(裡面自己檢查主管權限)
-        if(breakShare){setPhase('breakShare');return} // 翻綠計時器分享,不用先查有沒有登記過,直接進分享流程
-        if(action==='share'){setPhase('share');return} // 分享模式不用先查有沒有登記過,直接進分享流程
-        if(!sid&&!action&&!approveReg&&!breakShare&&!cardShare&&!flexTitle&&!backupView){setPhase('intro');return} // 沒有任何功能參數 → 說明頁(第一版列表已移除)
-        return liff.getProfile().then(p=>{
-          setProfile(p);
-          setPhase('loading');
-          return sfGetUser(p.userId).then(r=>{
-            if(r&&r.ok&&r.blocked){setBlocked(true);setPhase('main');return}
-            if(r&&r.ok&&r.exists){setUserProfile(r.profile);setPhase('main')}
-            else{setPhase('register')}
-          });
+  const[settings,setSettings]=useState(null);const[tab,setTab]=useState('home');const[curM,setCurM]=useState(bizParts().m);const[preYearTab,setPreYearTab]=useState('monthly');const[yearlyYear,setYearlyYear]=useState(null);const[ready,setReady]=useState(false);const[needOnboard,setNeedOnboard]=useState(false);const[refreshKey,setRefreshKey]=useState(0);const[theme,setTheme]=useState(()=>localStorage.getItem('app-theme')||'pink');
+  const bgColor=THEMES[theme]||THEMES.black;const isLight=theme==='white'||theme==='pink'||theme==='apple';
+  useEffect(()=>{try{gasWarmup()}catch(_e){}},[]);
+  useEffect(()=>{document.documentElement.setAttribute('data-theme',theme);document.documentElement.style.setProperty('--bg',bgColor)},[bgColor,theme]);
+  useEffect(()=>{localStorage.setItem('app-theme',theme)},[theme]);
+  useEffect(()=>{buildDynamicKey()},[]);
+  useEffect(()=>{const tmr=setTimeout(()=>{if(!ready)window.__showFallback(4,{lineno:0,msg:'初始化逾時(8秒)，可能是網路較慢或本機資料異常'})},8000);return()=>clearTimeout(tmr)},[ready]);
+  // 1.13版:DISABLE_GH_DATA_FETCH=true時整個跳過,連fetch('./staff.json')都不送出——GitHub Pages上目前根本沒有
+  // 部署這份檔案,readStaff每次都是空手而回,這個effect從頭到尾只是白白發一次請求,拿掉以後基資/店資的「公司端最新值」
+  // 同步功能停用(settings保持本機原值不被覆蓋),之後如果真的有部署staff.json,把common.js的開關改回false即可恢復
+  useEffect(()=>{if(DISABLE_GH_DATA_FETCH)return;if(!settings||!settings.code)return;const _bd=bizDate();const today=_bd.getFullYear()+'-'+String(_bd.getMonth()+1).padStart(2,'0')+'-'+String(_bd.getDate()).padStart(2,'0');const lastCheck=localStorage.getItem('staff-sync-date');(async()=>{
+    try{const staff=await readStaff({});const me=Array.isArray(staff)?staff.find(s=>String(s.code)===String(settings.code)):null;
+      if(me){
+        // token綁定檢查(原邏輯)
+        const gh=getGHConfig();if(gh.token&&me.hasToken===false){saveGHConfigLocal({})}
+        // 每日同步基資/店資:老師沒改過的欄位跟staff一致;改過且不一致的保留本機值(UI下方紅字顯示staff值)
+        const SYNC_FIELDS=['nameZh','nameVi','phone','email','store','storeSel','shift','permitNo','permitExpiry','permitDate','permitOrg','gender','school','major','schoolType','workStart','workEnd','unitPrice','skills','preg','oil','techMentor','lockerNo'];
+        const confP=settings.confirmedProfile||{};const confS=settings.confirmedStore||{};
+        const ns={...settings};const staffVals={};let changed=false;
+        SYNC_FIELDS.forEach(k=>{
+          if(me[k]===undefined||me[k]===null)return;
+          staffVals[k]=me[k];
+          const confVal=(confP[k]!==undefined?confP[k]:confS[k]);
+          const localVal=settings[k];
+          const isObj=k==='skills';
+          const localEmpty=isObj?(!localVal||Object.keys(localVal).length===0):(localVal===undefined||localVal==='');
+          const matchesConfirmed=isObj?(JSON.stringify(localVal||{})===JSON.stringify(confVal||{})):(localVal===confVal);
+          // 老師沒改過(本機值=上次確認值,或本機根本沒值),用staff覆蓋
+          if(localEmpty||matchesConfirmed){
+            const differs=isObj?(JSON.stringify(ns[k]||{})!==JSON.stringify(me[k]||{})):(ns[k]!==me[k]);
+            if(differs){ns[k]=me[k];changed=true}
+          }
+          // 否則保留本機(老師改過未送出)→ 紅字由staffVals提供
         });
-      });
-    };
-    if(LIFF_ID_HARDCODED){
-      if(kioskOn&&!kioskUnlockFlow)return; // 公務機鎖定中:完全不碰 LIFF 登入
-      if(cn2Cached&&!kioskUnlockFlow&&!kioskOn){ // 背景登入:失敗(多半是離線)不影響主櫃使用,每 20 秒及網路恢復時再試
-        let tm=0,done=false;const go=()=>{if(done)return;clearTimeout(tm);initLiff(LIFF_ID_HARDCODED).then(()=>{done=true;}).catch(()=>{tm=setTimeout(go,20000);});};
-        window.addEventListener('online',go);go();return;
+        ns.staffValues=staffVals;
+        localStorage.setItem('staff-sync-date',today);
+        setSettings(ns);LS.set('app-settings',ns);
       }
-      initLiff(LIFF_ID_HARDCODED).catch(err=>{setLiffErr(String(err&&err.message||err));setPhase('error')});
-      return;
+    }catch(_e){}
+  })()},[settings&&settings.code]);
+  useEffect(()=>{
+    // #setkey=編號:金鑰 → 救援用,直接覆蓋本機存的金鑰(裝置端金鑰跟GAS的Keys表對不上時用),不影響其他登入狀態
+    const hashNow=window.location.hash;
+    if(hashNow&&hashNow.indexOf('setkey=')>=0){
+      try{
+        const raw=decodeURIComponent(hashNow.replace(/^#/,'').split('setkey=')[1]||'');
+        const ci=raw.indexOf(':');
+        if(ci>0){
+          const kc=raw.slice(0,ci).trim();
+          const kk=raw.slice(ci+1).trim();
+          if(kc&&kk&&setMyKey){setMyKey(kc,kk);history.replaceState(null,'',location.pathname);alert('已更新編號 '+kc+' 的本機金鑰，請重新整理頁面');}
+        }
+      }catch(_e){}
     }
-    sfConfig().then(cfg=>{
-      const id=cfg&&cfg.ok?cfg.liffId:'';
-      if(!id){setLiffErr('尚未在GAS指令碼屬性設定LIFF_ID,請聯繫系統管理者');setPhase('error');return}
-      return initLiff(id);
-    }).catch(err=>{setLiffErr(String(err&&err.message||err));setPhase('error')});
-  },[]);
-
-  if(phase==='intro')return(<IntroPage/>);
-  if(phase==='error')return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{liffErr}</p></div>);
-  if(phase==='liffInit'||phase==='loading')return(<div className="min-h-screen flex flex-col items-center justify-center gap-4"><div className="text-amber-500"><Spinner size={40}/></div><p className="text-base text-gray-400">載入中…</p></div>);
-  if(phase==='share')return(<ShareFlow sid={sid} liffId={liffId}/>);
-  if(phase==='approveReg')return(<ApproveRegFlow reqId={approveReg} profile={profile}/>);
-  if(phase==='breakShare')return(<BreakShareFlow kind={breakShare} reqId={breakReqId}/>);
-  if(phase==='s2'){
-    // 版本列:頁面 + 各 JS 檔(從 script 標籤的 ?v= 自動讀,不用手動維護)
-    let vs='';try{const m=(document.title.match(/v?(\d+\.\d+[-.]\d+)/)||[])[1]||'?';vs='html '+m;
-      document.querySelectorAll('script[src*="?v="]').forEach(s=>{const u=s.getAttribute('src');const n=u.split('?')[0].replace(/^.*\//,'').replace('.js','');vs+=' · '+n+' '+u.split('?v=')[1];});}catch(_e){}
-    return(<div><Safety2App liffId={liffId||LIFF_ID_HARDCODED}/><p className="text-center text-[10px] text-gray-600 pb-6 px-4 break-all select-all">{vs}</p></div>);
-  }
-  if(phase==='cardShare')return(<CardShareFlow data={cardShare}/>);
-  if(phase==='ticketFlex')return(<TicketFlexShare title={flexTitle} body={flexBody} link={flexLink}/>);
-  if(phase==='backupView')return(<BackupViewPage code={backupCode} year={backupYear}/>);
-  if(blocked)return(<div className="min-h-screen flex items-center justify-center p-6"><p className="text-sm text-red-400 text-center">{SF_T.zh.accountBlocked} / {SF_T.vi.accountBlocked}</p></div>);
-  if(phase==='register')return(<RegisterFlow profile={profile} sid={sid} onDone={()=>{sfGetUser(profile.userId).then(r=>{if(r&&r.ok&&r.exists){
-    // 登記完成導回原本帶的sid頁面(不然使用者原本是要去回報某一項,卻被丟到看不到那項的首頁)
-    if(sid){location.href=location.href.split('?')[0]+'?sid='+sid;return}
-    setUserProfile(r.profile);setPhase('main');
-  }})}}/>);
-  return sid?(<DetailPage profile={profile} userProfile={userProfile} sid={sid} liffId={liffId}/>):(<ListPage profile={profile} userProfile={userProfile} liffId={liffId}/>);
-}
+    const s=LS.get('app-settings');if(s&&s.code&&s.code.length<=12){const act=LS.get(`activated-${s.code}`);if(act){setSettings(s);setReady(true);return}}
+    const hash=window.location.hash;
+    // #conn=編號:連線碼(或分段 &conn2= ...) → 自動連線啟用(含token)
+    if(hash&&hash.indexOf('conn=')>=0){try{const reassembled=parseReqHash(hash,'conn');const raw=reassembled||decodeURIComponent(hash.replace(/^#/,'').split('conn=')[1]||'');const ci=raw.indexOf(':');if(ci>0){const c=raw.slice(0,ci);const actCode=raw.slice(ci+1);const did=getDeviceId();const tk=verifyActToken(actCode,c,did);if(tk){saveGHConfigLocal({owner:tk.owner,repo:tk.repo,token:tk.token});const ns={code:c,unitPrice:250,lang:'zh',store:'龍山寺店',year:bizParts().y,deviceId:did};LS.set('app-settings',ns);LS.set(`activated-${c}`,{deviceId:did,ts:Date.now()});setSettings(ns);setReady(true);history.replaceState(null,'',location.pathname);return}}}catch(_e){}}
+    if(hash&&hash.length>5&&hash.indexOf('conn=')<0&&hash.indexOf('access_token=')<0&&hash.indexOf('context_token=')<0&&hash.indexOf('id_token=')<0){const p=decBackup(hash.slice(1));if(p&&p.code&&p.code.length<=12){LS.set(dk(p.code,p.year,p.month),p.data);const ns={code:p.code,unitPrice:250,lang:'zh',year:p.year,deviceId:getDeviceId()};LS.set('app-settings',ns);LS.set(`activated-${p.code}`,{deviceId:getDeviceId(),ts:Date.now()});setSettings(ns);setCurM(p.month);setTab('monthly');setReady(true);history.replaceState(null,'',location.pathname);return}}setNeedOnboard(true);setReady(true)},[]);
+  const onOnboardComplete=(s)=>{setSettings(s);setNeedOnboard(false)};
+  const doLogout=()=>{LS.set('app-settings',null);setSettings(null);setNeedOnboard(true)}; // 只清app-settings(目前登入者標記),不動任何個人資料(月報表/客戶資料庫都是依編號存的,不會被清掉)
+  const updateSettings=(s)=>{setSettings(s);LS.set('app-settings',s)};
+  // ===== 引導學習點A 已移除(7/1後):不再自動填工作證到期日,尊重使用者留空 =====
+  const handleTab=(id)=>{setTab(id);if(id==='home')setRefreshKey(k=>k+1)};
+  if(!ready)return<div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',backgroundColor:bgColor}}><div style={{width:32,height:32,border:'3px solid rgba(245,158,11,0.9)',borderTopColor:'transparent',borderRadius:'50%',animation:'fbspin 0.8s linear infinite'}}/></div>;
+  if(needOnboard)return<Onboarding onComplete={onOnboardComplete}/>;
+  if(!settings)return null;
+  const lang=settings.lang||'zh';const t=T[lang];
+  // 設定圖示❗:基資或店資有未確認變動(主管除外)
+  const settingsAlert=(()=>{const permExp=(()=>{if(!settings.permitExpiry)return false;const days=(new Date(settings.permitExpiry)-new Date())/86400000;return days<=30})();const gh=getGHConfig();if(gh&&gh.token)return permExp;const cp=settings.confirmedProfile,cs=settings.confirmedStore;const pf=['gender','nameZh','nameVi','phone','email','addrCity','addrDist','addrDetail','school','major','schoolType','permitNo','permitDate','permitExpiry','permitOrg'];const sf=['storeSel','shift','workStart','workEnd','workNote','unitPrice','preg','oil','techMentor','lockerNo'];const chg=(snap,fs)=>{if(!snap)return false;return fs.some(k=>(snap[k]||'')!==((settings[k]!==undefined?settings[k]:'')||''))};return chg(cp,pf)||chg(cs,sf)||permExp})();
+  return(<div className={`${isLight?'text-gray-900':'text-gray-100'} flex flex-col`} style={{backgroundColor:bgColor,height:'100vh',maxHeight:'100dvh'}} data-light={isLight||undefined}>
+    <div className="flex-1 overflow-y-auto">
+      <HomePage settings={settings} t={t} refreshKey={refreshKey} onUpdateSettings={updateSettings} onLogout={doLogout} onGotoProfile={()=>{try{sessionStorage.setItem('__settingsSub','basic')}catch(e){}handleTab('settings')}} onGotoNotices={()=>{try{sessionStorage.setItem('__settingsSub','notice')}catch(e){}handleTab('settings')}} onGotoBook={()=>{try{sessionStorage.setItem('__settingsSub','book')}catch(e){}handleTab('settings')}} onGotoChart={()=>{try{sessionStorage.setItem('__settingsSub','chart')}catch(e){}handleTab('settings')}} onGotoSuggest={()=>{try{sessionStorage.setItem('__settingsSub','suggest')}catch(e){}handleTab('settings')}} onGotoAcupoint={()=>{try{sessionStorage.setItem('__settingsSub','acupoint')}catch(e){}handleTab('settings')}} onGotoViolation={()=>{try{sessionStorage.setItem('__settingsSub','violation')}catch(e){}handleTab('settings')}} onGotoBackup={()=>{try{sessionStorage.setItem('__settingsSub','backup')}catch(e){}handleTab('settings')}} onGotoManage={()=>{location.href='./auth.html#lang='+(settings.lang||'zh')}} onGotoMonthly={()=>handleTab('monthly')} onGotoMonthlyCalendar={()=>handleTab('calendar')} onGotoCustomers={()=>handleTab('customers')} onGotoSettings={()=>handleTab('settings')} settingsAlert={settingsAlert}/>
+      {(tab==='monthly'||tab==='calendar'||tab==='yearly')&&<BottomSheetModal heightPct={80} onClose={()=>handleTab('home')}>{tab==='monthly'?<MonthlyPage settings={settings} curM={curM} setCurM={setCurM} t={t} onGotoYear={(yr)=>{setPreYearTab('monthly');setYearlyYear(yr);handleTab('yearly')}} onClose={()=>handleTab('home')}/>:tab==='calendar'?<MonthlyCalendarPage settings={settings} t={t} onGotoYear={(yr)=>{setPreYearTab('calendar');setYearlyYear(yr);handleTab('yearly')}} onClose={()=>handleTab('home')}/>:<YearlyPage settings={settings} t={t} year={yearlyYear} onBack={()=>handleTab(preYearTab)}/>}</BottomSheetModal>}
+      {tab==='customers'&&<BottomSheetModal heightPct={50} onClose={()=>handleTab('home')}>{(()=>{const CP=(window.__V&&window.__V.CustomerPage)||(()=>null);return<CP settings={settings} t={t} onClose={()=>handleTab('home')}/>})()}</BottomSheetModal>}
+      {tab==='settings'&&(()=>{const SP=(window.__V&&window.__V.SettingsPage)||(()=>null);return<SP settings={settings} onUpdate={updateSettings} t={t} theme={theme} setTheme={setTheme} onClose={()=>handleTab('home')} onLogout={doLogout}/>})()}
+    </div>
+  </div>)}
 
 class __EB extends React.Component{constructor(p){super(p);this.state={e:false}}static getDerivedStateFromError(){return{e:true}}componentDidCatch(err){try{window.__showFallback(3,{lineno:0,msg:(err&&err.message)||String(err)})}catch(e){}}render(){return this.state.e?null:this.props.children}}
 ReactDOM.createRoot(document.getElementById('root')).render(<__EB><App/></__EB>);
-})();
+</script>
+<script>
+// 離線/加速:註冊 Service Worker(sw.js)。失敗就算了,不影響原本功能。
+// v1.13-067:離線提示小標籤 + SW 偵測到新版本時提示更新(不自動重整,避免打斷輸入)
+(function(){try{
+  var vi=false;try{var o=JSON.parse(localStorage.getItem('app-settings')||'null');vi=!!(o&&o.lang==='vi')}catch(e){}
+  var chip=document.createElement('div');chip.style.cssText='position:fixed;top:calc(env(safe-area-inset-top,0px) + 6px);left:50%;transform:translateX(-50%);z-index:99990;padding:4px 12px;border-radius:99px;background:rgba(251,191,36,.95);color:#1a1204;font:700 12px/1.4 -apple-system,sans-serif;pointer-events:none;display:none';
+  chip.textContent=vi?'Ngoại tuyến · đang dùng dữ liệu trên máy':'離線中 · 使用本機資料';document.body.appendChild(chip);
+  var sync=function(){chip.style.display=(navigator.onLine===false)?'block':'none'};sync();window.addEventListener('online',sync);window.addEventListener('offline',sync);
+  if('serviceWorker' in navigator){navigator.serviceWorker.addEventListener('message',function(e){
+    if(!e.data||e.data.type!=='mp-update'||document.getElementById('__updbar'))return;
+    var b=document.createElement('button');b.id='__updbar';b.textContent=vi?'Có phiên bản mới · bấm để cập nhật':'有新版本 · 點此更新';
+    b.style.cssText='position:fixed;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);z-index:99991;height:48px;border-radius:14px;border:0;background:#fbbf24;color:#1a1204;font:700 15px -apple-system,sans-serif';
+    b.onclick=function(){location.reload()};document.body.appendChild(b);});}
+}catch(e){}})();
+try{if('serviceWorker' in navigator&&location.protocol==='https:'){window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){});});}}catch(_e){}
+// v1.13-068 離線預載:頁面閒置時(有網路才做)先把手套團購、名片館別預抓進 SW 快取,之後離線也有最近一次內容(穴道知識庫有每日密碼閘門,不在此預抓)
+try{window.addEventListener('load',function(){var go=function(){if(navigator.onLine===false)return;['./data/gloves.json','./cardstores.json'].forEach(function(u){fetch(u+'?t='+Date.now(),{cache:'no-store'}).catch(function(){})})};if(window.requestIdleCallback)requestIdleCallback(go,{timeout:8000});else setTimeout(go,4000)})}catch(_e){}
 </script>
 </body>
 </html>
