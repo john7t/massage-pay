@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>員工專區 v1.13-156</title>
+<title>員工專區 v1.13-159</title>
 <meta property="og:title" content="員工專區">
 <meta property="og:description" content="公告、安全回報、拒接名單、手套團購、價目表等功能入口與說明">
 <meta property="og:type" content="website">
@@ -14,17 +14,35 @@
   window.__fbLang='zh';
   window.__fbApply=function(){var L=__fbL.zh;var t=document.getElementById('__fbtitle');if(t)t.textContent=L.title;var k=document.getElementById('__fbkeep');if(k)k.textContent=L.keep;var w=document.getElementById('__fbwarn');if(w)w.textContent=L.warn;if(window.__fbData){var info=document.getElementById("__fbinfo");if(info)info.textContent=L.info(window.__fbData.page,window.__fbData.ver,window.__fbData.code);try{var md=document.getElementById("__fbmsg");if(md&&window.__fbData.msg){md.textContent=window.__fbData.msg;md.style.display="block";}}catch(_e){}}};
   window.__showFallback=function(src,detail){
-    if(window.__shownFallback)return;window.__shownFallback=true;
+    if(window.__shownFallback)return;
+    // 錯誤畫面的 div 在檔案後面才建立:太早出錯(例如函式庫載入失敗)時還找不到它,先等 DOM 好了再顯示(以前會被標成「已顯示」卻沒畫出來)
+    if(!document.getElementById("__fallback")){document.addEventListener("DOMContentLoaded",function(){window.__showFallback(src,detail);});return;}
+    window.__shownFallback=true;
     try{
       var ver=(document.title.match(/v?(\d+\.\d+[-.]\d+)/)||[])[1]||"?";
       var line=(detail&&detail.lineno)?detail.lineno:0;
       var ecode=PCODE+String(src).padStart(2,"0")+String(line%10000).padStart(4,"0");
-      window.__fbData={page:PAGE,ver:ver,code:ecode,msg:(detail&&detail.msg)||''};
+      window.__fbData={page:PAGE,ver:ver,code:ecode,msg:((detail&&detail.msg)||'')+(window.__resFail?' 〔載入失敗:'+window.__resFail+'〕':'')};
       var el=document.getElementById("__fallback");
       if(el){window.__fbApply();el.style.display="flex";}
     }catch(_e){}
   };
-  window.addEventListener("error",function(e){window.__showFallback(1,{lineno:e.lineno,msg:(e.message||'')+(e.filename?(' @'+e.filename.split('/').pop()+':'+e.lineno+':'+e.colno):'')});},true);
+  // v1.13-159:頁面正在離開(LIFF 導去 LINE 登入頁、重新整理)時,被中斷的資源會觸發 error(lineno=0),Safari 尤其常見,以前會閃出「更新中 02010000」;
+  // 現在 (1) 離開中不顯示 (2) 資源載入錯誤(target 不是 window)延遲 2.5 秒,畫面仍是空白才算真的載入失敗
+  window.__leaving=false;
+  window.addEventListener("pagehide",function(){window.__leaving=true;});
+  window.addEventListener("beforeunload",function(){window.__leaving=true;});
+  window.addEventListener("error",function(e){
+    if(window.__leaving)return;
+    var tg=e.target;
+    if(tg&&tg!==window&&tg.tagName){
+      var u=tg.src||tg.href||'';
+      window.__resFail=(window.__resFail?window.__resFail+', ':'')+u.split('?')[0].split('/').slice(-3).join('/');
+      setTimeout(function(){if(window.__leaving)return;var r=document.getElementById('root');if(r&&r.childNodes.length===0)window.__showFallback(1,{lineno:0,msg:'載入失敗 '+u.split('?')[0].split('/').pop()});},2500);
+      return;
+    }
+    window.__showFallback(1,{lineno:e.lineno,msg:(e.message||'')+(e.filename?(' @'+e.filename.split('/').pop()+':'+e.lineno+':'+e.colno):'')});
+  },true);
 </script>
 <script>
 /* 公務機鎖定:本機有 mp:kiosk:v1(on=1)時,這個資料夾底下任何網址都導回主櫃(?cn2=1);只放行 LIFF 登入回來的參數與 unlock=1 */
@@ -57,8 +75,8 @@ try{var __k=JSON.parse(localStorage.getItem('mp:kiosk:v1')||'null');if(__k&&__k.
 <script type="text/babel" src="./safety2.js?v=1.13-046"></script>
 <script type="text/babel" src="./notice2.js?v=1.0-016"></script>
 <script type="text/babel" src="./blacklist2.js?v=1.0-009"></script>
-<script type="text/babel" src="./gloves2.js?v=1.0-007"></script>
-<script type="text/babel" src="./leave2.js?v=1.0-062"></script>
+<script type="text/babel" src="./gloves2.js?v=1.0-008"></script>
+<script type="text/babel" src="./leave2.js?v=1.0-064"></script>
 <script type="text/babel" src="./my2.js?v=1.0-010"></script>
 <script type="text/babel" src="./shop2.js?v=1.0-001"></script>
 <script type="text/babel" src="./counter2.js?v=1.0-023"></script>
@@ -1160,7 +1178,7 @@ function App(){
     const initLiff=(id)=>{
       setLiffId(id);
       return liff.init({liffId:id}).then(()=>{
-        if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return} // 明確帶目前完整網址(含?sid=...),避免LINE登入導轉過程弄丟參數
+        if(!liff.isLoggedIn()){window.__leaving=true;liff.login({redirectUri:location.href});return} // 明確帶目前完整網址(含?sid=...),避免LINE登入導轉過程弄丟參數
         {const sp0=new URLSearchParams(location.search);if(sp0.get('liff.state'))return;} // LIFF 帶 liff.state 進來(從 liff.line.me/ID?參數 開):SDK 會自己導向真正網址,這裡不要先判斷成說明頁
         if(s2p||spp||n2p!==null||b2p!==null||gb2p!==null||lv2p!==null||my2p!==null||cn2p!==null){setPhase('s2');return} // 安全回報2.0:不走舊的登記/審核流程,身分由 GAS 用 accessToken 驗證
         if(cardShare){setPhase('cardShare');return}
