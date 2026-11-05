@@ -1,4 +1,4 @@
-// app-core.js v1.13-068 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-071 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
 // v1.13-056 / UI 改版(Impeccable 建議,使用者逐頁確認預覽):(1)首頁:上一筆縮成一行、今日卡右側金額+支數老點(拿掉「看明細›」)、+1+2+3+更多一排貼在今日卡下方(0支時顯示提示)、流水→手套團購→更多功能(上排4個大圖示、下排2欄文字磚);手套團購橫幅改兩行版面。(2)月份明細:大字月份+月薪水、上/下半月並排小卡、底線式月份分頁、區段小計與欄位標題、空日淡化、「回到今天」浮動鈕。(3)啟動頁:白底仿LINE風格(.ob-line範圍CSS)、Email(選填)欄位拿掉(NoticeBox不傳setEmail)、左上返回‹、送出鈕停用時顯示還差什麼。舊版區塊一律 {false&&...} 隱藏不刪。
@@ -921,13 +921,13 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings,onLogout}){
   }
 
   const isEdit=mode==='edit';
-  return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}><div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
-    <div className="p-4 border-b border-white/[0.06] flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="text-base font-bold text-gray-100">{titleText}</h3><button onClick={onClose} className="text-gray-500 text-sm">✕</button></div>
+  return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onClose}><div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+    <div className="pl-5 pr-2 h-14 border-b border-white/[0.08] flex items-center justify-between sticky top-0 z-10 bg-gray-900"><h3 className="text-lg font-bold text-gray-100">{titleText}</h3><button onClick={onClose} aria-label="close" className="w-11 h-11 flex items-center justify-center text-gray-400 text-base">✕</button></div>
     {type==='basic'&&keyCheck==='invalid'&&<div className="mx-4 mt-3 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2"><p className="text-xs text-red-400 text-center">{t.keyInvalidEditMsg}</p></div>}
-    <div className="p-4 space-y-3">
+    <div className={`px-5 pt-2 ${isEdit?'space-y-4 pt-4':''}`}>
       {layoutKeys.map(k=>{
         if(k==='__divider_foreign__'){
-          return <div key={k} className="flex items-center gap-3 py-1"><div className="flex-1 h-px bg-white/[0.08]"></div><span className="text-xs text-gray-500">外籍員工</span><div className="flex-1 h-px bg-white/[0.08]"></div></div>;
+          return <div key={k} className="flex items-center gap-3 py-1"><div className="flex-1 h-px bg-white/[0.08]"></div><span className="text-[13px] text-[#aab2c0]">外籍員工</span><div className="flex-1 h-px bg-white/[0.08]"></div></div>;
         }
         const label=infoFieldLabel(k,t);
         if(!isEdit){
@@ -936,7 +936,7 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings,onLogout}){
             const future=(settings.unitPriceHistory||[]).filter(h=>h&&h.from&&h.from>today).sort((a,b)=>a.from<b.from?-1:1);
             let pendingP=null;
             try{const pt=LS.get(pendingKey);if(pt&&pt.pendingPrice)pendingP=pt.pendingPrice}catch(_e){}
-            return(<div key={k}><div className="flex justify-between items-start gap-3"><span className="text-xs text-gray-500 flex-shrink-0">{label}</span><span className="text-sm text-gray-200 text-right">{settings.unitPrice||'—'}</span></div>
+            return(<div key={k} className="border-b border-white/[0.08]"><div className="flex justify-between items-start gap-3 min-h-[48px] py-3"><span className="text-[13px] text-[#aab2c0] flex-shrink-0">{label}</span><span className="text-[15px] text-gray-100 text-right">{settings.unitPrice||'—'}</span></div>
               {future.map((h,i)=>(<p key={i} className="text-[11px] text-amber-500/80 text-right mt-1">{(t.priceFutureApproved||'自 {0} 起調整為 ${1}（已核准）').replace('{0}',h.from).replace('{1}',h.price)}</p>))}
               {pendingP&&<p className="text-[11px] text-gray-500 text-right mt-1">{(t.priceFuturePending||'自 {0} 起調整為 ${1}（申請中）').replace('{0}',pendingP.from).replace('{1}',pendingP.price)}</p>}
             </div>);
@@ -944,53 +944,53 @@ function InfoEditModal({type,settings,t,onClose,onUpdateSettings,onLogout}){
           let v=settings[k]||'';
           if(k==='skills'){const sk=settings.skills||{};v=SKILL_KEYS.filter(s=>sk[s]).map(s=>t[s]||s).join('、')}
           else if(k==='preg'||k==='oil'){v=settings[k]==='yes'?(t.accept||'接'):settings[k]==='no'?(t.reject||'不接'):''}
-          return <div key={k} className="flex justify-between items-start gap-3"><span className="text-xs text-gray-500 flex-shrink-0">{label}</span><span className="text-sm text-gray-200 text-right">{v||'—'}</span></div>;
+          return <div key={k} className="flex justify-between items-start gap-3 min-h-[48px] py-3 border-b border-white/[0.08]"><span className="text-[13px] text-[#aab2c0] flex-shrink-0">{label}</span><span className="text-[15px] text-gray-100 text-right">{v||'—'}</span></div>;
         }
         if(k==='gender'){
-          return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><div className="grid grid-cols-2 gap-2">{[['M',t.genderM],['F',t.genderF]].map(([g,l])=>(<button key={g} onClick={()=>setForm(f=>({...f,gender:g}))} className={`py-2 rounded-lg text-sm font-semibold ${form.gender===g?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{l}</button>))}</div></div>);
+          return(<div key={k}><label className="text-[13px] text-[#aab2c0] block mb-1.5">{label}</label><div className="grid grid-cols-2 gap-2">{[['M',t.genderM],['F',t.genderF]].map(([g,l])=>(<button key={g} onClick={()=>setForm(f=>({...f,gender:g}))} className={`h-11 rounded-xl text-[15px] font-semibold ${form.gender===g?'bg-amber-400 text-gray-950':'bg-white/[0.06] text-gray-300 border border-white/[0.1]'}`}>{l}</button>))}</div></div>);
         }
         if(k==='gloveSize'){
-          return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><div className="grid grid-cols-5 gap-1.5">{['XS','S','M','L','XL'].map(g=>(<button key={g} onClick={()=>setForm(f=>({...f,gloveSize:g}))} className={`py-2 rounded-lg text-xs font-semibold ${form.gloveSize===g?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{g}</button>))}</div></div>);
+          return(<div key={k}><label className="text-[13px] text-[#aab2c0] block mb-1.5">{label}</label><div className="grid grid-cols-5 gap-1.5">{['XS','S','M','L','XL'].map(g=>(<button key={g} onClick={()=>setForm(f=>({...f,gloveSize:g}))} className={`h-11 rounded-xl text-[14px] font-semibold ${form.gloveSize===g?'bg-amber-400 text-gray-950':'bg-white/[0.06] text-gray-300 border border-white/[0.1]'}`}>{g}</button>))}</div></div>);
         }
         if(k==='preg'||k==='oil'){
-          return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><div className="grid grid-cols-2 gap-2">{[['yes',t.accept||'接'],['no',t.reject||'不接']].map(([v,l])=>(<button key={v} onClick={()=>setForm(f=>({...f,[k]:v}))} className={`py-2 rounded-lg text-sm font-semibold ${form[k]===v?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{l}</button>))}</div></div>);
+          return(<div key={k}><label className="text-[13px] text-[#aab2c0] block mb-1.5">{label}</label><div className="grid grid-cols-2 gap-2">{[['yes',t.accept||'接'],['no',t.reject||'不接']].map(([v,l])=>(<button key={v} onClick={()=>setForm(f=>({...f,[k]:v}))} className={`h-11 rounded-xl text-[15px] font-semibold ${form[k]===v?'bg-amber-400 text-gray-950':'bg-white/[0.06] text-gray-300 border border-white/[0.1]'}`}>{l}</button>))}</div></div>);
         }
         if(k==='skills'){
           const skillsObj=form.skills||{};
-          return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><div className="grid grid-cols-3 gap-2">{SKILL_KEYS.map((sk,i)=>(<button key={sk} onClick={()=>setForm(f=>({...f,skills:{...(f.skills||{}),[sk]:!(f.skills||{})[sk]}}))} className={`py-2 rounded-lg text-xs font-semibold ${skillsObj[sk]?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{t[sk]||sk}</button>))}</div></div>);
+          return(<div key={k}><label className="text-[13px] text-[#aab2c0] block mb-1.5">{label}</label><div className="grid grid-cols-3 gap-2">{SKILL_KEYS.map((sk,i)=>(<button key={sk} onClick={()=>setForm(f=>({...f,skills:{...(f.skills||{}),[sk]:!(f.skills||{})[sk]}}))} className={`h-11 rounded-xl text-[14px] font-semibold ${skillsObj[sk]?'bg-amber-400 text-gray-950':'bg-white/[0.06] text-gray-300 border border-white/[0.1]'}`}>{t[sk]||sk}</button>))}</div></div>);
         }
         if(k==='unitPrice'){
-          return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><input value={form.unitPrice} onChange={e=>setForm(f=>({...f,unitPrice:e.target.value.replace(/\D/g,'')}))} inputMode="numeric" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>);
+          return(<div key={k}><label className="text-[13px] text-[#aab2c0] block mb-1.5">{label}</label><input value={form.unitPrice} onChange={e=>setForm(f=>({...f,unitPrice:e.target.value.replace(/\D/g,'')}))} inputMode="numeric" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 h-12 text-[15px] text-gray-100 focus:outline-none focus:border-amber-400"/></div>);
         }
         if(k==='shift'){
-          return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><div className="grid grid-cols-2 gap-2">{[['day',t.shiftDay],['night',t.shiftNight]].map(([sv,l])=>(<button key={sv} onClick={()=>setForm(f=>({...f,shift:sv}))} className={`py-2 rounded-lg text-sm font-semibold ${form.shift===sv?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{l}</button>))}</div></div>);
+          return(<div key={k}><label className="text-[13px] text-[#aab2c0] block mb-1.5">{label}</label><div className="grid grid-cols-2 gap-2">{[['day',t.shiftDay],['night',t.shiftNight]].map(([sv,l])=>(<button key={sv} onClick={()=>setForm(f=>({...f,shift:sv}))} className={`h-11 rounded-xl text-[15px] font-semibold ${form.shift===sv?'bg-amber-400 text-gray-950':'bg-white/[0.06] text-gray-300 border border-white/[0.1]'}`}>{l}</button>))}</div></div>);
         }
         if(k==='workStart'||k==='workEnd'){
-          return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><select value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-sm text-gray-200 focus:outline-none appearance-none">{TIME_OPTS.map(o=><option key={o} value={o}>{o}</option>)}</select></div>);
+          return(<div key={k}><label className="text-[13px] text-[#aab2c0] block mb-1.5">{label}</label><select value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 h-12 text-[15px] text-gray-100 focus:outline-none appearance-none">{TIME_OPTS.map(o=><option key={o} value={o}>{o}</option>)}</select></div>);
         }
         if(k==='storeSel'){
-          return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><select value={form.storeSel} onChange={e=>setForm(f=>({...f,storeSel:e.target.value}))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-sm text-gray-200 focus:outline-none appearance-none"><option value="">-</option>{stores.map(s=><option key={s} value={s}>{s}</option>)}</select></div>);
+          return(<div key={k}><label className="text-[13px] text-[#aab2c0] block mb-1.5">{label}</label><select value={form.storeSel} onChange={e=>setForm(f=>({...f,storeSel:e.target.value}))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 h-12 text-[15px] text-gray-100 focus:outline-none appearance-none"><option value="">-</option>{stores.map(s=><option key={s} value={s}>{s}</option>)}</select></div>);
         }
         if(k==='addrCity'){
-          return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><select value={form.addrCity} onChange={e=>setForm(f=>({...f,addrCity:e.target.value,addrDist:''}))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-sm text-gray-200 focus:outline-none appearance-none"><option value="">-</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select></div>);
+          return(<div key={k}><label className="text-[13px] text-[#aab2c0] block mb-1.5">{label}</label><select value={form.addrCity} onChange={e=>setForm(f=>({...f,addrCity:e.target.value,addrDist:''}))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 h-12 text-[15px] text-gray-100 focus:outline-none appearance-none"><option value="">-</option>{CITY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select></div>);
         }
         if(k==='addrDist'){
           const opts=TW_REGIONS[form.addrCity]||[];
-          return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><select value={form.addrDist} onChange={e=>setForm(f=>({...f,addrDist:e.target.value}))} disabled={!form.addrCity} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-sm text-gray-200 focus:outline-none appearance-none disabled:opacity-40"><option value="">-</option>{opts.map(d=><option key={d} value={d}>{d}</option>)}</select></div>);
+          return(<div key={k}><label className="text-[13px] text-[#aab2c0] block mb-1.5">{label}</label><select value={form.addrDist} onChange={e=>setForm(f=>({...f,addrDist:e.target.value}))} disabled={!form.addrCity} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 h-12 text-[15px] text-gray-100 focus:outline-none appearance-none disabled:opacity-40"><option value="">-</option>{opts.map(d=><option key={d} value={d}>{d}</option>)}</select></div>);
         }
         if(k==='permitDate'||k==='permitExpiry'){
-          return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><input type="date" value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>);
+          return(<div key={k}><label className="text-[13px] text-[#aab2c0] block mb-1.5">{label}</label><input type="date" value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 h-12 text-[15px] text-gray-100 focus:outline-none focus:border-amber-400"/></div>);
         }
-        return(<div key={k}><label className="text-xs text-gray-500 block mb-1">{label}</label><input value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>);
+        return(<div key={k}><label className="text-[13px] text-[#aab2c0] block mb-1.5">{label}</label><input value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 h-12 text-[15px] text-gray-100 focus:outline-none focus:border-amber-400"/></div>);
       })}
-      {err&&<p className="text-xs text-red-400 text-center">{err}</p>}
-      <div className="pt-2 flex gap-2">
+      {err&&<p className="text-[13px] text-red-400 text-center">{err}</p>}
+      <div className="sticky bottom-0 -mx-5 mt-4 px-5 pt-3 pb-5 bg-gray-900 border-t border-white/[0.08] flex gap-2">
         {!isEdit?(<>
-          {!HIDE_COMPANY_FEATURES&&type==='store'&&<button onClick={()=>{setShowLeave(true);setLeaveDone(false);setLeaveErr('')}} className="px-4 py-3 rounded-xl bg-white/[0.06] text-gray-400 text-sm font-semibold">{t.leaveBtn}</button>}
-          <button onClick={startEdit} className="flex-1 py-3 rounded-xl bg-amber-600 text-white font-bold">{t.infoEditBtn}</button>
+          {!HIDE_COMPANY_FEATURES&&type==='store'&&<button onClick={()=>{setShowLeave(true);setLeaveDone(false);setLeaveErr('')}} className="px-4 h-[52px] rounded-2xl border border-white/[0.18] text-gray-300 text-[15px] font-semibold">{t.leaveBtn}</button>}
+          <button onClick={startEdit} className="flex-1 h-[52px] rounded-2xl bg-amber-400 text-gray-950 text-[16px] font-bold">{t.infoEditBtn}</button>
         </>):(<>
-          <button onClick={cancelEdit} className="flex-1 py-3 rounded-xl bg-white/[0.06] text-gray-400 font-semibold">{t.infoCancelBtn}</button>
-          <button onClick={submitEdit} disabled={busy} className="flex-1 py-3 rounded-xl bg-amber-600 text-white font-bold disabled:opacity-50 flex items-center justify-center gap-2">{busy&&<span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>}{busy?'':t.infoSubmitBtn}</button>
+          <button onClick={cancelEdit} className="flex-1 h-[52px] rounded-2xl border border-white/[0.18] text-gray-200 text-[15px] font-semibold">{t.infoCancelBtn}</button>
+          <button onClick={submitEdit} disabled={busy} className="flex-[1.6] h-[52px] rounded-2xl bg-amber-400 text-gray-950 text-[16px] font-bold disabled:opacity-50 flex items-center justify-center gap-2">{busy&&<span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>}{busy?'':t.infoSubmitBtn}</button>
         </>)}
       </div>
       {!HIDE_COMPANY_FEATURES&&showLeave&&(<div className="fixed inset-0 z-[60] bg-black/80 flex items-end sm:items-center justify-center" onClick={()=>!leaveBusy&&setShowLeave(false)}><div className="bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl" onClick={e=>e.stopPropagation()}>
@@ -1946,6 +1946,7 @@ function DayEditor({day,d,y,m,t,up,sk,onSave,onCancel,code:editorCode}){
 function MonthlyCalendarPage({settings,t,onGotoYear,onClose}){
   const[calY,setCalY]=useState(()=>bizParts().y); // 本地年月state,跟settings.year/列表版的curM脫鉤,每次開啟這個元件都會重新掛載、重置成今天所在的年月
   const[calM,setCalM]=useState(()=>bizParts().m);
+  const[showPick,setShowPick]=useState(false);const[pickY,setPickY]=useState(()=>bizParts().y);
   const[data,setData]=useState(null);const[editDay,setEditDay]=useState(null);const[selectedDay,setSelectedDay]=useState(null);
   useEffect(()=>{setData(LS.get(dk(settings.code,calY,calM))||eMon())},[settings.code,calY,calM]);
   useEffect(()=>{setSelectedDay(null)},[calY,calM]); // 換月份時清掉選中狀態,避免顯示上個月的資訊列
@@ -1965,18 +1966,28 @@ function MonthlyCalendarPage({settings,t,onGotoYear,onClose}){
   const monthUnits=calc.month.units,monthLao=calc.month.laodian;
   const nav="w-11 h-11 rounded-full flex items-center justify-center text-gray-300 active:bg-white/[0.08]";
   return(<div className="max-w-lg mx-auto fi flex flex-col" style={{minHeight:'100%'}}>
-  <div className="flex items-center justify-between pl-2 pr-4 pt-1">
-    <div className="flex items-center">
-      <button onClick={goPrevMonth} aria-label="prev" className={nav}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
-      <button onClick={()=>onGotoYear&&onGotoYear(calY)} className="text-xl font-bold text-gray-100 whitespace-nowrap px-1 min-h-[44px] active:opacity-60">{t===T.zh?`${calY}年${t.months[calM-1]}`:`${t.months[calM-1]} ${calY}`}</button>
-      <button onClick={goNextMonth} aria-label="next" className={nav}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg></button>
+  <div className="flex items-start justify-between pl-2 pr-4 pt-1 pb-3">
+    <div className="flex-shrink-0">
+      <div className="flex items-center">
+        <button onClick={goPrevMonth} aria-label="prev" className={nav}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+        <button onClick={()=>{setPickY(calY);setShowPick(true)}} className="text-xl font-bold text-gray-100 whitespace-nowrap px-1 min-h-[44px] active:opacity-60">{t===T.zh?`${calY}年${t.months[calM-1]}`:`${t.months[calM-1]} ${calY}`} <span className="text-sm text-gray-400">▾</span></button>
+        <button onClick={goNextMonth} aria-label="next" className={nav}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg></button>
+      </div>
+      <div className="flex gap-1.5 pl-2 mt-2">
+        <button onClick={()=>{goToday();setSelectedDay(bizParts().d)}} className="h-9 px-3.5 whitespace-nowrap rounded-full border border-white/[0.15] text-sm text-gray-100 active:bg-white/[0.08]">{t.todayBtn||'今日'}</button>
+        <button onClick={()=>onGotoYear&&onGotoYear(calY)} className="h-9 px-3.5 whitespace-nowrap rounded-full border border-white/[0.15] text-sm text-gray-100 active:bg-white/[0.08]">{t.yearStatBtn||(t===T.zh?'年度統計':'Thống kê năm')}</button>
+      </div>
     </div>
-    <button onClick={goToday} className="h-9 px-4 rounded-full border border-white/[0.15] text-sm text-gray-100 active:bg-white/[0.08]">{t.todayBtn||'今日'}</button>
+    <div className="text-right pt-1.5 min-w-0 ml-2">
+      <p className="text-[30px] leading-[1.1] font-extrabold text-gray-100 tabular-nums">${calc.month.salary.toLocaleString()}</p>
+      <p className="mt-1 text-[14px] text-gray-400 tabular-nums">{monthUnits}{t.units}{monthLao>0?` · ${t.laodian} ${monthLao}`:''}</p>
+      <p className="mt-1.5 text-[13px] text-gray-400 leading-[1.5]"><span className="block">{t.prevPeriod} <b className="text-gray-100 font-semibold tabular-nums">${calc.prev.salary.toLocaleString()}</b></span><span className="block">{t.nextPeriod} <b className="text-gray-100 font-semibold tabular-nums">${calc.next.salary.toLocaleString()}</b></span></p>
+    </div>
   </div>
-  <div className="px-5 pt-2 pb-4">
-    <p className="text-[40px] leading-[1.1] font-extrabold text-gray-100 tabular-nums">${calc.month.salary.toLocaleString()}<span className="text-[15px] font-medium text-gray-400 ml-2">{monthUnits}{t.units}{monthLao>0?` · ${t.laodian} ${monthLao}`:''}</span></p>
-    <p className="mt-1.5 text-[14px] text-gray-400 flex gap-5"><span>{t.prevPeriod} <b className="text-gray-100 font-semibold tabular-nums">${calc.prev.salary.toLocaleString()}</b></span><span>{t.nextPeriod} <b className="text-gray-100 font-semibold tabular-nums">${calc.next.salary.toLocaleString()}</b></span></p>
-  </div>
+  {showPick&&(<div className="fixed inset-0 z-[60] bg-black/70 flex items-end justify-center" onClick={()=>setShowPick(false)}><div className="bg-gray-900 w-full max-w-lg rounded-t-2xl px-4 pt-3 pb-6" onClick={e=>e.stopPropagation()}>
+    <div className="flex items-center justify-between mb-2"><button onClick={()=>setPickY(pickY-1)} aria-label="prev year" className={nav}>‹</button><span className="text-lg font-bold text-gray-100 tabular-nums">{pickY}{t===T.zh?' 年':''}</span><button onClick={()=>setPickY(pickY+1)} aria-label="next year" className={nav}>›</button></div>
+    <div className="grid grid-cols-4 gap-2">{Array.from({length:12},(_,i)=>i+1).map(m=>{const sel=pickY===calY&&m===calM;const isNow=pickY===bizParts().y&&m===bizParts().m;return(<button key={m} onClick={()=>{setCalY(pickY);setCalM(m);setShowPick(false)}} className={`h-12 rounded-xl text-[16px] font-semibold ${sel?'bg-amber-400 text-gray-950':isNow?'border border-amber-400 text-amber-300':'border border-white/[0.12] text-gray-100'} active:opacity-80`}>{t.months[m-1]}</button>)})}</div>
+  </div></div>)}
   <div className="grid grid-cols-7 px-3 pb-1.5">{t.dn.map((dn,i)=>(<div key={i} className={`text-center text-[13px] font-semibold ${i===0||i===6?'text-amber-400':'text-gray-400'}`}>{dn}</div>))}</div>
   <div className="grid grid-cols-7 gap-1 px-3 pb-4">
     {cells.map((d,i)=>{
@@ -2034,10 +2045,26 @@ function MonthlyPage({settings,curM,setCurM,t,onGotoYear,onClose}){
 
 /* ══════════ Yearly ══════════ */
 function YearlyPage({settings,t,onBack,year}){
-  const y=year||settings.year||bizParts().y;
+  const[y,setY]=useState(year||settings.year||bizParts().y); // v1.13-069 年份可在頁內左右切換
   const rows=useMemo(()=>{const r=[];for(let m=1;m<=12;m++){const d=LS.get(dk(settings.code,y,m));let u=0,lo=0,sal=0;if(d?.days){for(let i=1;i<=dim(y,m);i++){const day=d.days[i];if(day){u+=day.total||0;lo+=day.laodian||0;sal+=calcSal(day,getUnitPriceForDate(settings,y,m,i),settings.skills)}}}r.push({month:m,units:u,salary:sal,laodian:lo})}return r},[settings.code,y,settings.unitPrice,settings.unitPriceHistory,settings.skills]);
   const tot=rows.reduce((a,r)=>({u:a.u+r.units,s:a.s+r.salary,l:a.l+r.laodian}),{u:0,s:0,l:0});
-  return(<div className="max-w-lg mx-auto fi"><div className="px-4 py-3 flex items-baseline justify-between"><h2 className="text-xl font-bold text-gray-100"><button onClick={()=>onBack&&onBack()} className="mr-2 text-gray-500 active:text-gray-300 align-middle"><svg className="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg></button>{y} {t.yearly}</h2><span className="text-xs text-gray-600 font-mono">#{settings.code}</span></div><div className="flex px-3 py-2 border-b border-white/[0.06] text-[11px] text-gray-600 font-medium"><div className="w-12"></div><div className="flex-1 text-right">{t.units}</div><div className="flex-1 text-right">{t.salary}</div><div className="w-12 text-right">{t.laodian}</div><div className="flex-1 text-right">{t.subtotal}</div></div>{rows.map(r=>(<div key={r.month} className={`flex items-center px-3 py-3 border-b border-white/[0.03] ${r.units>0?'':'opacity-30'}`}><div className="w-12 text-sm font-medium text-gray-300">{t.months[r.month-1]}</div><div className="flex-1 text-right text-sm text-gray-400 tabular-nums">{r.units}</div><div className="flex-1 text-right text-sm text-emerald-400/80 tabular-nums">{r.salary.toLocaleString()}</div><div className="w-12 text-right text-sm text-orange-400/80 tabular-nums">{r.laodian}</div><div className="flex-1 text-right text-sm text-emerald-400 font-semibold tabular-nums">{r.salary.toLocaleString()}</div></div>))}<div className="flex items-center px-3 py-3.5 bg-amber-600/10 border-t-2 border-amber-500/40"><div className="w-12 text-sm font-bold text-amber-400">{t.total}</div><div className="flex-1 text-right text-sm text-amber-300 font-bold tabular-nums">{tot.u}</div><div className="flex-1 text-right text-sm text-emerald-400 font-bold tabular-nums">{tot.s.toLocaleString()}</div><div className="w-12 text-right text-sm text-orange-400 font-bold tabular-nums">{tot.l}</div><div className="flex-1 text-right text-sm text-emerald-400 font-bold tabular-nums">{tot.s.toLocaleString()}</div></div></div>)}
+  // v1.13-069 UI 改版:12 個月+合計一頁排完不用捲動(列高 36px);拿掉與「薪水」重複的小計欄;無資料月份淡化;最高薪月份標琥珀色
+  const best=Math.max(0,...rows.map(r=>r.salary));
+  const nv="w-11 h-11 rounded-full flex items-center justify-center text-gray-300 active:bg-white/[0.08]";
+  const cur=bizParts();
+  return(<div className="max-w-lg mx-auto fi px-4">
+    <div className="flex items-center justify-between pt-1 pb-1">
+      <div className="flex items-center -ml-2">
+        <button onClick={()=>onBack&&onBack()} aria-label="back" className={nv}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+        <h2 className="text-xl font-bold text-gray-100 whitespace-nowrap">{y} {t.yearly}</h2>
+      </div>
+      <div className="flex items-center"><button onClick={()=>setY(y-1)} aria-label="prev year" className={nv}>‹</button><button onClick={()=>setY(y+1)} aria-label="next year" className={nv}>›</button></div>
+    </div>
+    <div className="flex items-center h-8 border-b border-white/[0.12] text-[13px] text-[#aab2c0] font-medium"><div className="w-12"/><div className="flex-1 text-right">{t.units}</div><div className="w-16 text-right">{t.laodian}</div><div className="flex-[1.6] text-right">{t.salary}</div></div>
+    {rows.map(r=>(<div key={r.month} className={`flex items-center h-9 border-b border-white/[0.06] ${r.units>0?'':'opacity-35'} ${y===cur.y&&r.month===cur.m?'bg-white/[0.04]':''}`}><div className="w-12 text-[15px] font-medium text-gray-200">{t.months[r.month-1]}</div><div className="flex-1 text-right text-[15px] text-gray-200 tabular-nums">{r.units}</div><div className="w-16 text-right text-[15px] text-[#aab2c0] tabular-nums">{r.laodian}</div><div className={`flex-[1.6] text-right text-[15px] font-semibold tabular-nums ${r.salary>0&&r.salary===best?'text-amber-400':'text-gray-100'}`}>{r.salary.toLocaleString()}</div></div>))}
+    <div className="flex items-center h-12 border-t-2 border-amber-400/50 mt-0.5"><div className="w-12 text-[15px] font-bold text-amber-400">{t.total}</div><div className="flex-1 text-right text-[15px] text-gray-100 font-bold tabular-nums">{tot.u}</div><div className="w-16 text-right text-[15px] text-gray-100 font-bold tabular-nums">{tot.l}</div><div className="flex-[1.6] text-right text-[18px] text-amber-400 font-extrabold tabular-nums">{tot.s.toLocaleString()}</div></div>
+  </div>);
+}
 
 /* ══════════ 我的自約(v1.13-025 整合進index內,拿掉跳booking.html頁+店家同步框架;老點改接common.js的custdb,跟流水的SlipEditFields共用同一套搜尋) ══════════ */
 function bkPad(n){return String(n).padStart(2,'0')}
@@ -2054,14 +2081,14 @@ function BookingCustFields({code,t,custName,custTitle,custPhone,onChange}){
   const results=useMemo(()=>q.trim()?searchCustDB(code,q):[],[code,q]);
   const applyCust=(c)=>{onChange({custName:c.custName||'',custTitle:c.custTitle||'sir',custPhone:c.custPhone||''});setQ('')};
   return(<div className="space-y-2">
-    <input value={q} onChange={e=>setQ(e.target.value)} placeholder={t.custSearchHint} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>
+    <input value={q} onChange={e=>setQ(e.target.value)} placeholder={t.custSearchHint} className="w-full bg-white/[0.06] border border-white/[0.10] rounded-xl px-3 h-12 text-[15px] text-gray-100 focus:outline-none focus:border-amber-400"/>
     {q.trim()&&(results.length>0?(<div className="space-y-1 max-h-48 overflow-y-auto no-sb fi">{results.map((c,i)=>(
-      <button key={i} onClick={()=>applyCust(c)} className="w-full text-left bg-white/[0.03] rounded-lg px-3 py-2 text-sm text-gray-200 active:bg-white/[0.06]"><span>{c.custName||'—'}</span> <span className="text-[11px] text-amber-400">{bookTitleName(c.custTitle,lang)}</span>{c.custPhone&&<span className="text-[11px] text-gray-500 font-mono ml-2">{c.custPhone}</span>}</button>
-    ))}</div>):(<p className="text-[11px] text-amber-500/70">{t.custNewHint}</p>))}
-    <div className="grid gap-2" style={{gridTemplateColumns:'1.2fr 0.85fr 1.3fr'}}>
-      <input value={custName||''} onChange={e=>onChange({custName:e.target.value})} placeholder={t.custName} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-sm text-gray-100 focus:outline-none focus:border-amber-500 min-w-0"/>
-      <select value={custTitle||'sir'} onChange={e=>onChange({custTitle:e.target.value})} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-0.5 py-2 text-sm text-gray-200 focus:outline-none focus:border-amber-500 min-w-0">{BOOK_TITLES.filter(o=>o.v==='sir'||o.v==='ms').map(o=><option key={o.v} value={o.v}>{o[lang]}</option>)}</select>
-      <input value={custPhone||''} onChange={e=>onChange({custPhone:e.target.value})} inputMode="numeric" placeholder={t.custPhone} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-sm text-gray-100 font-mono focus:outline-none focus:border-amber-500 min-w-0"/>
+      <button key={i} onClick={()=>applyCust(c)} className="w-full text-left min-h-[44px] px-1 border-b border-white/[0.08] text-[15px] text-gray-100 active:bg-white/[0.06]"><span>{c.custName||'—'}</span> <span className="text-[13px] text-amber-400">{bookTitleName(c.custTitle,lang)}</span>{c.custPhone&&<span className="text-[13px] text-[#aab2c0] font-mono ml-2">{c.custPhone}</span>}</button>
+    ))}</div>):(<p className="text-[13px] text-amber-400">{t.custNewHint}</p>))}
+    <div className="grid gap-2" style={{gridTemplateColumns:'1.2fr 0.95fr 1.5fr'}}>
+      <input value={custName||''} onChange={e=>onChange({custName:e.target.value})} placeholder={t.custName} className="bg-white/[0.06] border border-white/[0.10] rounded-xl px-2 h-12 text-[15px] text-gray-100 focus:outline-none focus:border-amber-400 min-w-0"/>
+      <select value={custTitle||'sir'} onChange={e=>onChange({custTitle:e.target.value})} className="bg-white/[0.06] border border-white/[0.10] rounded-xl px-1 h-12 text-[15px] text-gray-100 focus:outline-none focus:border-amber-400 min-w-0">{BOOK_TITLES.filter(o=>o.v==='sir'||o.v==='ms').map(o=><option key={o.v} value={o.v}>{o[lang]}</option>)}</select>
+      <input value={custPhone||''} onChange={e=>onChange({custPhone:e.target.value})} inputMode="numeric" placeholder={t.custPhone} className="bg-white/[0.06] border border-white/[0.10] rounded-xl px-2 h-12 text-[15px] text-gray-100 font-mono focus:outline-none focus:border-amber-400 min-w-0"/>
     </div>
   </div>);
 }
@@ -2096,48 +2123,49 @@ function BookingFormPanel({code,t,initial,onSave,onCancel}){
     try{if(window.__logUse)window.__logUse('booking_add')}catch(_e){} // 只記一筆使用次數(背景送出、不等回應、失敗無所謂),用來統計有多少人在用自約功能
     onSave();
   };
-  return(<div className="space-y-4 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4 fi">
-    <h3 className="text-sm font-semibold text-amber-400">{initial?(t.duplicateBtn||t.bookingNew):t.bookingNew}</h3>
-    <div><label className="text-xs text-gray-500 mb-1.5 block">{t.selectCustomer||t.custName}</label><BookingCustFields code={code} t={t} custName={custName} custTitle={custTitle} custPhone={custPhone} onChange={p=>{if(p.custName!==undefined)setCustName(p.custName);if(p.custTitle!==undefined)setCustTitle(p.custTitle);if(p.custPhone!==undefined)setCustPhone(p.custPhone);setErr('')}}/></div>
-    <div className="flex">
-      <div style={{flexBasis:'35%'}}><label className="text-xs text-gray-500 mb-1.5 block">{t.bookDate}</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>
-      <div style={{flexBasis:'5%'}}></div>
-      <div style={{flexBasis:'15%'}}><label className="text-xs text-gray-500 mb-1.5 block">{t.bookTime}</label><input type="time" step="600" value={time} onChange={e=>setTime(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>
-      <div style={{flexBasis:'5%'}}></div>
+  return(<div className="space-y-5 fi">
+    <h3 className="text-lg font-bold text-gray-100">{initial?(t.duplicateBtn||t.bookingNew):t.bookingNew}</h3>
+    <p className="text-[13px] font-bold text-amber-400 tracking-wide">客人</p>
+    <div><label className="text-[13px] text-[#aab2c0] mb-1.5 block">{t.selectCustomer||t.custName}</label><BookingCustFields code={code} t={t} custName={custName} custTitle={custTitle} custPhone={custPhone} onChange={p=>{if(p.custName!==undefined)setCustName(p.custName);if(p.custTitle!==undefined)setCustTitle(p.custTitle);if(p.custPhone!==undefined)setCustPhone(p.custPhone);setErr('')}}/></div>
+    <div className="h-px bg-white/[0.08]"/>
+    <p className="text-[13px] font-bold text-amber-400 tracking-wide">時間與項目</p>
+    <div className="grid grid-cols-[3fr_2fr] gap-3">
+      <div><label className="text-[13px] text-[#aab2c0] mb-1.5 block">{t.bookDate}</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.10] rounded-xl px-3 h-12 text-[15px] text-gray-100 focus:outline-none focus:border-amber-400"/></div>
+      <div><label className="text-[13px] text-[#aab2c0] mb-1.5 block">{t.bookTime}</label><input type="time" step="600" value={time} onChange={e=>setTime(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.10] rounded-xl px-3 h-12 text-[15px] text-gray-100 focus:outline-none focus:border-amber-400"/></div>
     </div>
-    {dayOff>0&&<p className="text-xs text-red-400">⚠️ {bkFmtLogStr(t.dayOffWarn,[skName(dayOff,lang)])}</p>}
+    {dayOff>0&&<p className="text-[13px] text-red-400">⚠️ {bkFmtLogStr(t.dayOffWarn,[skName(dayOff,lang)])}</p>}
     {conflicts.length>0&&conflicts.map(o=>(<p key={o.id} className="text-xs text-red-400">⚠️ {bkFmtLogStr(t.conflictWarn,[fmtHM(o.datetime),((o.custName||'')+' '+bookTitleName(o.custTitle,lang))])}</p>))}
-    {overWork&&<p className="text-xs text-red-400">⚠️ {bookLabel(svc,extra)} → {fmtHM(endTs)}{settings.workEnd?'（'+t.workEnd+' '+settings.workEnd+'）':''}</p>}
-    {!settings.workEnd&&<p className="text-[11px] text-gray-600">{t.noWorkEnd}</p>}
-    <div className="grid grid-cols-2 gap-2">
-      <div><label className="text-xs text-gray-500 mb-1.5 block">{t.svcLabel}</label><select value={svc} onChange={e=>setSvc(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500">{SERVICES.map(s=><option key={s.code} value={s.code}>{s.code}（{s.min}{lang==='zh'?'分':'p'}）</option>)}</select></div>
-      <div><label className="text-xs text-gray-500 mb-1.5 block">{t.addHour}</label><select value={extra} onChange={e=>setExtra(parseInt(e.target.value))} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500">{[0,1,2,3,4,5,6,7,8].map(n=><option key={n} value={n}>+{n}</option>)}</select></div>
+    {overWork&&<p className="text-[13px] text-red-400">⚠️ {bookLabel(svc,extra)} → {fmtHM(endTs)}{settings.workEnd?'（'+t.workEnd+' '+settings.workEnd+'）':''}</p>}
+    {!settings.workEnd&&<p className="text-[13px] text-[#aab2c0]">{t.noWorkEnd}</p>}
+    <div className="grid grid-cols-2 gap-3">
+      <div><label className="text-[13px] text-[#aab2c0] mb-1.5 block">{t.svcLabel}</label><select value={svc} onChange={e=>setSvc(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.10] rounded-xl px-3 h-12 text-[15px] text-gray-100 focus:outline-none focus:border-amber-400">{SERVICES.map(s=><option key={s.code} value={s.code}>{s.code}（{s.min}{lang==='zh'?'分':'p'}）</option>)}</select></div>
+      <div><label className="text-[13px] text-[#aab2c0] mb-1.5 block">{t.addHour}</label><select value={extra} onChange={e=>setExtra(parseInt(e.target.value))} className="w-full bg-white/[0.06] border border-white/[0.10] rounded-xl px-3 h-12 text-[15px] text-gray-100 focus:outline-none focus:border-amber-400">{[0,1,2,3,4,5,6,7,8].map(n=><option key={n} value={n}>+{n}</option>)}</select></div>
     </div>
-    <div className="flex items-center justify-between bg-white/[0.02] rounded-xl px-3 py-2">
-      <span className="text-xs text-gray-500">{bookLabel(svc,extra)} = {bookUnits(svc,extra)} {t.units} · {bookMinutes(svc,extra)}{lang==='zh'?'分':'p'}</span>
+    <div className="flex items-center justify-between">
+      <span className="text-[14px] text-[#aab2c0]">{bookLabel(svc,extra)} = {bookUnits(svc,extra)} {t.units} · {bookMinutes(svc,extra)}{lang==='zh'?'分':'p'}</span>
     </div>
-    <div><label className="text-xs text-gray-500 mb-1.5 block">{t.party}</label>
-      <div className="flex items-center gap-3"><button onClick={()=>{const np=Math.max(0,party-1);setParty(np);setPartyDetails(d=>d.slice(0,np))}} className="w-11 h-11 rounded-xl bg-white/[0.04] text-gray-300 text-xl">−</button><span className="text-xl font-bold text-gray-100 flex-1 text-center">{party} {t.partyUnit}</span><button onClick={()=>{const np=party+1;setParty(np);setPartyDetails(d=>[...d,{svc:svc,teacher:'',note:''}])}} className="w-11 h-11 rounded-xl bg-white/[0.04] text-gray-300 text-xl">+</button></div>
+    <div><label className="text-[13px] text-[#aab2c0] mb-1.5 block">{t.party}</label>
+      <div className="flex items-center gap-3"><button onClick={()=>{const np=Math.max(0,party-1);setParty(np);setPartyDetails(d=>d.slice(0,np))}} className="w-12 h-12 rounded-xl border border-white/[0.14] text-gray-200 text-xl">−</button><span className="text-xl font-bold text-gray-100 flex-1 text-center tabular-nums">{party} {t.partyUnit}</span><button onClick={()=>{const np=party+1;setParty(np);setPartyDetails(d=>[...d,{svc:svc,teacher:'',note:''}])}} className="w-12 h-12 rounded-xl border border-white/[0.14] text-gray-200 text-xl">+</button></div>
     </div>
     {party>0&&<div className="space-y-2">{Array.from({length:party},(_,i)=>{const pd=partyDetails[i]||{svc:svc,assignMode:'none',teacher:'',conds:{},oil:false,note:''};const setPd=(patch)=>{setPartyDetails(d=>{const nd=[...d];while(nd.length<party)nd.push({svc:svc,assignMode:'none',teacher:'',conds:{},oil:false,note:''});nd[i]={...nd[i],...patch};return nd})};const conds=pd.conds||{};const toggleCond=(k)=>setPd({conds:{...conds,[k]:!conds[k]}});return(
-      <div key={i} className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-3 space-y-2">
-        <p className="text-xs text-amber-400 font-semibold">{t.partyMember}{i+1}{t.partyUnit}</p>
-        <select value={pd.svc} onChange={e=>setPd({svc:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-500">{SERVICES.map(s=><option key={s.code} value={s.code}>{s.code}（{s.min}分）</option>)}</select>
-        <select value={pd.assignMode||'none'} onChange={e=>setPd({assignMode:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-500">
+      <div key={i} className="border-t border-white/[0.08] pt-3 space-y-2">
+        <p className="text-[13px] text-amber-400 font-semibold">{t.partyMember}{i+1}{t.partyUnit}</p>
+        <select value={pd.svc} onChange={e=>setPd({svc:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.10] rounded-xl px-3 h-11 text-[14px] text-gray-100 focus:outline-none focus:border-amber-400">{SERVICES.map(s=><option key={s.code} value={s.code}>{s.code}（{s.min}分）</option>)}</select>
+        <select value={pd.assignMode||'none'} onChange={e=>setPd({assignMode:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.10] rounded-xl px-3 h-11 text-[14px] text-gray-100 focus:outline-none focus:border-amber-400">
           <option value="none">{t.noAssignTeacher}</option>
           <option value="assign">{t.assignTeacherMode}</option>
         </select>
         {pd.assignMode==='assign'&&(<div className="space-y-2 fi">
-          <input value={pd.teacher||''} onChange={e=>setPd({teacher:e.target.value,conds:{}})} placeholder={t.assignByCode} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-500"/>
-          <div className="grid grid-cols-4 gap-1">{[['male',t.assignMale],['female',t.assignFemale],['tw',t.assignTW],['vn',t.assignVN]].map(([k,l])=>(<button key={k} onClick={()=>{setPd({teacher:''});toggleCond(k)}} className={`py-1.5 rounded-lg text-[11px] font-medium ${conds[k]?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{l}</button>))}</div>
+          <input value={pd.teacher||''} onChange={e=>setPd({teacher:e.target.value,conds:{}})} placeholder={t.assignByCode} className="w-full bg-white/[0.06] border border-white/[0.10] rounded-xl px-3 h-11 text-[14px] text-gray-100 focus:outline-none focus:border-amber-400"/>
+          <div className="grid grid-cols-4 gap-1">{[['male',t.assignMale],['female',t.assignFemale],['tw',t.assignTW],['vn',t.assignVN]].map(([k,l])=>(<button key={k} onClick={()=>{setPd({teacher:''});toggleCond(k)}} className={`h-10 rounded-xl text-[13px] font-medium ${conds[k]?'bg-amber-400 text-gray-950':'border border-white/[0.14] text-gray-300'}`}>{l}</button>))}</div>
         </div>)}
-        <button onClick={()=>setPd({oil:!pd.oil})} className={`w-full py-1.5 rounded-lg text-[11px] font-medium ${pd.oil?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t.assignOil}</button>
-        <input value={pd.note||''} onChange={e=>setPd({note:e.target.value})} placeholder={t.svcNote} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-500"/>
+        <button onClick={()=>setPd({oil:!pd.oil})} className={`w-full h-10 rounded-xl text-[13px] font-medium ${pd.oil?'bg-amber-400 text-gray-950':'border border-white/[0.14] text-gray-300'}`}>{t.assignOil}</button>
+        <input value={pd.note||''} onChange={e=>setPd({note:e.target.value})} placeholder={t.svcNote} className="w-full bg-white/[0.06] border border-white/[0.10] rounded-xl px-3 h-11 text-[14px] text-gray-100 focus:outline-none focus:border-amber-400"/>
       </div>);
     })}</div>}
-    <div><label className="text-xs text-gray-500 mb-1.5 block">{t.custNote}</label><textarea value={note} onChange={e=>setNote(e.target.value)} rows={2} placeholder={t.custNote} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 resize-none"/></div>
-    {err&&<p className="text-xs text-red-400">{err}</p>}
-    <div className="flex gap-2"><button onClick={onCancel} className="flex-1 py-3 bg-white/[0.04] rounded-xl text-gray-400 font-medium">{t.bookCancel}</button><button onClick={save} className="flex-1 py-3 bg-amber-600 rounded-xl text-white font-bold">{t.bookSave}</button></div>
+    <div><label className="text-[13px] text-[#aab2c0] mb-1.5 block">{t.custNote}</label><textarea value={note} onChange={e=>setNote(e.target.value)} rows={2} placeholder={t.custNote} className="w-full bg-white/[0.06] border border-white/[0.10] rounded-xl px-3 h-12 text-[15px] text-gray-100 focus:outline-none focus:border-amber-400 resize-none"/></div>
+    {err&&<p className="text-[13px] text-red-400">{err}</p>}
+    <div className="sticky bottom-0 -mx-4 px-4 pt-3 pb-4 bg-gray-950 border-t border-white/[0.08] flex gap-2"><button onClick={onCancel} className="flex-1 h-[52px] rounded-2xl border border-white/[0.18] text-gray-200 text-[15px] font-semibold">{t.bookCancel}</button><button onClick={save} className="flex-[1.6] h-[52px] rounded-2xl bg-amber-400 text-gray-950 text-[16px] font-bold">{t.bookSave}</button></div>
   </div>);
 }
 
