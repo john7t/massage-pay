@@ -1,4 +1,4 @@
-// app-core.js v1.13-058 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-068 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
 // v1.13-056 / UI 改版(Impeccable 建議,使用者逐頁確認預覽):(1)首頁:上一筆縮成一行、今日卡右側金額+支數老點(拿掉「看明細›」)、+1+2+3+更多一排貼在今日卡下方(0支時顯示提示)、流水→手套團購→更多功能(上排4個大圖示、下排2欄文字磚);手套團購橫幅改兩行版面。(2)月份明細:大字月份+月薪水、上/下半月並排小卡、底線式月份分頁、區段小計與欄位標題、空日淡化、「回到今天」浮動鈕。(3)啟動頁:白底仿LINE風格(.ob-line範圍CSS)、Email(選填)欄位拿掉(NoticeBox不傳setEmail)、左上返回‹、送出鈕停用時顯示還差什麼。舊版區塊一律 {false&&...} 隱藏不刪。
@@ -1417,32 +1417,41 @@ function NameCardModal({t,settings,onClose,onUpdateSettings}){
     setMsg(t.cardSaved||'已存檔');
   };
   const share=()=>{save();sendCardFlex({store:f.store,code:init.code,brandMain:dflt.bm,brandSub:dflt.bs,workStart:f.workStart,workEnd:f.workEnd,phone:f.phone,addr:f.addr,addrNote:f.addrNote,mapUrl:f.mapUrl,appleUrl:f.appleUrl})};
-  const inp="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500";
-  const lab="text-xs text-gray-400 mb-1 block";
-  return(<BottomSheetModal onClose={onClose} heightPct={86}>
-    <div className="px-4 pb-6 space-y-3">
-      <p className="text-base font-bold text-gray-100 text-center pt-1">{t.cardTitle||'名片'}</p>
-      <div><label className={lab}>{t.cardBrand||'館名'}</label><select value={f.store} onChange={e=>changeStore(e.target.value)} className={inp}>{storeKeys.map(k=>{const d=CARD_STORE_DEFAULTS[k];return <option key={k} value={k}>{d.bm+d.bs}（{k}）</option>})}</select></div>
-      <div className="flex gap-2">
-        <div className="w-[64px] flex-shrink-0"><label className={lab}>{t.cardCode||'老師編號'}</label><div className={inp+" opacity-70 text-center px-1"}>{init.code}</div></div>
-        <div className="flex-1 min-w-0"><label className={lab}>{t.cardWork||'上班時間'}</label>
-          <div className="flex items-center gap-1.5">
-            <select value={f.workStart} onChange={e=>up('workStart',e.target.value)} className={inp.replace('px-3','px-2')}>{times.map(x=><option key={x} value={x}>{x}</option>)}</select>
-            <span className="text-gray-400">~</span>
-            <select value={f.workEnd} onChange={e=>up('workEnd',e.target.value)} className={inp.replace('px-3','px-2')}>{times.map(x=><option key={x} value={x}>{x}</option>)}</select>
-          </div></div>
+  const inp="w-full h-12 bg-white/[0.06] border border-white/[0.10] rounded-xl px-3 text-[15px] text-gray-100 focus:outline-none focus:border-amber-400";
+  const lab="text-[13px] text-[#aab2c0] mb-1.5 block";
+  const sec="text-[13px] font-bold text-amber-400 tracking-wide pt-1";
+  return(<BottomSheetModal onClose={onClose} heightPct={90}>
+    <div className="px-4 pb-0">
+      <p className="text-lg font-bold text-gray-100 pt-1">{t.cardTitle||'名片'}</p>
+      <p className="text-[13px] text-[#aab2c0] mt-0.5">{t.cardSub||'設定後可一鍵分享給 LINE 好友'}</p>
+      <div className="mt-4 space-y-4">
+        <p className={sec}>會館與時間</p>
+        <div><label className={lab}>{t.cardBrand||'館名'}</label><select value={f.store} onChange={e=>changeStore(e.target.value)} className={inp}>{storeKeys.map(k=>{const d=CARD_STORE_DEFAULTS[k];return <option key={k} value={k}>{d.bm+d.bs}（{k}）</option>})}</select></div>
+        <div className="flex gap-3">
+          <div className="w-[76px] flex-shrink-0"><label className={lab}>{t.cardCode||'老師編號'}</label><div className={inp+" opacity-70 text-center px-1 flex items-center justify-center"}>{init.code}</div></div>
+          <div className="flex-1 min-w-0"><label className={lab}>{t.cardWork||'上班時間'}</label>
+            <div className="flex items-center gap-2">
+              <select value={f.workStart} onChange={e=>up('workStart',e.target.value)} className={inp.replace('px-3','px-2')}>{times.map(x=><option key={x} value={x}>{x}</option>)}</select>
+              <span className="text-gray-400">~</span>
+              <select value={f.workEnd} onChange={e=>up('workEnd',e.target.value)} className={inp.replace('px-3','px-2')}>{times.map(x=><option key={x} value={x}>{x}</option>)}</select>
+            </div></div>
+        </div>
+        <div className="h-px bg-white/[0.08]"/>
+        <p className={sec}>聯絡與地點</p>
+        <div><label className={lab}>{t.cardPhone||'訂位電話'}</label><input type="tel" value={f.phone} onChange={e=>up('phone',e.target.value)} className={inp}/></div>
+        <div><label className={lab}>{t.cardAddr||'會館地址'}</label><input value={f.addr} onChange={e=>up('addr',e.target.value)} className={inp}/></div>
+        <div><label className={lab}>{t.cardAddrNote||'地址補充'}</label><input value={f.addrNote} onChange={e=>up('addrNote',e.target.value)} className={inp}/></div>
+        <div className="h-px bg-white/[0.08]"/>
+        <p className={sec}>地圖連結</p>
+        <div><label className={lab}>{t.cardMapUrl||'Google Maps 連結'}</label><input value={f.mapUrl} onChange={e=>up('mapUrl',e.target.value)} className={inp}/></div>
+        <div><label className={lab}>{t.cardAppleUrl||'Apple 地圖連結'}</label><input value={f.appleUrl} onChange={e=>up('appleUrl',e.target.value)} className={inp}/></div>
       </div>
-      <div className="flex gap-2">
-        <div className="w-[132px] flex-shrink-0"><label className={lab}>{t.cardPhone||'訂位電話'}</label><input type="tel" value={f.phone} onChange={e=>up('phone',e.target.value)} className={inp.replace('px-3','px-2.5')}/></div>
-        <div className="flex-1 min-w-0"><label className={lab}>{t.cardAddr||'會館地址'}</label><input value={f.addr} onChange={e=>up('addr',e.target.value)} className={inp.replace('px-3','px-2.5')}/></div>
-      </div>
-      <div><label className={lab}>{t.cardAddrNote||'地址補充'}</label><input value={f.addrNote} onChange={e=>up('addrNote',e.target.value)} className={inp}/></div>
-      <div><label className={lab}>{t.cardMapUrl||'Google Maps 連結'}</label><input value={f.mapUrl} onChange={e=>up('mapUrl',e.target.value)} className={inp}/></div>
-      <div><label className={lab}>{t.cardAppleUrl||'Apple 地圖連結'}</label><input value={f.appleUrl} onChange={e=>up('appleUrl',e.target.value)} className={inp}/></div>
-      {msg&&<p className="text-xs text-emerald-400 text-center">{msg}</p>}
-      <div className="grid grid-cols-2 gap-2 pt-1">
-        <button onClick={save} className="py-3 rounded-xl bg-amber-600 text-white text-sm font-bold active:opacity-80">{t.cardSave||'存檔'}</button>
-        <button onClick={share} className="py-3 rounded-xl text-white text-sm font-bold active:opacity-80" style={{background:'#06c755'}}>{t.cardShare||'分享給 LINE 好友'}</button>
+      <div className="sticky bottom-0 -mx-4 mt-4 px-4 pt-3 pb-5 bg-gray-950 border-t border-white/[0.08]">
+        {msg&&<p className="text-[13px] text-emerald-400 text-center mb-2">{msg}</p>}
+        <div className="grid grid-cols-[1fr_2fr] gap-2">
+          <button onClick={save} className="h-[52px] rounded-2xl border border-white/[0.18] text-gray-100 text-[15px] font-bold active:bg-white/[0.08]">{t.cardSave||'存檔'}</button>
+          <button onClick={share} className="h-[52px] rounded-2xl text-white text-[15px] font-bold active:opacity-80" style={{background:'#06c755'}}>{t.cardShare||'分享給 LINE 好友'}</button>
+        </div>
       </div>
     </div>
   </BottomSheetModal>);
@@ -1452,12 +1461,21 @@ const HIDE_BREAK=true; // 翻綠(休息)計時區塊:使用者要求移除(隱�
 // ───────── 手套團購橫幅:讀 GitHub 上的 data/gloves.json(GAS 在團購變動時同步寫入),不用連 GAS ─────────
 const GLOVE_LIFF='https://liff.line.me/2010673151-kemVP4Pi/?gb2=l';
 function GloveBanner({settings}){
-  // 先用本機上次存的內容(離線也看得到;超過 3 天就不用),整個首頁畫完後再去抓 GitHub 的最新檔,抓到才更新並存起來
-  const[orders,setOrders]=useState(()=>{try{const c=JSON.parse(localStorage.getItem('gloves-cache')||'null');if(c&&Array.isArray(c.orders)&&Date.now()-c.t<3*86400e3)return c.orders}catch(_e){}return[]});
-  const[known,setKnown]=useState(()=>{try{const c=JSON.parse(localStorage.getItem('gloves-cache')||'null');return !!(c&&Array.isArray(c.orders)&&Date.now()-c.t<3*86400e3)}catch(_e){return false}}); // 已經知道目前有沒有團購(本機快取或剛抓到)
-  useEffect(()=>{let dead=false;
-    const id=setTimeout(async()=>{try{const r=await fetch('./data/gloves.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();if(dead||!j||!Array.isArray(j.orders))return;setOrders(j.orders);setKnown(true);try{localStorage.setItem('gloves-cache',JSON.stringify({t:Date.now(),orders:j.orders}))}catch(_e){}}catch(_e){}},400);
-    return()=>{dead=true;clearTimeout(id)};},[]);
+  // v1.13-067 離線優先:一律先用本機上次存的內容(最久保留 30 天)把橫幅畫出來,首頁畫完 400ms 後才去抓 GitHub 最新檔;
+  // 抓到且內容有變才更新畫面並存回本機;離線時不送請求,恢復連線(online 事件)時再補抓一次
+  const readCache=()=>{try{const c=JSON.parse(localStorage.getItem('gloves-cache')||'null');if(c&&Array.isArray(c.orders)&&Date.now()-c.t<30*86400e3)return c}catch(_e){}return null};
+  const[orders,setOrders]=useState(()=>{const c=readCache();return c?c.orders:[]});
+  const[known,setKnown]=useState(()=>!!readCache()); // 已經知道目前有沒有團購(本機快取或剛抓到)
+  useEffect(()=>{let dead=false,tm=0;
+    const pull=async()=>{
+      if(navigator.onLine===false)return;
+      try{const r=await fetch('./data/gloves.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();if(dead||!j||!Array.isArray(j.orders))return;
+        const old=readCache();const same=old&&JSON.stringify(old.orders)===JSON.stringify(j.orders);
+        if(!same)setOrders(j.orders);setKnown(true);
+        try{localStorage.setItem('gloves-cache',JSON.stringify({t:Date.now(),orders:j.orders}))}catch(_e){}
+      }catch(_e){}};
+    tm=setTimeout(pull,400);window.addEventListener('online',pull);
+    return()=>{dead=true;clearTimeout(tm);window.removeEventListener('online',pull)};},[]);
   const my=String((settings&&(settings.storeSel||settings.store))||'');
   // 不分店:全店都看得到各店的團購(變相宣傳,有人訂其他人就知道可以訂)。每店最多 1 排(收單中優先,否則取最新),最多 4 排;自己的店排最前面
   const ORDER=['龍山寺店','東門店','古亭店','公館店'];
@@ -1533,7 +1551,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
     const today=new Date().toISOString().slice(0,10);
     const homeKey='home-daily-'+settings.code;
     let already=false;try{already=localStorage.getItem(homeKey)===today}catch(_e){}
-    if(!already){
+    if(!already&&navigator.onLine!==false){ // v1.13-067:離線時不燒掉今天的旗標,等連上網再開啟時補做
       // 修正bug:這個旗標原本是在下面的async流程「全部跑完」之後才寫回localStorage,
       // 中間要等gasVerifyKey+gasLogDailyCheck(甚至syncMyStaffStatus)這幾個await依序跑完,
       // 加起來可能要1~2秒——這段等待期間如果使用者幾乎同時重新整理/重開一次(例如LINE內建瀏覽器重整、
@@ -1699,9 +1717,11 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
     {false&&<div className="mb-6"><p className="text-sm text-gray-400 mb-3">{t.addLaodian}</p><div className="grid grid-cols-6 gap-2">{[1,2,3,4,5,6].map(n=>(<button key={n} onClick={()=>addLaodian(n)} className="py-3.5 rounded-xl bg-orange-500/10 border border-orange-500/15 text-orange-400 font-bold active:bg-orange-500/25 transition-all">+{n}</button>))}</div></div>}
     {SKILL_KEYS.some(k=>settings.skills?.[k])&&(<div className="mb-6"><p className="text-sm text-gray-400 mb-3">{t.skills}</p><div className="grid grid-cols-3 gap-2">{SKILL_KEYS.map((k,i)=>settings.skills?.[k]?(<button key={k} onClick={()=>addSkill(k)} className="py-3 rounded-xl bg-white/[0.04] border border-white/[0.06] active:bg-white/[0.08] transition-all text-center"><div className={`text-sm font-bold ${SKILL_COLORS[i]}`}>{t[SKILL_SHORT[i]]}{(todayData.skills?.[k]||0)>0?` ×${todayData.skills[k]}`:''}</div><div className="text-[10px] text-gray-600">{t[k]} ${SKILL_PRICES[i]}</div></button>):null)}</div></div>)}
     {settings.homeShowB!==false&&(todayData.slips||[]).length>0&&(<div className="mb-3"><p className="text-[15px] font-bold text-gray-100 mb-2">{t.slipList}（{todayData.slips.length}）</p><div className="space-y-1.5">{todayData.slips.map(s=>(<div key={s.id} onClick={()=>setHomeEditSlipId(s.id)} className={`flex items-center gap-2.5 rounded-xl px-3.5 min-h-[48px] active:bg-white/[0.06] cursor-pointer border transition-colors duration-1000 ${s.id===highlightSlipId?'bg-amber-500/25 border-amber-500/40':'bg-white/[0.03] border-white/[0.06]'}`}><span className="text-[17px] font-bold text-amber-300 tabular-nums whitespace-nowrap">{s.units}{t.units} {slipSvcLabel(s,t===T.zh?"zh":"vi")}</span>{(s.laodian||0)>0&&<span className="text-[13px] font-semibold text-orange-400 whitespace-nowrap">{t.laodian}{(s.laodian||0)>1?(' '+s.laodian):''}</span>}<span className="text-sm text-gray-300 truncate">{s.custName||''}{s.custTitle?bookTitleName(s.custTitle,t===T.zh?'zh':'vi'):''}</span><span className="text-[15px] text-gray-400 tabular-nums ml-auto whitespace-nowrap">{(()=>{const d=new Date(s.startAt||s.createdAt);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')})()}</span></div>))}</div></div>)}
-    {homeEditSlipId&&(()=>{const s=(todayData.slips||[]).find(x=>x.id===homeEditSlipId);if(!s)return null;return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={closeHomeSlipModal}><div className="su bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
-      <div className="p-4 border-b border-white/[0.06] flex items-center justify-between"><h3 className="text-base font-bold text-gray-100">{t.slipList}</h3><button onClick={closeHomeSlipModal} className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-gray-400 active:bg-white/[0.12]">✕</button></div>
-      <div className="p-1"><SlipEditFields s={s} t={t} editorCode={settings.code} custQuery={homeCustQuery} setCustQuery={setHomeCustQuery} onUpdate={patch=>updSlipHome(s.id,patch)} onDelete={()=>{delSlipHome(s.id);setHomeEditSlipId(null)}}/></div>
+    {homeEditSlipId&&(()=>{const s=(todayData.slips||[]).find(x=>x.id===homeEditSlipId);if(!s)return null;const st=new Date(s.startAt||s.createdAt);const hm=String(st.getHours()).padStart(2,'0')+':'+String(st.getMinutes()).padStart(2,'0');return(<div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={closeHomeSlipModal}><div className="su bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[92vh] flex flex-col" onClick={e=>e.stopPropagation()}>
+      <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mt-2 sm:hidden flex-shrink-0"/>
+      <div className="px-5 pt-3 pb-3 flex items-start justify-between flex-shrink-0"><div className="min-w-0"><h3 className="text-xl font-bold text-gray-100">{t.slipList}</h3><p className="text-sm text-gray-400 mt-0.5 tabular-nums">{hm} {t===T.zh?'開始':''} · {s.units||1} {t.units}{(s.laodian||0)>0?` · ${t.laodian} ${s.laodian}`:''}</p></div><button onClick={closeHomeSlipModal} aria-label="close" className="w-10 h-10 flex-shrink-0 rounded-full bg-white/[0.07] flex items-center justify-center text-gray-300 active:bg-white/[0.12]">✕</button></div>
+      <div className="flex-1 overflow-y-auto border-t border-white/[0.08]"><SlipEditFields s={s} t={t} editorCode={settings.code} custQuery={homeCustQuery} setCustQuery={setHomeCustQuery} onUpdate={patch=>updSlipHome(s.id,patch)} onDelete={()=>{delSlipHome(s.id);setHomeEditSlipId(null)}} noDelete/></div>
+      <div className="flex gap-2.5 px-5 pt-3 pb-5 border-t border-white/[0.08] flex-shrink-0"><button onClick={()=>{delSlipHome(s.id);setHomeEditSlipId(null)}} className="h-[50px] px-4 rounded-2xl text-red-400 text-[15px] font-semibold active:bg-red-500/10">{t.slipDelete}</button><button onClick={closeHomeSlipModal} className="flex-1 h-[50px] rounded-2xl bg-amber-400 text-gray-950 text-[17px] font-bold active:opacity-85">{t===T.zh?'完成':'Xong'}</button></div>
     </div></div>)})()}
     {settings.homeShowC===true&&(<div><p className="text-sm text-gray-400 mb-3">{t.status}</p><div className="grid grid-cols-3 gap-2">{[0,3,4,1,2,5].map(s=>(<button key={s} onClick={()=>setTodayStatus(s)} className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${todayData.status===s?(s===0?'bg-gray-600 text-white ring-2 ring-gray-500':`${SBG[s].replace('/20','/30')} ${STC[s]} ring-2 ring-current`):'bg-white/[0.04] text-gray-600'}`}>{t[SK[s]]}</button>))}</div></div>)}
     <GloveBanner settings={settings}/>
@@ -1739,25 +1759,31 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
     </div>)}
     {moreFuncBlocked&&!showMoreFunc&&<p className="text-xs text-red-400 text-center mt-2">{t.moreFuncLeftMsg||'此區功能僅開放在職員工使用'}</p>}
     {showMoreFunc&&(<>
-      <div className="grid grid-cols-4 gap-1 mt-1">
-      <button onClick={()=>onGotoMonthly&&onGotoMonthly()} className="flex flex-col items-center gap-1"><span className="w-14 h-14 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="4" width="18" height="17" rx="2"/><path strokeWidth={1.8} d="M3 9h18M8 2v4M16 2v4"/></svg></span><span className="text-[13px] font-semibold text-gray-300">{t.monthly}</span></button>
-      <button onClick={()=>onGotoMonthlyCalendar&&onGotoMonthlyCalendar()} className="flex flex-col items-center gap-1"><span className="w-14 h-14 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1] relative"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg></span><span className="text-[13px] font-semibold text-gray-300">{t.monthlyCalendar||'月曆'}</span></button>
-      <button onClick={()=>onGotoCustomers&&onGotoCustomers()} className="flex flex-col items-center gap-1"><span className="w-14 h-14 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1]"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM3 21v-1a6 6 0 0112 0v1"/><path d="M17 11a3 3 0 003-3M19 21v-1a5 5 0 00-3-4.6"/></svg></span><span className="text-[13px] font-semibold text-gray-300">{t.custManage}</span></button>
-      <button onClick={()=>onGotoSettings&&onGotoSettings()} className="flex flex-col items-center gap-1 relative"><span className="w-14 h-14 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center active:bg-white/[0.1] relative">{settingsAlert&&<span className="absolute -top-0.5 -right-0.5 text-red-500 text-[11px]">❗</span>}<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-2.82 1.17V21a2 2 0 01-4 0v-.09A1.65 1.65 0 006.6 19.4l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 8.6l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 6.6a1.65 1.65 0 001-1.51V5a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span><span className="text-[13px] font-semibold text-gray-300">{t.settings}</span></button>
+      <div className="grid grid-cols-4 mt-1 border-y border-white/[0.1]">
+      <button onClick={()=>onGotoMonthly&&onGotoMonthly()} className="relative flex flex-col items-center justify-center gap-2 min-h-[92px] text-[14px] font-semibold text-gray-100 active:bg-white/[0.06]"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-amber-400"><rect x="3" y="4" width="18" height="17" rx="2"/><path strokeWidth={1.8} d="M3 9h18M8 2v4M16 2v4"/></svg><span>{t.monthly}</span></button>
+      <button onClick={()=>onGotoMonthlyCalendar&&onGotoMonthlyCalendar()} className="relative flex flex-col items-center justify-center gap-2 min-h-[92px] text-[14px] font-semibold text-gray-100 active:bg-white/[0.06] border-l border-white/[0.1]"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-amber-400"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg><span>{t.monthlyCalendar||'月曆'}</span></button>
+      <button onClick={()=>onGotoCustomers&&onGotoCustomers()} className="relative flex flex-col items-center justify-center gap-2 min-h-[92px] text-[14px] font-semibold text-gray-100 active:bg-white/[0.06] border-l border-white/[0.1]"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-amber-400"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM3 21v-1a6 6 0 0112 0v1"/><path d="M17 11a3 3 0 003-3M19 21v-1a5 5 0 00-3-4.6"/></svg><span>{t.custManage}</span></button>
+      <button onClick={()=>onGotoSettings&&onGotoSettings()} className="relative flex flex-col items-center justify-center gap-2 min-h-[92px] text-[14px] font-semibold text-gray-100 active:bg-white/[0.06] border-l border-white/[0.1]">{settingsAlert&&<span className="absolute top-2 right-[calc(50%-24px)] text-red-500 text-[11px]">❗</span>}<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-amber-400"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-2.82 1.17V21a2 2 0 01-4 0v-.09A1.65 1.65 0 006.6 19.4l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 8.6l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 6.6a1.65 1.65 0 001-1.51V5a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg><span>{t.settings}</span></button>
       </div>
-      <div className="grid grid-cols-2 gap-1.5 mt-3">
-      <button onClick={()=>onGotoBackup&&onGotoBackup()} className="flex items-center gap-2.5 min-h-[48px] px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-left active:bg-white/[0.08]"><span className="flex-shrink-0 flex items-center justify-center"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg></span><span className="text-sm text-gray-300">{t.tabBackup||'備份'}</span></button>
-      {!HIDE_COMPANY_FEATURES&&<button onClick={()=>onGotoNotices&&onGotoNotices()} className="flex items-center gap-2.5 min-h-[48px] px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-left active:bg-white/[0.08]"><span className="flex-shrink-0 flex items-center justify-center"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M3 11l18-6v14l-18-6v-2z"/><path d="M8 15v4a2 2 0 002 2h1"/></svg></span><span className="text-sm text-gray-300">{t.tabNotice}</span></button>}
-      <button onClick={()=>onGotoBook&&onGotoBook()} className="flex items-center gap-2.5 min-h-[48px] px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-left active:bg-white/[0.08]"><span className="flex-shrink-0 flex items-center justify-center"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span><span className="text-sm text-gray-300">{t.tabBook2}</span></button>
-      {!HIDE_CHART&&<button onClick={()=>onGotoChart&&onGotoChart()} className="flex items-center gap-2.5 min-h-[48px] px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-left active:bg-white/[0.08]"><span className="flex-shrink-0 flex items-center justify-center"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg></span><span className="text-sm text-gray-300">{t.tabChart}</span></button>}
-      <button onClick={()=>setShowCard(true)} className="flex items-center gap-2.5 min-h-[48px] px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-left active:bg-white/[0.08]"><span className="flex-shrink-0 flex items-center justify-center"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="2.5" y="5" width="19" height="14" rx="2"/><circle cx="8.5" cy="11" r="2"/><path d="M5.5 16c.6-1.6 1.7-2.4 3-2.4s2.4.8 3 2.4M14 10h5M14 13.5h4"/></svg></span><span className="text-sm text-gray-300">{t.cardBtn||'名片'}</span></button>
-      {!HIDE_COMPANY_FEATURES&&<button onClick={()=>onGotoSuggest&&onGotoSuggest()} className="flex items-center gap-2.5 min-h-[48px] px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-left active:bg-white/[0.08]"><span className="flex-shrink-0 flex items-center justify-center"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7V17h8v-2.3A7 7 0 0012 2z"/></svg></span><span className="text-sm text-gray-300">{t.tabSuggest}</span></button>}
-      <button onClick={()=>onGotoAcupoint&&onGotoAcupoint()} className="flex items-center gap-2.5 min-h-[48px] px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-left active:bg-white/[0.08]"><span className="flex-shrink-0 flex items-center justify-center"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><path d="M12 3a9 9 0 100 18 9 9 0 000-18z"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg></span><span className="text-sm text-gray-300">{t.acupointBtn}</span></button>
-      {!HIDE_COMPANY_FEATURES&&<button onClick={()=>onGotoViolation&&onGotoViolation()} className="flex items-center gap-2.5 min-h-[48px] px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-left active:bg-white/[0.08]"><span className="flex-shrink-0 flex items-center justify-center"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M4 22V4a1 1 0 011-1h13.5a.5.5 0 01.4.8l-2.9 3.7 2.9 3.7a.5.5 0 01-.4.8H5"/></svg></span><span className="text-sm text-gray-300">{t.tabViolation}</span></button>}
-      <button onClick={()=>setShowLineQr(true)} className="flex items-center gap-2.5 min-h-[48px] px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-left active:bg-white/[0.08]"><span className="flex-shrink-0 flex items-center justify-center"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z"/></svg></span><span className="text-sm text-gray-300">LINE Bot</span></button>
-      {!HIDE_COMPANY_FEATURES&&<button onClick={()=>setShowGroupBuy(true)} className="flex items-center gap-2.5 min-h-[48px] px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-left active:bg-white/[0.08]"><span className="flex-shrink-0 flex items-center justify-center"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></span><span className="text-sm text-gray-300">{t.groupBuyBtn}</span></button>}
-      {!HIDE_COMPANY_FEATURES&&<button onClick={()=>setShowDisasterReport(true)} className="flex items-center gap-2.5 min-h-[48px] px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-left active:bg-white/[0.08]"><span className="flex-shrink-0 flex items-center justify-center"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg></span><span className="text-sm text-gray-300">{t.drBtn}</span></button>}
+      <p className="text-[13px] font-semibold tracking-wider text-gray-400 mt-6 mb-1 px-1">{t===T.zh?'工具':'Công cụ'}</p>
+      <div className="border-t border-white/[0.1]">
+      <button onClick={()=>onGotoBook&&onGotoBook()} className="w-full flex items-center gap-3.5 min-h-[56px] border-b border-white/[0.1] text-left active:bg-white/[0.05]"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span className="flex-1 min-w-0"><span className="block text-base font-semibold text-gray-100">{t.tabBook2}</span><span className="block text-[13px] text-gray-400">{t===T.zh?'登記自己約的客人':'Ghi lịch khách tự hẹn'}</span></span><span className="text-gray-500 text-lg">›</span></button>
+      <button onClick={()=>setShowCard(true)} className="w-full flex items-center gap-3.5 min-h-[56px] border-b border-white/[0.1] text-left active:bg-white/[0.05]"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="2.5" y="5" width="19" height="14" rx="2"/><circle cx="8.5" cy="11" r="2"/><path d="M5.5 16c.6-1.6 1.7-2.4 3-2.4s2.4.8 3 2.4M14 10h5M14 13.5h4"/></svg><span className="flex-1 min-w-0"><span className="block text-base font-semibold text-gray-100">{t.cardBtn||'名片'}</span><span className="block text-[13px] text-gray-400">{t===T.zh?'編輯並分享給客人':'Chỉnh sửa & chia sẻ cho khách'}</span></span><span className="text-gray-500 text-lg">›</span></button>
+      <button onClick={()=>onGotoAcupoint&&onGotoAcupoint()} className="w-full flex items-center gap-3.5 min-h-[56px] border-b border-white/[0.1] text-left active:bg-white/[0.05]"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><path d="M12 3a9 9 0 100 18 9 9 0 000-18z"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg><span className="flex-1 min-w-0"><span className="block text-base font-semibold text-gray-100">{t.acupointBtn}</span></span><span className="text-gray-500 text-lg">›</span></button>
+      <button onClick={()=>onGotoBackup&&onGotoBackup()} className="w-full flex items-center gap-3.5 min-h-[56px] border-b border-white/[0.1] text-left active:bg-white/[0.05]"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg><span className="flex-1 min-w-0"><span className="block text-base font-semibold text-gray-100">{t.tabBackup||'備份'}</span><span className="block text-[13px] text-gray-400">{t===T.zh?'匯出／還原個人資料':'Xuất / khôi phục dữ liệu'}</span></span><span className="text-gray-500 text-lg">›</span></button>
       </div>
+      <p className="text-[13px] font-semibold tracking-wider text-gray-400 mt-6 mb-1 px-1">LINE</p>
+      <div className="border-t border-white/[0.1]">
+      <button onClick={()=>setShowLineQr(true)} className="w-full flex items-center gap-3.5 min-h-[56px] border-b border-white/[0.1] text-left active:bg-white/[0.05]"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z"/></svg><span className="flex-1 min-w-0"><span className="block text-base font-semibold text-gray-100">LINE Bot</span><span className="block text-[13px] text-gray-400">{t===T.zh?'掃 QR 加入／開啟網頁版':'Quét QR để thêm / mở bản web'}</span></span><span className="text-gray-500 text-lg">›</span></button>
+      </div>
+      {!HIDE_COMPANY_FEATURES&&<div className="border-t border-white/[0.1] mt-6">
+      <button onClick={()=>onGotoNotices&&onGotoNotices()} className="w-full flex items-center gap-3.5 min-h-[56px] border-b border-white/[0.1] text-left active:bg-white/[0.05]"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M3 11l18-6v14l-18-6v-2z"/><path d="M8 15v4a2 2 0 002 2h1"/></svg><span className="flex-1 min-w-0"><span className="block text-base font-semibold text-gray-100">{t.tabNotice}</span></span><span className="text-gray-500 text-lg">›</span></button>
+      {!HIDE_CHART&&<button onClick={()=>onGotoChart&&onGotoChart()} className="w-full flex items-center gap-3.5 min-h-[56px] border-b border-white/[0.1] text-left active:bg-white/[0.05]"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg><span className="flex-1 min-w-0"><span className="block text-base font-semibold text-gray-100">{t.tabChart}</span></span><span className="text-gray-500 text-lg">›</span></button>}
+      <button onClick={()=>onGotoSuggest&&onGotoSuggest()} className="w-full flex items-center gap-3.5 min-h-[56px] border-b border-white/[0.1] text-left active:bg-white/[0.05]"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7V17h8v-2.3A7 7 0 0012 2z"/></svg><span className="flex-1 min-w-0"><span className="block text-base font-semibold text-gray-100">{t.tabSuggest}</span></span><span className="text-gray-500 text-lg">›</span></button>
+      <button onClick={()=>onGotoViolation&&onGotoViolation()} className="w-full flex items-center gap-3.5 min-h-[56px] border-b border-white/[0.1] text-left active:bg-white/[0.05]"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M4 22V4a1 1 0 011-1h13.5a.5.5 0 01.4.8l-2.9 3.7 2.9 3.7a.5.5 0 01-.4.8H5"/></svg><span className="flex-1 min-w-0"><span className="block text-base font-semibold text-gray-100">{t.tabViolation}</span></span><span className="text-gray-500 text-lg">›</span></button>
+      <button onClick={()=>setShowGroupBuy(true)} className="w-full flex items-center gap-3.5 min-h-[56px] border-b border-white/[0.1] text-left active:bg-white/[0.05]"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg><span className="flex-1 min-w-0"><span className="block text-base font-semibold text-gray-100">{t.groupBuyBtn}</span></span><span className="text-gray-500 text-lg">›</span></button>
+      <button onClick={()=>setShowDisasterReport(true)} className="w-full flex items-center gap-3.5 min-h-[56px] border-b border-white/[0.1] text-left active:bg-white/[0.05]"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg><span className="flex-1 min-w-0"><span className="block text-base font-semibold text-gray-100">{t.drBtn}</span></span><span className="text-gray-500 text-lg">›</span></button>
+      </div>}
       {!HIDE_BREAK&&<BreakTimerSection settings={settings}/>}
     </>)}
     {!HIDE_COMPANY_FEATURES&&<SupervisorSection t={t} settings={settings}/>}
@@ -1772,11 +1798,11 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
       const page=qrPages[idx];
       return(<div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 p-6" style={{background:'rgba(0,0,0,0.9)'}} onClick={()=>setShowLineQr(false)}>
         <div onClick={e=>e.stopPropagation()} className="bg-white rounded-2xl p-5 flex flex-col items-center gap-3 max-w-xs">
-          <p className="text-sm font-bold text-gray-900">{page.title}</p>
+          <p className="text-lg font-bold text-gray-900">{page.title}</p>
           <img src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(page.data)}`} alt="QR Code" className="w-56 h-56"/>
-          <div className="flex items-center gap-4"><button onClick={()=>setLineQrIdx(i=>(i-1+qrPages.length)%qrPages.length)} className="w-9 h-9 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-lg">‹</button><div className="flex gap-1.5">{qrPages.map((_,i)=>(<span key={i} className={`w-1.5 h-1.5 rounded-full ${i===idx?'bg-gray-800':'bg-gray-300'}`}/>))}</div><button onClick={()=>setLineQrIdx(i=>(i+1)%qrPages.length)} className="w-9 h-9 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-lg">›</button></div>
-          <a href={page.data} target="_blank" rel="noopener" className="w-full py-2.5 rounded-xl bg-[#06C755] text-white text-sm font-bold text-center">{page.label}</a>
-          <button onClick={()=>setShowLineQr(false)} className="text-xs text-gray-500">關閉</button>
+          <div className="flex items-center gap-4"><button onClick={()=>setLineQrIdx(i=>(i-1+qrPages.length)%qrPages.length)} className="w-11 h-11 rounded-full bg-gray-100 text-gray-700 flex items-center justify-center text-xl">‹</button><div className="flex gap-1.5">{qrPages.map((_,i)=>(<span key={i} className={`w-1.5 h-1.5 rounded-full ${i===idx?'bg-gray-800':'bg-gray-300'}`}/>))}</div><button onClick={()=>setLineQrIdx(i=>(i+1)%qrPages.length)} className="w-11 h-11 rounded-full bg-gray-100 text-gray-700 flex items-center justify-center text-xl">›</button></div>
+          <a href={page.data} target="_blank" rel="noopener" className="w-full h-[52px] flex items-center justify-center rounded-2xl bg-[#06C755] text-white text-[15px] font-bold text-center">{page.label}</a>
+          <button onClick={()=>setShowLineQr(false)} className="h-11 px-6 text-[15px] text-gray-600">關閉</button>
         </div>
       </div>);
     })()}
@@ -1822,50 +1848,67 @@ function SummaryTable({prev,next,month,t}){const Row=({label,data,bold})=>(<div 
 function DayRow({day,d,y,m,t,up,sk,onEdit,isToday}){const dw=dow(y,m,d),we=dw===0||dw===6,nw=!canWork[day.status];const sal=calcSal(day,up,sk);const emptyDay=!(day.total>0)&&!(sal>0)&&!(day.laodian>0)&&!nw;return(<div data-today-row={isToday?'1':undefined} onClick={()=>onEdit(d)} className={`flex items-center px-4 border-b active:bg-white/[0.06] cursor-pointer ${emptyDay?'min-h-[40px] opacity-50':'min-h-[46px]'} ${isToday?'border-emerald-500 border-l-4 bg-emerald-500/20':(we&&!emptyDay?'border-white/[0.04] bg-amber-500/[0.05]':'border-white/[0.04]')} `}><div className="w-14 flex-shrink-0"><span className="text-[15px] font-bold text-gray-200">{d}</span><span className={`text-xs ml-1 ${we?'text-amber-500':'text-gray-500'}`}>{t.dn[dw]}</span></div><div className="flex-1 flex items-center gap-2 min-w-0">{nw&&<span className={`text-xs px-2 py-0.5 rounded-full ${SBG[day.status]} ${STC[day.status]}`}>{t[SK[day.status]]}</span>}{(<>{emptyDay?<span className="text-sm text-gray-600 w-10 text-right">—</span>:<><span className="text-[15px] text-gray-100 w-10 text-right tabular-nums font-bold">{day.total||''}</span><span className="text-[15px] text-emerald-400/90 w-20 text-right tabular-nums font-semibold">{sal>0?'$'+sal.toLocaleString():''}</span><span className="text-sm text-orange-400 w-8 text-center tabular-nums font-bold">{day.laodian||''}</span></>}{(day.status===2||day.status===5)&&<span className={`text-xs px-2 py-0.5 rounded-full ${SBG[day.status]} ${STC[day.status]}`}>{t[SK[day.status]]}</span>}{day.skills&&SKILL_KEYS.map((k,i)=>(sk?.[k]&&day.skills[k]>0)?<span key={k} className={`text-xs ${SKILL_COLORS[i]}`}>{t[SKILL_SHORT[i]]}{day.skills[k]}</span>:null)}{(day.groups||[]).length>1&&<span className="text-xs text-gray-500 truncate">{(day.groups||[]).join('+')}</span>}</>)}</div><svg className="w-3.5 h-3.5 text-gray-700 flex-shrink-0 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg></div>)}
 
 function SlipTags({slip,t,code,onAdd,onDel}){
+  // v1.13-068 UI:標籤區字級放大(輸入框 44px、標籤 36px 高、說明 13px),標籤改琥珀實心便於辨識
   const[input,setInput]=useState('');
   const hist=loadTagHistory(code).filter(h=>!(slip.tags||[]).includes(h)).slice(0,12);
   const submit=(val)=>{const parts=(val||input).split(/[\s,，]+/).filter(Boolean);parts.forEach(p=>onAdd(slip.id,p));setInput('')};
-  return(<div className="space-y-1.5">
-    <label className="text-xs text-gray-500 block">{t.slipTags}</label>
-    <div className="flex gap-2"><input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();submit()}}} placeholder={t.slipTagsPlaceholder} className="flex-1 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/><button onClick={()=>submit()} disabled={!input.trim()} className={`px-3 py-1.5 rounded-lg text-sm font-bold ${input.trim()?'bg-amber-600 text-white active:bg-amber-700':'bg-white/[0.05] text-gray-600'}`}>＋</button></div>
-    {slip.tags&&slip.tags.length>0&&<div className="flex flex-wrap gap-1.5">{slip.tags.map(tag=>(<span key={tag} className="inline-flex items-center gap-1 bg-amber-600/15 text-amber-300 rounded-full pl-2 pr-1 py-0.5 text-xs">#{tag}<button onClick={()=>onDel(slip.id,tag)} className="w-4 h-4 flex items-center justify-center rounded-full bg-amber-600/30 text-amber-200 text-[10px]">×</button></span>))}</div>}
-    {hist.length>0&&<div className="flex flex-wrap gap-1"><span className="text-[10px] text-gray-600 w-full">{t.slipTagHistory}</span>{hist.map(h=>(<button key={h} onClick={()=>onAdd(slip.id,h)} className="bg-white/[0.05] text-gray-400 rounded-full px-2 py-0.5 text-[11px] active:bg-white/[0.1]">#{h}</button>))}</div>}
+  return(<div className="space-y-2.5">
+    <p className="text-[13px] font-semibold text-gray-400 tracking-wider">{t.slipTags}</p>
+    <div className="flex gap-2"><input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();submit()}}} placeholder={t.slipTagsPlaceholder} className="flex-1 min-w-0 h-11 bg-white/[0.06] border border-white/[0.1] rounded-xl px-3 text-[15px] text-gray-100 focus:outline-none focus:border-amber-400"/><button onClick={()=>submit()} className="w-11 h-11 flex-shrink-0 rounded-xl border border-white/[0.12] text-gray-200 text-xl active:bg-white/[0.08]">+</button></div>
+    {slip.tags&&slip.tags.length>0&&<div className="flex flex-wrap gap-2">{slip.tags.map(tag=>(<span key={tag} className="inline-flex items-center gap-1.5 min-h-[36px] bg-amber-400 text-gray-950 font-bold rounded-full pl-3.5 pr-1.5 text-sm">#{tag}<button onClick={()=>onDel(slip.id,tag)} aria-label="remove" className="w-7 h-7 flex items-center justify-center rounded-full active:bg-black/10">✕</button></span>))}</div>}
+    {hist.length>0&&<div className="flex flex-wrap gap-2"><span className="text-[13px] text-gray-400 w-full">{t.slipTagHistory}</span>{hist.map(h=>(<button key={h} onClick={()=>onAdd(slip.id,h)} className="min-h-[36px] border border-white/[0.12] text-gray-200 rounded-full px-3 text-sm active:bg-white/[0.08]">#{h}</button>))}</div>}
   </div>);
 }
 // 流水詳情編輯欄位(共用元件):DayEditor跟首頁的流水彈窗都用這個,避免同一段UI維護兩份
-function SlipEditFields({s,t,editorCode,custQuery,setCustQuery,onUpdate,onDelete}){
+// v1.13-068 UI 改版(Impeccable):分區(支數與老點/客戶/受力/部位/要求)、欄位 44px、標籤 13px、選取態=琥珀底深色字、受力改三段式。
+// 支數下拉放寬到 1~20(超過 20 時自動延伸到目前支數),老點下拉 0~支數。
+function SlipEditFields({s,t,editorCode,custQuery,setCustQuery,onUpdate,onDelete,noDelete}){
   const fmtTime=(ms)=>{const dt=new Date(ms);return String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0')};
   const startMs=s.startAt||s.createdAt;
   const setStart=(hhmm)=>{if(!hhmm){onUpdate({startAt:0});return}const base=new Date(s.createdAt);const[h,mi]=hhmm.split(':').map(Number);base.setHours(h,mi,0,0);onUpdate({startAt:base.getTime()})};
   const toggleArr=(field,val)=>{const arr=s[field]||[];onUpdate({[field]:arr.includes(val)?arr.filter(x=>x!==val):[...arr,val]})};
   const applyCust=(c)=>{onUpdate({custName:c.custName||'',custTitle:c.custTitle||'',custPhone:c.custPhone||'',pressBody:c.pressBody||'',pressFoot:c.pressFoot||'',parts:c.parts||[]});setCustQuery(q=>({...q,[s.id]:''}))};
-  return(<div className="px-3 pb-3 pt-1 space-y-2 fi border-t border-white/[0.04]">
-    <div className="grid grid-cols-5 gap-1">
-      <div><label className="text-[10px] text-gray-600 mb-0.5 block truncate">{t.slipUnits}</label><select value={s.units||1} onChange={e=>{const nu=parseInt(e.target.value)||1;const patch={units:nu};if((s.laodian||0)>nu)patch.laodian=nu;onUpdate(patch)}} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-0.5 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-amber-500">{[1,2,3,4,5,6,7,8,9,10].map(n=><option key={n} value={n}>{n}{t.units}</option>)}</select></div>
-      <div><label className="text-[10px] text-gray-600 mb-0.5 block truncate">{t.svcLabel}</label><select value={s.svc||''} onChange={e=>onUpdate({svc:e.target.value})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-0.5 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-amber-500"><option value="">--</option>{SERVICES.map(o=><option key={o.code} value={o.code}>{o.code}</option>)}</select></div>
-      <div><label className="text-[10px] text-gray-600 mb-0.5 block truncate">{t.addHour}</label><select value={s.extra||0} onChange={e=>onUpdate({extra:parseInt(e.target.value)||0})} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-0.5 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-amber-500">{[0,1,2,3,4,5,6,7,8].map(n=><option key={n} value={n}>+{n}</option>)}</select></div>
-      <div><label className="text-[10px] text-gray-600 mb-0.5 block truncate flex items-center gap-0.5"><input type="checkbox" checked={(s.laodian||0)>0} onChange={e=>onUpdate({laodian:e.target.checked?1:0})} className="accent-orange-500 flex-shrink-0"/><span className="truncate">{t.laodian}</span></label><select value={s.laodian||0} disabled={(s.laodian||0)===0} onChange={e=>onUpdate({laodian:parseInt(e.target.value)||0})} className={`w-full border rounded-lg px-0.5 py-1.5 text-sm focus:outline-none ${(s.laodian||0)>0?'bg-white/[0.06] border-white/[0.08] text-orange-300 focus:border-orange-500':'bg-white/[0.02] border-white/[0.04] text-gray-600'}`}>{Array.from({length:(s.units||1)+1},(_,i)=>i).map(n=><option key={n} value={n}>{n}</option>)}</select></div>
-      <div><label className="text-[10px] text-gray-600 mb-0.5 block truncate">{t.slipStartTime}</label><input type="time" value={fmtTime(startMs)} onChange={e=>setStart(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-0.5 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div>
+  const fld="w-full h-11 bg-white/[0.06] border border-white/[0.1] rounded-xl px-3 text-base text-gray-100 focus:outline-none focus:border-amber-400 min-w-0";
+  const lbl="text-[13px] text-gray-400 mb-1 block";
+  const hd="text-[13px] font-semibold text-gray-400 tracking-wider mb-2.5";
+  const sec="border-t border-white/[0.08] pt-4";
+  const chip=(on)=>`min-h-[40px] px-3.5 rounded-full text-sm border ${on?'bg-amber-400 border-amber-400 text-gray-950 font-bold':'border-white/[0.12] text-gray-200 active:bg-white/[0.08]'}`;
+  const units=s.units||1;const unitMax=Math.max(20,units);
+  const press=(field,label)=>(<div><p className={hd}>{label}</p><div className="grid grid-cols-3 border border-white/[0.12] rounded-xl overflow-hidden">{PRESS_LEVELS.map((pl,i)=>(<button key={pl} onClick={()=>onUpdate({[field]:s[field]===pl?'':pl})} className={`h-[42px] text-sm ${i>0?'border-l border-white/[0.12]':''} ${s[field]===pl?'bg-amber-400 text-gray-950 font-bold':'text-gray-200 active:bg-white/[0.08]'}`}>{t['press'+pl.charAt(0).toUpperCase()+pl.slice(1)]}</button>))}</div></div>);
+  return(<div className="px-4 pb-4 pt-3 space-y-4 fi">
+    <div>
+      <p className={hd}>{t.slipUnits}／{t.laodian}</p>
+      <div className="grid grid-cols-2 gap-2.5">
+        <div><label className={lbl}>{t.slipUnits}</label><select value={units} onChange={e=>{const nu=parseInt(e.target.value)||1;const patch={units:nu};if((s.laodian||0)>nu)patch.laodian=nu;onUpdate(patch)}} className={fld}>{Array.from({length:unitMax},(_,i)=>i+1).map(n=><option key={n} value={n}>{n}{t.units}</option>)}</select></div>
+        <div><label className={lbl}>{t.laodian}（0–{units}）</label><select value={s.laodian||0} onChange={e=>onUpdate({laodian:parseInt(e.target.value)||0})} className={fld+((s.laodian||0)>0?' text-orange-300':'')}>{Array.from({length:units+1},(_,i)=>i).map(n=><option key={n} value={n}>{n}</option>)}</select></div>
+      </div>
+      <div className="grid grid-cols-3 gap-2.5 mt-2.5">
+        <div><label className={lbl}>{t.svcLabel}</label><select value={s.svc||''} onChange={e=>onUpdate({svc:e.target.value})} className={fld}><option value="">--</option>{SERVICES.map(o=><option key={o.code} value={o.code}>{o.code}</option>)}</select></div>
+        <div><label className={lbl}>{t.addHour}</label><select value={s.extra||0} onChange={e=>onUpdate({extra:parseInt(e.target.value)||0})} className={fld}>{[0,1,2,3,4,5,6,7,8].map(n=><option key={n} value={n}>+{n}</option>)}</select></div>
+        <div><label className={lbl}>{t.slipStartTime}</label><input type="time" value={fmtTime(startMs)} onChange={e=>setStart(e.target.value)} className={fld+' px-2'}/></div>
+      </div>
     </div>
-    <div className="relative"><input value={custQuery[s.id]||''} onChange={e=>setCustQuery(q=>({...q,[s.id]:e.target.value}))} placeholder={t.custSearchHint} className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>{(custQuery[s.id]||'').trim()&&(()=>{const res=searchCustDB(editorCode,custQuery[s.id]);return res.length>0?(<div className="mt-1 bg-gray-800 border border-white/[0.08] rounded-lg overflow-hidden">{res.map((c,i)=>(<div key={i} onClick={()=>applyCust(c)} className="px-2 py-1.5 text-xs text-gray-200 active:bg-white/[0.06] border-b border-white/[0.04] last:border-0">{c.custName}{c.custTitle?' '+bookTitleName(c.custTitle,t===T.zh?'zh':'vi'):''} {c.custPhone||''}</div>))}</div>):(<p className="mt-1 text-[10px] text-amber-500/70">{t.custNewHint}</p>)})()}</div>
-    <div className="grid gap-1" style={{gridTemplateColumns:'1.2fr 0.85fr 1.3fr auto'}}>
-      <input value={s.custName||''} onChange={e=>onUpdate({custName:e.target.value})} placeholder={t.custName} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 min-w-0"/>
-      <select value={s.custTitle||''} onChange={e=>onUpdate({custTitle:e.target.value})} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-0.5 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-amber-500 min-w-0"><option value="">{t.custTitle}</option>{BOOK_TITLES.filter(o=>o.v==='sir'||o.v==='ms').map(o=><option key={o.v} value={o.v}>{o[t===T.zh?'zh':'vi']}</option>)}</select>
-      <input value={s.custPhone||''} onChange={e=>onUpdate({custPhone:e.target.value})} inputMode="numeric" placeholder={t.custPhone} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500 min-w-0"/>
-      <label className="flex items-center gap-1 cursor-pointer flex-shrink-0 px-1"><input type="checkbox" checked={!!s.blacklist} onChange={e=>{const on=e.target.checked;onUpdate({blacklist:on,blacklistReason:on?(s.blacklistReason||'騷擾'):s.blacklistReason})}} className="accent-red-500"/><span className="text-xs text-red-400 font-semibold">{t.blacklistCheck||'拒接'}</span></label>
+    <div className={sec+' space-y-2.5'}>
+      <p className={hd}>{t.custName}</p>
+      <div className="relative"><input value={custQuery[s.id]||''} onChange={e=>setCustQuery(q=>({...q,[s.id]:e.target.value}))} placeholder={t.custSearchHint} className={fld}/>{(custQuery[s.id]||'').trim()&&(()=>{const res=searchCustDB(editorCode,custQuery[s.id]);return res.length>0?(<div className="mt-1 bg-gray-800 border border-white/[0.1] rounded-xl overflow-hidden">{res.map((c,i)=>(<div key={i} onClick={()=>applyCust(c)} className="px-3 min-h-[44px] flex items-center text-sm text-gray-200 active:bg-white/[0.06] border-b border-white/[0.06] last:border-0">{c.custName}{c.custTitle?' '+bookTitleName(c.custTitle,t===T.zh?'zh':'vi'):''}　{c.custPhone||''}</div>))}</div>):(<p className="mt-1.5 text-[13px] text-amber-400">{t.custNewHint}</p>)})()}</div>
+      <div className="grid gap-2.5" style={{gridTemplateColumns:'1.2fr 1fr'}}>
+        <input value={s.custName||''} onChange={e=>onUpdate({custName:e.target.value})} placeholder={t.custName} className={fld}/>
+        <select value={s.custTitle||''} onChange={e=>onUpdate({custTitle:e.target.value})} className={fld}><option value="">{t.custTitle}</option>{BOOK_TITLES.filter(o=>o.v==='sir'||o.v==='ms').map(o=><option key={o.v} value={o.v}>{o[t===T.zh?'zh':'vi']}</option>)}</select>
+      </div>
+      <input value={s.custPhone||''} onChange={e=>onUpdate({custPhone:e.target.value})} inputMode="numeric" placeholder={t.custPhone} className={fld}/>
+      <label className="flex items-center justify-between min-h-[48px] cursor-pointer"><span className={`text-base ${s.blacklist?'text-red-400 font-semibold':'text-gray-200'}`}>{t.blacklistCheck||'拒接'}</span><span className="relative inline-block w-12 h-7"><input type="checkbox" checked={!!s.blacklist} onChange={e=>{const on=e.target.checked;onUpdate({blacklist:on,blacklistReason:on?(s.blacklistReason||'騷擾'):s.blacklistReason})}} className="peer sr-only"/><span className="absolute inset-0 rounded-full bg-gray-600 peer-checked:bg-red-500 transition-colors"/><span className="absolute top-[3px] left-[3px] w-[22px] h-[22px] rounded-full bg-white transition-transform peer-checked:translate-x-5"/></span></label>
+      {s.blacklist&&<select value={(s.blacklistReason==='騷擾'||!s.blacklistReason)?'騷擾':'其他'} onChange={e=>onUpdate({blacklistReason:e.target.value==='騷擾'?'騷擾':''})} className={fld}><option value="騷擾">{t.blacklistReasonHarass||'騷擾'}</option><option value="其他">{t.blacklistReasonOther||'其他'}</option></select>}
+      {s.blacklist&&s.blacklistReason!=='騷擾'&&<input value={s.blacklistReason||''} onChange={e=>onUpdate({blacklistReason:e.target.value})} placeholder={t.blacklistReasonPh||'請輸入原因'} className={fld+' border-red-500/40 focus:border-red-500'}/>}
     </div>
-    {s.blacklist&&<div className="flex items-center gap-2">
-      <select value={(s.blacklistReason==='騷擾'||!s.blacklistReason)?'騷擾':'其他'} onChange={e=>onUpdate({blacklistReason:e.target.value==='騷擾'?'騷擾':''})} className="flex-1 border rounded-lg px-2 py-1.5 text-sm focus:outline-none bg-white/[0.06] border-white/[0.08] text-gray-100 focus:border-red-500"><option value="騷擾">{t.blacklistReasonHarass||'騷擾'}</option><option value="其他">{t.blacklistReasonOther||'其他'}</option></select>
-    </div>}
-    {s.blacklist&&s.blacklistReason!=='騷擾'&&<input value={s.blacklistReason||''} onChange={e=>onUpdate({blacklistReason:e.target.value})} placeholder={t.blacklistReasonPh||'請輸入原因'} className="w-full bg-white/[0.06] border border-red-500/30 rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-red-500"/>}
-    <SlipTags slip={s} t={t} code={editorCode} onAdd={(id,tag)=>{tag=(tag||'').trim();if(!tag)return;if(s.tags&&s.tags.includes(tag))return;onUpdate({tags:[...(s.tags||[]),tag]});if(editorCode)addTagHistory(editorCode,tag)}} onDel={(id,tag)=>onUpdate({tags:(s.tags||[]).filter(x=>x!==tag)})}/>
-    <div className="pt-2 mt-1 border-t border-white/[0.04] space-y-2">
-      <div className="grid grid-cols-2 gap-2"><div><label className="text-[10px] text-gray-600 block mb-0.5">{t.pressBody}</label><div className="flex gap-1">{PRESS_LEVELS.map(pl=>(<button key={pl} onClick={()=>onUpdate({pressBody:s.pressBody===pl?'':pl})} className={`flex-1 py-1 rounded text-[11px] ${s.pressBody===pl?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t['press'+pl.charAt(0).toUpperCase()+pl.slice(1)]}</button>))}</div></div><div><label className="text-[10px] text-gray-600 block mb-0.5">{t.pressFoot}</label><div className="flex gap-1">{PRESS_LEVELS.map(pl=>(<button key={pl} onClick={()=>onUpdate({pressFoot:s.pressFoot===pl?'':pl})} className={`flex-1 py-1 rounded text-[11px] ${s.pressFoot===pl?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t['press'+pl.charAt(0).toUpperCase()+pl.slice(1)]}</button>))}</div></div></div>
-      <div><label className="text-[10px] text-gray-600 block mb-0.5">{t.strengthParts}</label><div className="flex flex-wrap gap-1">{BODY_PARTS.map(bp=>(<button key={bp} onClick={()=>toggleArr('parts',bp)} className={`px-2 py-1 rounded text-[11px] ${(s.parts||[]).includes(bp)?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t['part'+bp.charAt(0).toUpperCase()+bp.slice(1)]}</button>))}</div></div>
-      <div><label className="text-[10px] text-gray-600 block mb-0.5">{t.clientReq}</label><div className="flex flex-wrap gap-1">{CLIENT_REQS.map(cr=>(<button key={cr} onClick={()=>toggleArr('reqs',cr)} className={`px-2 py-1 rounded text-[11px] ${(s.reqs||[]).includes(cr)?'bg-amber-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t['req'+cr.charAt(0).toUpperCase()+cr.slice(1)]}</button>))}</div></div>
-      <div className="grid grid-cols-2 gap-2"><div><label className="text-[10px] text-gray-600 block mb-0.5">{t.laodianOut}</label><input value={s.laodianOut||''} onChange={e=>onUpdate({laodianOut:e.target.value})} placeholder={t.teacherNoPlaceholder} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div><div><label className="text-[10px] text-gray-600 block mb-0.5">{t.shiftOut}</label><input value={s.shiftOut||''} onChange={e=>onUpdate({shiftOut:e.target.value})} placeholder={t.teacherNoPlaceholder} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/></div></div>
+    <div className={sec}><SlipTags slip={s} t={t} code={editorCode} onAdd={(id,tag)=>{tag=(tag||'').trim();if(!tag)return;if(s.tags&&s.tags.includes(tag))return;onUpdate({tags:[...(s.tags||[]),tag]});if(editorCode)addTagHistory(editorCode,tag)}} onDel={(id,tag)=>onUpdate({tags:(s.tags||[]).filter(x=>x!==tag)})}/></div>
+    <div className={sec+' space-y-4'}>
+      {press('pressBody',t.pressBody)}
+      {press('pressFoot',t.pressFoot)}
+      <div><p className={hd}>{t.strengthParts}</p><div className="flex flex-wrap gap-2">{BODY_PARTS.map(bp=>(<button key={bp} onClick={()=>toggleArr('parts',bp)} className={chip((s.parts||[]).includes(bp))}>{t['part'+bp.charAt(0).toUpperCase()+bp.slice(1)]}</button>))}</div></div>
+      <div><p className={hd}>{t.clientReq}</p><div className="flex flex-wrap gap-2">{CLIENT_REQS.map(cr=>(<button key={cr} onClick={()=>toggleArr('reqs',cr)} className={chip((s.reqs||[]).includes(cr))}>{t['req'+cr.charAt(0).toUpperCase()+cr.slice(1)]}</button>))}</div></div>
+      <div className="grid grid-cols-2 gap-2.5"><div><label className={lbl}>{t.laodianOut}</label><input value={s.laodianOut||''} onChange={e=>onUpdate({laodianOut:e.target.value})} placeholder={t.teacherNoPlaceholder} className={fld}/></div><div><label className={lbl}>{t.shiftOut}</label><input value={s.shiftOut||''} onChange={e=>onUpdate({shiftOut:e.target.value})} placeholder={t.teacherNoPlaceholder} className={fld}/></div></div>
     </div>
-    <button onClick={onDelete} className="w-full py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs">{t.slipDelete}</button>
+    {!noDelete&&<button onClick={onDelete} className="w-full min-h-[44px] rounded-xl text-red-400 text-sm font-semibold active:bg-red-500/10">{t.slipDelete}</button>}
   </div>);
 }
 
@@ -1918,48 +1961,41 @@ function MonthlyCalendarPage({settings,t,onGotoYear,onClose}){
   const goPrevMonth=()=>{if(calM<=1){setCalY(calY-1);setCalM(12)}else{setCalM(calM-1)}};
   const goNextMonth=()=>{if(calM>=12){setCalY(calY+1);setCalM(1)}else{setCalM(calM+1)}};
   const goToday=()=>{setCalY(bizParts().y);setCalM(bizParts().m)};
-  return(<div className="max-w-lg mx-auto fi"><div className="sticky top-0 z-10 bg-gray-950 pb-1">
-  <div className="flex items-center justify-between px-3 py-2">
-    <button onClick={goToday} className="px-3 py-1.5 rounded-full text-xs font-semibold bg-white/[0.06] text-gray-300 flex-shrink-0">{t.todayBtn||'今日'}</button>
-    <div className="flex items-center gap-3">
-      <button onClick={goPrevMonth} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 active:bg-white/[0.08]"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
-      <button onClick={()=>onGotoYear&&onGotoYear(calY)} className="text-base font-bold text-gray-100 whitespace-nowrap active:opacity-60">{t===T.zh?`${calY}年${t.months[calM-1]}`:`${t.months[calM-1]} ${calY}`}</button>
-      <button onClick={goNextMonth} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 active:bg-white/[0.08]"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg></button>
+  // v1.13-068 UI 改版(Impeccable):月合計移到最上當主角、格內大數字=支數(琥珀點=有老點)、空白日虛線淡化、選中日摘要固定在底部、星期標題與頭尾導覽 44px 觸控區
+  const monthUnits=calc.month.units,monthLao=calc.month.laodian;
+  const nav="w-11 h-11 rounded-full flex items-center justify-center text-gray-300 active:bg-white/[0.08]";
+  return(<div className="max-w-lg mx-auto fi flex flex-col" style={{minHeight:'100%'}}>
+  <div className="flex items-center justify-between pl-2 pr-4 pt-1">
+    <div className="flex items-center">
+      <button onClick={goPrevMonth} aria-label="prev" className={nav}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+      <button onClick={()=>onGotoYear&&onGotoYear(calY)} className="text-xl font-bold text-gray-100 whitespace-nowrap px-1 min-h-[44px] active:opacity-60">{t===T.zh?`${calY}年${t.months[calM-1]}`:`${t.months[calM-1]} ${calY}`}</button>
+      <button onClick={goNextMonth} aria-label="next" className={nav}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg></button>
     </div>
-    <div className="w-[52px] flex-shrink-0"></div>
+    <button onClick={goToday} className="h-9 px-4 rounded-full border border-white/[0.15] text-sm text-gray-100 active:bg-white/[0.08]">{t.todayBtn||'今日'}</button>
   </div>
+  <div className="px-5 pt-2 pb-4">
+    <p className="text-[40px] leading-[1.1] font-extrabold text-gray-100 tabular-nums">${calc.month.salary.toLocaleString()}<span className="text-[15px] font-medium text-gray-400 ml-2">{monthUnits}{t.units}{monthLao>0?` · ${t.laodian} ${monthLao}`:''}</span></p>
+    <p className="mt-1.5 text-[14px] text-gray-400 flex gap-5"><span>{t.prevPeriod} <b className="text-gray-100 font-semibold tabular-nums">${calc.prev.salary.toLocaleString()}</b></span><span>{t.nextPeriod} <b className="text-gray-100 font-semibold tabular-nums">${calc.next.salary.toLocaleString()}</b></span></p>
   </div>
-  <div className="grid grid-cols-7 px-2 pt-1 pb-1">{t.dn.map((dn,i)=>(<div key={i} className={`text-center text-[11px] font-semibold ${i===0||i===6?'text-amber-500/70':'text-gray-600'}`}>{dn}</div>))}</div>
-  <div className="grid grid-cols-7 gap-1 px-2 pb-3">
+  <div className="grid grid-cols-7 px-3 pb-1.5">{t.dn.map((dn,i)=>(<div key={i} className={`text-center text-[13px] font-semibold ${i===0||i===6?'text-amber-400':'text-gray-400'}`}>{dn}</div>))}</div>
+  <div className="grid grid-cols-7 gap-1 px-3 pb-4">
     {cells.map((d,i)=>{
       if(d===null)return <div key={'e'+i}/>;
       const day=data?.days[d]||eDay();
       const nw=!canWork[day.status];
       const isToday=calM===bizParts().m&&calY===bizParts().y&&d===bizParts().d;
-      const sal=calcSal(day,getUnitPriceForDate(settings,calY,calM,d),settings.skills);
-      return(<button key={d} onClick={()=>setSelectedDay(d)} className={`aspect-square rounded-lg p-1 flex flex-col justify-between text-left ${selectedDay===d?'ring-2 ring-amber-500':isToday?'bg-emerald-500/20 ring-1 ring-emerald-500':'bg-white/[0.03]'} active:bg-white/[0.08]`}>
-        <div className="flex items-center gap-0.5 flex-wrap"><span className="text-xs font-semibold text-gray-300">{d}</span>{day.status!==0&&<span className={`text-[9px] px-1 rounded-full leading-tight ${SBG[day.status]} ${STC[day.status]}`}>{t[SK[day.status]]}</span>}</div>
-        <div className="text-right">{sal>0&&<span className="text-[10px] text-emerald-400/90 tabular-nums font-medium">{sal.toLocaleString()}</span>}</div>
+      const u=day.total||0,lo=day.laodian||0;const empty=u===0&&!nw&&(day.status||0)===0;
+      return(<button key={d} onClick={()=>setSelectedDay(d)} className={`h-[62px] rounded-[10px] px-1.5 pt-1.5 pb-1 flex flex-col justify-between text-left active:bg-white/[0.1] ${selectedDay===d?'bg-amber-400/20 ring-2 ring-amber-400':isToday?'ring-2 ring-amber-400 bg-white/[0.05]':empty?'border border-dashed border-white/[0.12]':'bg-white/[0.05]'}`}>
+        <div className="flex items-center gap-1 min-w-0"><span className={`text-[13px] ${isToday?'text-amber-400 font-bold':'text-gray-300'}`}>{d}</span>{day.status!==0&&<span className={`text-[11px] px-1 rounded-full leading-tight truncate ${SBG[day.status]} ${STC[day.status]}`}>{t[SK[day.status]]}</span>}</div>
+        <div className="text-right text-[18px] leading-none font-bold text-gray-100 tabular-nums">{u>0&&<>{lo>0&&<i className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 mr-1 align-middle"/>}{u}</>}</div>
       </button>);
     })}
   </div>
-  <div className="px-3 py-2 text-center text-sm">
-    <span className="text-gray-500">{t.prevPeriod}</span> <span className="font-bold text-emerald-400 tabular-nums">${calc.prev.salary.toLocaleString()}</span>
-    <span className="mx-2 text-gray-700">|</span>
-    <span className="text-gray-500">{t.nextPeriod}</span> <span className="font-bold text-emerald-400 tabular-nums">${calc.next.salary.toLocaleString()}</span>
-    <span className="mx-2 text-gray-700">|</span>
-    <span className="text-gray-500">{t.monthTotal}</span> <span className="font-bold text-amber-400 tabular-nums">${calc.month.salary.toLocaleString()}</span>
-  </div>
   {selectedDay&&selectedDayData&&(
-    <div className="px-3 pb-3">
-      <button onClick={()=>setEditDay(selectedDay)} className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/[0.05] border border-amber-500/30 active:bg-white/[0.1]">
-        <span className="text-sm font-semibold text-gray-200 flex-shrink-0">{calM}/{selectedDay}</span>
-        <span className="flex items-center gap-3 text-xs flex-shrink-0">
-          <span className="text-gray-400">{t.units}:{selectedDayData.total||0}</span>
-          <span className="text-orange-400/80">{t.laodian}:{selectedDayData.laodian||0}</span>
-          <span className="text-emerald-400 font-bold tabular-nums">${selectedSal.toLocaleString()}</span>
-        </span>
-        <svg className="w-3.5 h-3.5 text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
+    <div className="sticky bottom-0 mt-auto bg-gray-900 border-t border-white/[0.1] px-5 pt-3 pb-5">
+      <button onClick={()=>setEditDay(selectedDay)} className="w-full flex items-center justify-between text-left active:opacity-70">
+        <span><span className="block text-[13px] text-gray-400">{calM}/{selectedDay}（{t.dn[dow(calY,calM,selectedDay)]}）</span><span className="block text-lg font-bold text-gray-100 mt-0.5 tabular-nums">{selectedDayData.total||0} {t.units}{(selectedDayData.laodian||0)>0?` · ${t.laodian} ${selectedDayData.laodian}`:''}</span></span>
+        <span className="text-right"><span className="block text-[22px] font-extrabold text-amber-400 tabular-nums">${selectedSal.toLocaleString()}</span><span className="block text-[13px] text-gray-400">{t===T.zh?'點此編輯 ›':'Sửa ›'}</span></span>
       </button>
     </div>
   )}
@@ -2112,7 +2148,7 @@ function BookingListPanel({code,t,refresh,onOpen,onDuplicate}){
   const[histOpen,setHistOpen]=useState(false);
   const bookings=useMemo(()=>{const list=(getBookings(code)||[]).filter(Boolean);return list.sort((a,b)=>(a.datetime||0)-(b.datetime||0))},[code,refresh]);
   const lang=t===T.zh?'zh':'vi';
-  if(bookings.length===0)return<p className="text-sm text-gray-600 text-center py-8">{t.bookingEmpty}</p>;
+  if(bookings.length===0)return<p className="text-base text-gray-400 text-center py-10">{t.bookingEmpty}</p>;
   const now=Date.now();
   const conflictMap={};bookings.forEach(b=>{const[s1,e1]=bookRange(b);const hit=bookings.find(o=>o.id!==b.id&&(()=>{const[s2,e2]=bookRange(o);return s1<e2&&s2<e1})());if(hit)conflictMap[b.id]=hit});
   // 已過時間(以結束時間判定)的自約移進「歷史」收合區塊,不是直接隱藏消失
@@ -2120,48 +2156,49 @@ function BookingListPanel({code,t,refresh,onOpen,onDuplicate}){
   const upcomingBookings=bookings.filter(b=>{const[,e]=bookRange(b);return e>=now});
   const fmtDay=ts=>{const d=new Date(ts);return `${d.getMonth()+1}/${bkPad(d.getDate())}`};
   const fmtHM=ts=>{const d=new Date(ts);return `${bkPad(d.getHours())}:${bkPad(d.getMinutes())}`};
+  // v1.13-068 UI 改版:卡片改成「列」(時間 22px、姓名 17px、狀態標籤),去掉每筆外框,日期分組標題 13px,過期列淡化
   const card=(b,showDate)=>{const past=b.datetime<now;const conf=conflictMap[b.id];const d=new Date(b.datetime);const wd=['日','一','二','三','四','五','六'][d.getDay()];return(
-    <div key={b.id} className={`w-full rounded-xl p-3 border ${past?'bg-white/[0.01] border-white/[0.04] opacity-60':'bg-white/[0.03] border-white/[0.08]'} ${conf?'border-red-500/30':''}`}>
-      <button onClick={()=>onOpen(b.id)} className="w-full text-left flex gap-3 active:opacity-70">
-        <div className="flex flex-col items-center justify-center flex-shrink-0 w-14">
-          {showDate&&<span className="text-[10px] text-gray-500">{fmtDay(b.datetime)}（{wd}）</span>}
-          <span className={`text-base font-bold ${past?'text-gray-500':'text-amber-400'}`}>{fmtHM(b.datetime)}</span>
-          <span className="text-[10px] text-gray-600">{bookMinutes(b.svc,b.extra)}分</span>
+    <div key={b.id} className={`border-b border-white/[0.1] ${past?'opacity-60':''}`}>
+      <button onClick={()=>onOpen(b.id)} className="w-full text-left flex items-center gap-4 py-3.5 active:opacity-70">
+        <div className="flex-shrink-0 w-[64px]">
+          {showDate&&<span className="block text-[13px] text-gray-400">{fmtDay(b.datetime)}（{wd}）</span>}
+          <span className="block text-[22px] leading-tight font-bold text-gray-100 tabular-nums">{fmtHM(b.datetime)}</span>
+          <span className="block text-[13px] text-gray-400">{bookMinutes(b.svc,b.extra)}{lang==='zh'?' 分':'p'}</span>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-gray-100"><span className="text-emerald-400 font-bold">{bookLabel(b.svc,b.extra)}</span>　{b.custName||'—'} <span className="text-[11px] text-gray-500">{bookTitleName(b.custTitle,lang)}</span>{b.party>0?<span className="text-[11px] text-amber-400 ml-1">{t.totalPeople}{b.party+1}{t.peopleUnit}</span>:''}</p>
-          {(()=>{if(b.confirmed)return<span className="text-[10px] text-emerald-400">✓ {t.statusConfirmed}</span>;if(b.needReconfirm)return<span className="text-[10px] text-red-400">{t.statusReconfirm}</span>;return<span className="text-[10px] text-gray-500">{t.statusUnconfirmed}</span>})()}
-          {conf&&<p className="text-[11px] text-red-400 mt-0.5">⚠️ {bkFmtLogStr(t.conflictWarn,[fmtHM(conf.datetime),((conf.custName||'')+' '+bookTitleName(conf.custTitle,lang))])}</p>}
+          <p className="text-[17px] font-bold text-gray-100 truncate">{b.custName||'—'} <span className="text-sm font-normal text-gray-400">{bookTitleName(b.custTitle,lang)}</span>　<span className="text-emerald-400 font-bold">{bookLabel(b.svc,b.extra)}</span>{b.party>0?<span className="text-sm text-amber-400 ml-1 font-semibold">{t.totalPeople}{b.party+1}{t.peopleUnit}</span>:''}</p>
+          {conf&&<p className="text-[13px] text-red-400 mt-0.5">⚠️ {bkFmtLogStr(t.conflictWarn,[fmtHM(conf.datetime),((conf.custName||'')+' '+bookTitleName(conf.custTitle,lang))])}</p>}
         </div>
-        <span className="text-gray-600 self-center">›</span>
+        {(()=>{if(b.confirmed)return<span className="flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400">✓ {t.statusConfirmed}</span>;if(b.needReconfirm)return<span className="flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-full bg-red-500/15 text-red-400">{t.statusReconfirm}</span>;return<span className="flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-full border border-white/[0.15] text-gray-300">{t.statusUnconfirmed}</span>})()}
       </button>
-      {past&&<button onClick={()=>onDuplicate(b)} className="w-full mt-2 py-1.5 rounded-lg bg-amber-600/15 border border-amber-500/25 text-amber-400 text-xs font-semibold active:bg-amber-600/25">↻ {t.duplicateBtn}</button>}
+      {past&&<button onClick={()=>onDuplicate(b)} className="mb-3 min-h-[40px] px-4 rounded-full border border-amber-400/40 text-amber-400 text-sm font-semibold active:bg-amber-400/10">↻ {t.duplicateBtn}</button>}
     </div>);};
-  const switcher=(<div className="space-y-2 mb-3">
-    <div className="flex gap-1 bg-white/[0.03] rounded-lg p-1">
-      <button onClick={()=>setViewMode('cal')} className={`flex-1 py-1.5 rounded-md text-xs font-semibold ${viewMode==='cal'?'bg-amber-600 text-white':'text-gray-500'}`}>{t.calView}</button>
-      <button onClick={()=>setViewMode('event')} className={`flex-1 py-1.5 rounded-md text-xs font-semibold ${viewMode==='event'?'bg-amber-600 text-white':'text-gray-500'}`}>{t.eventView}</button>
+  const switcher=(<div className="space-y-3 mb-2">
+    <div className="grid grid-cols-2 border border-white/[0.15] rounded-xl overflow-hidden">
+      <button onClick={()=>setViewMode('cal')} className={`h-[42px] text-sm ${viewMode==='cal'?'bg-amber-400 text-gray-950 font-bold':'text-gray-200 active:bg-white/[0.08]'}`}>{t.calView}</button>
+      <button onClick={()=>setViewMode('event')} className={`h-[42px] text-sm border-l border-white/[0.15] ${viewMode==='event'?'bg-amber-400 text-gray-950 font-bold':'text-gray-200 active:bg-white/[0.08]'}`}>{t.eventView}</button>
     </div>
-    <button onClick={()=>setHidePast(!hidePast)} className={`w-full py-1.5 rounded-md text-xs font-medium border ${hidePast?'bg-amber-600/20 border-amber-500/30 text-amber-400':'bg-white/[0.02] border-white/[0.06] text-gray-500'}`}>{hidePast?'✓ ':''}{t.hidePast}</button>
+    <label className="flex items-center justify-between min-h-[44px] text-sm text-gray-300 cursor-pointer"><span>{t.hidePast}</span><span className="relative inline-block w-12 h-7"><input type="checkbox" checked={hidePast} onChange={()=>setHidePast(!hidePast)} className="peer sr-only"/><span className="absolute inset-0 rounded-full bg-gray-600 peer-checked:bg-amber-400 transition-colors"/><span className="absolute top-[3px] left-[3px] w-[22px] h-[22px] rounded-full bg-white peer-checked:bg-gray-950 transition-transform peer-checked:translate-x-5"/></span></label>
   </div>);
-  const histSection=pastBookings.length>0&&(<div className="mt-4 pt-3 border-t border-white/[0.06]">
-    <button onClick={()=>setHistOpen(v=>!v)} className="w-full flex items-center justify-between py-1.5">
-      <span className="text-xs text-gray-500 font-semibold">{t.bookHistory}（{pastBookings.length}）</span>
-      <span className="text-gray-600 text-xs">{histOpen?'▲ '+t.collapseBtn:'▼ '+t.expandBtn}</span>
+  const histSection=pastBookings.length>0&&(<div className="mt-5 pt-2 border-t border-white/[0.1]">
+    <button onClick={()=>setHistOpen(v=>!v)} className="w-full flex items-center justify-between min-h-[44px]">
+      <span className="text-sm text-gray-300 font-semibold">{t.bookHistory}（{pastBookings.length}）</span>
+      <span className="text-gray-400 text-sm">{histOpen?'▲ '+t.collapseBtn:'▼ '+t.expandBtn}</span>
     </button>
-    {histOpen&&<div className="space-y-1.5 mt-2 fi">{pastBookings.map(b=>card(b,true))}</div>}
+    {histOpen&&<div className="fi">{pastBookings.map(b=>card(b,true))}</div>}
   </div>);
   if(hidePast&&viewMode==='event'){
-    return(<div>{switcher}<div className="space-y-1.5">{upcomingBookings.map(b=>card(b,true))}</div></div>);
+    return(<div>{switcher}<div>{upcomingBookings.map(b=>card(b,true))}</div></div>);
   }
   if(viewMode==='event'){
-    return(<div>{switcher}<div className="space-y-1.5">{upcomingBookings.map(b=>card(b,true))}</div>{histSection}</div>);
+    return(<div>{switcher}<div>{upcomingBookings.map(b=>card(b,true))}</div>{histSection}</div>);
   }
   const groups={};upcomingBookings.forEach(b=>{const d=new Date(b.datetime);const key=`${d.getFullYear()}-${bkPad(d.getMonth()+1)}-${bkPad(d.getDate())}`;if(!groups[key])groups[key]=[];groups[key].push(b)});
-  return(<div>{switcher}<div className="space-y-4">{Object.keys(groups).sort().map(key=>{const items=groups[key];const d0=new Date(items[0].datetime);const wd=['日','一','二','三','四','五','六'][d0.getDay()];return(
+  const todayKey=(()=>{const d=new Date();return `${d.getFullYear()}-${bkPad(d.getMonth()+1)}-${bkPad(d.getDate())}`})();
+  return(<div>{switcher}<div>{Object.keys(groups).sort().map(key=>{const items=groups[key];const d0=new Date(items[0].datetime);const wd=['日','一','二','三','四','五','六'][d0.getDay()];return(
     <div key={key}>
-      <p className="text-xs text-gray-500 font-semibold mb-2">{d0.getFullYear()}/{bkPad(d0.getMonth()+1)}/{bkPad(d0.getDate())}（{lang==='zh'?wd:d0.getDay()}）</p>
-      <div className="space-y-1.5">{items.map(b=>card(b,false))}</div>
+      <p className={`text-[13px] font-semibold tracking-wide pt-4 pb-1 ${key===todayKey?'text-amber-400':'text-gray-400'}`}>{key===todayKey?(lang==='zh'?'今天 ':'Hôm nay '):''}{d0.getFullYear()}/{bkPad(d0.getMonth()+1)}/{bkPad(d0.getDate())}（{lang==='zh'?wd:d0.getDay()}）</p>
+      <div className="border-t border-white/[0.1]">{items.map(b=>card(b,false))}</div>
     </div>);})}</div>{!hidePast&&histSection}</div>);
 }
 
@@ -2316,8 +2353,8 @@ function BookingSection({code,t}){
   const toNew=(fromBk)=>{setDupInit(fromBk?{custName:fromBk.custName,custTitle:fromBk.custTitle,custPhone:fromBk.custPhone,svc:fromBk.svc,extra:fromBk.extra,party:fromBk.party,partyDetails:fromBk.partyDetails,note:fromBk.note}:null);setMode('new')};
   return(<div className="space-y-3">
     {mode==='list'&&(<>
-      <button onClick={()=>toNew(null)} className="w-full py-3.5 rounded-xl bg-amber-600 text-white font-bold active:bg-amber-700">+ {t.bookingNew}</button>
       <BookingListPanel code={code} t={t} refresh={refresh} onOpen={id=>{setOpenId(id);setMode('detail')}} onDuplicate={toNew}/>
+      <div className="sticky bottom-0 z-10 -mx-4 px-4 pt-3 pb-4 bg-gray-950 border-t border-white/[0.08]"><button onClick={()=>toNew(null)} className="w-full h-[54px] rounded-2xl bg-amber-400 text-gray-950 text-[17px] font-bold active:opacity-85">+ {t.bookingNew}</button></div>
     </>)}
     {mode==='new'&&<BookingFormPanel code={code} t={t} initial={dupInit} onSave={()=>{setMode('list');setDupInit(null);setRefresh(x=>x+1)}} onCancel={()=>{setMode('list');setDupInit(null)}}/>}
     {mode==='detail'&&<BookingDetailPanel code={code} t={t} bookId={openId} onDone={()=>{setMode('list');setRefresh(x=>x+1)}} onCancel={()=>{setMode('list');setRefresh(x=>x+1)}} onDuplicate={toNew}/>}
