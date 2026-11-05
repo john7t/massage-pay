@@ -1,8 +1,8 @@
-/* my2.js — 「我的」頁面 (v1.0-009)
+/* my2.js — 「我的」頁面 (v1.0-012)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 my2:  ?my2=1  我的(待我處理 + 公告 + 安全回報 + 手套團購 + 預排休假 + 拒接名單)
    只讀取各模組既有的 API(n2List / s2TodaySurveys / s2MyReports / gb2List / lv2Month / b2List),不新增後端;任何一區讀取失敗只隱藏該區。 */
 (function(){
-const{useState}=React;
+const{useState,useEffect}=React;
 const C=window.S2Core;
 if(!C){window.My2Routes=()=>React.createElement('div',{className:'p-6 text-center text-red-400'},'載入失敗:缺少 safety2.js');return;}
 const{useLoad,Box,Card,Loading,Msg,NeedUser,barOf,go}=C;
@@ -43,6 +43,79 @@ function SecHead({icon,title,n,onAll,t}){
 }
 const Pill=({cls,children})=>(<span className={'shrink-0 text-xs font-bold text-white rounded-full px-3 py-1 '+cls}>{children}</span>);
 
+// v1.0-012:使用統計橫幅——以「打開我的頁」為單位(GAS my2Open 記錄):人次=每次打開累計,人數=同一人不重複
+// 所有人看橫幅;主管/管理者點開看分析(班別、24小時尖峰、當月每日/排休開放期、店別名單)。管理者/全店級看全店,其餘主管看本店
+function UsageBanner({lang}){
+  const vi=lang==='vi';
+  const[date,setDate]=useState(todayStr());
+  const[open,setOpen]=useState(false);
+  const[pick,setPick]=useState(null);
+  const[hMode,setHMode]=useState('day');   // day=當日 / 30=近30日累計
+  const[dMode,setDMode]=useState('pv');    // pv=人次 / uv=人數
+  const[st,reload]=useLoad('my2OpenStats',{date});
+  useEffect(()=>{if(window.__my2Logged)return;window.__my2Logged=1;C.api('my2Open',{}).then(()=>{try{reload()}catch(_e){}});},[]);
+  const d=st.data&&st.data.ok?st.data:null;
+  if(!d)return null;
+  const U=vi?'người':'人',V=vi?'lượt':'人次';
+  const shift=n=>{const x=new Date(date+'T00:00:00Z');x.setUTCDate(x.getUTCDate()+n);setDate(x.toISOString().slice(0,10));setPick(null);};
+  const Bars=({vals,hi,h,labelEvery,fmtL})=>{const mx=Math.max(1,...vals);return(<div>
+    <div className="flex items-end gap-px" style={{height:h}}>{vals.map((v,i)=>(<div key={i} className="flex-1 flex flex-col justify-end h-full" title={v}><div className={'w-full rounded-t '+(hi(i)?'bg-amber-400':'bg-sky-600')} style={{height:v?Math.max(2,Math.round(v/mx*(h-14))):0}}></div></div>))}</div>
+    <div className="flex gap-px mt-0.5">{vals.map((v,i)=>(<span key={i} className="flex-1 text-center text-[9px] text-gray-500">{i%labelEvery===0?fmtL(i):''}</span>))}</div></div>);};
+  const hours=hMode==='day'?d.hoursDay:d.hours30;
+  const peakH=hours.indexOf(Math.max(...hours));const hasH=Math.max(...hours)>0;
+  const dayVals=d.days.map(x=>x[dMode]);
+  const avg=a=>a.length?Math.round(a.reduce((p,q)=>p+q,0)/a.length*10)/10:0;
+  const inW=dayVals.filter((_v,i)=>i+1>=10&&i+1<=12),outW=dayVals.filter((_v,i)=>!(i+1>=10&&i+1<=12));
+  const shL={early:vi?'Ca sáng':'早班',late:vi?'Ca tối':'晚班',counter:vi?'Quầy':'櫃台',other:vi?'Chưa rõ':'未分'};
+  const Tile=({k,v,u})=>(<div className="flex-1 rounded-xl bg-white/10 px-3 py-2"><p className="text-[11px] text-gray-400">{k}</p><p className="text-xl font-bold text-white">{v}<span className="text-xs font-normal text-gray-400 ml-1">{u}</span></p></div>);
+  const Sec=({t,children})=>(<div className="border-t border-sky-900 pt-3 space-y-2"><p className="text-sm font-bold text-white">{t}</p>{children}</div>);
+  const Seg=({v,set,opts})=>(<div className="inline-flex rounded-lg bg-white/10 p-0.5">{opts.map(([k,l])=>(<button key={k} onClick={()=>set(k)} className={'px-3 min-h-[32px] rounded-md text-xs '+(v===k?'bg-sky-600 text-white font-bold':'text-gray-300')}>{l}</button>))}</div>);
+  const sel=pick&&d.stores?((d.stores.find(s=>s.store===pick.store)||{}).people||[]).find(c=>c.code===pick.code):null;
+  return(<div className="rounded-2xl border border-sky-800 overflow-hidden" style={{background:'linear-gradient(135deg,#0c2a43,#10203a)'}}>
+    <button disabled={!d.mgr} onClick={()=>setOpen(!open)} className="w-full flex items-center gap-3 px-4 py-2.5 min-h-[56px] text-left">
+      <span className="text-xl">📊</span>
+      <span className="flex-1 text-sm text-gray-100 leading-snug">
+        <span className="block">{vi?'Hôm nay':'今日'}　<b className="text-white text-base">{d.today.pv}</b> {V}・<b className="text-white text-base">{d.today.uv}</b> {U}</span>
+        <span className="block text-gray-400">{vi?'Hôm qua':'昨日'}　<b className="text-gray-200">{d.yesterday.pv}</b> {V}・<b className="text-gray-200">{d.yesterday.uv}</b> {U}</span></span>
+      {d.mgr&&<span className="text-gray-400">{open?'⌄':'›'}</span>}
+    </button>
+    {d.mgr&&open&&(<div className="px-4 pb-4 pt-3 space-y-3 border-t border-sky-900">
+      <div className="flex items-center justify-between">
+        <button onClick={()=>shift(-1)} className="w-11 h-11 rounded-xl bg-white/10 text-gray-200 text-lg">‹</button>
+        <div className="text-center"><div className="text-base font-bold text-white">{d.date}</div><div className="text-xs text-gray-400">{d.scopeLabel}</div></div>
+        <button onClick={()=>shift(1)} disabled={date>=todayStr()} className="w-11 h-11 rounded-xl bg-white/10 text-gray-200 text-lg disabled:opacity-30">›</button>
+      </div>
+      <div className="flex gap-2"><Tile k={vi?'Lượt mở':'人次（累計）'} v={d.day.pv} u={V}/><Tile k={vi?'Số người (không trùng)':'人數（不重複）'} v={d.day.uv} u={U}/></div>
+
+      <Sec t={'🕘 '+(vi?'Theo ca':'早晚班使用情形')}>
+        {['early','late','counter','other'].map(k=>{const x=d.shift[k];if(k==='other'&&!x.pv)return null;const mx=Math.max(1,d.shift.early.pv,d.shift.late.pv,d.shift.counter.pv,d.shift.other.pv);return(<div key={k} className="flex items-center gap-2 text-sm"><span className="w-12 text-gray-300">{shL[k]}</span>
+          <div className="flex-1 h-3 rounded bg-white/10 overflow-hidden"><div className="h-full bg-sky-500" style={{width:Math.round(x.pv/mx*100)+'%'}}></div></div>
+          <span className="w-28 text-right text-gray-200 text-xs">{x.pv} {V}・{x.uv} {U}</span></div>);})}
+      </Sec>
+
+      <Sec t={'⏰ '+(vi?'Giờ cao điểm 24h':'24 小時尖峰時段')}>
+        <Seg v={hMode} set={setHMode} opts={[['day',vi?'Ngày chọn':'當日'],['30',vi?'30 ngày':'近30日累計']]}/>
+        <Bars vals={hours} h={80} hi={i=>hasH&&i===peakH} labelEvery={3} fmtL={i=>i}/>
+        <p className="text-xs text-gray-400">{hasH?(vi?'Cao điểm: ':'尖峰：')+String(peakH).padStart(2,'0')+':00～'+String(peakH+1).padStart(2,'0')+':00（'+hours[peakH]+' '+V+'）':(vi?'Chưa có dữ liệu':'尚無資料')}</p>
+      </Sec>
+
+      <Sec t={'📅 '+d.month+(vi?' theo ngày':' 每日使用')+'（'+(vi?'ngày 10~12 mở đăng ký nghỉ':'10~12 號＝開放排休')+'）'}>
+        <Seg v={dMode} set={setDMode} opts={[['pv',V],['uv',U]]}/>
+        <Bars vals={dayVals} h={90} hi={i=>i+1>=10&&i+1<=12} labelEvery={5} fmtL={i=>i+1}/>
+        <p className="text-xs text-gray-400">{vi?'TB ngày 10~12: ':'10~12 號平均 '}<b className="text-amber-300">{avg(inW)}</b>{vi?' · ngày khác: ':'・其他日平均 '}<b className="text-gray-200">{avg(outW)}</b> {dMode==='pv'?V:U}{avg(outW)>0?'（'+(avg(inW)>=avg(outW)?'+':'')+Math.round((avg(inW)/avg(outW)-1)*100)+'%）':''}</p>
+      </Sec>
+
+      <Sec t={'🏬 '+(vi?'Theo chi nhánh':'店別名單')}>
+        {d.stores.length===0&&<p className="text-xs text-gray-500">{vi?'Không có dữ liệu':'這天沒有使用記錄'}</p>}
+        {d.stores.map(s=>(<div key={s.store} className="space-y-1.5"><p className="text-sm text-gray-200"><b>{s.store}</b> {s.uv} {U}・{s.pv} {V}：</p>
+          <div className="flex flex-wrap gap-1.5">{s.people.map((c,i)=>{const on=pick&&pick.store===s.store&&pick.code===c.code;return(<button key={c.code+i} onClick={()=>setPick(on?null:{store:s.store,code:c.code})} className={'min-h-[36px] px-3 rounded-lg text-sm font-mono border '+(on?'bg-sky-500/20 border-sky-400 text-sky-300':'bg-white/10 border-white/10 text-gray-200')}>{c.code}{c.n>1&&<span className="text-[10px] text-gray-400 ml-1">×{c.n}</span>}</button>);})}</div></div>))}
+        {sel&&<div className="rounded-xl bg-black/25 p-3"><p className="text-xs text-gray-400 mb-1">{vi?'Mã':'編號'} {sel.code}・{sel.n} {V}</p><p className="text-sm font-mono text-gray-100 leading-relaxed">{sel.times.join('　')}</p></div>}
+      </Sec>
+      <button onClick={reload} className="w-full min-h-[40px] rounded-xl bg-white/10 text-xs text-gray-300">{vi?'Tải lại':'重新整理'}</button>
+    </div>)}
+  </div>);
+}
+
 function My2Page({me}){
   const lang=me.user&&me.user.lang==='vi'?'vi':'zh';const t=L[lang];
   const today=todayStr();const nextM=addMonth(today.slice(0,7),1);
@@ -60,6 +133,8 @@ function My2Page({me}){
   const loadingAny=[ns,ss,rs,gs,ls,bs].some(x=>x.loading&&!x.data);
   const bar=barOf(ns,reloadAll,lang);
   const u=me.user||{};
+  // v1.0-011:進入頁面時捲到最上面(資料載入完內容變長後再補一次,避免停在下方)
+  useEffect(()=>{try{if(history.scrollRestoration)history.scrollRestoration='manual'}catch(_e){}const z=()=>{try{window.scrollTo(0,0);document.documentElement.scrollTop=0;document.body.scrollTop=0}catch(_e){}};z();const a=setTimeout(z,150),b=setTimeout(z,600);return()=>{clearTimeout(a);clearTimeout(b)}},[]);
 
   // ── 資料整理
   const notices=ok(ns)?ns.data.notices.filter(n=>n.status==='published'&&!n.expired):[];
@@ -94,6 +169,8 @@ function My2Page({me}){
   return(<Box {...bar}>
     <div className="flex items-start justify-between"><div><h1 className="text-2xl font-bold text-white">{t.title}</h1>
       <p className="text-xs text-gray-400 mt-0.5">{u.store||''}{u.code?'　'+u.code+(lang==='vi'?'':' 號'):''}{roleName?'　'+roleName:''}</p></div></div>
+
+    <UsageBanner lang={lang}/>
 
     <div className="rounded-3xl border border-violet-700 p-4 space-y-2" style={{background:'linear-gradient(135deg,#2e1d5e,#1b1840)'}}>
       <SecHead icon="⚡" title={t.todo} n={todo.length} t={t}/>
@@ -148,7 +225,7 @@ function My2Page({me}){
         <span className={'shrink-0 text-xs text-white rounded-full px-2 py-0.5 '+(r.level==='all'?'bg-red-600':r.level==='store'?'bg-orange-600':'bg-gray-600')}>{(t.lvName||{})[r.level]||''}</span></div>))}
       {bs.data.canAdd&&<button onClick={()=>go('b2=new')} className="w-full rounded-xl border border-violet-500 text-violet-300 py-2.5 text-sm">{t.addBl}</button>}
     </Card>}
-    {ok(ps)&&ps.data.has&&(()=>{const P=ps.data;const shT=P.shift==='late'?(lang==='vi'?'Ca tối':'晚班'):(lang==='vi'?'Ca sáng':'早班');
+    {ok(ps)&&ps.data.has&&(()=>{const P=ps.data;const switching=!!(ps.loading&&pm&&P.month!==pm);const shT=P.shift==='late'?(lang==='vi'?'Ca tối':'晚班'):(lang==='vi'?'Ca sáng':'早班');
       const Y=py||parseInt(String(P.month).slice(0,4),10);const ym=(mo)=>Y+'-'+p2(mo);
       const smap={};(P.series||[]).forEach(x=>{smap[x.m]=x.p;});
       const inRange=(m)=>m>=P.earliest&&m<=P.latest;
@@ -156,10 +233,11 @@ function My2Page({me}){
       const mx=Math.max(P.std||0,...vals,1);
       return(<Card className="space-y-2"><SecHead icon="🏅" title={t.pts} t={t}/>
         <div className="flex items-center justify-center gap-4"><button onClick={()=>setPy(Y-1)} className="w-8 h-8 rounded-lg border border-gray-600 text-gray-300">‹</button><span className="text-sm font-bold text-white">{Y}{lang==='vi'?'':' 年'}</span><button onClick={()=>setPy(Y+1)} className="w-8 h-8 rounded-lg border border-gray-600 text-gray-300">›</button></div>
-        <div className="grid grid-cols-6 gap-1.5">{Array.from({length:12}).map((_,i)=>{const mo=i+1,m=ym(mo),v=smap[m],sel=m===P.month,ok1=v!==undefined&&P.std>0&&v>=P.std,bad=v!==undefined&&P.std>0&&v<P.std,can=inRange(m);
+        <div className="grid grid-cols-6 gap-1.5">{Array.from({length:12}).map((_,i)=>{const mo=i+1,m=ym(mo),v=smap[m],sel=m===(pm||P.month),ok1=v!==undefined&&P.std>0&&v>=P.std,bad=v!==undefined&&P.std>0&&v<P.std,can=inRange(m);
           return(<button key={m} disabled={!can} onClick={()=>{setPm(m);setPallV(true);}} className={'rounded-lg border py-1 text-center '+(sel?'bg-violet-600 border-violet-600 text-white':can?(ok1?'border-emerald-800 text-gray-200':'border-gray-700 text-gray-200'):'border-gray-800 text-gray-600 opacity-40')}>
             <span className="block text-[13px]">{mo}{lang==='vi'?'':'月'}</span><span className={'block text-[10px] '+(sel?'text-violet-100':bad?'text-red-400':ok1?'text-emerald-400':'text-gray-500')}>{v===undefined?'—':v}</span></button>);})}</div>
-        <div className="border-t border-gray-800 pt-2 flex items-end gap-3"><span className="text-4xl font-bold text-white">{P.points===null?'—':P.points}</span><span className="text-sm text-gray-400 pb-1">{fmt(t.ptsMon,{m:parseInt(String(P.month).slice(5),10)})}・{t.ptsPt}</span>
+        {switching&&<div className="flex items-center justify-center gap-2 text-violet-300 text-sm py-1"><C.Spinner size={18}/>{lang==='vi'?'Đang tải…':'讀取 '+parseInt(String(pm).slice(5),10)+' 月資料中…'}</div>}
+        <div className={'border-t border-gray-800 pt-2 flex items-end gap-3 '+(switching?'opacity-40':'')}><span className="text-4xl font-bold text-white">{P.points===null?'—':P.points}</span><span className="text-sm text-gray-400 pb-1">{fmt(t.ptsMon,{m:parseInt(String(P.month).slice(5),10)})}・{t.ptsPt}</span>
           <span className="flex-1"></span>
           {P.points===null?null:P.newbie?<Pill cls="bg-gray-600">{t.ptsNew}</Pill>:P.met===null?null:<Pill cls={P.met?'bg-emerald-600':'bg-red-600'}>{P.met?t.ptsMet:t.ptsNot}</Pill>}</div>
         {P.std>0&&<p className="text-xs text-gray-400">{fmt(t.ptsStd,{n:P.std,s:shT})}{P.rank>0?'　'+fmt(t.ptsRank,{s:shT,r:P.rank,t:P.total}):''}</p>}
