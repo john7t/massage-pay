@@ -1,3 +1,4 @@
+// v1.13-068 / UI改版(參考 impeccable):名片/穴道知識/備份/月曆/自約/流水記錄彈窗/LINE QR;穴道頁有本機快取+仍在解鎖期時先直接顯示,憑證改背景確認。
 // settings.js — 設定頁相關元件(從 index.html 抽離,降低 index 體積)
 // v1.13-022 / UI 改版:(1)客戶管理:拿掉「拒接名單」分頁(隱藏不刪,函式與區塊保留)、底線式2分頁、列表60px、標籤膠囊、編輯面板欄位放大;(2)設定首頁:改 iOS/LINE 風格分組清單(外觀/帳號與備份/首頁/資料與隱私),年份加減隱藏,LINE登入縮成一列,隱私說明收合,登出改紅字鈕。
 // v1.13-021 / 建議列表載入中改骨架(MP.SkReveal)。
@@ -106,7 +107,7 @@ function ChartPage({t,settings,onClose}){
     </div>);
   };
   return(<div className="fi space-y-4">
-    <div className="sticky top-0 z-10 -mx-4 px-4 py-1 bg-gray-950 flex items-center justify-center"><h2 className="text-sm font-semibold text-gray-300">{t.tabChart}</h2></div>
+    <div className="sticky top-0 z-10 -mx-4 px-4 py-2.5 bg-gray-950 flex items-center justify-center"><h2 className="text-lg font-bold text-gray-100">{t.tabChart}</h2></div>
     <div className="flex gap-1 bg-white/[0.03] rounded-lg p-1 overflow-x-auto">{SUBS.map(([id,label])=>(<button key={id} onClick={()=>setSub(id)} className={`flex-1 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold ${sub===id?'bg-amber-600 text-white':'text-gray-500'}`}>{label}</button>))}</div>
     {noData?<p className="text-sm text-gray-500 text-center py-8">{t.chartNoSlipData}</p>:(<div className="space-y-3">
       {sub==='heat'&&heatView()}
@@ -251,37 +252,46 @@ function BackupSection({settings,t,onUpdate,lineUserId}){
   // 沒登入LINE:只顯示手動匯出/匯入區塊(雲端備份需要身分識別,沒登入就不提供)
   // 有登入LINE:雲端備份改成全自動(每日第一次開啟App時由app-core.js觸發),這裡不再放手動備份/查詢/還原按鈕,
   // 只留靜態說明文字告知使用者「已自動備份」,手動匯出/匯入仍然保留當作額外備援管道
-  return(<div className="space-y-3 pt-4 border-t border-white/[0.06]"><h3 className="text-sm font-semibold text-amber-400">{t.backup}</h3>
-    <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-3 space-y-2">
-      <p className="text-sm font-semibold text-gray-200">{t.jsonExportTitle||'匯出備份檔案'}</p>
-      <p className="text-[11px] text-gray-500 leading-relaxed">{t.jsonExportDesc||'下載一份本年度資料的JSON檔案，自行保存在手機或電腦，不上傳雲端。'}</p>
-      <button onClick={doJsonExport} className="w-full py-2.5 rounded-xl bg-white/[0.08] border border-white/[0.1] text-gray-200 text-sm font-semibold active:bg-white/[0.14]">{t.jsonExportBtn||'匯出JSON檔案'}</button>
-      <label className="block w-full py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-gray-400 text-sm font-semibold text-center cursor-pointer active:bg-white/[0.08]">
-        {importBusy?(t.restoreImporting||'處理中…'):(t.restoreImportBtn||'匯入備份檔')}
-        <input type="file" accept=".json,application/json" className="hidden" disabled={importBusy} onChange={e=>{const f=e.target.files&&e.target.files[0];doImportFile(f);e.target.value=''}}/>
-      </label>
-    </div>
-    <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-3 space-y-2">
-      <p className="text-sm font-semibold text-gray-200">{t.emailBackupTitle}</p>
-      <p className="text-[11px] text-gray-500 leading-relaxed">{t.emailBackupDesc}</p>
-      <p className="text-[11px] text-amber-300/80 leading-relaxed">{t.emailPrivacy}</p>
-      <input type="email" inputMode="email" autoComplete="email" autoCapitalize="none" value={emailInput} onChange={e=>{setEmailInput(e.target.value);setEmailMsg(null)}} placeholder="name@example.com" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>
-      {emailMsg&&<p className={`text-xs ${emailMsg.ok?'text-emerald-400':'text-red-400'}`}>{emailMsg.text}</p>}
-      <button onClick={saveEmail} disabled={emailBusy} className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-semibold disabled:opacity-60">{emailBusy?'…':t.emailSaveBtn}</button>
-    </div>
-    {lineUserId&&(
-    <div className="bg-emerald-500/[0.06] border border-emerald-500/20 rounded-xl p-3 space-y-2">
-      <p className="text-sm font-semibold text-emerald-400">{t.cloudBackupTitle}</p>
-      <p className="text-[11px] text-gray-500 leading-relaxed">{t.cloudBackupDesc}</p>
-      <p className="text-xs text-emerald-400/90">{t.cloudAutoBackupActiveMsg}</p>
-      {cloudMsg&&<p className={`text-xs ${cloudMsg.ok?'text-emerald-400':'text-red-400'}`}>{cloudMsg.text}</p>}
-      <div className="pt-2 border-t border-dashed border-white/[0.08] space-y-1.5">
-        <p className="text-[10px] text-amber-500/70">⚠ 暫時性除錯工具，排查完問題後會移除</p>
-        <button onClick={doDebugEcho} disabled={debugBusy} className="w-full py-2 rounded-lg bg-white/[0.05] border border-white/[0.1] text-gray-400 text-xs disabled:opacity-50">{debugBusy?'檢查中…':'除錯：檢查GAS實際收到什麼'}</button>
-        {debugResult&&<pre className="bg-black/40 rounded-lg p-2 text-[10px] text-gray-300 overflow-x-auto whitespace-pre-wrap break-all">{JSON.stringify(debugResult,null,2)}</pre>}
+  // v1.13-068 UI 改版:明確分成三塊——①LINE 自動備份 ②Email 雲端備份 ③手動匯出/匯入;各有編號、標題與狀態標籤,去掉卡片框改分隔線,
+  // 說明字 14px、除錯工具降成最底一行。功能與原本完全相同(LINE 區塊沒登入時改顯示「未開啟」說明,不再整塊隱藏)。
+  const zh=t===T.zh;
+  const Pill=({on,children})=>(<span className={`text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap ${on?'bg-emerald-500/15 text-emerald-400':'border border-white/[0.15] text-gray-300'}`}>{children}</span>);
+  const Head=({n,title,pill})=>(<div className="flex items-center gap-2.5 mb-2"><span className="w-[26px] h-[26px] rounded-full bg-amber-400 text-gray-950 text-sm font-extrabold flex items-center justify-center flex-shrink-0">{n}</span><h4 className="flex-1 text-lg font-bold text-gray-100">{title}</h4>{pill}</div>);
+  const emailOn=!!(settings&&settings.email);
+  return(<div className="pt-2 pb-4">
+    <p className="text-sm text-gray-400 leading-relaxed pb-3">{zh?'三種備份方式，可以同時使用。換手機時任一種都能還原。':'Ba cách sao lưu, có thể dùng cùng lúc. Khi đổi điện thoại, cách nào cũng khôi phục được.'}</p>
+    <section className="border-t border-white/[0.1] py-5">
+      <Head n="1" title={zh?'LINE 自動備份':'Sao lưu LINE tự động'} pill={<Pill on={!!lineUserId}>{lineUserId?(zh?'✓ 已開啟':'✓ Đã bật'):(zh?'未開啟':'Chưa bật')}</Pill>}/>
+      <p className="text-sm text-gray-400 leading-relaxed">{lineUserId?(t.cloudAutoBackupActiveMsg||t.cloudBackupDesc):(zh?'用 LINE 登入後，每天第一次開啟 App 會自動備份到雲端，換手機後登入就能還原。目前本裝置尚未用 LINE 登入。':'Sau khi đăng nhập LINE, mỗi ngày lần mở đầu tiên sẽ tự động sao lưu lên đám mây. Thiết bị này chưa đăng nhập LINE.')}</p>
+      {lineUserId&&cloudMsg&&<p className={`mt-2 text-sm ${cloudMsg.ok?'text-emerald-400':'text-red-400'}`}>{cloudMsg.text}</p>}
+    </section>
+    <section className="border-t border-white/[0.1] py-5">
+      <Head n="2" title={t.emailBackupTitle||'Email 雲端備份'} pill={<Pill on={emailOn}>{emailOn?(zh?'✓ 已設定':'✓ Đã đặt'):(zh?'未設定':'Chưa đặt')}</Pill>}/>
+      <p className="text-sm text-gray-400 leading-relaxed">{t.emailBackupDesc}</p>
+      <input type="email" inputMode="email" autoComplete="email" autoCapitalize="none" value={emailInput} onChange={e=>{setEmailInput(e.target.value);setEmailMsg(null)}} placeholder="name@example.com" className="mt-3 w-full h-12 bg-white/[0.06] border border-white/[0.1] rounded-xl px-3.5 text-base text-gray-100 focus:outline-none focus:border-amber-400"/>
+      {emailMsg&&<p className={`mt-2 text-sm ${emailMsg.ok?'text-emerald-400':'text-red-400'}`}>{emailMsg.text}</p>}
+      <button onClick={saveEmail} disabled={emailBusy} className="mt-3 w-full h-12 rounded-xl bg-amber-400 text-gray-950 text-[15px] font-bold disabled:opacity-60 active:opacity-85">{emailBusy?'…':t.emailSaveBtn}</button>
+      <p className="mt-3 text-[13px] text-amber-300 leading-relaxed">{t.emailPrivacy}</p>
+    </section>
+    <section className="border-t border-white/[0.1] py-5">
+      <Head n="3" title={zh?'手動匯出／匯入':'Xuất / nhập thủ công'} pill={<Pill on={false}>{zh?'自己保管':'Tự lưu'}</Pill>}/>
+      <p className="text-sm text-gray-400 leading-relaxed">{t.jsonExportDesc||'下載一份本年度資料的JSON檔案，自行保存在手機或電腦，不上傳雲端。'}</p>
+      <div className="grid grid-cols-2 gap-2.5 mt-3">
+        <button onClick={doJsonExport} className="h-12 rounded-xl border border-white/[0.15] text-gray-100 text-[15px] font-semibold active:bg-white/[0.08]">{zh?'匯出備份檔':(t.jsonExportBtn||'Xuất')}</button>
+        <label className="h-12 rounded-xl border border-white/[0.15] text-gray-100 text-[15px] font-semibold flex items-center justify-center cursor-pointer active:bg-white/[0.08]">
+          {importBusy?(t.restoreImporting||'處理中…'):(zh?'匯入備份檔':(t.restoreImportBtn||'Nhập'))}
+          <input type="file" accept=".json,application/json" className="hidden" disabled={importBusy} onChange={e=>{const f=e.target.files&&e.target.files[0];doImportFile(f);e.target.value=''}}/>
+        </label>
       </div>
-    </div>
-    )}
+      {!lineUserId&&cloudMsg&&<p className={`mt-2 text-sm ${cloudMsg.ok?'text-emerald-400':'text-red-400'}`}>{cloudMsg.text}</p>}
+    </section>
+    {lineUserId&&(<details className="border-t border-white/[0.1] pt-3">
+      <summary className="min-h-[44px] flex items-center justify-between text-[15px] text-gray-300 cursor-pointer list-none"><span>{zh?'疑難排解':'Khắc phục sự cố'}<span className="block text-[13px] text-gray-500">{zh?'暫時性除錯工具，排查完問題後會移除':'Công cụ gỡ lỗi tạm thời'}</span></span><span className="text-gray-500">›</span></summary>
+      <div className="pt-2 space-y-2">
+        <button onClick={doDebugEcho} disabled={debugBusy} className="w-full h-11 rounded-xl border border-white/[0.12] text-gray-300 text-sm disabled:opacity-50">{debugBusy?'檢查中…':'除錯：檢查GAS實際收到什麼'}</button>
+        {debugResult&&<pre className="bg-black/40 rounded-lg p-2 text-[11px] text-gray-300 overflow-x-auto whitespace-pre-wrap break-all">{JSON.stringify(debugResult,null,2)}</pre>}
+      </div>
+    </details>)}
   </div>);
 }
 
@@ -408,7 +418,14 @@ function AcupointPage({t,settings}){
   const fb=(obj)=>(obj&&(obj[lang]||obj.zh))||''; // 越南文還沒補的欄位,自動fallback顯示中文
   const code=settings&&settings.code;
   // 憑證檢查閘門:gate為null(檢查中)/locked(今天還沒通過每日密碼解鎖)/invalid(憑證已失效)/ok(可以看)
-  const[gate,setGate]=useState(null);
+  // v1.13-068 離線優先:本機已有穴道快取且今天仍在解鎖期內 → 先直接 ok 畫出內容,憑證有效性改在背景確認(失效才踢掉並清快取)
+  const[gate,setGate]=useState(()=>{
+    try{
+      if(!code||!localStorage.getItem(ACUPOINTS_CACHE_KEY))return null;
+      if(!HIDE_COMPANY_FEATURES){const lat=(settings&&settings.lockAutoTime)||60;const ut=parseInt(localStorage.getItem('notice-pwd-unlock-'+code)||'0',10)||0;if(Date.now()-ut>lat*60*1000)return null}
+      return 'ok';
+    }catch(_e){return null}
+  });
   useEffect(()=>{
     (async()=>{
       if(!code){setGate('ok');return} // 沒有code理論上不會發生,容錯不擋
@@ -485,61 +502,63 @@ function AcupointPage({t,settings}){
     }
     return arr;
   },[bpList,meridian,q,lang]);
-  if(gate===null)return(<div className="space-y-3 fi"><div className="sticky top-0 z-10 -mx-4 px-4 py-1 bg-gray-950 flex items-center justify-center"><h2 className="text-sm font-semibold text-gray-300">{t.acupointTitle}</h2></div><div className="flex justify-center py-10"><span className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/></div></div>);
-  if(gate==='locked')return(<div className="space-y-3 fi"><div className="sticky top-0 z-10 -mx-4 px-4 py-1 bg-gray-950 flex items-center justify-center"><h2 className="text-sm font-semibold text-gray-300">{t.acupointTitle}</h2></div><p className="text-sm text-gray-500 text-center py-8 px-4">{t.acupointNeedUnlock||'請先到公告頁面完成每日密碼驗證，再回來查看穴道知識庫'}</p></div>);
-  if(gate==='invalid')return(<div className="space-y-3 fi"><div className="sticky top-0 z-10 -mx-4 px-4 py-1 bg-gray-950 flex items-center justify-center"><h2 className="text-sm font-semibold text-gray-300">{t.acupointTitle}</h2></div><p className="text-sm text-red-400 text-center py-8 px-4">{t.keyInvalidMsg}</p></div>);
-  if(data===null)return(<div className="space-y-3 fi"><div className="sticky top-0 z-10 -mx-4 px-4 py-1 bg-gray-950 flex items-center justify-center"><h2 className="text-sm font-semibold text-gray-300">{t.acupointTitle}</h2></div><div className="flex justify-center py-10"><span className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/></div></div>);
-  if(data.error||bodyParts.length===0)return(<div className="space-y-3 fi"><div className="sticky top-0 z-10 -mx-4 px-4 py-1 bg-gray-950 flex items-center justify-center"><h2 className="text-sm font-semibold text-gray-300">{t.acupointTitle}</h2></div><p className="text-sm text-gray-600 text-center py-8">{t.acupointLoadFail||'讀取失敗，請檢查網路後重新整理'}</p></div>);
+  if(gate===null)return(<div className="space-y-3 fi"><div className="sticky top-0 z-10 -mx-4 px-4 py-2.5 bg-gray-950 flex items-center justify-center"><h2 className="text-lg font-bold text-gray-100">{t.acupointTitle}</h2></div><div className="flex justify-center py-10"><span className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/></div></div>);
+  if(gate==='locked')return(<div className="space-y-3 fi"><div className="sticky top-0 z-10 -mx-4 px-4 py-2.5 bg-gray-950 flex items-center justify-center"><h2 className="text-lg font-bold text-gray-100">{t.acupointTitle}</h2></div><p className="text-sm text-gray-500 text-center py-8 px-4">{t.acupointNeedUnlock||'請先到公告頁面完成每日密碼驗證，再回來查看穴道知識庫'}</p></div>);
+  if(gate==='invalid')return(<div className="space-y-3 fi"><div className="sticky top-0 z-10 -mx-4 px-4 py-2.5 bg-gray-950 flex items-center justify-center"><h2 className="text-lg font-bold text-gray-100">{t.acupointTitle}</h2></div><p className="text-sm text-red-400 text-center py-8 px-4">{t.keyInvalidMsg}</p></div>);
+  if(data===null)return(<div className="space-y-3 fi"><div className="sticky top-0 z-10 -mx-4 px-4 py-2.5 bg-gray-950 flex items-center justify-center"><h2 className="text-lg font-bold text-gray-100">{t.acupointTitle}</h2></div><div className="flex justify-center py-10"><span className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/></div></div>);
+  if(data.error||bodyParts.length===0)return(<div className="space-y-3 fi"><div className="sticky top-0 z-10 -mx-4 px-4 py-2.5 bg-gray-950 flex items-center justify-center"><h2 className="text-lg font-bold text-gray-100">{t.acupointTitle}</h2></div><p className="text-sm text-gray-600 text-center py-8">{t.acupointLoadFail||'讀取失敗，請檢查網路後重新整理'}</p></div>);
   return(<div className="space-y-3 fi">
-    <div className="sticky top-0 z-10 -mx-4 px-4 py-1 bg-gray-950 flex items-center justify-center"><h2 className="text-sm font-semibold text-gray-300">{t.acupointTitle}</h2></div>
-    {/* 第一層:部位分頁 */}
-    <div className="flex gap-1.5 overflow-x-auto pb-1" style={{scrollbarWidth:'none'}}>
-      {bodyParts.map(b=>(
-        <button key={b.id} onClick={()=>setBp(b.id)} className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${bp===b.id?'bg-amber-600 text-white':'bg-white/[0.06] text-gray-400'}`}>{fb(b)}</button>
-      ))}
+    <div className="sticky top-0 z-10 -mx-4 px-4 pt-2.5 pb-2 bg-gray-950 space-y-2.5">
+      <h2 className="text-lg font-bold text-gray-100 text-center">{t.acupointTitle}</h2>
+      <div className="relative"><input value={q} onChange={e=>setQ(e.target.value)} placeholder={t.acupointSearchPh} className="w-full h-12 bg-white/[0.06] border border-white/[0.10] rounded-xl pl-3 pr-11 text-[15px] text-gray-100 focus:outline-none focus:border-amber-400"/>{q&&<button onClick={()=>setQ('')} className="absolute right-1 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-gray-400">✕</button>}</div>
+      {/* 第一層:部位底線分頁 */}
+      <div className="flex gap-5 overflow-x-auto border-b border-white/[0.08]" style={{scrollbarWidth:'none'}}>
+        {bodyParts.map(b=>(
+          <button key={b.id} onClick={()=>setBp(b.id)} className={`flex-shrink-0 h-11 text-[15px] font-semibold whitespace-nowrap border-b-2 ${bp===b.id?'text-amber-400 border-amber-400':'text-[#aab2c0] border-transparent'}`}>{fb(b)}</button>
+        ))}
+      </div>
     </div>
-    {/* 第二層:經脈子篩選(依目前部位動態產生) */}
-    <div className="flex gap-1.5 overflow-x-auto pb-1" style={{scrollbarWidth:'none'}}>
-      <button onClick={()=>setMeridian('all')} className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap ${meridian==='all'?'bg-sky-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{t.acupointAllMeridian||'全部經脈'}</button>
+    {/* 第二層:經脈外框小標籤 */}
+    <div className="flex gap-2 overflow-x-auto pb-1" style={{scrollbarWidth:'none'}}>
+      <button onClick={()=>setMeridian('all')} className={`flex-shrink-0 px-3 h-9 rounded-full text-[13px] font-medium whitespace-nowrap border ${meridian==='all'?'border-sky-400 text-sky-300 bg-sky-400/10':'border-white/[0.14] text-[#aab2c0]'}`}>{t.acupointAllMeridian||'全部經脈'}</button>
       {meridianList.map(m=>(
-        <button key={m} onClick={()=>setMeridian(m)} className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap ${meridian===m?'bg-sky-600 text-white':'bg-white/[0.04] text-gray-500'}`}>{m}</button>
+        <button key={m} onClick={()=>setMeridian(m)} className={`flex-shrink-0 px-3 h-9 rounded-full text-[13px] font-medium whitespace-nowrap border ${meridian===m?'border-sky-400 text-sky-300 bg-sky-400/10':'border-white/[0.14] text-[#aab2c0]'}`}>{m}</button>
       ))}
     </div>
-    <div className="relative"><input value={q} onChange={e=>setQ(e.target.value)} placeholder={t.acupointSearchPh} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl pl-3 pr-9 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/>{q&&<button onClick={()=>setQ('')} className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/[0.1] flex items-center justify-center text-gray-400 active:bg-white/[0.18]">✕</button>}</div>
-    {history.length>0&&(<div className="flex items-center gap-1.5 flex-wrap"><span className="text-[10px] text-gray-600 flex-shrink-0">{t.acupointRecentSearch||'最近搜尋：'}</span>{history.map((h,i)=>(<button key={i} onClick={()=>setQ(h)} className="px-2 py-0.5 rounded-full bg-white/[0.05] text-[11px] text-gray-400 active:bg-white/[0.1]">{h}</button>))}</div>)}
-    {results.length===0&&<p className="text-sm text-gray-600 text-center py-8">{t.acupointNoResult}</p>}
-    <div className="space-y-2">
+    {history.length>0&&(<div className="flex items-center gap-2 flex-wrap"><span className="text-[13px] text-[#aab2c0] flex-shrink-0">{t.acupointRecentSearch||'最近搜尋：'}</span>{history.map((h,i)=>(<button key={i} onClick={()=>setQ(h)} className="px-3 h-8 rounded-full bg-white/[0.06] text-[13px] text-gray-300 active:bg-white/[0.12]">{h}</button>))}</div>)}
+    {results.length===0&&<p className="text-[15px] text-[#aab2c0] text-center py-8">{t.acupointNoResult}</p>}
+    <div className="divide-y divide-white/[0.08] border-y border-white/[0.08]">
       {results.map(a=>{
         const open=openId===a.id;
         const kw=q.trim().toLowerCase();
         const nameOrKwMatch=kw&&(fb(a.name).toLowerCase().includes(kw)||a.name.zh.toLowerCase().includes(kw)||(a.keywords[lang]||[]).some(k=>k.toLowerCase().includes(kw))||(a.keywords.zh||[]).some(k=>k.toLowerCase().includes(kw)));
         const cautionMatch=kw&&!nameOrKwMatch; // 有搜尋字但不是靠名稱/關鍵字比對到的,代表是靠注意事項比對到
-        return(<div key={a.id} className="bg-white/[0.03] border border-white/[0.06] rounded-xl overflow-hidden">
-          <div onClick={()=>setOpenId(open?null:a.id)} className="px-3 py-2.5 flex items-center justify-between cursor-pointer active:bg-white/[0.04]"><div className="flex-1 min-w-0"><span className="text-sm font-semibold text-gray-100">{fb(a.name)}</span><span className="text-[10px] text-sky-400 ml-2">{fb(a.meridian)}</span>{!open&&cautionMatch&&<p className="text-[11px] text-red-400 mt-0.5 truncate">⚠️ {fb(a.caution)}</p>}</div><span className="text-gray-500 text-xs flex-shrink-0 ml-2">{open?'▲':'▼'}</span></div>
-          {open&&(<div className="px-3 pb-3 space-y-2 border-t border-white/[0.06] pt-2">
-            <div><p className="text-[11px] text-amber-400 font-semibold mb-0.5">{t.acupointLocation}</p><p className="text-[13px] text-gray-300 leading-relaxed">{fb(a.location)}</p></div>
-            <div><p className="text-[11px] text-amber-400 font-semibold mb-0.5">{t.acupointBenefit}</p><p className="text-[13px] text-gray-300 leading-relaxed">{fb(a.benefit)}</p></div>
-            <div><p className="text-[11px] text-amber-400 font-semibold mb-0.5">{t.acupointTechnique}</p><p className="text-[13px] text-gray-300 leading-relaxed">{fb(a.technique)}</p></div>
-            <div><p className="text-[11px] text-red-400 font-semibold mb-0.5">{t.acupointCaution}</p><p className="text-[13px] text-gray-400 leading-relaxed">{fb(a.caution)}</p></div>
-            <div className="flex items-center gap-2 pt-1">
+        return(<div key={a.id}>
+          <div onClick={()=>setOpenId(open?null:a.id)} className="min-h-[52px] py-2 flex items-center justify-between cursor-pointer active:bg-white/[0.04]"><div className="flex-1 min-w-0"><span className="text-[16px] font-semibold text-gray-100">{favorites.includes(a.id)?'♥ ':''}{fb(a.name)}</span><span className="text-[13px] text-sky-300 ml-2">{fb(a.meridian)}</span>{!open&&cautionMatch&&<p className="text-[13px] text-red-400 mt-0.5 truncate">⚠️ {fb(a.caution)}</p>}</div><span className="text-gray-400 text-sm flex-shrink-0 ml-2 w-6 text-center">{open?'▲':'▼'}</span></div>
+          {open&&(<div className="pb-4 space-y-3">
+            <div><p className="text-[13px] text-amber-400 font-semibold mb-0.5">{t.acupointLocation}</p><p className="text-[15px] text-gray-200 leading-relaxed">{fb(a.location)}</p></div>
+            <div><p className="text-[13px] text-amber-400 font-semibold mb-0.5">{t.acupointBenefit}</p><p className="text-[15px] text-gray-200 leading-relaxed">{fb(a.benefit)}</p></div>
+            <div><p className="text-[13px] text-amber-400 font-semibold mb-0.5">{t.acupointTechnique}</p><p className="text-[15px] text-gray-200 leading-relaxed">{fb(a.technique)}</p></div>
+            <div><p className="text-[13px] text-red-400 font-semibold mb-0.5">{t.acupointCaution}</p><p className="text-[15px] text-[#aab2c0] leading-relaxed">{fb(a.caution)}</p></div>
+            <div className="flex items-center gap-3 pt-1">
               <button onClick={()=>{
                 const link=location.origin+location.pathname;
                 const title='🌿 '+fb(a.name);
                 const body=(t.acupointLocation+'：'+fb(a.location)+'\n\n'+t.acupointBenefit+'：'+fb(a.benefit)+'\n\n'+t.acupointTechnique+'：'+fb(a.technique)+'\n\n'+t.acupointCaution+'：'+fb(a.caution));
                 sendTicketFlex(title,body,link);
-              }} className="w-9 h-9 rounded-full bg-[#06C755] flex items-center justify-center active:bg-[#05b34c] flex-shrink-0" title={t.acupointShareLine||'分享到LINE'}>
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M12 2C6.48 2 2 5.85 2 10.5c0 4.15 3.53 7.63 8.31 8.34.32.07.76.21.87.48.1.25.07.63.03.88l-.14.85c-.04.25-.19.98.86.53 1.05-.44 5.68-3.35 7.75-5.73C21.24 13.9 22 12.28 22 10.5 22 5.85 17.52 2 12 2z"/></svg>
+              }} className="w-11 h-11 rounded-full bg-[#06C755] flex items-center justify-center active:bg-[#05b34c] flex-shrink-0" title={t.acupointShareLine||'分享到LINE'}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="white"><path d="M12 2C6.48 2 2 5.85 2 10.5c0 4.15 3.53 7.63 8.31 8.34.32.07.76.21.87.48.1.25.07.63.03.88l-.14.85c-.04.25-.19.98.86.53 1.05-.44 5.68-3.35 7.75-5.73C21.24 13.9 22 12.28 22 10.5 22 5.85 17.52 2 12 2z"/></svg>
               </button>
-              <button onClick={()=>toggleFavorite(a.id)} className="w-9 h-9 rounded-full bg-white/[0.06] flex items-center justify-center active:bg-white/[0.12] flex-shrink-0" title={t.acupointFavorite||'收藏，排到最上面'}>
-                <svg viewBox="0 0 24 24" width="16" height="16" fill={favorites.includes(a.id)?'#f43f5e':'none'} stroke={favorites.includes(a.id)?'#f43f5e':'#9ca3af'} strokeWidth={1.8}><path d="M12 21s-6.7-4.35-9.3-8.1C1.1 10.5 1.6 7 4.6 5.6c2.2-1 4.6-.2 5.9 1.5.5.6.9 1.3 1.5 1.3s1-.7 1.5-1.3c1.3-1.7 3.7-2.5 5.9-1.5 3 1.4 3.5 4.9 1.9 7.3C18.7 16.65 12 21 12 21z"/></svg>
+              <button onClick={()=>toggleFavorite(a.id)} className="w-11 h-11 rounded-full bg-white/[0.08] flex items-center justify-center active:bg-white/[0.14] flex-shrink-0" title={t.acupointFavorite||'收藏，排到最上面'}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill={favorites.includes(a.id)?'#f43f5e':'none'} stroke={favorites.includes(a.id)?'#f43f5e':'#9ca3af'} strokeWidth={1.8}><path d="M12 21s-6.7-4.35-9.3-8.1C1.1 10.5 1.6 7 4.6 5.6c2.2-1 4.6-.2 5.9 1.5.5.6.9 1.3 1.5 1.3s1-.7 1.5-1.3c1.3-1.7 3.7-2.5 5.9-1.5 3 1.4 3.5 4.9 1.9 7.3C18.7 16.65 12 21 12 21z"/></svg>
               </button>
-              {favorites.includes(a.id)&&<span className="text-[10px] text-rose-400">{t.acupointFavoritedHint||'已收藏，排在此部位最上方'}</span>}
+              {favorites.includes(a.id)&&<span className="text-[13px] text-rose-400">{t.acupointFavoritedHint||'已收藏，排在此部位最上方'}</span>}
             </div>
           </div>)}
         </div>);
       })}
     </div>
-    <p className="text-[10px] text-gray-600 text-center pt-2 leading-relaxed">{t.acupointDisclaimer}</p>
+    <p className="text-[12px] text-[#aab2c0] text-center pt-2 leading-relaxed">{t.acupointDisclaimer}</p>
   </div>);
 }
 function SuggestPage({t,settings,onClose}){
@@ -1170,7 +1189,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme,onClose,onLogout}){
       </div>)}
 
       {subTab==='book'&&(<div className="space-y-4 fi">
-        <div className="sticky top-0 z-10 -mx-4 px-4 py-1 bg-gray-950 flex items-center justify-center"><h2 className="text-sm font-semibold text-gray-300">{t.myBooking2}</h2></div>
+        <div className="sticky top-0 z-10 -mx-4 px-4 py-2.5 bg-gray-950 flex items-center justify-center"><h2 className="text-lg font-bold text-gray-100">{t.myBooking2}</h2></div>
         <BookingSection code={settings.code} t={t}/>
       </div>)}
 
@@ -1181,7 +1200,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme,onClose,onLogout}){
       {subTab==='acupoint'&&<AcupointPage t={t} settings={settings}/>}
 
       {subTab==='backup'&&(<div className="space-y-4 fi">
-        <div className="sticky top-0 z-10 -mx-4 px-4 py-1 bg-gray-950 flex items-center justify-center"><h2 className="text-sm font-semibold text-gray-300">{t.backupCenter}</h2></div>
+        <div className="sticky top-0 z-10 -mx-4 px-4 py-2.5 bg-gray-950 flex items-center justify-center"><h2 className="text-lg font-bold text-gray-100">{t.backupCenter}</h2></div>
         <BackupSection settings={settings} t={t} onUpdate={onUpdate} lineUserId={lineUserId}/>
       </div>)}
 
