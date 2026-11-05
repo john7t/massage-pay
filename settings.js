@@ -1,3 +1,4 @@
+// v1.13-073 / 綁LINE安全網:首次綁定先查雲端——本機空→自動還原、兩邊有→讓使用者選、本機空永不上傳(修:LINE app 登入把 Safari 的備份蓋成空的)。
 // v1.13-072 / LINE登入按鈕:已登入直接取userId;LINE內建瀏覽器非LIFF網址→導去liff.line.me(避免access.line.me 400)。
 // v1.13-068 / UI改版(參考 impeccable):名片/穴道知識/備份/月曆/自約/流水記錄彈窗/LINE QR;穴道頁有本機快取+仍在解鎖期時先直接顯示,憑證改背景確認。
 // settings.js — 設定頁相關元件(從 index.html 抽離,降低 index 體積)
@@ -42,7 +43,7 @@
 // 注意:此檔為 type="text/babel",獨立作用域,需自行宣告 hooks 與 bridge
 const{useState,useEffect,useCallback,useMemo}=React;
 const{SkReveal}=window.MP;
-const{normEmail,isValidEmail,doEmailBackupNow,gasAnalyze,gasAddNotice,gasEditNotice,noticeSummary,noticeTitle,getNoticeReadCount,getNoticeShow,getNoticeListText,getNoticeCountType,getNoticeMainCats,getNoticesLocal,fetchNotices,gasVerifyKey,gasLeaveTeacher,gasSubmitAction,gasCheckAction,gasBlacklistSubmit,gasBlacklistCheck,gasBlacklistApprove,gasBlacklistSearch,gasBackupSubmit,gasBackupCheck,gasBackupFetch,gasDebugEcho,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,getMyLineUserId,setMyLineUserId,clearMyLineUserId,getLineLogoutFlag,setLineLogoutFlag,clearLineLogoutFlag,gasToggleNoticeStatus,gasSubmitSuggestion,gasListSuggestions,gasPushNoticeFlexToMe,getMyKey,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,gasSetInitialPwd,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,sendTicketFlex,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,getGasUrl,setGasUrl,gasCall,hasMyKey,issueKey,claimMyKey,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,personalChartStats,bookTitleName,BOOK_TITLES,fetchAcupoints,clearAcupointsCache,checkCredentialValid,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{normEmail,isValidEmail,doEmailBackupNow,gasAnalyze,gasAddNotice,gasEditNotice,noticeSummary,noticeTitle,getNoticeReadCount,getNoticeShow,getNoticeListText,getNoticeCountType,getNoticeMainCats,getNoticesLocal,fetchNotices,gasVerifyKey,gasLeaveTeacher,gasSubmitAction,gasCheckAction,gasBlacklistSubmit,gasBlacklistCheck,gasBlacklistApprove,gasBlacklistSearch,gasBackupSubmit,gasBackupCheck,gasBackupFetch,gasDebugEcho,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,getMyLineUserId,setMyLineUserId,clearMyLineUserId,getLineLogoutFlag,setLineLogoutFlag,clearLineLogoutFlag,gasToggleNoticeStatus,gasSubmitSuggestion,gasListSuggestions,gasPushNoticeFlexToMe,getMyKey,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,gasSetInitialPwd,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,sendTicketFlex,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,getGasUrl,setGasUrl,gasCall,hasMyKey,issueKey,claimMyKey,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,personalChartStats,bookTitleName,BOOK_TITLES,fetchAcupoints,clearAcupointsCache,checkCredentialValid,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,localHasPersonalData,backupUploadAllowed,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 function fmtSyncTime(iso){try{const d=new Date(iso);const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"/"+p(d.getMonth()+1)+"/"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes())}catch(_e){return ""}}
 
 // 1.13版圖表重構:原本公司層級的班別比/性別比/上工人數/在線人數(loadStats讀stats.json)整個移除改成個人資料分析——
@@ -120,6 +121,21 @@ function ChartPage({t,settings,onClose}){
   </div>);
 }
 
+// v1.13-073:首次綁定LINE(這個瀏覽器第一次拿到這個 userId)時的雲端同步——不再直接上傳(會把雲端原有備份蓋成空的):
+//  雲端沒備份→本機有記錄就上傳;雲端有備份→一律不自動動作,存旗標 my-bind-pending(暫停自動上傳)並跳訊息讓使用者選(本機沒記錄=問是否還原;兩邊都有=選哪一份)
+async function bindSyncCloud(uid,settings){
+  const year=settings.year||bizParts().y;
+  let r=null;try{r=await gasBackupCheck(uid)}catch(_e){}
+  if(!r||!r.ok)return{status:'error'};
+  const has=localHasPersonalData(settings.code,year);
+  if(!r.found){
+    if(has){try{const obj=makePersonalBackup(settings.code,year);const pj=JSON.stringify({store:settings.store||'',gender:settings.gender||'',shift:settings.shift||'',workStart:settings.workStart||'',workEnd:settings.workEnd||''});await gasBackupSubmit(uid,settings.code,year,JSON.stringify(obj),pj)}catch(_e){}}
+    return{status:'uploaded'};
+  }
+  const pend={uid:uid,year:r.year,updatedAt:r.updatedAt,cloudOnly:!has}; // cloudOnly=這邊沒有記錄:不自動還原,跳訊息問使用者
+  try{localStorage.setItem('my-bind-pending',JSON.stringify(pend))}catch(_e){}
+  return{status:'choose',pend:pend};
+}
 function BackupSection({settings,t,onUpdate,lineUserId}){
   // 雲端備份:直接用編號存進GAS,換手機後查詢就能還原,不用行為代碼/LINE分享這一層
   const[cloudBusy,setCloudBusy]=useState(false);
@@ -152,6 +168,7 @@ function BackupSection({settings,t,onUpdate,lineUserId}){
   // (例如換新裝置時的還原流程)重新接上
   const doCloudBackup=async()=>{
     if(!lineUserId){setCloudMsg({ok:false,text:t.lineLoginRequiredMsg||'請先用LINE登入才能使用雲端備份'});return}
+    if(!localHasPersonalData(settings.code,settings.year)){setCloudMsg({ok:false,text:'這裡還沒有任何記錄，為避免覆蓋雲端原有備份，已取消備份'});return}
     setCloudBusy(true);setCloudMsg(null);
     try{
       const obj=makePersonalBackup(settings.code,settings.year);
@@ -926,6 +943,8 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme,onClose,onLogout}){
   // 1.13版:LINE登入(從備份區塊搬到這裡,放在語系設定下方),雲端備份還是需要用這個身份存取,往下傳給BackupSection
   const[lineUserId,setLineUserIdState]=useState(()=>getMyLineUserId());
   const[liffBusy,setLiffBusy]=useState(false);
+  const[bindChoice,setBindChoice]=useState(()=>{try{return JSON.parse(localStorage.getItem('my-bind-pending')||'null')}catch(_e){return null}});
+  const[bindMsg,setBindMsg]=useState('');
   const[liffErr,setLiffErr]=useState('');
   // v1.13-019:加getLineLogoutFlag()判斷——使用者主動登出後,就算LINE內建瀏覽器讓liff.init()靜默重新登入成功,
   // 也不要把這個結果存回本機,否則每次重新打開備份/設定頁(同一個SettingsPage元件,只是subTab不同)都會把剛登出的狀態復原。
@@ -952,13 +971,26 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme,onClose,onLogout}){
   //      改導去 LIFF 正式網址(liff.line.me/…?lineBind=1),LINE 會自動帶入身分,回來後自動開設定頁並存下 userId
   //  (3) 外部瀏覽器(Safari/Chrome):維持原本 liff.login 導去 LINE 登入頁
   const saveLineProfile=(profile)=>{
+    const isNew=getMyLineUserId()!==profile.userId; // 同一個 userId 重複靜默偵測:不用再同步(每日備份會處理)
     setMyLineUserId(profile.userId);setLineUserIdState(profile.userId);
-    try{ // 登入成功當下立刻備份一次(v1.13-015 起的測試用行為,保留)
-      const obj=makePersonalBackup(settings.code,settings.year||bizParts().y);
-      const pj=JSON.stringify({store:settings.store||'',gender:settings.gender||'',shift:settings.shift||'',workStart:settings.workStart||'',workEnd:settings.workEnd||''});
-      gasBackupSubmit(profile.userId,settings.code,settings.year||bizParts().y,JSON.stringify(obj),pj).catch(()=>{});
-    }catch(_e){}
+    if(!isNew)return;
+    (async()=>{
+      const res=await bindSyncCloud(profile.userId,settings);
+      if(res.status==='restored'){setBindMsg('✓ 已從雲端備份還原（'+(res.year||'')+' 年・'+(res.updatedAt||'')+'），即將重新整理');setTimeout(()=>location.reload(),1500)}
+      else if(res.status==='choose')setBindChoice(res.pend);
+    })();
   };
+  const bindUseCloud=async()=>{
+    setBindMsg('還原中…');
+    try{const f=await gasBackupFetch(lineUserId);if(f&&f.ok){const parsed=parsePersonalBackup(JSON.parse(f.jsonData));if(parsed.ok){restorePersonalBackup(parsed);try{localStorage.removeItem('my-bind-pending')}catch(_e){}setBindChoice(null);setBindMsg('✓ 已用雲端備份還原，即將重新整理');setTimeout(()=>location.reload(),1200);return}}}catch(_e){}
+    setBindMsg('還原失敗，請稍後再試');
+  };
+  const bindUseLocal=async()=>{
+    setBindMsg('上傳中…');
+    try{const y=settings.year||bizParts().y;const obj=makePersonalBackup(settings.code,y);const pj=JSON.stringify({store:settings.store||'',gender:settings.gender||'',shift:settings.shift||'',workStart:settings.workStart||'',workEnd:settings.workEnd||''});const r=await gasBackupSubmit(lineUserId,settings.code,y,JSON.stringify(obj),pj);if(r&&r.ok){try{localStorage.removeItem('my-bind-pending')}catch(_e){}setBindChoice(null);setBindMsg('✓ 已用本機資料覆蓋雲端備份');return}}catch(_e){}
+    setBindMsg('上傳失敗，請稍後再試');
+  };
+  const bindLater=()=>{setBindMsg('已先不處理：在你選擇前不會自動備份');};
   const doLineLogin=async()=>{
     if(typeof liff==='undefined'){setLiffErr(t.liffSdkFail||'LINE SDK載入失敗，請檢查網路');return}
     setLiffBusy(true);setLiffErr('');
@@ -1059,6 +1091,17 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme,onClose,onLogout}){
           </div>
           {liffErr&&<p className="text-xs text-red-400 px-4 py-2">{liffErr}</p>}
         </div>
+        {lineUserId&&bindChoice&&(<div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 space-y-3 fi">
+          <p className="text-base font-semibold text-amber-300">發現雲端上有備份</p>
+          <p className="text-sm text-gray-300 leading-relaxed">備份檔日期時間：<b className="text-gray-100">{bindChoice.updatedAt||'—'}</b>（{bindChoice.year||''} 年）。{bindChoice.cloudOnly?'這裡目前沒有記錄，要還原雲端上的備份嗎？':'這裡也有記錄，為避免互相覆蓋，請選擇要用哪一份。'}選擇之前不會自動備份。</p>
+          <div className="grid grid-cols-1 gap-2">
+            <button onClick={bindUseCloud} className="min-h-[48px] rounded-xl bg-emerald-600 text-white font-semibold active:opacity-80">{bindChoice.cloudOnly?'還原雲端備份':'用雲端備份還原（取代這裡的記錄）'}</button>
+            {!bindChoice.cloudOnly&&<button onClick={bindUseLocal} className="min-h-[48px] rounded-xl bg-white/[0.08] border border-white/[0.1] text-gray-100 font-semibold active:opacity-80">用這裡的記錄覆蓋雲端</button>}
+            <button onClick={bindLater} className="min-h-[44px] rounded-xl text-sm text-gray-400">{bindChoice.cloudOnly?'先不還原':'先不處理'}</button>
+          </div>
+          {bindMsg&&<p className="text-sm text-center text-amber-200">{bindMsg}</p>}
+        </div>)}
+        {lineUserId&&!bindChoice&&bindMsg&&<p className="text-sm text-center text-emerald-400">{bindMsg}</p>}
         {!lineUserId&&<p className="text-xs text-gray-500 px-2 -mt-3 leading-relaxed">{t.lineLoginDesc||'請先用LINE登入——這樣才能使用雲端備份，且能確保換手機或忘記密碼時，用LINE身份就能安全找回資料。'}</p>}
         {!HIDE_COMPANY_FEATURES&&<div className="space-y-2"><label className="text-xs text-gray-400 mb-1 block">{t.lockPwdSectionTitle}</label>
           <label className="flex items-center gap-2 bg-white/[0.04] rounded-xl px-4 py-3 cursor-pointer"><input type="checkbox" checked={!!form.disableHomePwd} onChange={e=>upd({disableHomePwd:e.target.checked})} className="w-4 h-4 rounded accent-amber-500"/><span className="text-sm text-gray-300">{t.disableHomePwdLabel}</span></label>
