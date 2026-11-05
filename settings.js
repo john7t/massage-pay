@@ -508,8 +508,7 @@ function AcupointPage({t,settings}){
   if(data===null)return(<div className="space-y-3 fi"><div className="sticky top-0 z-10 -mx-4 px-4 py-2.5 bg-gray-950 flex items-center justify-center"><h2 className="text-lg font-bold text-gray-100">{t.acupointTitle}</h2></div><div className="flex justify-center py-10"><span className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"/></div></div>);
   if(data.error||bodyParts.length===0)return(<div className="space-y-3 fi"><div className="sticky top-0 z-10 -mx-4 px-4 py-2.5 bg-gray-950 flex items-center justify-center"><h2 className="text-lg font-bold text-gray-100">{t.acupointTitle}</h2></div><p className="text-sm text-gray-600 text-center py-8">{t.acupointLoadFail||'讀取失敗，請檢查網路後重新整理'}</p></div>);
   return(<div className="space-y-3 fi">
-    <div className="sticky top-0 z-10 -mx-4 px-4 pt-2.5 pb-2 bg-gray-950 space-y-2.5">
-      <h2 className="text-lg font-bold text-gray-100 text-center">{t.acupointTitle}</h2>
+    <div className="sticky top-0 z-10 -mx-4 px-4 pt-1 pb-2 bg-gray-950 space-y-2.5">
       <div className="relative"><input value={q} onChange={e=>setQ(e.target.value)} placeholder={t.acupointSearchPh} className="w-full h-12 bg-white/[0.06] border border-white/[0.10] rounded-xl pl-3 pr-11 text-[15px] text-gray-100 focus:outline-none focus:border-amber-400"/>{q&&<button onClick={()=>setQ('')} className="absolute right-1 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-gray-400">✕</button>}</div>
       {/* 第一層:部位底線分頁 */}
       <div className="flex gap-5 overflow-x-auto border-b border-white/[0.08]" style={{scrollbarWidth:'none'}}>
@@ -520,9 +519,9 @@ function AcupointPage({t,settings}){
     </div>
     {/* 第二層:經脈外框小標籤 */}
     <div className="flex gap-2 overflow-x-auto pb-1" style={{scrollbarWidth:'none'}}>
-      <button onClick={()=>setMeridian('all')} className={`flex-shrink-0 px-3 h-9 rounded-full text-[13px] font-medium whitespace-nowrap border ${meridian==='all'?'border-sky-400 text-sky-300 bg-sky-400/10':'border-white/[0.14] text-[#aab2c0]'}`}>{t.acupointAllMeridian||'全部經脈'}</button>
+      <button onClick={()=>setMeridian('all')} className={`flex-shrink-0 px-3 h-9 rounded-full text-[13px] font-medium whitespace-nowrap border ${meridian==='all'?'border-sky-400 text-sky-400 bg-sky-400/10':'border-white/[0.14] text-[#aab2c0]'}`}>{t.acupointAllMeridian||'全部經脈'}</button>
       {meridianList.map(m=>(
-        <button key={m} onClick={()=>setMeridian(m)} className={`flex-shrink-0 px-3 h-9 rounded-full text-[13px] font-medium whitespace-nowrap border ${meridian===m?'border-sky-400 text-sky-300 bg-sky-400/10':'border-white/[0.14] text-[#aab2c0]'}`}>{m}</button>
+        <button key={m} onClick={()=>setMeridian(m)} className={`flex-shrink-0 px-3 h-9 rounded-full text-[13px] font-medium whitespace-nowrap border ${meridian===m?'border-sky-400 text-sky-400 bg-sky-400/10':'border-white/[0.14] text-[#aab2c0]'}`}>{m}</button>
       ))}
     </div>
     {history.length>0&&(<div className="flex items-center gap-2 flex-wrap"><span className="text-[13px] text-[#aab2c0] flex-shrink-0">{t.acupointRecentSearch||'最近搜尋：'}</span>{history.map((h,i)=>(<button key={i} onClick={()=>setQ(h)} className="px-3 h-8 rounded-full bg-white/[0.06] text-[13px] text-gray-300 active:bg-white/[0.12]">{h}</button>))}</div>)}
@@ -534,7 +533,7 @@ function AcupointPage({t,settings}){
         const nameOrKwMatch=kw&&(fb(a.name).toLowerCase().includes(kw)||a.name.zh.toLowerCase().includes(kw)||(a.keywords[lang]||[]).some(k=>k.toLowerCase().includes(kw))||(a.keywords.zh||[]).some(k=>k.toLowerCase().includes(kw)));
         const cautionMatch=kw&&!nameOrKwMatch; // 有搜尋字但不是靠名稱/關鍵字比對到的,代表是靠注意事項比對到
         return(<div key={a.id}>
-          <div onClick={()=>setOpenId(open?null:a.id)} className="min-h-[52px] py-2 flex items-center justify-between cursor-pointer active:bg-white/[0.04]"><div className="flex-1 min-w-0"><span className="text-[16px] font-semibold text-gray-100">{favorites.includes(a.id)?'♥ ':''}{fb(a.name)}</span><span className="text-[13px] text-sky-300 ml-2">{fb(a.meridian)}</span>{!open&&cautionMatch&&<p className="text-[13px] text-red-400 mt-0.5 truncate">⚠️ {fb(a.caution)}</p>}</div><span className="text-gray-400 text-sm flex-shrink-0 ml-2 w-6 text-center">{open?'▲':'▼'}</span></div>
+          <div onClick={()=>setOpenId(open?null:a.id)} className="min-h-[52px] py-2 flex items-center justify-between cursor-pointer active:bg-white/[0.04]"><div className="flex-1 min-w-0"><span className="text-[16px] font-semibold text-gray-100">{favorites.includes(a.id)?'♥ ':''}{fb(a.name)}</span><span className="text-[13px] text-sky-400 ml-2">{fb(a.meridian)}</span>{!open&&cautionMatch&&<p className="text-[13px] text-red-400 mt-0.5 truncate">⚠️ {fb(a.caution)}</p>}</div><span className="text-gray-400 text-sm flex-shrink-0 ml-2 w-6 text-center">{open?'▲':'▼'}</span></div>
           {open&&(<div className="pb-4 space-y-3">
             <div><p className="text-[13px] text-amber-400 font-semibold mb-0.5">{t.acupointLocation}</p><p className="text-[15px] text-gray-200 leading-relaxed">{fb(a.location)}</p></div>
             <div><p className="text-[13px] text-amber-400 font-semibold mb-0.5">{t.acupointBenefit}</p><p className="text-[15px] text-gray-200 leading-relaxed">{fb(a.benefit)}</p></div>
