@@ -1,4 +1,4 @@
-// app-core.js v1.13-072 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
+// app-core.js v1.13-076 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
 // v1.13-056 / UI 改版(Impeccable 建議,使用者逐頁確認預覽):(1)首頁:上一筆縮成一行、今日卡右側金額+支數老點(拿掉「看明細›」)、+1+2+3+更多一排貼在今日卡下方(0支時顯示提示)、流水→手套團購→更多功能(上排4個大圖示、下排2欄文字磚);手套團購橫幅改兩行版面。(2)月份明細:大字月份+月薪水、上/下半月並排小卡、底線式月份分頁、區段小計與欄位標題、空日淡化、「回到今天」浮動鈕。(3)啟動頁:白底仿LINE風格(.ob-line範圍CSS)、Email(選填)欄位拿掉(NoticeBox不傳setEmail)、左上返回‹、送出鈕停用時顯示還差什麼。舊版區塊一律 {false&&...} 隱藏不刪。
@@ -130,11 +130,80 @@
 // 點年份文字跳年度總表(帶著listY);月份列表左右兩側原本各一個「年度」按鈕拿掉。
 // (YearlyPage)加year prop(選填),沒傳的話退回settings.year維持向下相容,讓兩個頁面能各自帶著自己導覽到的年份跳過來。
 // index.html加yearlyYear state記住要顯示哪一年,onGotoYear callback改成接收年份參數。加todayBtn翻譯key | 前: v1.13-020
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,DISABLE_GH_DATA_FETCH,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,hasMyKey,isNoticeRead,getNoticeReadCount,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,svcByCode,bookUnits,bookMinutes,bookLabel,bookRange,findConflicts,dayOffStatus,skName,getBookings,addBooking,updateBooking,deleteBooking,confirmBooking,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,normEmail,isValidEmail,gasEmailBackupCheck,doEmailBackupNow,emailRestore,getCardData,sendCardFlex,loadCardStores,CARD_STORE_DEFAULTS,CARD_BRAND,loadBreakStatus,breakFlipGreenLocal,breakFlipWhiteLocal,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,localHasPersonalData,backupUploadAllowed,gasBackupSubmit,getMyLineUserId,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasBlacklistSearch,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasResetLockPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasLogFlowEnter,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,AUTH_LIFF_BASE,sendTicketFlex,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,syncMyStaffStatus,isStaffLeft,DISABLE_GH_DATA_FETCH,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,hasMyKey,isNoticeRead,getNoticeReadCount,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,svcByCode,bookUnits,bookMinutes,bookLabel,bookRange,findConflicts,dayOffStatus,skName,getBookings,addBooking,updateBooking,deleteBooking,confirmBooking,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,normEmail,isValidEmail,gasEmailBackupCheck,doEmailBackupNow,emailRestore,getCardData,sendCardFlex,loadCardStores,CARD_STORE_DEFAULTS,CARD_BRAND,loadBreakStatus,breakFlipGreenLocal,breakFlipWhiteLocal,bookTitleName,BOOK_TITLES,encMonth,decBackup,makePersonalBackup,bindVerify,readUnboundNotice,clearUnboundNotice,localHasPersonalData,backupUploadAllowed,gasBackupSubmit,getMyLineUserId,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
 const{useState,useEffect,useCallback,useMemo}=React;
 const{SkReveal}=window.MP;
 
 
+// v1.13-074:新設備在 LIFF(LINE 內用 liff.line.me 網址)開啟時,啟動頁最上方顯示「用 LINE 登入」——取代過去「輸入 Email 查備份」的位置。
+// 登入後自動取得 userId、註記綁定設備;雲端有備份就顯示備份檔日期時間問是否還原,還原後直接啟用這台裝置;沒備份就提示繼續填寫開始使用。
+function isInLiffClient(){try{return typeof liff!=='undefined'&&typeof liff.isInClient==='function'&&liff.isInClient()}catch(_e){return false}}
+function LineRestoreBox({lang}){
+  const M=window.MP;const vi=lang==='vi';
+  const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');const[offer,setOffer]=useState(null);const[uid,setUid]=useState('');
+  if(!isInLiffClient())return null;
+  const login=async()=>{
+    setBusy(true);setMsg('');
+    try{
+      await liff.init({liffId:INDEX_LIFF_ID});
+      if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return}
+      const p=await liff.getProfile();
+      if(!p||!p.userId)throw new Error('no profile');
+      M.clearLineLogoutFlag();M.setMyLineUserId(p.userId);setUid(p.userId);
+      try{await M.bindClaimNow(p.userId)}catch(_e){}
+      const r=await M.gasBackupCheck(p.userId);
+      if(r&&r.ok&&r.found)setOffer(r);
+      else setMsg(r&&r.ok?(vi?'Đã đăng nhập LINE. Chưa có bản sao lưu trên đám mây, hãy điền thông tin bên dưới để bắt đầu.':'已用 LINE 登入。雲端沒有備份，請繼續填寫下方資料開始使用。'):(vi?'Không kiểm tra được bản sao lưu, vui lòng thử lại':'查詢備份失敗，請稍後再試'));
+    }catch(e){setMsg((vi?'Đăng nhập thất bại: ':'LINE 登入失敗：')+String(e&&e.message||e))}
+    setBusy(false);
+  };
+  const restore=async()=>{
+    setBusy(true);setMsg('');
+    try{
+      const f=await M.gasBackupFetch(uid);
+      if(!f||!f.ok)throw new Error((f&&f.error)||'fetch');
+      const parsed=M.parsePersonalBackup(JSON.parse(f.jsonData));
+      if(!parsed.ok)throw new Error('備份內容毀損');
+      M.restorePersonalBackup(parsed);
+      const st=LS.get('app-settings');const code=(st&&st.code)||parsed.code;
+      if(!code)throw new Error('備份缺少編號');
+      LS.set(`activated-${code}`,{deviceId:M.getDeviceId(),ts:Date.now()});
+      setMsg(vi?'✓ Đã khôi phục, đang tải lại…':'✓ 已還原，即將重新整理');setTimeout(()=>location.reload(),1200);return;
+    }catch(e){setMsg((vi?'Khôi phục thất bại: ':'還原失敗：')+String(e&&e.message||e))}
+    setBusy(false);
+  };
+  return(<div className="mb-4 space-y-3">
+    {!offer&&<button onClick={login} disabled={busy} className="w-full min-h-[56px] rounded-xl bg-[#06C755] text-white font-bold text-lg active:opacity-80 disabled:opacity-60">{busy?(vi?'Đang xử lý…':'處理中…'):(vi?'Đăng nhập LINE (khôi phục sao lưu)':'用 LINE 登入（有備份可還原）')}</button>}
+    {offer&&(<div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 space-y-3">
+      <p className="text-base font-bold text-amber-300">{vi?'Tìm thấy bản sao lưu trên đám mây':'發現雲端上有備份'}</p>
+      <p className="text-sm text-gray-300 leading-relaxed">{vi?'Ngày giờ sao lưu: ':'備份檔日期時間：'}<b className="text-gray-100">{offer.updatedAt||'—'}</b>（{offer.year||''} {vi?'năm':'年'}）。{vi?'Bạn có muốn khôi phục không?':'要還原雲端上的備份嗎？'}</p>
+      <button onClick={restore} disabled={busy} className="w-full min-h-[48px] rounded-xl bg-emerald-600 text-white font-semibold active:opacity-80 disabled:opacity-60">{busy?'…':(vi?'Khôi phục sao lưu':'還原雲端備份')}</button>
+      <button onClick={()=>{setOffer(null);setMsg(vi?'Đã bỏ qua khôi phục. Hãy điền thông tin bên dưới để bắt đầu mới (sao lưu tự động sẽ tạm dừng đến khi bạn chọn).':'已先不還原，請填寫下方資料全新開始（雲端備份不會被覆蓋）。');try{localStorage.setItem('my-bind-pending',JSON.stringify({uid:uid,year:offer.year,updatedAt:offer.updatedAt,cloudOnly:true}))}catch(_e){}}} disabled={busy} className="w-full min-h-[44px] rounded-xl text-sm text-gray-400">{vi?'Không khôi phục':'先不還原'}</button>
+    </div>)}
+    {msg&&<p className="text-sm text-center text-emerald-400">{msg}</p>}
+  </div>);
+}
+// v1.13-075:非 PWA(沒加到主畫面)且不在 LINE 內時,啟動頁顯示「請先存到主畫面,再點主畫面圖示開啟 APP」+ 教學彈窗(附 LIFF 網址可複製)
+function isStandalonePwa(){try{return navigator.standalone===true||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)}catch(_e){return false}}
+function HomeScreenHint({lang}){
+  const vi=lang==='vi';const[show,setShow]=useState(false);const[copied,setCopied]=useState(false);
+  const ua=navigator.userAgent||'';
+  if(/Line\//i.test(ua)||isStandalonePwa())return null;
+  const ios=/iPhone|iPad|iPod/i.test(ua);const liffUrl='https://liff.line.me/'+INDEX_LIFF_ID;
+  const copy=async()=>{try{await navigator.clipboard.writeText(liffUrl);setCopied(true);setTimeout(()=>setCopied(false),1500)}catch(_e){}};
+  const steps=ios?(vi?['Nhấn nút Chia sẻ (hình vuông có mũi tên) ở thanh dưới Safari','Chọn “Thêm vào MH chính”','Nhấn “Thêm”, rồi mở app từ biểu tượng trên màn hình chính']:['點 Safari 下方的「分享」鈕（方框加箭頭）','選「加入主畫面」','按「加入」，之後從主畫面上的圖示開啟 APP']):(vi?['Nhấn menu ⋮ của Chrome ở góc trên','Chọn “Cài đặt ứng dụng” hoặc “Thêm vào màn hình chính”','Xác nhận, rồi mở app từ biểu tượng trên màn hình chính']:['點 Chrome 右上角選單 ⋮','選「安裝應用程式」或「加到主畫面」','確認後，從主畫面上的圖示開啟 APP']);
+  return(<div className="mt-4 rounded-2xl border border-white/[0.08] bg-white/[0.04] p-4 space-y-2">
+    <p className="text-sm text-gray-300 leading-relaxed">{vi?'Gợi ý: lưu vào màn hình chính trước, rồi mở app từ biểu tượng trên màn hình chính để có đầy đủ chức năng. Bạn vẫn có thể bấm “Bắt đầu” để tiếp tục.':'建議：先存到主畫面，再點主畫面上的圖示來開啟 APP，以獲得完整的操作。也可以直接按上方「開始使用」繼續。'}</p>
+    <button onClick={()=>setShow(true)} className="w-full min-h-[44px] rounded-xl bg-white/[0.08] border border-white/[0.1] text-sky-300 text-sm font-semibold active:opacity-80">{vi?'Cách lưu vào màn hình chính':'如何存到主畫面'}</button>
+    {show&&(<div className="fixed inset-0 z-[90] bg-black/70 flex items-center justify-center p-6" onClick={()=>setShow(false)}><div onClick={e=>e.stopPropagation()} className="w-full max-w-sm rounded-2xl bg-[#1a1d29] border border-white/[0.1] p-5 space-y-3">
+      <p className="text-lg font-bold text-gray-100">{vi?'Lưu vào màn hình chính':'存到主畫面'}</p>
+      <ol className="space-y-2 text-sm text-gray-300">{steps.map((x,i)=>(<li key={i} className="flex gap-2"><span className="text-sky-400 font-bold">{i+1}.</span><span>{x}</span></li>))}</ol>
+      <div className="rounded-xl bg-black/30 p-3 space-y-2"><p className="text-xs text-gray-500">{vi?'Liên kết mở trong LINE (LIFF)':'在 LINE 內開啟的網址（LIFF）'}</p><p className="text-xs font-mono text-gray-300 break-all">{liffUrl}</p>
+        <button onClick={copy} className="w-full min-h-[40px] rounded-lg bg-white/10 text-sm text-gray-200">{copied?(vi?'Đã sao chép':'已複製'):(vi?'Sao chép liên kết':'複製網址')}</button></div>
+      <button onClick={()=>setShow(false)} className="w-full min-h-[44px] rounded-xl bg-white/[0.08] text-gray-100 font-semibold">{vi?'Đóng':'關閉'}</button>
+    </div></div>)}
+  </div>);
+}
 function NoticeBox({t,agreed,setAgreed,email,setEmail}){const zh=t===T.zh;const pts=[[t.privacyBody,''],[setEmail?t.emailPrivacy:'','text-amber-300/90'],[t.browserNote,''],[t.backupReminder,'text-red-400/90 font-semibold']].filter(x=>x[0]);return(<div className="mt-5 space-y-3"><p className="text-[13px] text-gray-400 font-semibold">{t.noticeTitle||'本系統記錄的資料說明'}</p><div className="ob-card rounded-xl bg-white/[0.04] px-4 py-3.5 space-y-3 text-[15px] leading-relaxed text-gray-300">{pts.map(([tx,cl],k)=>(<div key={k} className="flex gap-2.5"><span className="ob-green font-bold flex-shrink-0 text-amber-400">{'①②③④'[k]}</span><p className={cl}>{tx}</p></div>))}</div><button onClick={()=>setAgreed(!agreed)} className="flex items-center gap-3 w-full text-left min-h-[48px]"><span className={`w-[26px] h-[26px] rounded-full flex items-center justify-center text-sm flex-shrink-0 ${agreed?'bg-amber-600 text-white':'bg-white/[0.06] border-2 border-white/[0.2] text-transparent'}`}>✓</span><span className="text-base text-gray-200">{t.readConfirm}</span></button>{/* v1.13-146:Email(選填)欄位拿掉:不再傳setEmail就不顯示;元件內的欄位程式保留(隱藏不刪) */}{setEmail&&<div className="pt-2 space-y-1.5"><label className="text-sm text-gray-300 font-semibold block">{t.emailLabel}</label><input type="email" inputMode="email" autoComplete="email" autoCapitalize="none" value={email||''} onChange={e=>setEmail(e.target.value)} placeholder="name@example.com" className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500"/><p className="text-xs text-gray-500 leading-relaxed">{t.emailHint}</p></div>}</div>)}
 
 /* ══════════ StaffListSection ══════════ */
@@ -442,12 +511,14 @@ function Onboarding({onComplete}){
 
     {mode==='choice'&&(<div className="space-y-3">
       <div className="flex justify-end gap-5 -mt-1 mb-2">{[['zh','中文'],['vi','Tiếng Việt']].map(([c,l])=>(<button key={c} onClick={()=>setLang(c)} className={`min-h-[44px] text-sm font-semibold border-b-2 ${lang===c?'text-gray-100 border-[#06c755]':'text-gray-500 border-transparent'}`}>{l}</button>))}</div>
+      <LineRestoreBox lang={lang}/>
       {HIDE_COMPANY_FEATURES?(
         <button onClick={()=>{setMode('new');setCodeCheck('new')}} className="w-full py-4 rounded-xl font-bold text-lg bg-amber-600 text-white mt-2">{t.startUseBtn||'開始使用'}</button>
       ):(<>
         <button onClick={()=>{setMode('new');setCodeCheck(null)}} className="w-full py-4 rounded-xl font-bold text-lg bg-amber-600 text-white mt-2">{t.flowNew}</button>
         <button onClick={()=>{setMode('login');setErr('');setCodeCheck(null)}} className="w-full py-4 rounded-xl font-bold text-lg bg-white/[0.06] text-gray-200">{t.flowLogin}</button>
       </>)}
+      <HomeScreenHint lang={lang}/>
     </div>)}
 
     {mode==='new'&&(()=>{const locked=codeCheck!=='new';return(<div className="space-y-5">
@@ -1532,6 +1603,9 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
       await gasBackupSubmit(lineUid,settings.code,settings.year||bizParts().y,JSON.stringify(obj),profileJson);
     }catch(_e){}
   };
+  // v1.13-072:綁定設備註記——開首頁時檢測,雲端註記的綁定設備不是這個環境→跳訊息並已自動解綁(common.js bindVerify)
+  const[unboundInfo,setUnboundInfo]=useState(()=>readUnboundNotice());
+  useEffect(()=>{const uid=getMyLineUserId();if(!uid)return;let alive=true;bindVerify(uid).then(v=>{if(alive&&v==='superseded')setUnboundInfo(readUnboundNotice())}).catch(()=>{});return()=>{alive=false}},[]);
   // 1.13版:月曆介紹彈窗(第一次進首頁自動打開月曆)整個移除,使用者這次要求拿掉所有會自動彈出的提示——保留原本的
   // seen旗標+setTimeout邏輯在下面註解掉,之後想恢復只要把這段取消註解即可,不用重寫
   // useEffect(()=>{
@@ -1695,6 +1769,12 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
   const saveTodayDay=(d,dd)=>{const md=data?JSON.parse(JSON.stringify(data)):eMon();md.days[d]=dd;LS.set(dk(settings.code,ty,tm),md);setData({...md});setEditToday(false)};
   const prevDow=prev?dow(prev.year,prev.month,prev.day):0;
   return(<div className="p-5 max-w-md mx-auto fi">
+    {unboundInfo&&(<div className="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-6"><div className="w-full max-w-sm rounded-2xl bg-[#1a1d29] border border-amber-500/40 p-5 space-y-3">
+      <p className="text-lg font-bold text-amber-300">已有新的綁定設備</p>
+      <p className="text-sm text-gray-300 leading-relaxed">這個 LINE 帳號已在另一個環境{unboundInfo.env?'（'+unboundInfo.env+'）':''}重新綁定{unboundInfo.at?'，時間 '+unboundInfo.at:''}。為避免資料互相覆蓋，這個環境已自動解除 LINE 綁定，不會再自動備份。</p>
+      <p className="text-xs text-gray-500">要在這裡重新使用，到「設定」按「使用LINE登入」即可（會取代另一個環境的綁定）。</p>
+      <button onClick={()=>{clearUnboundNotice();setUnboundInfo(null)}} className="w-full min-h-[48px] rounded-xl bg-sky-600 text-white font-semibold">知道了</button>
+    </div></div>)}
     <div className="flex items-center justify-between mb-2 px-1">
       <div onClick={()=>setShowStoreInfo(true)} className="flex items-baseline gap-1.5 active:opacity-70 cursor-pointer"><span className="text-base font-bold text-gray-100">{(CARD_STORE_DEFAULTS[settings.storeSel||settings.store]||CARD_STORE_DEFAULTS['龍山寺店']).bm}</span><span className="text-xs text-gray-500">{(CARD_STORE_DEFAULTS[settings.storeSel||settings.store]||CARD_STORE_DEFAULTS['龍山寺店']).bs}</span><span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-600 text-white font-bold border border-red-400">24h</span></div>
       <button onClick={()=>setShowBasicInfo(true)} className="text-sm text-gray-500 font-mono active:text-gray-300 px-2 min-h-[44px] flex items-center -mr-1">#{settings.code}</button>
@@ -1793,7 +1873,8 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
     {showLineQr&&(()=>{
       const qrPages=[
         {title:'加入 LINE Bot',data:'https://lin.ee/58Dsob3',label:'直接開啟'},
-        {title:'開啟網頁版',data:'https://john7t.github.io/massage-pay/',label:'直接開啟'},
+        {title:'開啟網頁版（LINE）',data:'https://liff.line.me/2010673151-QNFLrsH0',label:'直接開啟'},
+        {title:'開啟網頁版（網址）',data:'https://john7t.github.io/massage-pay/',label:'直接開啟'},
       ];
       const idx=lineQrIdx%qrPages.length;
       const page=qrPages[idx];
