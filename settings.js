@@ -1,4 +1,4 @@
-// v1.13-073 / 綁LINE安全網:首次綁定先查雲端——本機空→自動還原、兩邊有→讓使用者選、本機空永不上傳(修:LINE app 登入把 Safari 的備份蓋成空的)。
+// v1.13-073 / 綁定設備註記:綁LINE時註記雲端,別的環境檢測到註記不是自己→跳訊息並自動解綁。綁LINE安全網:首次綁定先查雲端——本機空→自動還原、兩邊有→讓使用者選、本機空永不上傳(修:LINE app 登入把 Safari 的備份蓋成空的)。
 // v1.13-072 / LINE登入按鈕:已登入直接取userId;LINE內建瀏覽器非LIFF網址→導去liff.line.me(避免access.line.me 400)。
 // v1.13-068 / UI改版(參考 impeccable):名片/穴道知識/備份/月曆/自約/流水記錄彈窗/LINE QR;穴道頁有本機快取+仍在解鎖期時先直接顯示,憑證改背景確認。
 // settings.js — 設定頁相關元件(從 index.html 抽離,降低 index 體積)
@@ -43,7 +43,9 @@
 // 注意:此檔為 type="text/babel",獨立作用域,需自行宣告 hooks 與 bridge
 const{useState,useEffect,useCallback,useMemo}=React;
 const{SkReveal}=window.MP;
-const{normEmail,isValidEmail,doEmailBackupNow,gasAnalyze,gasAddNotice,gasEditNotice,noticeSummary,noticeTitle,getNoticeReadCount,getNoticeShow,getNoticeListText,getNoticeCountType,getNoticeMainCats,getNoticesLocal,fetchNotices,gasVerifyKey,gasLeaveTeacher,gasSubmitAction,gasCheckAction,gasBlacklistSubmit,gasBlacklistCheck,gasBlacklistApprove,gasBlacklistSearch,gasBackupSubmit,gasBackupCheck,gasBackupFetch,gasDebugEcho,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,getMyLineUserId,setMyLineUserId,clearMyLineUserId,getLineLogoutFlag,setLineLogoutFlag,clearLineLogoutFlag,gasToggleNoticeStatus,gasSubmitSuggestion,gasListSuggestions,gasPushNoticeFlexToMe,getMyKey,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,gasSetInitialPwd,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,sendTicketFlex,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,getGasUrl,setGasUrl,gasCall,hasMyKey,issueKey,claimMyKey,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,personalChartStats,bookTitleName,BOOK_TITLES,fetchAcupoints,clearAcupointsCache,checkCredentialValid,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,localHasPersonalData,backupUploadAllowed,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+const{normEmail,isValidEmail,doEmailBackupNow,gasAnalyze,gasAddNotice,gasEditNotice,noticeSummary,noticeTitle,getNoticeReadCount,getNoticeShow,getNoticeListText,getNoticeCountType,getNoticeMainCats,getNoticesLocal,fetchNotices,gasVerifyKey,gasLeaveTeacher,gasSubmitAction,gasCheckAction,gasBlacklistSubmit,gasBlacklistCheck,gasBlacklistApprove,gasBlacklistSearch,gasBackupSubmit,gasBackupCheck,gasBackupFetch,gasDebugEcho,HIDE_COMPANY_FEATURES,INDEX_LIFF_ID,getMyLineUserId,setMyLineUserId,clearMyLineUserId,getLineLogoutFlag,setLineLogoutFlag,clearLineLogoutFlag,gasToggleNoticeStatus,gasSubmitSuggestion,gasListSuggestions,gasPushNoticeFlexToMe,getMyKey,LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,gasSetInitialPwd,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,genReqCode,parseReqCode,decReqCode,identifyReqCode,buildReqLink,sendTicketFlex,parseReqHash,genConnReq,parseConnReq,genSupReq,parseSupReq,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,checkApproved,writeApproval,loadStores,saveStores,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,slipSvcLabel,SERVICES,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,getGasUrl,setGasUrl,gasCall,hasMyKey,issueKey,claimMyKey,deleteCust,searchCustDB,recentCust,custLastSlip,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,personalChartStats,bookTitleName,BOOK_TITLES,fetchAcupoints,clearAcupointsCache,checkCredentialValid,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
+// v1.13-075:common.js 較舊(沒有這些函式)時用安全預設值,避免整頁掛掉
+const{bindClaimNow=async()=>({ok:false}),bindVerify=async()=>'error',readUnboundNotice=()=>null,clearUnboundNotice=()=>{},localHasPersonalData=()=>true,backupUploadAllowed=()=>true}=window.MP;
 function fmtSyncTime(iso){try{const d=new Date(iso);const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"/"+p(d.getMonth()+1)+"/"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes())}catch(_e){return ""}}
 
 // 1.13版圖表重構:原本公司層級的班別比/性別比/上工人數/在線人數(loadStats讀stats.json)整個移除改成個人資料分析——
@@ -945,6 +947,14 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme,onClose,onLogout}){
   const[liffBusy,setLiffBusy]=useState(false);
   const[bindChoice,setBindChoice]=useState(()=>{try{return JSON.parse(localStorage.getItem('my-bind-pending')||'null')}catch(_e){return null}});
   const[bindMsg,setBindMsg]=useState('');
+  const[unbound,setUnbound]=useState(()=>readUnboundNotice());
+  // 開設定頁時檢測:雲端註記的綁定設備不是這個環境→已有新的綁定設備,自動解綁並跳訊息
+  useEffect(()=>{
+    if(!lineUserId)return;
+    let alive=true;
+    bindVerify(lineUserId).then(v=>{if(alive&&v==='superseded'){setLineUserIdState('');setBindChoice(null);setUnbound(readUnboundNotice())}}).catch(()=>{});
+    return()=>{alive=false};
+  },[]);
   const[liffErr,setLiffErr]=useState('');
   // v1.13-019:加getLineLogoutFlag()判斷——使用者主動登出後,就算LINE內建瀏覽器讓liff.init()靜默重新登入成功,
   // 也不要把這個結果存回本機,否則每次重新打開備份/設定頁(同一個SettingsPage元件,只是subTab不同)都會把剛登出的狀態復原。
@@ -975,6 +985,8 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme,onClose,onLogout}){
     setMyLineUserId(profile.userId);setLineUserIdState(profile.userId);
     if(!isNew)return;
     (async()=>{
+      try{await bindClaimNow(profile.userId)}catch(_e){} // 註記「最後綁定的設備」=這個環境;其他環境之後檢測到會自動解綁
+      setUnbound(null);clearUnboundNotice();
       const res=await bindSyncCloud(profile.userId,settings);
       if(res.status==='restored'){setBindMsg('✓ 已從雲端備份還原（'+(res.year||'')+' 年・'+(res.updatedAt||'')+'），即將重新整理');setTimeout(()=>location.reload(),1500)}
       else if(res.status==='choose')setBindChoice(res.pend);
@@ -1091,6 +1103,11 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme,onClose,onLogout}){
           </div>
           {liffErr&&<p className="text-xs text-red-400 px-4 py-2">{liffErr}</p>}
         </div>
+        {unbound&&!lineUserId&&(<div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 space-y-3 fi">
+          <p className="text-base font-semibold text-amber-300">已有新的綁定設備</p>
+          <p className="text-sm text-gray-300 leading-relaxed">這個 LINE 帳號已在另一個環境{unbound.env?'（'+unbound.env+'）':''}重新綁定{unbound.at?'，時間 '+unbound.at:''}。為避免資料互相覆蓋，這個環境已自動解除 LINE 綁定，不會再自動備份。需要在這裡使用時，可以重新按「使用LINE登入」（會取代另一個環境的綁定）。</p>
+          <button onClick={()=>{clearUnboundNotice();setUnbound(null)}} className="w-full min-h-[44px] rounded-xl bg-white/[0.08] border border-white/[0.1] text-gray-100 font-semibold active:opacity-80">知道了</button>
+        </div>)}
         {lineUserId&&bindChoice&&(<div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 space-y-3 fi">
           <p className="text-base font-semibold text-amber-300">發現雲端上有備份</p>
           <p className="text-sm text-gray-300 leading-relaxed">備份檔日期時間：<b className="text-gray-100">{bindChoice.updatedAt||'—'}</b>（{bindChoice.year||''} 年）。{bindChoice.cloudOnly?'這裡目前沒有記錄，要還原雲端上的備份嗎？':'這裡也有記錄，為避免互相覆蓋，請選擇要用哪一份。'}選擇之前不會自動備份。</p>
