@@ -1,6 +1,6 @@
 /* ════════════════════════════════════════════════════════════
    common.js — 薪資追蹤系統 共用工具
-   v1.13-043 / 備份安全網:本機無記錄不上傳、綁LINE待處理時暫停自動上傳(localHasPersonalData/backupUploadAllowed)。 | 前: v1.13-042 / 越南文「老師」改譯 Sư phụ。
+   v1.13-044 / 綁定設備註記(bindClaimNow/bindVerify,新設備綁定後舊設備自動解綁)。備份安全網:本機無記錄不上傳、綁LINE待處理時暫停自動上傳(localHasPersonalData/backupUploadAllowed)。 | 前: v1.13-042 / 越南文「老師」改譯 Sư phụ。
    v1.13-041 / gasCallPost 失敗時把原因記在 window.__gasErr(逾時秒數/HTTP 狀態/回傳格式/網路錯誤),讓畫面顯示「連不上伺服器(原因)」。
    v1.13-040 / 新增骨架載入元件 SkReveal(window.MP.SkReveal),樣式在 index.html .sk-*。
    v1.13-039 / gasLogDailyCheck、gasLogFlowEnter 也帶 env/os(Log 工作表新增 env、os 欄)。
@@ -555,9 +555,34 @@ async function gasBlacklistSearch(q){
 }
 // 雲端備份:直接用編號存取,換手機後查詢就能還原,不用行為代碼/LINE分享
 async function gasBackupSubmit(lineUserId,code,year,jsonData,profileJson){
-  const r=await gasCallPost('backupSubmit',{lineUserId,code,year,jsonData,profileJson},20000);
+  const r=await gasCallPost('backupSubmit',{lineUserId,code,year,jsonData,profileJson,bindId:getBindId()},20000);
   return r||{ok:false,error:'GAS無回應'};
 }
+// v1.13-043:綁定設備註記——每個環境(Safari/LINE內建瀏覽器/LIFF…)各有自己的 my-bind-id;綁定LINE時註記到雲端(Backups 第7~9欄),
+// 之後檢測到雲端註記不是自己=已有新的綁定設備→本機自動解綁(清userId、設登出旗標)並留下 my-unbound-notice 讓畫面跳訊息
+function getBindId(){try{return localStorage.getItem('my-bind-id')||''}catch(_e){return ''}}
+function bindEnvLabel(){const ua=navigator.userAgent||'';const os=/iPhone|iPad|iOS/i.test(ua)?'iOS':/Android/i.test(ua)?'Android':'其他';const app=/Line\//i.test(ua)?'LINE內建':(/CriOS|Chrome/i.test(ua)?'Chrome':(/Safari/i.test(ua)?'Safari':'瀏覽器'));return os+' '+app}
+async function bindClaimNow(uid){
+  let id='';try{id=genUUID();localStorage.setItem('my-bind-id',id)}catch(_e){}
+  const r=await gasCall('bindClaim',{lineUserId:uid,bindId:id,env:bindEnvLabel()},10000);
+  return r||{ok:false}
+}
+// 回傳 'same' | 'claimed'(舊裝置第一次補註記) | 'superseded'(已被新裝置取代,已自動解綁) | 'error'
+async function bindVerify(uid){
+  if(!uid)return 'error';
+  const id=getBindId();
+  if(!id){const r=await bindClaimNow(uid);return r&&r.ok?'claimed':'error'}
+  const r=await gasCall('bindCheck',{lineUserId:uid,bindId:id},10000);
+  if(!r||!r.ok)return 'error';
+  if(r.state==='same')return 'same';
+  if(r.state==='none'){const c=await bindClaimNow(uid);return c&&c.ok?'claimed':'error'}
+  try{if(typeof liff!=='undefined'&&liff.isLoggedIn())liff.logout()}catch(_e){}
+  clearMyLineUserId();setLineLogoutFlag();
+  try{localStorage.removeItem('my-bind-id');localStorage.removeItem('my-bind-pending');localStorage.setItem('my-unbound-notice',JSON.stringify({at:r.bindAt||'',env:r.env||''}))}catch(_e){}
+  return 'superseded'
+}
+function readUnboundNotice(){try{return JSON.parse(localStorage.getItem('my-unbound-notice')||'null')}catch(_e){return null}}
+function clearUnboundNotice(){try{localStorage.removeItem('my-unbound-notice')}catch(_e){}}
 async function gasBackupCheck(lineUserId){
   const r=await gasCall('backupCheck',{lineUserId},10000);
   return r||{ok:false,error:'GAS無回應'};
@@ -1228,7 +1253,7 @@ window.MP={
   THEMES,
   // data helpers
   SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,
-  localHasPersonalData,backupUploadAllowed,toB36,fromB36,dim,dow,bizDate,bizParts,BIZ_CUTOFF_MIN,getBizCutoff,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,
+  getBindId,bindClaimNow,bindVerify,readUnboundNotice,clearUnboundNotice,localHasPersonalData,backupUploadAllowed,toB36,fromB36,dim,dow,bizDate,bizParts,BIZ_CUTOFF_MIN,getBizCutoff,dk,eDay,stamp,calcSal,getUnitPriceForDate,eMon,encMonth,decBackup,dataMonthRange,encRange,decRange,makePersonalBackup,parsePersonalBackup,restorePersonalBackup,
   newSlip,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,saveCustDB,getCust,getGasUrl,setGasUrl,getBuiltinGasUrl,shouldClaimKey,autoClaimKey,diagClaimKey,gasCall,gasCallPost,gasWarmup,getNoticesLocal,saveNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,getNoticeListText,getNoticeCountType,getNoticeMainCats,publishNotices,noticeBody,noticeTitle,noticeSummary,noticeCats,noticeTags,getMyKey,setMyKey,hasMyKey,HIDE_COMPANY_FEATURES,DISABLE_GH_DATA_FETCH,INDEX_LIFF_ID,getMyLineUserId,setMyLineUserId,clearMyLineUserId,getLineLogoutFlag,setLineLogoutFlag,clearLineLogoutFlag,isNoticeRead,markNoticeRead,getNoticeReadCount,getNoticeReaders,getNoticeUnread,gasTranslate,gasAnalyze,gasUsage,gasAddNotice,gasEditNotice,gasSubmitAction,gasCheckAction,gasApproveAction,gasBlacklistSubmit,gasBlacklistCheck,gasBlacklistApprove,gasBlacklistSearch,gasBackupSubmit,gasBackupCheck,gasBackupFetch,gasSfGetPendingDetail,gasSfApprovePendingRegistration,gasUpdatePwd,gasLoginPwd,gasSetInitialPwd,gasResetLockPwd,gasSyncProfile,gasCheckCode,gasCheckStaffCode,gasAuthStaffList,gasGetGHConfigForSupervisor,gasRevokeSup,gasRejectAction,gasVerifyKey,gasLogNoticeOpen,gasLeaveTeacher,gasPreApprove,gasGetPreApprove,gasCancelPreApprove,gasToggleNoticeStatus,gasSubmitSuggestion,gasListSuggestions,gasPushNoticeFlexToMe,gasLogDailyCheck,gasLogFlowEnter,gasDebugEcho,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasSubmitDisasterReport,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasCloseGroupBuy,gasGroupBuyDetail,gasSetGroupBuyOrderStatus,gasSetGroupBuyStatus,gasCreateDisasterSurvey,gasEndDisasterSurvey,gasDeleteDisasterSurvey,gasListDisasterSurveys,gasMyDisasterReports,gasDisasterDayStatus,getAdminSecret,setAdminSecret,hasAdminSecret,issueKey,claimMyKey,upsertCust,deleteCust,searchCustDB,recentCust,custLastSlip,migrateDayGroups,migrateMonthGroups,slipSvcLabel,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,personalChartStats,normEmail,isValidEmail,gasEmailBackupCheck,doEmailBackupNow,emailRestore,CARD_STORE_DEFAULTS,loadCardStores,CARD_BRAND,getCardData,sendCardFlex,breakDayKey,loadBreakStatus,breakFlipGreenLocal,breakFlipWhiteLocal,
   getCustomers,saveCustomers,getBookings,saveBookings,uid,upsertCustomer,normPhone,searchCustomers,addBooking,updateBooking,deleteBooking,confirmBooking,BOOK_TITLES,bookTitleName,fetchAcupoints,clearAcupointsCache,checkCredentialValid,
   SERVICES,svcByCode,bookUnits,bookMinutes,bookLabel,bookRange,findConflicts,dayOffStatus,bookLog,skName,
