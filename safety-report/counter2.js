@@ -17,7 +17,7 @@ const dur=sec=>Math.round(sec/60)+' 分';
 const nextMark=(now,stepMin)=>{const st=stepMin*60000;return Math.floor((now+8*3600e3)/st)*st+st-8*3600e3;}; // 台北時間的下一個整/半點
 const LIMIT=3600;
 // ── 白底主題:版面用 cn-* 類別;其餘沿用的 Tailwind 深色類別,在 .cn-light 內改成淺色對應 ──
-const CN_VER='v1.0-020'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
+const CN_VER='v1.0-021'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
 window.__cnVer=CN_VER;
 const CN_CSS=String.raw`
 .cn-light{background:#f7f7f9;color:#1b1f2a;min-height:100vh;font-feature-settings:"tnum"}
@@ -969,7 +969,7 @@ function SettingsSheet({who,onClose}){
     {msg&&<p className="text-sm text-amber-300">{msg}</p>}
     {!k&&(<React.Fragment>
       <div className="space-y-2"><p className="text-base text-white font-bold">我的今日登入碼</p><p className="text-xs text-gray-400">每天(凌晨 3 點換日)自動更換,公務機上用來辨識操作人。要用 LINE 登入才能查看;也可以在「我的」頁看。</p>
-        {my?(<div className="rounded-xl bg-gray-800 p-3 text-center"><p className="text-xs text-gray-400">{my.store}・營業日 {my.day}</p><p className="text-3xl font-bold text-white tracking-widest" style={{fontVariantNumeric:'tabular-nums'}}>{my.code}</p>{my.nextCode&&<p className="text-xs text-gray-500 mt-1">明日（{my.nextDay}）{my.nextCode}</p>}</div>):(<Bt disabled={busy} onClick={showMy}>查看我的今日登入碼</Bt>)}</div>
+        {my?(<div className="rounded-xl bg-gray-800 p-3 text-center"><p className="text-xs text-gray-400">{my.store}・營業日 {my.day}</p><p className="text-3xl font-bold text-white tracking-widest" style={{fontVariantNumeric:'tabular-nums'}}>{my.code}</p>{my.nextCode&&<p className="text-xs text-gray-500 mt-1">明日（{my.nextDay}）{my.nextCode}</p>}</div>):(busy?(<div className="rounded-xl bg-gray-800 py-5 flex flex-col items-center gap-2 text-sky-300"><Spinner size={32}/><p className="text-sm text-gray-400">產生登入碼中…</p></div>):(<Bt disabled={busy} onClick={showMy}>查看我的今日登入碼</Bt>))}</div>
       <div className="space-y-2 pt-2 border-t border-gray-800"><p className="text-base text-white font-bold">這台是公務機</p><p className="text-xs text-gray-400">經理以上可鎖定(要用 LINE 登入)。鎖定後這台不論開 safety-report 底下哪個網址,都只會進主櫃。</p><Bt disabled={busy} onClick={lock}>鎖定這台</Bt></div>
     </React.Fragment>)}
     {k&&(<div className="space-y-2"><p className="text-base text-emerald-300 font-bold">這台已鎖定為公務機</p><p className="text-xs text-gray-400">解除需要:LINE 登入 + 你自己的今日登入碼(經理以上)。</p>
