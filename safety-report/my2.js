@@ -1,4 +1,4 @@
-/* my2.js — 「我的」頁面 (v1.0-013)
+/* my2.js — 「我的」頁面 (v1.0-014)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 my2:  ?my2=1  我的(待我處理 + 公告 + 安全回報 + 手套團購 + 預排休假 + 拒接名單)
    只讀取各模組既有的 API(n2List / s2TodaySurveys / s2MyReports / gb2List / lv2Month / b2List),不新增後端;任何一區讀取失敗只隱藏該區。 */
 (function(){
@@ -126,6 +126,21 @@ class UsageGuard extends React.Component{ // 統計區塊出任何錯都只隱�
   render(){return this.state.e?null:this.props.children;}
 }
 
+// v1.0-014:主櫃今日登入碼(櫃台/主管才有;每天凌晨3點換日;點一下才顯示,避免被旁人看到)
+function MainCodeCard({lang}){
+  const vi=lang==='vi';const[show,setShow]=useState(false);
+  const[st]=useLoad('cnMyDayCode',{});
+  const d=st.data&&st.data.ok?st.data:null;
+  if(!d||!d.code)return null;
+  return(<div className="rounded-2xl border border-emerald-800 bg-emerald-950/40 px-4 py-3">
+    <div className="flex items-center justify-between gap-3">
+      <div className="min-w-0"><p className="text-sm text-gray-200">🔑 {vi?'Mã đăng nhập quầy hôm nay':'今日主櫃登入碼'}</p><p className="text-[11px] text-gray-500">{d.store}・{vi?'Ngày làm việc':'營業日'} {d.day}</p></div>
+      <button onClick={()=>setShow(!show)} className="min-h-[44px] px-4 rounded-xl bg-white/10 text-white font-mono text-xl tracking-widest" style={{fontVariantNumeric:'tabular-nums'}}>{show?d.code:'••••••'}</button>
+    </div>
+    {show&&d.nextCode&&<p className="text-[11px] text-gray-500 mt-1.5 text-right">{vi?'Ngày mai':'明日'}（{d.nextDay}）{d.nextCode}</p>}
+  </div>);
+}
+
 function My2Page({me}){
   const lang=me.user&&me.user.lang==='vi'?'vi':'zh';const t=L[lang];
   const today=todayStr();const nextM=addMonth(today.slice(0,7),1);
@@ -181,6 +196,7 @@ function My2Page({me}){
       <p className="text-xs text-gray-400 mt-0.5">{u.store||''}{u.code?'　'+u.code+(lang==='vi'?'':' 號'):''}{roleName?'　'+roleName:''}</p></div></div>
 
     <UsageGuard><UsageBanner lang={lang}/></UsageGuard>
+    <UsageGuard><MainCodeCard lang={lang}/></UsageGuard>
 
     <div className="rounded-3xl border border-violet-700 p-4 space-y-2" style={{background:'linear-gradient(135deg,#2e1d5e,#1b1840)'}}>
       <SecHead icon="⚡" title={t.todo} n={todo.length} t={t}/>
