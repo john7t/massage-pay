@@ -17,7 +17,7 @@ const dur=sec=>Math.round(sec/60)+' 分';
 const nextMark=(now,stepMin)=>{const st=stepMin*60000;return Math.floor((now+8*3600e3)/st)*st+st-8*3600e3;}; // 台北時間的下一個整/半點
 const LIMIT=3600;
 // ── 白底主題:版面用 cn-* 類別;其餘沿用的 Tailwind 深色類別,在 .cn-light 內改成淺色對應 ──
-const CN_VER='v1.0-018'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
+const CN_VER='v1.0-020'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
 window.__cnVer=CN_VER;
 const CN_CSS=String.raw`
 .cn-light{background:#f7f7f9;color:#1b1f2a;min-height:100vh;font-feature-settings:"tnum"}
@@ -688,7 +688,7 @@ const QK='cn2:queue:v1';
 const lsGet=()=>{try{const a=JSON.parse(localStorage.getItem(QK)||'[]');return Array.isArray(a)?a.filter(o=>o&&o.id&&Date.now()-o.ts<72*3600e3):[];}catch(_e){return [];}};
 const lsSet=q=>{try{localStorage.setItem(QK,JSON.stringify(q));}catch(_e){}};
 // ── 本機暫存:先出框架、先用本機資料,背景更新;客人檔(手機)也下載到本機 ──
-const DK='cn2:day:v1',SK='cn2:srv:v1',GK='cn2:guests:v1',WK='cn2:who:v1';
+const KK='mp:kiosk:v1',KOP='mp:kiosk:op',KOPS='mp:kiosk:ops',DK='cn2:day:v1',SK='cn2:srv:v1',GK='cn2:guests:v1',WK='cn2:who:v1';
 const lsJ=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v;}catch(_e){return d;}};
 const lsW=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(_e){}};
 let GC=null;
@@ -853,10 +853,10 @@ function ShiftSheet({kind,getInfo,onSubmit,onClose}){
     </React.Fragment>)}
     <Bt tone="gray" onClick={onClose}>關閉</Bt></Sheet>);}
 // ── 主頁 ──
-function CounterPage({who}){
+function CounterPage({who,kiosk,onSwitch}){
   const c0=useRef(null);if(c0.current===null){const c=lsJ(SK,null);c0.current=(c&&c.srv&&c.at)?c:{};}
   const[server,setServer]=useState(c0.current.srv||null);const[fresh,setFresh]=useState(false);const[bid,setBid]=useState('');const[queue,setQueue]=useState(()=>lsGet());const[err,setErr]=useState('');const[notes,setNotes]=useState([]);
-  const[open,setOpen]=useState(false);const[sel,setSel]=useState(null);const[opening,setOpening]=useState(null);const[arranging,setArranging]=useState(false);const[req,setReq]=useState(null);const[waitSheet,setWaitSheet]=useState(false);const[fromWait,setFromWait]=useState('');const[waitSel,setWaitSel]=useState(null);const[guest,setGuest]=useState(G0());const[ordSel,setOrdSel]=useState('');const[paySel,setPaySel]=useState('');const[preGid,setPreGid]=useState('');const[tool,setTool]=useState('');const[toolN,setToolN]=useState(0);
+  const[open,setOpen]=useState(false);const[sel,setSel]=useState(null);const[opening,setOpening]=useState(null);const[arranging,setArranging]=useState(false);const[req,setReq]=useState(null);const[waitSheet,setWaitSheet]=useState(false);const[fromWait,setFromWait]=useState('');const[waitSel,setWaitSel]=useState(null);const[guest,setGuest]=useState(G0());const[ordSel,setOrdSel]=useState('');const[paySel,setPaySel]=useState('');const[preGid,setPreGid]=useState('');const[tool,setTool]=useState(()=>/[?&]unlock=1/.test(location.search)?'set':'');const[toolN,setToolN]=useState(0);
   const[skew,setSkew]=useState(c0.current.skew||0);const[,setTick]=useState(0);const[syncAt,setSyncAt]=useState(0);const[syncing,setSyncing]=useState(false);
   const qR=useRef(queue);const flying=useRef(false);const dayRefH=useRef(null);if(dayRefH.current===null){const d=lsJ(DK,null);dayRefH.current={orders:(d&&d.orders)||{}};}const aoRef=useRef({});
   useEffect(()=>{if(!server)return;const m={};Object.keys(aoRef.current).forEach(k=>{const x=aoRef.current[k];if(Date.now()-(x.createdAt||0)<3*86400e3)m[k]=x;});dayRefH.current.orders=m;lsW(DK,{orders:m});},[server,queue]);
@@ -871,6 +871,7 @@ function CounterPage({who}){
         const ids={};sent.forEach(o=>{ids[o.id]=1;});setQ(q=>q.filter(o=>!ids[o.id]));more=qR.current.length>0&&sent.length>=50;
         setServer(r);const sk=(r.now||Date.now())-Date.now();setSkew(sk);setSyncAt(Date.now());setErr('');setFresh(true);
         try{const c=Object.assign({},r);delete c.results;lsW(SK,{srv:c,skew:sk,at:Date.now()});}catch(_e){}
+        if(r.opList)lsW(KOPS,r.opList);
         gcSync();
         const bad=(r.results||[]).filter(x=>!x.ok);if(bad.length)setNotes(bad.map(x=>(x.code?x.code+' 號:':'')+(x.error||'操作失敗')));
       }else setErr((r&&r.error)||'同步失敗,稍後自動重試');
@@ -904,9 +905,9 @@ function CounterPage({who}){
   const wtxt=D.window?hm(D.window[0])+'~'+(hm(D.window[1]+1).replace(/^0:00$/,'24:00')):'';
   const cnt=k=>D.white.filter(p=>p.state===k).length;
   return(<div className="cn-light"><style>{CN_CSS}</style><div className="cn-wrap">
-    <div className="cn-hd"><div><h1>主櫃 · {D.store} <small style={{fontSize:11,fontWeight:500,color:'#9aa0ad'}}>{CN_VER}</small></h1><div className="cn-tm"><span>{hmFull(now)}:{p2(tzp(now).s)}</span><button onClick={sync} className={'cn-sync'+(queue.length>0?' w':'')}>{syncing?<Spinner size={12}/>:'●'} {queue.length>0?'待上傳 '+queue.length+' 筆':fresh?'已同步'+(syncAt?' '+hmFull(syncAt):''):(c0.current.at?'本機資料 '+hmFull(c0.current.at)+' · 更新中':'載入中')}</button></div></div>
+    <div className="cn-hd"><div><h1>主櫃 · {D.store} <small style={{fontSize:11,fontWeight:500,color:'#9aa0ad'}}>{CN_VER}</small>{kiosk&&<small style={{fontSize:12,fontWeight:700,color:'#6d28d9',marginLeft:8}}>操作人 {who} <button onClick={onSwitch} style={{textDecoration:'underline',fontWeight:600}}>換人</button></small>}</h1><div className="cn-tm"><span>{hmFull(now)}:{p2(tzp(now).s)}</span><button onClick={sync} className={'cn-sync'+(queue.length>0?' w':'')}>{syncing?<Spinner size={12}/>:'●'} {queue.length>0?'待上傳 '+queue.length+' 筆':fresh?'已同步'+(syncAt?' '+hmFull(syncAt):''):(c0.current.at?'本機資料 '+hmFull(c0.current.at)+' · 更新中':'載入中')}</button></div></div>
       <div className="cn-acts"><button onClick={()=>setArranging(true)} className="cn-btn">安排客人</button><button onClick={()=>setOpening('')} className="cn-btn p">＋開單</button></div></div>
-    <div className="cn-tools"><button onClick={()=>setTool('cnt')} className="cn-btn">支數表</button><button onClick={()=>setTool('rep')} className="cn-btn">日報表</button><button onClick={()=>setTool('shift')} className="cn-btn">交班</button><button onClick={()=>{const bad={};(D.orders||[]).forEach(o=>{if((o.status==='seating'||o.status==='serving'||o.status==='wait_pay')&&!o.prepaid)bad[o.gid||o.id]=1;});const n=Object.keys(bad).length;if(n>0){setToolN(n);setTool('unpaid');}else setTool('close');}} className="cn-btn" style={{borderColor:'#b45309',color:'#b45309'}}>結帳</button>{(who&&D.canReset!==false)&&<button onClick={doReset} className="cn-btn" style={{borderColor:'#b91c1c',color:'#b91c1c'}}>還原</button>}</div>
+    <div className="cn-tools"><button onClick={()=>setTool('cnt')} className="cn-btn">支數表</button><button onClick={()=>setTool('rep')} className="cn-btn">日報表</button><button onClick={()=>setTool('shift')} className="cn-btn">交班</button><button onClick={()=>setTool('set')} className="cn-btn">設定</button><button onClick={()=>{const bad={};(D.orders||[]).forEach(o=>{if((o.status==='seating'||o.status==='serving'||o.status==='wait_pay')&&!o.prepaid)bad[o.gid||o.id]=1;});const n=Object.keys(bad).length;if(n>0){setToolN(n);setTool('unpaid');}else setTool('close');}} className="cn-btn" style={{borderColor:'#b45309',color:'#b45309'}}>結帳</button>{(who&&D.canReset!==false)&&<button onClick={doReset} className="cn-btn" style={{borderColor:'#b91c1c',color:'#b91c1c'}}>還原</button>}</div>
     {(()=>{const GA=groupOrders(D.orders||[]);const gN=f=>GA.filter(f).length;const sg=gN(x=>x.st==='seating'),sv=gN(x=>x.st==='serving'),wp=gN(x=>x.st==='wait_pay'),dn=gN(x=>x.st==='done');
       return(<div className="cn-chips"><div className="cn-chip"><b>{cnt('white')}</b><span>待派工</span><small>白牌老師{sg>0?' · 帶位中 '+sg+' 組':''}</small></div><div className="cn-chip"><b style={{color:'#b91c1c'}}>{D.red.length}</b><span>服務中</span><small>老師 · {sv} 組</small></div><div className="cn-chip"><b style={{color:'#0f8a5f'}}>{dn}</b><span>已買單</span><small>組</small></div><div className="cn-chip"><b style={{color:'#6b7280'}}>{wp+dn}</b><span>已完成</span><small>做完 · 待買單 {wp} 組</small></div></div>);})()}
     <div className="cn-cols"><div className="cn-ca">
@@ -937,6 +938,7 @@ function CounterPage({who}){
     {ordSel&&(()=>{const g=groupOrders(D.orders||[]).find(x=>x.key===ordSel);return g?<OrderSheet g={g} D={D} act={o=>{act(o);}} onClose={()=>setOrdSel('')}/>:null;})()}
     {paySel&&(()=>{const g=groupOrders(D.orders||[]).find(x=>x.key===paySel);return g&&g.st==='wait_pay'?<PaySheet g={g} onClose={()=>setPaySel('')} onDone={v=>{act(Object.assign({act:'pay',wid:g.key},v));setPaySel('');}}/>:null;})()}
     {preGid&&(()=>{const g=groupOrders(D.orders||[]).find(x=>x.key===preGid);return g&&g.canPre?<PaySheet pre g={g} onClose={()=>setPreGid('')} onDone={v=>{act(Object.assign({act:'prepay',wid:g.key},v));setPreGid('');}}/>:null;})()}
+    {tool==='set'&&<SettingsSheet who={who} onClose={()=>setTool('')}/>}
     {tool==='cnt'&&<CountSheet local={getRpt} onClose={()=>setTool('')}/>}
     {tool==='rep'&&<ReportSheet local={getRpt} onClose={()=>setTool('')}/>}
     {(tool==='shift'||tool==='close')&&<ShiftSheet kind={tool} getInfo={getInfo} onSubmit={act} onClose={()=>{if(tool==='close')sync();setTool('');}}/>}
@@ -948,6 +950,51 @@ function CounterPage({who}){
     {opening!==null&&<OpenSheet D={D} now={now} presetPos={opening} act={(o,pre)=>{act(o);setOpening(null);if(pre)setPreGid(o.gid);}} onClose={()=>setOpening(null)}/>}
   </div></div>);
 }
+// ── 公務機:個人碼 / 鎖定 / 解除 / 輸入個人碼畫面 ──
+async function sha256hex(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return Array.prototype.map.call(new Uint8Array(b),x=>x.toString(16).padStart(2,'0')).join('');}
+const kioskUrl=()=>location.pathname+'?cn2=1';
+function SettingsSheet({who,onClose}){
+  const k=window.__kiosk&&window.__kiosk.get();const[code,setCode]=useState('');const[msg,setMsg]=useState('');const[busy,setBusy]=useState(false);
+  let li=false;try{li=!!(liff.isLoggedIn&&liff.isLoggedIn()&&liff.getAccessToken());}catch(_e){}
+  const six=/^\d{6}$/.test(code);
+  const run=async(fn)=>{setBusy(true);setMsg('');try{await fn();}catch(_e){setMsg('網路不通或需要登入,請再試一次');}finally{setBusy(false);}};
+  const[my,setMy]=useState(null);
+  const showMy=()=>run(async()=>{const r=await api('cnMyDayCode',{});if(r&&r.ok)setMy(r);else setMsg((r&&r.error)||'失敗');});
+  const lock=()=>run(async()=>{if(!confirm('把這台設成公務機並鎖定?\n\n鎖定後這台不論開哪個網址都只會進主櫃,要輸入今日登入碼才能操作;解除需要 LINE 登入+你的今日登入碼。'))return;
+    const r=await api('cnKioskLock',{});if(r&&r.ok){lsW(KK,{on:1,token:r.token,store:r.store,at:Date.now(),by:r.by});lsW(KOPS,r.opList||[]);try{localStorage.removeItem(KOP);}catch(_e){}location.replace(kioskUrl());}else setMsg((r&&r.error)||'失敗');});
+  const unlock=()=>run(async()=>{const r=await api('cnKioskUnlock',{code:code,kioskToken:k.token});if(r&&r.ok){try{localStorage.removeItem(KK);localStorage.removeItem(KOP);}catch(_e){}location.replace(kioskUrl());}else setMsg((r&&r.error)||'失敗');});
+  const loginForUnlock=()=>run(async()=>{try{await liff.init({liffId:window.__S2_LIFF_ID});}catch(_e){}liff.login({redirectUri:location.origin+location.pathname+'?cn2=1&unlock=1'});});
+  const CI=<input value={code} inputMode="numeric" maxLength={6} onChange={e=>setCode(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="今日登入碼 6 位數字" className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white text-center text-xl tracking-widest"/>;
+  return(<Sheet title="設定" onClose={onClose}>
+    {msg&&<p className="text-sm text-amber-300">{msg}</p>}
+    {!k&&(<React.Fragment>
+      <div className="space-y-2"><p className="text-base text-white font-bold">我的今日登入碼</p><p className="text-xs text-gray-400">每天(凌晨 3 點換日)自動更換,公務機上用來辨識操作人。要用 LINE 登入才能查看;也可以在「我的」頁看。</p>
+        {my?(<div className="rounded-xl bg-gray-800 p-3 text-center"><p className="text-xs text-gray-400">{my.store}・營業日 {my.day}</p><p className="text-3xl font-bold text-white tracking-widest" style={{fontVariantNumeric:'tabular-nums'}}>{my.code}</p>{my.nextCode&&<p className="text-xs text-gray-500 mt-1">明日（{my.nextDay}）{my.nextCode}</p>}</div>):(<Bt disabled={busy} onClick={showMy}>查看我的今日登入碼</Bt>)}</div>
+      <div className="space-y-2 pt-2 border-t border-gray-800"><p className="text-base text-white font-bold">這台是公務機</p><p className="text-xs text-gray-400">經理以上可鎖定(要用 LINE 登入)。鎖定後這台不論開 safety-report 底下哪個網址,都只會進主櫃。</p><Bt disabled={busy} onClick={lock}>鎖定這台</Bt></div>
+    </React.Fragment>)}
+    {k&&(<div className="space-y-2"><p className="text-base text-emerald-300 font-bold">這台已鎖定為公務機</p><p className="text-xs text-gray-400">解除需要:LINE 登入 + 你自己的今日登入碼(經理以上)。</p>
+      {li?(<React.Fragment>{CI}<Bt disabled={!six||busy} onClick={unlock}>解除鎖定</Bt></React.Fragment>):(<Bt disabled={busy} onClick={loginForUnlock}>用 LINE 登入以解除</Bt>)}</div>)}
+    <Bt tone="gray" onClick={onClose}>關閉</Bt></Sheet>);
+}
+function KioskCodeScreen({onOk}){
+  const[code,setCode]=useState('');const[msg,setMsg]=useState('');const[fails,setFails]=useState(0);const[until,setUntil]=useState(0);
+  const pull=()=>{api('cnKioskOps',{}).then(r=>{if(r&&r.ok&&r.opList)lsW(KOPS,r.opList);}).catch(()=>{});}; // 登入畫面沒有同步迴圈:進來先抓最新清單,輸錯再抓一次
+  useEffect(()=>{pull();},[]);
+  const press=async d=>{if(Date.now()<until){setMsg('輸錯太多次,請稍等一下');return;}const c=(code+d).slice(0,6);setCode(c);setMsg('');if(c.length<6)return;
+    const ops=lsJ(KOPS,[]);const bizDay=ms=>new Date(ms+5*3600e3).toISOString().slice(0,10); // 台北時間 -3 小時換營業日 = UTC+8-3
+    let hit=null;for(const d of [bizDay(Date.now()),bizDay(Date.now()-86400e3)]){let h='';try{h=await sha256hex('mp-cn-d1|'+d+'|'+c);}catch(_e){}hit=ops.find(x=>x.h===h&&x.d===d);if(hit)break;}
+    if(hit){try{localStorage.setItem(KOP,hit.n);}catch(_e){}onOk(hit.n);}
+    else{const f=fails+1;setFails(f);setCode('');setMsg(ops.some(x=>x.d)?'登入碼不正確':'尚未同步登入碼,請連網後再試');pull();if(f>=5){setUntil(Date.now()+60000);setFails(0);setMsg('輸錯 5 次,請 1 分鐘後再試');}}};
+  return(<div className="cn-light"><style>{CN_CSS}</style><div className="cn-wrap" style={{maxWidth:420,paddingTop:60,textAlign:'center'}}>
+    <h1 style={{fontSize:22,fontWeight:800}}>主櫃(公務機)</h1><p className="text-sm text-gray-500" style={{margin:'6px 0 18px'}}>請輸入今日登入碼</p>
+    <div style={{fontSize:30,letterSpacing:10,height:44}}>{'●'.repeat(code.length)}{'○'.repeat(6-code.length)}</div><p className="text-sm text-red-400" style={{height:22}}>{msg}</p>
+    <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginTop:10}}>{['1','2','3','4','5','6','7','8','9','','0','⌫'].map((d,i)=>d===''?<span key={i}></span>:<button key={i} onClick={()=>d==='⌫'?setCode(code.slice(0,-1)):press(d)} className="cn-btn" style={{height:64,fontSize:24}}>{d}</button>)}</div></div></div>);
+}
+function KioskGate(){
+  const[op,setOp]=useState(()=>{try{return localStorage.getItem(KOP)||'';}catch(_e){return '';}});
+  if(!op)return <KioskCodeScreen onOk={setOp}/>;
+  return <CounterPage who={op} kiosk onSwitch={()=>{try{localStorage.removeItem(KOP);}catch(_e){}setOp('');}}/>;
+}
 // 先用本機記得的操作人直接開頁(框架與本機資料立刻出來),背景再確認身分;沒有記錄(第一次)才走登入流程
 function CachedWho({w0}){
   const[who,setWho]=useState(w0);
@@ -955,6 +1002,7 @@ function CachedWho({w0}){
   return <CounterPage who={who}/>;
 }
 function Counter2Routes(){
+  if(window.__kiosk&&window.__kiosk.get())return <KioskGate/>; // 公務機鎖定:用個人碼辨識操作人,不用 LINE 登入
   const w0=lsJ(WK,null);
   if(w0&&w0.code)return <CachedWho w0={w0.code}/>;
   return(<NeedUser render={(me)=>{const code=(me.user&&me.user.code)||'櫃台';lsW(WK,{code:code});return <CounterPage who={code}/>;}}/>);
