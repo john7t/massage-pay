@@ -1,4 +1,4 @@
-/* my2.js — 「我的」頁面 (v1.0-014)
+/* my2.js — 「我的」頁面 (v1.0-015)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 my2:  ?my2=1  我的(待我處理 + 公告 + 安全回報 + 手套團購 + 預排休假 + 拒接名單)
    只讀取各模組既有的 API(n2List / s2TodaySurveys / s2MyReports / gb2List / lv2Month / b2List),不新增後端;任何一區讀取失敗只隱藏該區。 */
 (function(){
@@ -131,6 +131,7 @@ function MainCodeCard({lang}){
   const vi=lang==='vi';const[show,setShow]=useState(false);
   const[st]=useLoad('cnMyDayCode',{});
   const d=st.data&&st.data.ok?st.data:null;
+  if(!d&&st.loading)return(<div className="rounded-2xl border border-emerald-800 bg-emerald-950/40 px-4 py-3 flex items-center gap-3 text-emerald-300"><C.Spinner size={22}/><span className="text-sm text-gray-300">{vi?'Đang tạo mã đăng nhập…':'產生今日登入碼中…'}</span></div>);
   if(!d||!d.code)return null;
   return(<div className="rounded-2xl border border-emerald-800 bg-emerald-950/40 px-4 py-3">
     <div className="flex items-center justify-between gap-3">
