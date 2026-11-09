@@ -40,15 +40,15 @@ function go(q){
   window.dispatchEvent(new Event('s2nav'));
 }
 // ───────── 本機暫存:讀過一次就存 localStorage,切換頁面不重讀 GAS;點「🔄 重新整理」才清掉重讀 ─────────
-const CACHE_TTL=12*3600e3; // 安全保險:最久 12 小時後即使沒按重新整理也會重讀
+const CACHE_TTL=7*24*3600e3; // 本機暫存最久留 7 天(所有讀取都是先顯示暫存、背景再更新,所以可以放心留久一點,離線也看得到上次的資料)
 const CACHEABLE=['s2Me','s2GetSurvey','s2GetList','s2MySurveys','s2MgrInfo','s2TodaySurveys','s2MyReports'];
 // 先顯示上次的暫存、同時背景重讀(stale-while-revalidate):會變動的即時資料用這個,第二次起進頁面不用轉圈;讀回來後自動換成最新(顯示「更新中」)
-const SWR=['lv2Month','gb2List','b2List','s2PtsMine','s2PtsMonthAll'];
+const SWR=['lv2Month','gb2List','b2List','s2PtsMine','s2PtsMonthAll','n2List','n2Get','n2Readers','n2Settings','gb2Settings','lv2Stats','s2StaffList','my2OpenStats']; // v1.13-049:所有讀取一律先顯示本機、背景再更新(主櫃 cn* 因登入碼/公務機安全需要即時,不暫存)
 const WRITE_CLEAR={s2Register:'*',s2PtsImport:'*',s2CreateSurvey:['s2MySurveys','s2TodaySurveys'],s2DeleteSurvey:['s2MySurveys','s2GetSurvey','s2GetList','s2TodaySurveys','s2MyReports'],s2RestoreSurvey:['s2MySurveys','s2GetSurvey','s2GetList'],
   s2Report:['s2GetSurvey','s2GetList','s2TodaySurveys','s2MyReports'],s2MgrApply:['s2Me','s2MgrInfo'],s2MgrApprove:['s2MgrInfo','s2Me','s2MySurveys'],s2MgrSet:['s2MgrInfo'],s2MgrNotify:['s2MgrInfo','s2Me'],
   s2StaffSetLeft:['s2GetList','lv2Month'],s2ApvModeSet:['s2MgrInfo'],s2BizSet:['s2GetList','s2MgrInfo'],s2BizMaxSet:['s2MgrInfo'],s2UserApprove:[],s2StaffAddLeft:['lv2Month'],s2WebAdminSet:['s2MgrInfo','s2Me'],s2OpenSet:['s2MgrInfo','s2GetList','s2GetSurvey'],
   s2AdminHide:['s2MgrInfo','s2Me','s2MySurveys','s2GetList','s2GetSurvey']}; // 寫入成功後,清掉受影響的暫存
-function cuid(){try{const c=liff.getContext();return(c&&c.userId)||'';}catch(_e){return '';}}
+function cuid(){try{const c=liff.getContext();const u=c&&c.userId;if(u){try{localStorage.setItem('s2:lastuid',u);}catch(_e){}return u;}}catch(_e){}try{return localStorage.getItem('s2:lastuid')||'';}catch(_e){return '';}} // LIFF 還沒初始化完(先用本機資料畫面)時,用上次記下的使用者代號找暫存
 function ckey(action,params){return 's2c:'+cuid()+':'+action+':'+JSON.stringify(params||{});}
 function cget(k){try{const v=JSON.parse(localStorage.getItem(k)||'null');if(v&&Date.now()-v.t<CACHE_TTL)return Object.assign({},v.d,{_at:v.t});}catch(_e){}return null;} // _at=這份資料當初讀取的時間
 function cput(k,d){try{localStorage.setItem(k,JSON.stringify({t:Date.now(),d:d}));}catch(_e){}}
@@ -67,9 +67,87 @@ function kioskGet(){try{const k=JSON.parse(localStorage.getItem('mp:kiosk:v1')||
 function csGet(){try{const c=JSON.parse(localStorage.getItem('mp:cn:cs')||'null');return (c&&c.session&&c.exp>Date.now())?c:null;}catch(_e){return null;}}
 window.__cnSess={get:csGet,set:(c)=>{try{localStorage.setItem('mp:cn:cs',JSON.stringify(c));}catch(_e){}},clear:()=>{try{localStorage.removeItem('mp:cn:cs');}catch(_e){}}};
 window.__kiosk={get:kioskGet,op:()=>{try{return localStorage.getItem('mp:kiosk:op')||'';}catch(_e){return '';}}};
+// ───────── 送出佇列(v1.13-049):要送出的資料先存本機、立刻回「已儲存」,背景再送;沒網路就留著,有網路自動補送 ─────────
+// 只收「送出後畫面不需要伺服器回傳內容」的動作;主櫃 cn*(登入碼/公務機)與簽核批次這類要看結果的維持即時送出
+const QUEUE_ACTIONS={s2Report:'安全回報',lv2Save:'休假單',lv2Cancel:'取消休假',lv2Decide:'休假簽核',b2Add:'拒接名單',b2Edit:'拒接名單修改',gb2Join:'手套團購登記',my2Open:'',lv2Track:''}; // 空字串=靜默(只記錄用)
+const QKEY='s2q:jobs',QFAIL='s2q:fail',QMAXAGE=3*24*3600e3;
+function qLoad(){try{return JSON.parse(localStorage.getItem(QKEY)||'[]')||[];}catch(_e){return [];}}
+function qSave(a){try{localStorage.setItem(QKEY,JSON.stringify(a));}catch(_e){}}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+function awaitLiff(ms){return window.__s2Warm&&window.__liffReady?Promise.race([window.__liffReady,sleep(ms||10000)]):Promise.resolve();}
+function qEnqueue(action,params){
+  const id=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  const a=qLoad();a.push({id:id,uid:cuid(),action:action,params:params||{},t:Date.now(),tries:0});qSave(a);
+  qUi();setTimeout(qKick,0);
+  const o={ok:true,queued:true};
+  if(action==='lv2Save'){try{o.saved=JSON.parse((params||{}).items||'[]').length;}catch(_e){}}
+  return Promise.resolve(o);
+}
+let qBusy=null,qTimer=0;
+function qKick(){
+  if(qBusy)return qBusy;
+  qBusy=(async()=>{
+    await 0; // 先讓出一次,確保 qBusy 先被指定、finally 才清掉(沒工作時會同步跑完,不加這行 qBusy 會永遠卡在已完成的 promise)
+    try{
+      for(let guard=0;guard<200;guard++){
+        const jobs=qLoad();const u=cuid();
+        const j=jobs.find(x=>!x.uid||!u||x.uid===u);
+        if(!j)break;
+        if(Date.now()-j.t>QMAXAGE){qSave(qLoad().filter(x=>x.id!==j.id));qNote('fail',j,{error:'超過 3 天沒送出去,已放棄,請重新送出'});continue;}
+        await awaitLiff(10000);
+        const r=await rawSend(j.action,j.params);
+        const retry=r&&!r.ok&&(r._net||/accessToken|token|登入|逾時|expired/i.test(String(r.error||'')));
+        if(retry&&j.tries<30){const a=qLoad();const x=a.find(y=>y.id===j.id);if(x){x.tries=(x.tries||0)+1;qSave(a);}qLater();break;}
+        qSave(qLoad().filter(x=>x.id!==j.id));
+        if(r&&r.ok){if(WRITE_CLEAR[j.action])cclear(WRITE_CLEAR[j.action]);qNote('ok',j,r);}else qNote('fail',j,r||{});
+        if(QUEUE_ACTIONS[j.action]!=='')try{window.dispatchEvent(new Event('s2synced'));}catch(_e){}
+      }
+    }finally{qBusy=null;qUi();}
+  })();
+  return qBusy;
+}
+function qLater(){clearTimeout(qTimer);qTimer=setTimeout(qKick,15000);}
+try{window.addEventListener('online',()=>qKick());document.addEventListener('visibilitychange',()=>{if(!document.hidden)qKick();});setTimeout(qKick,1500);}catch(_e){}
+// 左下角小通知(不走 React,任何頁面都有):背景送出中 / 已送出 / 送出失敗(失敗要按關閉才消失)
+function qEl(){let e=document.getElementById('s2q-toast');if(!e){e=document.createElement('div');e.id='s2q-toast';e.setAttribute('role','status');e.setAttribute('aria-live','polite');e.style.cssText='position:fixed;left:12px;right:12px;bottom:14px;z-index:99990;display:flex;flex-direction:column;gap:6px;pointer-events:none;align-items:center';document.body.appendChild(e);}return e;}
+const qBox='pointer-events:auto;max-width:420px;width:100%;box-sizing:border-box;border-radius:12px;padding:10px 14px;font-size:14px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 4px 18px rgba(15,23,42,.18);border:1px solid;';
+function qFails(){try{return JSON.parse(localStorage.getItem(QFAIL)||'[]')||[];}catch(_e){return [];}}
+function qUi(){
+  try{
+    const e=qEl();const n=qLoad().filter(x=>QUEUE_ACTIONS[x.action]!=='').length;const f=qFails();
+    let h='';
+    if(n>0)h+='<div style="'+qBox+'background:#fff;color:#1f2937;border-color:#d1d5db">⏳ 已存在本機,背景送出中（'+n+'）…</div>';
+    f.forEach((x,i)=>{h+='<div style="'+qBox+'background:#fef2f2;color:#991b1b;border-color:#fca5a5;display:flex;gap:10px;align-items:flex-start"><span style="flex:1">✗ '+(x.label||'資料')+'送出失敗:'+String(x.err||'').replace(/</g,'&lt;')+'</span><button data-i="'+i+'" style="border:1px solid #fca5a5;background:#fff;color:#991b1b;border-radius:8px;padding:2px 10px;font-size:13px">關閉</button></div>';});
+    if(e.__ok)h+='<div style="'+qBox+'background:#ecfdf5;color:#065f46;border-color:#6ee7b7">'+e.__ok+'</div>';
+    e.innerHTML=h;
+    e.querySelectorAll('button[data-i]').forEach(b=>{b.onclick=()=>{const a=qFails();a.splice(+b.getAttribute('data-i'),1);try{localStorage.setItem(QFAIL,JSON.stringify(a));}catch(_e){}qUi();};});
+  }catch(_e){}
+}
+function qNote(kind,j,r){
+  const label=QUEUE_ACTIONS[j.action];
+  if(label==='')return; // 靜默項目
+  if(kind==='ok'){
+    let m='✓ '+label+'已送出';
+    if(j.action==='lv2Save'&&r&&r.approved!=null&&(j.params||{}).submit)m+='（已核准 '+(r.approved||0)+'、待主管簽核 '+(r.pending||0)+'）';
+    const e=qEl();e.__ok=m;qUi();setTimeout(()=>{e.__ok='';qUi();},3500);
+  }else{
+    const a=qFails();a.push({label:label,err:(r&&r.error)||'未知原因',t:Date.now()});try{localStorage.setItem(QFAIL,JSON.stringify(a.slice(-5)));}catch(_e){}qUi();
+  }
+}
+try{window.addEventListener('DOMContentLoaded',qUi);if(document.readyState!=='loading')setTimeout(qUi,0);}catch(_e){}
+async function rawSend(action,params){
+  let tok='';try{tok=liff.getAccessToken()||'';}catch(_e){}
+  const kk=kioskGet();const kx=(kk&&action!=='cnKioskUnlock')?{kioskToken:kk.token,op:window.__kiosk.op()}:{};
+  if(!kk&&/^cn/.test(action)&&action!=='cnCodeLogin'){const cs=csGet();if(cs)kx.codeSession=cs.session;}
+  const raw=await gasCallPost(action,Object.assign({},params||{},{accessToken:tok},kx),S2_TIMEOUT[action]||20000);
+  if(!raw)return {ok:false,_net:true,error:'連不上伺服器,請稍後再試'+(window.__gasErr?'（'+window.__gasErr+'）':'')};
+  return raw;
+}
 async function api(action,params,force){
+  if(QUEUE_ACTIONS[action]!==undefined&&!kioskGet())return qEnqueue(action,params);
   const cacheable=CACHEABLE.indexOf(action)>=0;const k=cacheable?ckey(action,params):'';
   if(cacheable&&!force){const c=cget(k);if(c)return c;}
+  if(!/^cn/.test(action)){await awaitLiff(10000);if(qLoad().length){try{await Promise.race([qKick(),sleep(8000)]);}catch(_e){}}} // 讀取前先等背景送出的資料送完(最多 8 秒),才看得到剛送的結果
   let tok='';try{tok=liff.getAccessToken()||'';}catch(_e){}
   const kk=kioskGet();const kx=(kk&&action!=='cnKioskUnlock')?{kioskToken:kk.token,op:window.__kiosk.op()}:{};
   if(!kk&&/^cn/.test(action)&&action!=='cnCodeLogin'){const cs=csGet();if(cs)kx.codeSession=cs.session;}
@@ -116,12 +194,13 @@ function useLoad(action,params){ // 回傳[狀態,重新讀取(強制略過暫�
   const pk=JSON.stringify(params||{});
   const[st,setSt]=useState(()=>{const c=peek(action,params);return c?{loading:false,data:c,err:''}:{loading:true,data:null,err:''};});
   const run=useCallback((force)=>{
-    const swr=SWR.indexOf(action)>=0;
+    const swr=SWR.indexOf(action)>=0||CACHEABLE.indexOf(action)>=0;
     if(!force){const c=peek(action,params);if(c){setSt({loading:false,data:c,err:''});if(!swr)return;}}
     setSt(s=>({loading:true,data:s.data,err:''}));
     return api(action,params,!!force||swr).then(d=>setSt(s=>(d&&d.ok)?{loading:false,data:d,err:''}:(s.data&&s.data.ok)?{loading:false,data:s.data,err:'更新失敗,畫面上仍是舊資料'}:{loading:false,data:d,err:''}));
   },[action,pk]);
   useEffect(()=>{run(false);},[run]);
+  useEffect(()=>{if(/^cn/.test(action))return;const f=()=>{try{run(true);}catch(_e){}};window.addEventListener('s2synced',f);return()=>window.removeEventListener('s2synced',f);},[run]); // 背景送出完成後,畫面自動換成最新
   return[st,()=>run(true)];
 }
 
@@ -908,6 +987,6 @@ function Safety2Routes(){
     <div className="text-xs text-gray-400 px-2 space-y-0.5"><p className="font-bold text-gray-300">模組版本</p>{vers.map(x=><p key={x}>{x}</p>)}<p className="text-gray-600 pt-1">❌未載入＝檔案沒上傳、檔名不符或內容有語法錯誤（請清除 LINE 快取後重開）</p></div></div>;
 }
 // 匯出給 notice2.js(公司公告)共用:API、暫存、版面元件、人員註冊流程
-window.S2Core={PtsAll,Chip,api,useLoad,Box,Card,Btn,Loading,Msg,Spinner,NeedUser,go,copyText,barOf,cclear,cput,ckey,peek,CACHEABLE,WRITE_CLEAR,STORES};
+window.S2Core={qKick,qLoad,PtsAll,Chip,api,useLoad,Box,Card,Btn,Loading,Msg,Spinner,NeedUser,go,copyText,barOf,cclear,cput,ckey,peek,CACHEABLE,WRITE_CLEAR,STORES};
 window.Safety2App=Safety2App;
 })();
