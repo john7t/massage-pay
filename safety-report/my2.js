@@ -1,4 +1,4 @@
-/* my2.js — 「我的」頁面 (v1.0-016)
+/* my2.js — 「我的」頁面 (v1.0-017)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 my2:  ?my2=1  我的(待我處理 + 公告 + 安全回報 + 手套團購 + 預排休假 + 拒接名單)
    只讀取各模組既有的 API(n2List / s2TodaySurveys / s2MyReports / gb2List / lv2Month / b2List),不新增後端;任何一區讀取失敗只隱藏該區。 */
 (function(){
@@ -21,7 +21,7 @@ const L={zh:{
   leaveMine:'我的 {m} 月休假',early:'早班',late:'晚班',days:'天',noLeave:'尚未登記',goLeave:'去排休',leavePend:'待簽核',leaveOk:'已生效',leaveDraftN:'暫存 {n} 天未送出',
   bl:'拒接名單',blHint:'只列出「拒接老師編號」含我（{c}）的客人',noBl:'沒有含你編號的拒接客人',addBl:'＋ 新增拒接客人',
   lvName:{p:'老師個人',store:'單店拒接',all:'全店拒接'},reason:'拒接原因：',
-  tNotice:'{n} 則未讀公告',tLatest:'最新：',tSafety:'尚未回報',tGlove:'手套團購：請交錢給認領人',tLeave:'預排休假',goSee:'去看',goPay:'待付款',
+  tNotice:'{n} 則未讀公告',tLatest:'最新：',tSafety:'尚未回報',tGlove:'手套團購：請交錢給認領人',tLeave:'預排休假',leavePT:'休假待主管簽核',leaveCT:'取消休假待主管簽核',askMgr:'請主動找主管了解未簽核原因',fl_admin:'休假需簽核',fl_late:'超過免審批期間',fl_person:'個人超過每月 6 天',fl_day:'當日已滿 6 人',goSee:'去看',goPay:'待付款',
   pts:'勞點',ptsStd:'標準 {n} 點（{s}）',ptsMet:'達標',ptsNot:'未達標',ptsNew:'新進（前三個月不列入考核）',ptsRank:'同店{s}名次 {r} / {t}',ptsMon:'{m} 月',ptsPt:'點',ptsHist:'近幾個月',ptsBar:'我的逐月勞點（虛線＝標準 {s}；紫框＝目前選的月份）',ptsTop:'{m} 月前三名',ptsNo:'{n}號',
   loading:'載入中…',fail:'這一區暫時讀不到'},
  vi:{
@@ -33,7 +33,7 @@ const L={zh:{
   leaveMine:'Ngày nghỉ tháng {m} của tôi',early:'Ca sáng',late:'Ca tối',days:'ngày',noLeave:'Chưa đăng ký',goLeave:'Đăng ký',leavePend:'Chờ ký',leaveOk:'Có hiệu lực',leaveDraftN:'Nháp {n} ngày chưa gửi',
   bl:'Danh sách từ chối',blHint:'Chỉ hiện khách có mã Sư phụ của tôi ({c})',noBl:'Không có khách từ chối liên quan đến bạn',addBl:'＋ Thêm khách từ chối',
   lvName:{p:'Cá nhân',store:'Một chi nhánh',all:'Toàn hệ thống'},reason:'Lý do: ',
-  tNotice:'{n} thông báo chưa đọc',tLatest:'Mới nhất: ',tSafety:'Chưa báo cáo',tGlove:'Mua chung găng tay: hãy trả tiền cho người nhận',tLeave:'Đăng ký nghỉ',goSee:'Xem',goPay:'Chờ trả tiền',
+  tNotice:'{n} thông báo chưa đọc',tLatest:'Mới nhất: ',tSafety:'Chưa báo cáo',tGlove:'Mua chung găng tay: hãy trả tiền cho người nhận',tLeave:'Đăng ký nghỉ',leavePT:'Ngày nghỉ đang chờ quản lý ký',leaveCT:'Yêu cầu hủy nghỉ đang chờ quản lý ký',askMgr:'Vui lòng chủ động hỏi quản lý để biết lý do chưa được duyệt',fl_admin:'Cần ký duyệt',fl_late:'Quá thời gian không cần duyệt',fl_person:'Vượt 6 ngày/tháng',fl_day:'Ngày đã đủ 6 người',goSee:'Xem',goPay:'Chờ trả tiền',
   pts:'Điểm lao động (勞點)',ptsStd:'Chuẩn {n} điểm ({s})',ptsMet:'Đạt',ptsNot:'Chưa đạt',ptsNew:'Người mới (3 tháng đầu không tính)',ptsRank:'Hạng {r} / {t} ({s})',ptsMon:'Tháng {m}',ptsPt:'điểm',ptsHist:'Các tháng gần đây',ptsBar:'Điểm theo tháng (đường đứt = chuẩn {s}; viền tím = tháng đang chọn)',ptsTop:'Top 3 tháng {m}',ptsNo:'Số {n}',
   loading:'Đang tải…',fail:'Không tải được mục này'}};
 
@@ -180,12 +180,21 @@ function My2Page({me}){
     <button onClick={()=>go('lv2=l&month='+curM)} className="w-full flex items-center justify-between text-left"><span className="text-sm font-bold text-white">{fmt(t.leaveMine,{m:parseInt(m.slice(5),10)})}</span><span className="text-xs text-violet-300">{lang==='vi'?'Xem ›':'查看 ›'}</span></button>
     {list.length===0&&<p className="text-xs text-gray-500">{t.noLeave}</p>}
     {['early','late'].map(sh=>{const a=list.filter(x=>x.shift===sh).sort((x,y)=>x.date<y.date?-1:1);return a.length?(<p key={sh} className="text-sm text-gray-200"><span className={'text-[11px] rounded px-1 text-white mr-1 '+(sh==='early'?'bg-amber-500':'bg-indigo-500')}>{t[sh]}</span>{a.map(x=>parseInt(x.date.slice(5,7),10)+'/'+parseInt(x.date.slice(8),10)+(x.status==='pending'?'⏳':x.status==='draft'?'✎':'')).join('、')}<span className="text-xs text-gray-500">　{a.length} {t.days}</span></p>):null;})}</div>);
-  const lvOpenTodo=lv&&lv.canLeave&&(lv.state==='open'||lv.state==='late')&&lvAct.length===0;
+  const lvOpenTodo=lv&&lv.canLeave&&lv.state==='open'&&lvAct.length===0; // 只在每月 10 號 00:00~12 號 23:59(open)提醒開放次月登記;已送出(有核准/待簽核)就不顯示
   const bl=ok(bs)?bs.data.approved:[];
 
   const todo=[];
   openUnrep.slice(0,3).forEach(x=>todo.push({k:'s'+x.id,icon:'🛡️',title:x.title,sub:t.tSafety+'・'+t.cut+' '+String(x.endDate||'').slice(5),btn:t.goReport,cls:'bg-red-600',on:()=>go('s2=r&sid='+x.id)}));
   gPay.forEach(o=>{const mine=(o.people||[]).find(p=>p.mine);todo.push({k:'g'+o.id,icon:'🧤',title:t.tGlove,sub:o.store+'・'+o.statusLabel,btn:t.goPay,cls:'bg-amber-500',on:()=>go('gb2=l')});});
+  { // 我的休假被擋下來(超過天數/免審批期間/當日已滿…)而主管還沒簽核,以及取消申請還沒簽核:逐筆列出,下方提醒主動找主管
+    const seenP={};
+    [].concat((lv&&lv.mine)||[],(ok(cs)?cs.data.mine:[])).forEach(x=>{
+      if(!x||seenP[x.id]||x.status==='cancelled'||x.status==='rejected'||String(x.date||'')<today)return;
+      const isCx=!!x.cx,isPend=x.status==='pending';if(!isCx&&!isPend)return;seenP[x.id]=1;
+      const why=String(x.flags||'').split(',').filter(Boolean).map(f=>t['fl_'+f]).filter(Boolean).join('、');
+      todo.push({k:'lp'+x.id,icon:'⏳',title:isCx?t.leaveCT:t.leavePT,sub:String(x.date).slice(5).replace('-','/')+' '+(t[x.shift]||'')+(why?'・'+why:''),note:t.askMgr,btn:t.goLeave,cls:'bg-violet-600',on:()=>go('lv2=l&month='+String(x.date).slice(0,7))});
+    });
+  }
   if(unreadN.length>0)todo.push({k:'n',icon:'📢',title:fmt(t.tNotice,{n:unreadN.length}),sub:t.tLatest+(lang==='vi'&&unreadN[0].titleVi?unreadN[0].titleVi:unreadN[0].title),btn:t.goSee,cls:'bg-sky-700',on:()=>go('n2=l')});
   if(lvDraft.length>0&&lv&&lv.state!=='draft')todo.push({k:'ld',icon:'🏖️',title:t.tLeave,sub:fmt(t.leaveDraftN,{n:lvDraft.length}),btn:t.goLeave,cls:'bg-violet-600',on:()=>go('lv2=l&month='+nextM)});
   else if(lvOpenTodo)todo.push({k:'lo',icon:'🏖️',title:t.tLeave,sub:fmt(t.leaveOpen,{m:parseInt(nextM.slice(5),10),c:(lv.closes||'').slice(5).replace('-','/')}),btn:t.goLeave,cls:'bg-violet-600',on:()=>go('lv2=l&month='+nextM)});
@@ -204,7 +213,7 @@ function My2Page({me}){
       {todo.length===0&&<p className="text-sm text-gray-300 py-2">{t.nothing}</p>}
       {todo.map(x=>(<div key={x.k} className="flex items-center gap-3 border-t border-violet-800/60 pt-2">
         <span className="text-2xl w-8 text-center">{x.icon}</span>
-        <div className="flex-1 min-w-0"><p className="text-sm font-bold text-white truncate">{x.title}</p><p className="text-xs text-gray-400 truncate">{x.sub}</p></div>
+        <div className="flex-1 min-w-0"><p className="text-sm font-bold text-white truncate">{x.title}</p><p className={'text-xs text-gray-400 '+(x.note?'leading-snug':'truncate')}>{x.sub}</p>{x.note&&<p className="text-xs text-red-400 font-bold mt-0.5 leading-snug">{x.note}</p>}</div>
         <button onClick={x.on}><Pill cls={x.cls}>{x.btn}</Pill></button></div>))}
     </div>
 
