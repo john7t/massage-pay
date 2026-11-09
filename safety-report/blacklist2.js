@@ -223,7 +223,7 @@ function AddPage(){
     setBusy(true);
     const r=await api('b2Add',{phone:digits,custName:name.trim(),custTitle:title,reason:reason.trim(),svc:svc.trim(),startAt:startAt.trim(),teacherCodes:codes.join(','),level:lvl,level:lvl});
     setBusy(false);
-    if(r&&r.ok){setOk(r.pending?'已送出 '+digits+'，等主管核准後生效':'已新增 '+digits);setCodes([]);setPhone('');setName('');setTitle('');setReason('');setSvc('');setStartAt('');reload();}
+    if(r&&r.ok){setOk(r.queued?'已存在本機,背景送出 '+digits+'（結果會顯示在畫面下方）':r.pending?'已送出 '+digits+'，等主管核准後生效':'已新增 '+digits);setCodes([]);setPhone('');setName('');setTitle('');setReason('');setSvc('');setStartAt('');reload();}
     else setErr((r&&r.error)||'新增失敗');
   };
   const titles=(window.MP&&window.MP.BOOK_TITLES)||[];
