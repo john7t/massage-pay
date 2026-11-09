@@ -61,11 +61,19 @@ function peek(action,params){ // 同步取暫存(沒有就 null),讓有暫存的
   return cget(ckey(action,params));
 }
 const S2_TIMEOUT={n2Analyze:90000}; // AI 分析(Gemini 產生標籤+越南文翻譯)比較久,放寬到 90 秒
+// 公務機鎖定(主櫃):本機有 mp:kiosk:v1 且 on=1 時,這個資料夾底下所有頁面都導回主櫃;API 改帶裝置通行證+操作人(不用 LINE 登入)
+function kioskGet(){try{const k=JSON.parse(localStorage.getItem('mp:kiosk:v1')||'null');return (k&&k.on&&k.token)?k:null;}catch(_e){return null;}}
+// 主櫃「輸入登入碼」登入(任何裝置):12 小時工作階段,cn 開頭的動作自動帶 codeSession
+function csGet(){try{const c=JSON.parse(localStorage.getItem('mp:cn:cs')||'null');return (c&&c.session&&c.exp>Date.now())?c:null;}catch(_e){return null;}}
+window.__cnSess={get:csGet,set:(c)=>{try{localStorage.setItem('mp:cn:cs',JSON.stringify(c));}catch(_e){}},clear:()=>{try{localStorage.removeItem('mp:cn:cs');}catch(_e){}}};
+window.__kiosk={get:kioskGet,op:()=>{try{return localStorage.getItem('mp:kiosk:op')||'';}catch(_e){return '';}}};
 async function api(action,params,force){
   const cacheable=CACHEABLE.indexOf(action)>=0;const k=cacheable?ckey(action,params):'';
   if(cacheable&&!force){const c=cget(k);if(c)return c;}
   let tok='';try{tok=liff.getAccessToken()||'';}catch(_e){}
-  const r=(await gasCallPost(action,Object.assign({},params||{},{accessToken:tok}),S2_TIMEOUT[action]||20000))||{ok:false,error:'連不上伺服器,請稍後再試'+(window.__gasErr?'（'+window.__gasErr+'）':'')};
+  const kk=kioskGet();const kx=(kk&&action!=='cnKioskUnlock')?{kioskToken:kk.token,op:window.__kiosk.op()}:{};
+  if(!kk&&/^cn/.test(action)&&action!=='cnCodeLogin'){const cs=csGet();if(cs)kx.codeSession=cs.session;}
+  const r=(await gasCallPost(action,Object.assign({},params||{},{accessToken:tok},kx),S2_TIMEOUT[action]||20000))||{ok:false,error:'連不上伺服器,請稍後再試'+(window.__gasErr?'（'+window.__gasErr+'）':'')};
   if(r.ok){ r._at=Date.now(); if(cacheable)cput(k,r); else if(SWR.indexOf(action)>=0)cput(ckey(action,params),r); else if(WRITE_CLEAR[action])cclear(WRITE_CLEAR[action]); }
   return r;
 }
@@ -98,7 +106,7 @@ const RefreshBar=({at,lang,onRefresh,refreshing,err})=>(<div>
 const Box=({children,at,lang,onRefresh,refreshing,err})=>(<div className="min-h-screen px-4 py-5"><div className="max-w-md mx-auto space-y-4"><RefreshBar at={at} lang={lang} onRefresh={onRefresh} refreshing={refreshing} err={err}/>{children}</div></div>);
 const barOf=(st,reload,lang)=>({at:st.data&&st.data._at,lang:lang,onRefresh:()=>{reload();},refreshing:!!(st.loading&&st.data),err:st.err});
 const Card=({children,className})=>(<div className={'rounded-2xl bg-gray-900 border border-gray-800 p-4 '+(className||'')}>{children}</div>);
-const Spinner=({size})=>(<svg className="animate-spin inline-block align-[-2px]" width={size||18} height={size||18} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>);
+const Spinner=({size,color})=>{const s=size||14;const c=color||(s>=28?'#0071e3':'currentColor');return(<span className="ul-dr" role="status" aria-label="載入中" style={{'--s':s+'px','--k':1,'--c1':c}}>{[0,1,2,3,4,5,6,7,8,9,10,11].map(i=><i key={i} style={{'--i':i}}/>)}</span>);}; // 點狀圓環(≥28px 用品牌藍 #0071e3,小尺寸跟隨文字色)
 const Loading=({text})=>(<Box><div className="flex flex-col items-center justify-center gap-3 pt-24 text-violet-300"><Spinner size={40}/><p className="text-sm text-gray-400">{text||'載入中…'}</p></div></Box>);
 const Btn=({children,onClick,color,disabled,className,loading})=>(<button disabled={disabled||loading} onClick={onClick} className={'w-full rounded-xl py-3 font-bold text-base disabled:opacity-40 '+(color||'bg-violet-600 text-white')+' '+(className||'')}>{loading&&<span className="mr-2"><Spinner/></span>}{children}</button>);
 const Chip=({on,children,onClick})=>(<button onClick={onClick} className={'px-4 py-2 rounded-full border text-sm '+(on?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-300')}>{children}</button>);
@@ -873,6 +881,7 @@ function Safety2App({liffId}){
 }
 function Safety2Routes(){
   const q=new URLSearchParams(location.search);
+  if(kioskGet()&&window.Counter2Routes){const CNK=window.Counter2Routes;return <CNK/>;} // 公務機鎖定:不論網址參數,一律主櫃
   if(q.has('sp')&&window.ShopRoutes){const SP=window.ShopRoutes;return <SP/>;} // 價目表/早鳥夜貓(shop2.js),公開資訊
   if(q.has('gb2')&&window.Gloves2Routes){const G2=window.Gloves2Routes;return <G2/>;} // 手套團購 2.0(gloves2.js)
   if(q.has('cn2')&&window.Counter2Routes){const CN=window.Counter2Routes;return <CN/>;} // 主櫃號碼牌(counter2.js)
