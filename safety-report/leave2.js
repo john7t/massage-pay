@@ -2,7 +2,7 @@
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 lv2:  ?lv2=l  預排休假(月曆)
    規則與後端見 gas-leave2.gs.txt:每月 9 日 00:00 ~ 12 日 24:00 可登記「下個月」休假,期間免審批(超休需主管簽字);之後的送出需主管審批;可提前 2 個月暫存。
    早/晚班分開統計:每人每月各 6 天、每店每日各班別最多 6 人。 */
-// v1.0-067 白底主題改為 2 系列全域(safety-report.html) / v1.0-065 主管推播連結直達 ?lv2=pend 該班別未審核頁(左上角回預排休假) / v1.0-064 / 公開文字不提管理者(flag_admin 改「休假需簽核」);休假調整表新增「隱藏已簽核的單」勾選(localStorage,只對自己有效)
+// v1.0-068 送出改走本機佇列(r.queued) / v1.0-067 白底主題改為 2 系列全域(safety-report.html) / v1.0-065 主管推播連結直達 ?lv2=pend 該班別未審核頁(左上角回預排休假) / v1.0-064 / 公開文字不提管理者(flag_admin 改「休假需簽核」);休假調整表新增「隱藏已簽核的單」勾選(localStorage,只對自己有效)
 // v1.0-063 / 新增「管理者」區塊(只有管理者看得到):各店設定管理者本人請休/改休/取消是否走簽核;flag_admin 文字
 // v1.0-062 / 主管休假表說明改「經理以下主管」不提管理員;設定卡新增「測試階段」兩個勾選(送出休假時提醒小白單);待簽核改二階段(勾選同意→存檔);調整表新增「通知交小白單」按鈕(測試階段第 1 項勾選後)。
 // v1.0-061 / 調整表通知/簽核按鈕:沒被指定的實習副理灰掉、代理期間才亮;休假調整表負責人改多位(晶片);新增「代理人」卡(全主管可看,經理與負責人可設;期間/備註/代理人收通知/原主管也收通知),代理人橘色提示。
@@ -394,7 +394,8 @@ function LeavePage({me}){
       else if(!window.confirm((cx.length?fmt(t.changeAskT,{c:cx.length,n:sel.length})+'\n'+(d.state==='late'?t.changeLate:t.changeOpen):t.submitAsk)+(overP?'\n'+t.submitOver:'')+remTxt))return;
     }
     const r=await api('lv2Save',{month:month,items:JSON.stringify(sel),submit:!!submit,cancel:submit&&cx.length?JSON.stringify(cx):''});
-    if(r&&r.ok){setMsg(submit?fmt(t.sent,{a:r.approved,p:r.pending})+((r.cancelled||r.cxPending)?'；'+fmt(t.cxSent,{a:r.cancelled||0,p:r.cxPending||0}):''):fmt(t.saved,{n:r.saved}));setCx([]);reloadR();}
+    if(r&&r.ok&&r.queued){setMsg(lang==='vi'?(submit?'Đã lưu trên máy, đang gửi nền… (kết quả sẽ hiện ở góc dưới)':'Đã lưu nháp trên máy, đang gửi nền…'):(submit?'已存在本機,正在背景送出(結果會顯示在畫面下方)':'已暫存,背景同步中…'));setCx([]);reloadR();}
+    else if(r&&r.ok){setMsg(submit?fmt(t.sent,{a:r.approved,p:r.pending})+((r.cancelled||r.cxPending)?'；'+fmt(t.cxSent,{a:r.cancelled||0,p:r.cxPending||0}):''):fmt(t.saved,{n:r.saved}));setCx([]);reloadR();}
     else setErr((r&&r.error)||t.fail);
   });
   const longSend=()=>run(async()=>{
@@ -720,10 +721,10 @@ function LeavePage({me}){
           {gErr&&<p className="text-xs text-red-400">{gErr}</p>}</div>
         {(d.dutyCands||[]).length>0||d.canDuty?(<div className="space-y-1.5"><p className="text-xs text-gray-400">{lang==='vi'?'Người phụ trách bảng điều chỉnh nghỉ phép (Phó quản lý thực tập)':'休假調整表負責人（實習副理）'}</p>
           <p className="text-[11px] text-gray-500">{lang==='vi'?'Mỗi ca có thể chọn nhiều người; ngày 13 hằng tháng bảng cần điều chỉnh sẽ gửi cho tất cả. Chưa chọn thì gửi theo cài đặt cũ/toàn bộ quản lý cửa hàng.':'早班、晚班各可指定多位；每月 13 日休假調整表會推播給所有負責人。沒指定就依原設定（人事差勤欄位）或發給該店所有主管。'}</p>
-          {['early','late'].map(sh=>{const sel=dArr((cv.duty||{})[sh]);const rest=(d.dutyCands||[]).filter(c=>sel.indexOf(c.id)<0);const nameOf=id=>{const c=(d.dutyCands||[]).filter(x=>x.id===id)[0];return c?c.label:id;};
+          {['early','late'].map(sh=>{const sel=dArr((cv.duty||{})[sh]);const rest=(d.dutyCands||[]).filter(c=>sel.indexOf(c.id)<0);const nameOf=id=>{const c=(d.dutyCands||[]).filter(x=>x.id===id)[0];if(!c)return id;const m=String(c.label||'').match(/(\d+)\s*號/);return m?m[1]+'號':c.label;};
             return(<div key={sh} className="flex items-start gap-2"><span className="w-12 text-sm text-gray-300 pt-2">{t[sh]}</span>
               <div className="flex-1 flex flex-wrap items-center gap-1.5">{sel.map(id=>(<span key={id} className="inline-flex items-center gap-1.5 min-h-[36px] rounded-full bg-indigo-900 text-indigo-100 text-[13px] pl-3 pr-2">{nameOf(id)}{d.canDuty&&<button aria-label="remove" className="w-6 h-6 text-indigo-300" onClick={()=>setCf({...cv,duty:{...(cv.duty||{}),[sh]:sel.filter(x=>x!==id)}})}>✕</button>}</span>))}
-                {d.canDuty&&rest.length>0&&<select value="" onChange={e=>{if(e.target.value)setCf({...cv,duty:{...(cv.duty||{}),[sh]:sel.concat([e.target.value])}});}} className="min-h-[36px] rounded-full bg-gray-800 border border-dashed border-gray-600 px-3 text-[13px] text-gray-300"><option value="">{lang==='vi'?'＋ Thêm':'＋ 新增'}</option>{rest.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select>}
+                {d.canDuty&&rest.length>0&&<select value="" onChange={e=>{if(e.target.value)setCf({...cv,duty:{...(cv.duty||{}),[sh]:sel.concat([e.target.value])}});}} className="min-h-[36px] rounded-full bg-gray-800 border border-dashed border-gray-600 px-3 text-[13px] text-gray-300"><option value="">{lang==='vi'?'＋ Thêm':'＋ 新增'}</option>{rest.map(c=><option key={c.id} value={c.id}>{nameOf(c.id)}</option>)}</select>}
                 {!sel.length&&<span className="text-[13px] text-gray-500 pt-2">{lang==='vi'?'(Chưa chỉ định)':'（未指定）'}</span>}</div></div>);})}
           {!d.canDuty&&<p className="text-[11px] text-amber-300">{lang==='vi'?'Chỉ quản lý cửa hàng mới được chỉ định.':'只有該店經理可以指定。'}</p>}</div>):null}
         <div className="space-y-1.5 pt-1 border-t border-gray-800"><p className="text-xs text-gray-400">{lang==='vi'?'Giai đoạn thử nghiệm (nhắc khi gửi đơn nghỉ)':'測試階段（勾選後，送出休假時會提醒）'}</p>
