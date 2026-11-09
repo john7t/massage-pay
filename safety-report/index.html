@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>員工專區 v1.13-160</title>
+<title>員工專區 v1.13-161</title>
 <meta property="og:title" content="員工專區">
 <meta property="og:description" content="公告、安全回報、拒接名單、手套團購、價目表等功能入口與說明">
 <meta property="og:type" content="website">
@@ -53,6 +53,7 @@ try{var __k=JSON.parse(localStorage.getItem('mp:kiosk:v1')||'null');if(__k&&__k.
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script>window.__liffReady=new Promise(function(r){window.__liffReadyRes=r;});</script>
 <script>try{var __p=new URLSearchParams(location.search);if(__p.get('lv2')==='pdf')document.documentElement.classList.add('s2-nolight');}catch(e){}</script>
 <style>body{background:#ffffff;color:#111827;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}#root{min-height:100vh}
 /* 點狀圓環載入圖(AIMRAN Dotted ring loader):12 點如時鐘排列,依序淡出縮小 */
@@ -159,11 +160,11 @@ html:not(.s2-nolight) [style*="gradient"],html:not(.s2-nolight) [style*="gradien
 
 <script>try{if('serviceWorker' in navigator&&location.protocol==='https:'){window.addEventListener('load',function(){navigator.serviceWorker.register('../sw.js').catch(function(){});});}}catch(_e){}</script>
 <script src="../common.js"></script>
-<script type="text/babel" src="./safety2.js?v=1.13-048"></script>
+<script type="text/babel" src="./safety2.js?v=1.13-049"></script>
 <script type="text/babel" src="./notice2.js?v=1.0-016"></script>
-<script type="text/babel" src="./blacklist2.js?v=1.0-009"></script>
+<script type="text/babel" src="./blacklist2.js?v=1.0-010"></script>
 <script type="text/babel" src="./gloves2.js?v=1.0-008"></script>
-<script type="text/babel" src="./leave2.js?v=1.0-067"></script>
+<script type="text/babel" src="./leave2.js?v=1.0-068"></script>
 <script type="text/babel" src="./my2.js?v=1.0-016"></script>
 <script type="text/babel" src="./shop2.js?v=1.0-001"></script>
 <script type="text/babel" src="./counter2.js?v=1.0-026"></script>
@@ -1265,6 +1266,7 @@ function App(){
     const initLiff=(id)=>{
       setLiffId(id);
       return liff.init({liffId:id}).then(()=>{
+        try{window.__liffReadyRes&&window.__liffReadyRes();}catch(_e){}
         if(!liff.isLoggedIn()){window.__leaving=true;liff.login({redirectUri:location.href});return} // 明確帶目前完整網址(含?sid=...),避免LINE登入導轉過程弄丟參數
         {const sp0=new URLSearchParams(location.search);if(sp0.get('liff.state'))return;} // LIFF 帶 liff.state 進來(從 liff.line.me/ID?參數 開):SDK 會自己導向真正網址,這裡不要先判斷成說明頁
         if(s2p||spp||n2p!==null||b2p!==null||gb2p!==null||lv2p!==null||my2p!==null||cn2p!==null){setPhase('s2');return} // 安全回報2.0:不走舊的登記/審核流程,身分由 GAS 用 accessToken 驗證
@@ -1288,6 +1290,12 @@ function App(){
     };
     if(LIFF_ID_HARDCODED){
       if(kioskOn&&!kioskUnlockFlow)return; // 公務機鎖定中:完全不碰 LIFF 登入
+      // v1.13-050:2 系列頁面「先用本機資料」:這台曾登入過(有記下使用者代號)就先直接畫畫面(讀本機暫存),LIFF 登入改在背景做;失敗(離線)每 20 秒及網路恢復時再試
+      if(!cn2Cached&&!kioskUnlockFlow&&!kioskOn&&(s2p||spp||n2p!==null||b2p!==null||gb2p!==null||lv2p!==null||my2p!==null)&&(()=>{try{return !!localStorage.getItem('s2:lastuid');}catch(_e){return false;}})()){
+        window.__s2Warm=true;setPhase('s2');
+        let tm2=0,done2=false;const go2=()=>{if(done2)return;clearTimeout(tm2);Promise.resolve().then(()=>initLiff(LIFF_ID_HARDCODED)).then(()=>{done2=true;}).catch(()=>{tm2=setTimeout(go2,20000);});};
+        window.addEventListener('online',go2);go2();return;
+      }
       if(cn2Cached&&!kioskUnlockFlow&&!kioskOn){ // 背景登入:失敗(多半是離線)不影響主櫃使用,每 20 秒及網路恢復時再試
         let tm=0,done=false;const go=()=>{if(done)return;clearTimeout(tm);initLiff(LIFF_ID_HARDCODED).then(()=>{done=true;}).catch(()=>{tm=setTimeout(go,20000);});};
         window.addEventListener('online',go);go();return;
