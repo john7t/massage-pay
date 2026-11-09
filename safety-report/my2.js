@@ -1,4 +1,4 @@
-/* my2.js — 「我的」頁面 (v1.0-015)
+/* my2.js — 「我的」頁面 (v1.0-016)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 my2:  ?my2=1  我的(待我處理 + 公告 + 安全回報 + 手套團購 + 預排休假 + 拒接名單)
    只讀取各模組既有的 API(n2List / s2TodaySurveys / s2MyReports / gb2List / lv2Month / b2List),不新增後端;任何一區讀取失敗只隱藏該區。 */
 (function(){
@@ -74,7 +74,7 @@ function UsageBanner({lang}){
   const Sec=({t,children})=>(<div className="border-t border-sky-900 pt-3 space-y-2"><p className="text-sm font-bold text-white">{t}</p>{children}</div>);
   const Seg=({v,set,opts})=>(<div className="inline-flex rounded-lg bg-white/10 p-0.5">{opts.map(([k,l])=>(<button key={k} onClick={()=>set(k)} className={'px-3 min-h-[32px] rounded-md text-xs '+(v===k?'bg-sky-600 text-white font-bold':'text-gray-300')}>{l}</button>))}</div>);
   const sel=pick&&d.stores?((d.stores.find(s=>s.store===pick.store)||{}).people||[]).find(c=>c.code===pick.code):null;
-  return(<div className="rounded-2xl border border-sky-800 overflow-hidden" style={{background:'linear-gradient(135deg,#0c2a43,#10203a)'}}>
+  return(<div className="rounded-2xl border border-sky-800 overflow-hidden bg-gradient-to-br from-sky-100 to-sky-50">
     <button disabled={!d.mgr} onClick={()=>setOpen(!open)} className="w-full flex items-center gap-3 px-4 py-2.5 min-h-[56px] text-left">
       <span className="text-xl">📊</span>
       <span className="flex-1 text-sm text-gray-100 leading-snug">
@@ -199,7 +199,7 @@ function My2Page({me}){
     <UsageGuard><UsageBanner lang={lang}/></UsageGuard>
     <UsageGuard><MainCodeCard lang={lang}/></UsageGuard>
 
-    <div className="rounded-3xl border border-violet-700 p-4 space-y-2" style={{background:'linear-gradient(135deg,#2e1d5e,#1b1840)'}}>
+    <div className="rounded-3xl border border-violet-700 p-4 space-y-2 bg-gradient-to-br from-violet-100 to-violet-50">
       <SecHead icon="⚡" title={t.todo} n={todo.length} t={t}/>
       {todo.length===0&&<p className="text-sm text-gray-300 py-2">{t.nothing}</p>}
       {todo.map(x=>(<div key={x.k} className="flex items-center gap-3 border-t border-violet-800/60 pt-2">
