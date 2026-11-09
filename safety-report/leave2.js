@@ -2,6 +2,8 @@
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 lv2:  ?lv2=l  預排休假(月曆)
    規則與後端見 gas-leave2.gs.txt:每月 9 日 00:00 ~ 12 日 24:00 可登記「下個月」休假,期間免審批(超休需主管簽字);之後的送出需主管審批;可提前 2 個月暫存。
    早/晚班分開統計:每人每月各 6 天、每店每日各班別最多 6 人。 */
+// v1.0-067 白底主題改為 2 系列全域(safety-report.html) / v1.0-065 主管推播連結直達 ?lv2=pend 該班別未審核頁(左上角回預排休假) / v1.0-064 / 公開文字不提管理者(flag_admin 改「休假需簽核」);休假調整表新增「隱藏已簽核的單」勾選(localStorage,只對自己有效)
+// v1.0-063 / 新增「管理者」區塊(只有管理者看得到):各店設定管理者本人請休/改休/取消是否走簽核;flag_admin 文字
 // v1.0-062 / 主管休假表說明改「經理以下主管」不提管理員;設定卡新增「測試階段」兩個勾選(送出休假時提醒小白單);待簽核改二階段(勾選同意→存檔);調整表新增「通知交小白單」按鈕(測試階段第 1 項勾選後)。
 // v1.0-061 / 調整表通知/簽核按鈕:沒被指定的實習副理灰掉、代理期間才亮;休假調整表負責人改多位(晶片);新增「代理人」卡(全主管可看,經理與負責人可設;期間/備註/代理人收通知/原主管也收通知),代理人橘色提示。
 // v1.0-060 / 新增「主管休假表」(經理以下主管,月曆格上方顯示號碼,各主管天數預設收合);設定卡新增「休假調整表負責人」(早/晚班各一位實習副理,每店經理可設定)。
@@ -29,7 +31,7 @@ const L={
     notifyAsk:'要推播通知這些人改休其他天嗎？',signAsk:'確定同意這位同仁保留這天休假嗎？',overTag:'超額，待主管協調',
     seqTitle:'紙本順序編號',seqHint:'紙本流程初期：依櫃台收件順序填寫，總休表依此排序；沒填的排在後面（再依送出時間）。',seqSave:'存',seqMine:'我的順序編號',seqWait:'待櫃台填寫',seqDays:'{n} 天',
     setTitle:'名額與順序設定（{s}）',wdQ:'平日每班別名額',weQ:'週六日名額',seqModeL:'申請順序依據',seqPaper:'櫃台紙本編號',seqTime:'系統送出時間',setSave:'儲存設定',setOk:'已儲存',
-    flag_late:'超過免審批期間',flag_person:'個人超過每月 6 天',flag_day:'當日已滿 6 人',
+    flag_admin:'休假需簽核',flag_late:'超過免審批期間',flag_person:'個人超過每月 6 天',flag_day:'當日已滿 6 人',
     ocDay:'這天已是你的長假／固定休（佔名額），不需要另外登記；要調整請洽主管或櫃台。',s_approved:'已生效',s_pending:'待簽核',s_draft:'暫存',s_rejected:'已退回',s_cx:'取消審核中',changeSubmit:'送出改假申請',changeSum:'本次：取消 {c} 天、新增 {n} 天',changeAskT:'要送出嗎？\n取消 {c} 天、新增 {n} 天。',changeLate:'已過登記期間，需主管審核；核准前原假仍保留。',changeOpen:'登記期間內，取消會立即生效。',cxSent:'取消：{a} 天已生效、{p} 天待主管審核',cxWithdrawAsk:'要撤回這筆改假／取消申請嗎？（維持原假）',cxHint:'要改假：先點已核准的假（標成「取消」），再點新日期（虛框），最後按送出。',pendChange:'改假',pendCancel:'取消休假',pendAdd:'新增',pendFrom:'取消',pendTo:'改為',
     pendingTitle:'待簽核',noPending:'目前沒有待簽核',ok:'簽字同意',rej:'退回',roster:'當日名單（* = 待簽核）',none:'無',
     notTeacher:'只有已登記的老師可以登記休假（主管可在下方簽核與查看名單）',store:'店別',back:'返回',
@@ -52,7 +54,7 @@ const L={
     seqTitle:'Số thứ tự đơn giấy',seqHint:'Giai đoạn đầu dùng đơn giấy: nhập theo thứ tự quầy nhận đơn, bảng tổng hợp sắp xếp theo số này; người chưa nhập xếp sau.',seqSave:'Lưu',seqMine:'Số thứ tự của tôi',seqWait:'Chờ quầy nhập',seqDays:'{n} ngày',
     setTitle:'Cài đặt hạn mức & thứ tự ({s})',wdQ:'Hạn mức ngày thường mỗi ca',weQ:'Hạn mức T7/CN',seqModeL:'Căn cứ thứ tự đăng ký',seqPaper:'Số thứ tự đơn giấy',seqTime:'Thời gian gửi trên hệ thống',setSave:'Lưu cài đặt',setOk:'Đã lưu',
     pitchHint:'Dùng để đề xuất với quản lý/công ty (8 trang, tiếng Trung).',pitchBtn:'Chia sẻ “Đề xuất chuyển sang online”',promoT:'Giới thiệu Nghỉ phép trước',promoHint:'Chia sẻ thẻ lối vào “Nghỉ phép trước trực tuyến” cho đồng nghiệp hoặc nhóm: có thể vào đăng ký hoặc xem giới thiệu (tiếng Trung / tiếng Việt / chữ lớn).',promoBtn:'Chia sẻ cho bạn bè/nhóm',reshareYes:'cho phép chia sẻ tiếp',reshareNo:'không cho chia sẻ tiếp',shareNo:'Môi trường này không hỗ trợ chia sẻ, vui lòng mở trong LINE',shared:'Đã chia sẻ',modeMgr:'Chế độ quản lý',modeTeacher:'Chế độ Sư phụ',seqToggleOpen:'Mở ▼',seqToggleClose:'Thu gọn ▲',ovAsk:'Vượt hạn mức, vui lòng đổi ngày',ovSigned:'Vượt hạn mức, QL {c} đã duyệt',notOpen:'Không mở đăng ký',slotFull:'Đã đủ',slotLeft:'Còn {n} chỗ',legendAnon:'✦ đã có người nghỉ  ✧ còn chỗ  tím = tôi',grpTitle:'Nhóm quản lý không được nghỉ cùng ngày',grpHint:'Nhập mã rồi Enter, sau đó bấm "Thêm nhóm".',grpPh:'Mã + Enter',grpAdd:'Thêm nhóm',grpMin:'Mỗi nhóm cần ít nhất 2 mã',paperT:'Tìm thấy ngày nghỉ nhập từ bản giấy',paperTxt:'Có {n} ngày nghỉ bản giấy của số {c}, tháng {m} ({l}). Nếu là của bạn, bấm "Liên kết".',paperBtn:'Của tôi, liên kết vào tài khoản',paperAsk:'Liên kết các ngày nghỉ này vào tài khoản của bạn?',paperOk:'Đã liên kết {n} ngày',rosterTitle:'Bảng nghỉ tổng hợp (theo thứ tự đăng ký)',rosterHint:'Hạn mức mỗi ca: ngày thường {w} người, T7/CN {e} người (có thể chỉnh trong cài đặt). Màu trắng = trong hạn mức, màu cam = vượt, cần quản lý điều phối; nghỉ của quản lý không tính hạn mức. Người đã được ký giữ lại có mã quản lý chữ đỏ nhỏ dưới số.',mgrTag:'QL',
-    flag_late:'Quá thời gian không cần duyệt',flag_person:'Vượt 6 ngày/tháng',flag_day:'Ngày đã đủ 6 người',
+    flag_admin:'Cần ký duyệt',flag_late:'Quá thời gian không cần duyệt',flag_person:'Vượt 6 ngày/tháng',flag_day:'Ngày đã đủ 6 người',
     ocDay:'Ngày này đã là kỳ nghỉ dài/nghỉ cố định của bạn (chiếm suất), không cần đăng ký thêm; cần đổi vui lòng liên hệ quản lý hoặc quầy.',s_approved:'Có hiệu lực',s_pending:'Chờ ký',s_draft:'Lưu tạm',s_rejected:'Bị từ chối',s_cx:'Đang chờ duyệt hủy',changeSubmit:'Gửi đơn đổi ngày nghỉ',changeSum:'Lần này: hủy {c} ngày, thêm {n} ngày',changeAskT:'Xác nhận gửi?\nHủy {c} ngày, thêm {n} ngày.',changeLate:'Đã quá thời gian đăng ký, cần quản lý duyệt; trước khi duyệt vẫn giữ ngày nghỉ cũ.',changeOpen:'Trong thời gian đăng ký, hủy có hiệu lực ngay.',cxSent:'Hủy: {a} ngày có hiệu lực, {p} ngày chờ quản lý duyệt',cxWithdrawAsk:'Rút lại đơn đổi/hủy ngày nghỉ này? (giữ ngày nghỉ cũ)',cxHint:'Đổi ngày: chạm ngày nghỉ đã duyệt (đánh dấu hủy), chạm ngày mới (nét đứt), rồi bấm gửi.',pendChange:'Đổi ngày',pendCancel:'Hủy nghỉ',pendAdd:'Thêm',pendFrom:'Hủy',pendTo:'Đổi thành',
     pendingTitle:'Chờ ký',noPending:'Không có đơn chờ ký',ok:'Ký đồng ý',rej:'Từ chối',roster:'Danh sách trong ngày (* = chờ ký)',none:'Không có',
     notTeacher:'Chỉ Sư phụ đã đăng ký mới được đăng ký nghỉ (quản lý có thể ký duyệt và xem danh sách bên dưới)',store:'Chi nhánh',back:'Quay lại',
@@ -339,7 +341,7 @@ function LeavePage({me}){
   const adjSorted=(sh)=>((d.adjust&&d.adjust[sh])||[]).slice().sort((a,b)=>(a.date<b.date?-1:a.date>b.date?1:((a.pos||0)-(b.pos||0)))); // 調整表依日期、名次排序
   const[pop,setPop]=useState(null); // 總休表點號碼的說明彈窗(主管)
   const[dg,setDg]=useState(null);const[supOpen,setSupOpen]=useState(false);const[supPop,setSupPop]=useState(null); // 主管休假表:各主管天數(預設收合)、點日期格的當日主管名單
-  const[seqIn,setSeqIn]=useState({});const[cf,setCf]=useState(null);const[pick,setPick]=useState({});const[adjShift,setAdjShift]=useState((me.user&&me.user.shift)==='late'?'late':'early');
+  const[seqIn,setSeqIn]=useState({});const[cf,setCf]=useState(null);const[af,setAf]=useState(null);const[hideSg,setHideSg]=useState(()=>lsGet('lv2HideSigned','0')==='1');const[pick,setPick]=useState({});const[adjShift,setAdjShift]=useState((me.user&&me.user.shift)==='late'?'late':'early');
   const[st,reload]=useLoad('lv2Month',store?{month:month,store:store}:{month:month});
   const rlP=useRef(null);const reloadR=()=>{const p=reload();rlP.current=p;return p;}; // 寫入後的重讀:run 會等它回來才解除按鈕鎖定,避免『按鈕先亮、資料還沒更新』造成重複點擊
   const d=st.data&&st.data.ok&&st.data.month===month?st.data:null;
@@ -424,6 +426,31 @@ function LeavePage({me}){
   const pageDates=rosterDates.slice(pg*PGN,pg*PGN+PGN);
   const pgLabel=pageDates.length?parseInt(pageDates[0].slice(8),10)+'~'+parseInt(pageDates[pageDates.length-1].slice(8),10)+(lang==='vi'?'':' 日'):'';
 
+  const pm=new URLSearchParams(location.search).get('lv2')==='pend';const pmShift=(()=>{const v=new URLSearchParams(location.search).get('shift');return v==='early'||v==='late'?v:'';})();
+  const pendL=pm&&pmShift?d.pending.filter(x=>(x.kind==='change'||x.kind==='cancel')?(x.cancel||[]).concat(x.add||[]).some(c=>c.shift===pmShift):x.shift===pmShift):d.pending;
+  const pendCard=(d.isMgr&&!desk&&d.state!=='past')?(<Card className="space-y-2">
+      <p className="text-sm font-bold text-white">{t.pendingTitle}（{pendL.length}）</p>
+      {pendL.length===0&&<p className="text-xs text-gray-500">{t.noPending}</p>}
+      {pendL.map(x=>(<div key={x.id} className="rounded-xl border border-gray-700 p-2 space-y-1">
+        {x.kind==='change'||x.kind==='cancel'?(<div className="space-y-0.5"><p className="text-sm text-white">{x.store}　{x.code} 號　<span className="text-xs rounded-full px-2 py-0.5 bg-rose-700 text-white">{x.kind==='change'?t.pendChange:t.pendCancel}</span></p>
+          {x.cancel.map((c,i)=>(<p key={'c'+i} className="text-sm text-red-300">{t.pendFrom}　<span className="line-through">{c.date.slice(5).replace('-','/')} {t[c.shift]}</span></p>))}
+          {x.add.map((c,i)=>(<p key={'a'+i} className="text-sm text-emerald-300">{t.pendTo}　{c.date.slice(5).replace('-','/')} {t[c.shift]}</p>))}</div>)
+        :<p className="text-sm text-white">{x.store}　{x.code} 號　{x.date.slice(5)}　{t[x.shift]}</p>}
+        {x.flags?<p className="text-xs text-amber-300">{flagText(x.flags)}</p>:null}
+        <div className="flex gap-2"><button disabled={busy} onClick={()=>setPick({...pick,[x.id]:!pick[x.id]})} className={'flex-1 py-2 rounded-xl text-sm font-bold disabled:opacity-50 '+(pick[x.id]?'bg-emerald-600 text-white':'border border-emerald-600 text-emerald-300')}>{pick[x.id]?'✓ ':''}{lang==='vi'?'Đồng ý':'同意'}</button>
+          <button disabled={busy} onClick={()=>decide(x.id,false)} className="flex-1 py-2 rounded-xl text-sm font-bold bg-gray-700 text-gray-200 disabled:opacity-50">{t.rej}</button></div>
+      </div>))}
+      {pendL.length>0&&(()=>{const ids=pendL.filter(x=>pick[x.id]).map(x=>x.id);const allOn=ids.length===pendL.length;return(<div className="flex gap-2 pt-1">
+        <button disabled={busy} onClick={()=>{const o={};if(!allOn)pendL.forEach(x=>{o[x.id]=true;});setPick(o);}} className="px-4 py-2.5 rounded-xl text-sm text-gray-200 border border-gray-600 disabled:opacity-50">{allOn?(lang==='vi'?'Bỏ chọn':'取消全選'):(lang==='vi'?'Chọn tất cả':'全選')}</button>
+        <button disabled={busy||ids.length===0} onClick={()=>{if(!window.confirm(lang==='vi'?('Đồng ý '+ids.length+' đơn đã chọn?'):('同意勾選的 '+ids.length+' 張申請並存檔？')))return;run(async()=>{const r=await api('lv2DecideBatch',{ids:JSON.stringify(ids)});if(r&&r.ok){setPick({});if(r.failed)setErr((lang==='vi'?'Không xử lý được ':'有 ')+r.failed+(lang==='vi'?' đơn: ':' 張沒處理成功:')+(r.fail[0]&&r.fail[0].error||''));reloadR();}else setErr((r&&r.error)||t.fail);});}} className={'flex-1 py-2.5 rounded-xl text-sm font-bold '+(ids.length?'bg-violet-600 text-white':'bg-gray-800 text-gray-500')}>{lang==='vi'?'Lưu':'存檔'}（{ids.length}）</button></div>);})()}
+    </Card>):null;
+  if(pm){return(<Box {...barOf(st,reload,lang)}>
+    <div className="flex items-center justify-between"><button className="text-sm font-bold text-violet-700 px-2 py-1.5 -ml-2 rounded-lg active:bg-violet-100" onClick={()=>{location.href='?lv2=l&month='+month;}}>← {t.title}</button><span className="text-xs text-gray-500">{month}</span></div>
+    <h1 className="text-lg font-bold text-white">📩 {pmShift?t[pmShift]+' · ':''}{t.pendingTitle}</h1>
+    {pendCard||<Card><p className="text-sm text-gray-500">{lang==='vi'?'Bạn không có quyền ký.':'你不是主管，沒有可簽核的項目。'}</p></Card>}
+    {msg&&<p className="text-sm text-center text-emerald-600">{msg}</p>}{err&&<p className="text-sm text-center text-red-600">{err}</p>}
+    <Btn onClick={()=>{location.href='?lv2=l&month='+month;}}>← {t.title}</Btn>
+  </Box>);}
   return(<Box {...barOf(st,reload,lang)}>
     {busy&&<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"><div className="rounded-2xl bg-gray-900 border border-gray-700 px-6 py-5 flex flex-col items-center gap-2 text-violet-300"><Spinner size={36}/><p className="text-sm text-gray-200">{lang==='vi'?'Đang xử lý…':'處理中，請稍候…'}</p></div></div>}
     {pop&&(()=>{const x=pop.x,q=x.q;const KN={leave:'長假',rest:'長休',fixed:'固定休',alt:'固定隔日休',holiday:'假日可休'};
@@ -497,22 +524,7 @@ function LeavePage({me}){
       {d.mine.slice().sort((a,b)=>a.date<b.date?-1:1).map(x=>(<p key={x.id} className="text-sm text-gray-300">{x.date.slice(5)}　{t[x.shift]}　<span className={x.cx?'text-red-300':x.status==='approved'?'text-emerald-400':x.status==='pending'?'text-amber-300':'text-gray-400'}>{x.cx?t.s_cx:(t['s_'+x.status]||x.status)}</span>{x.over?<span className="text-xs text-orange-400">　{t.overTag}</span>:null}{x.signBy?<span className="text-xs text-gray-400">　{fmt(t.signedBy,{c:x.signBy})}</span>:null}{x.flags&&x.status==='pending'?<span className="text-xs text-gray-500">　（{flagText(x.flags)}）</span>:null}</p>))}
     </Card>}
     {d.isMgr&&d.deleg&&d.deleg.mine&&d.deleg.mine.length>0&&<div className="rounded-xl border border-amber-700 bg-amber-950/40 px-3 py-2 text-[13px] text-amber-200 leading-relaxed">👤 {lang==='vi'?'Bạn đang là người đại diện của ':'你目前是 '}<b>{d.deleg.mine.map(x=>x.fromName).join('、')}</b>{lang==='vi'?'':' 的代理人'}（{d.deleg.mine.map(x=>parseInt(x.start.slice(5,7),10)+'/'+parseInt(x.start.slice(8),10)+' ~ '+parseInt(x.end.slice(5,7),10)+'/'+parseInt(x.end.slice(8),10)).join('、')}）<br/>{lang==='vi'?'Trong thời gian này bạn có thể ký duyệt đơn nghỉ phép của cửa hàng.':'期間可簽核本店休假申請、收到調整表推播。'}</div>}
-    {d.isMgr&&!desk&&d.state!=='past'&&<Card className="space-y-2">
-      <p className="text-sm font-bold text-white">{t.pendingTitle}（{d.pending.length}）</p>
-      {d.pending.length===0&&<p className="text-xs text-gray-500">{t.noPending}</p>}
-      {d.pending.map(x=>(<div key={x.id} className="rounded-xl border border-gray-700 p-2 space-y-1">
-        {x.kind==='change'||x.kind==='cancel'?(<div className="space-y-0.5"><p className="text-sm text-white">{x.store}　{x.code} 號　<span className="text-xs rounded-full px-2 py-0.5 bg-rose-700 text-white">{x.kind==='change'?t.pendChange:t.pendCancel}</span></p>
-          {x.cancel.map((c,i)=>(<p key={'c'+i} className="text-sm text-red-300">{t.pendFrom}　<span className="line-through">{c.date.slice(5).replace('-','/')} {t[c.shift]}</span></p>))}
-          {x.add.map((c,i)=>(<p key={'a'+i} className="text-sm text-emerald-300">{t.pendTo}　{c.date.slice(5).replace('-','/')} {t[c.shift]}</p>))}</div>)
-        :<p className="text-sm text-white">{x.store}　{x.code} 號　{x.date.slice(5)}　{t[x.shift]}</p>}
-        {x.flags?<p className="text-xs text-amber-300">{flagText(x.flags)}</p>:null}
-        <div className="flex gap-2"><button disabled={busy} onClick={()=>setPick({...pick,[x.id]:!pick[x.id]})} className={'flex-1 py-2 rounded-xl text-sm font-bold disabled:opacity-50 '+(pick[x.id]?'bg-emerald-600 text-white':'border border-emerald-600 text-emerald-300')}>{pick[x.id]?'✓ ':''}{lang==='vi'?'Đồng ý':'同意'}</button>
-          <button disabled={busy} onClick={()=>decide(x.id,false)} className="flex-1 py-2 rounded-xl text-sm font-bold bg-gray-700 text-gray-200 disabled:opacity-50">{t.rej}</button></div>
-      </div>))}
-      {d.pending.length>0&&(()=>{const ids=d.pending.filter(x=>pick[x.id]).map(x=>x.id);const allOn=ids.length===d.pending.length;return(<div className="flex gap-2 pt-1">
-        <button disabled={busy} onClick={()=>{const o={};if(!allOn)d.pending.forEach(x=>{o[x.id]=true;});setPick(o);}} className="px-4 py-2.5 rounded-xl text-sm text-gray-200 border border-gray-600 disabled:opacity-50">{allOn?(lang==='vi'?'Bỏ chọn':'取消全選'):(lang==='vi'?'Chọn tất cả':'全選')}</button>
-        <button disabled={busy||ids.length===0} onClick={()=>{if(!window.confirm(lang==='vi'?('Đồng ý '+ids.length+' đơn đã chọn?'):('同意勾選的 '+ids.length+' 張申請並存檔？')))return;run(async()=>{const r=await api('lv2DecideBatch',{ids:JSON.stringify(ids)});if(r&&r.ok){setPick({});if(r.failed)setErr((lang==='vi'?'Không xử lý được ':'有 ')+r.failed+(lang==='vi'?' đơn: ':' 張沒處理成功:')+(r.fail[0]&&r.fail[0].error||''));reloadR();}else setErr((r&&r.error)||t.fail);});}} className={'flex-1 py-2.5 rounded-xl text-sm font-bold '+(ids.length?'bg-violet-600 text-white':'bg-gray-800 text-gray-500')}>{lang==='vi'?'Lưu':'存檔'}（{ids.length}）</button></div>);})()}
-    </Card>}
+    {pendCard}
     {d.isMgr&&!desk&&d.long.pending.length>0&&<Card className="space-y-2">
       <p className="text-sm font-bold text-white">{t.longTitle} · {t.pendingTitle}（{d.long.pending.length}）</p>
       {d.long.pending.map(x=>(<div key={x.id} className="rounded-xl border border-gray-700 p-2 space-y-1">
@@ -646,9 +658,10 @@ function LeavePage({me}){
       <p className="text-[11px] text-gray-500">{lang==='vi'?'Số trong ngoặc: chưa xử lý／tổng cần điều chỉnh':'括號內：未處理／全部應調整筆數（已通知或已簽核算已處理）'}</p>
       <p className="text-[11px] text-gray-500">{t.adjHint}</p>
       {!adjOk&&<p className="text-[11px] text-amber-300">{lang==='vi'?'Bạn không phải người phụ trách ca này nên chỉ xem được; chỉ khi được chỉ định đại diện mới thao tác được.':'你不是這個班別的調整表負責人，只能查看；被設為代理人的期間才可通知／簽核。'}</p>}
+      <label className="flex items-center gap-2 text-[12px] text-gray-300"><input type="checkbox" checked={hideSg} onChange={e=>{setHideSg(e.target.checked);lsSet('lv2HideSigned',e.target.checked?'1':'0');}} className="w-4 h-4 accent-violet-600"/><span>{lang==='vi'?'Ẩn đơn đã ký (chỉ áp dụng cho bạn)':'隱藏已簽核的單（只對我自己有效）'}</span></label>
       {d.adjust[adjShift].length===0&&<p className="text-xs text-gray-500">{t.adjNone}</p>}
       {(()=>{
-        const groups=[];adjSorted(adjShift).forEach(x=>{let g=groups[groups.length-1];if(!g||g.date!==x.date){g={date:x.date,cap:x.cap,list:[]};groups.push(g);}g.list.push(x);});
+        const groups=[];adjSorted(adjShift).filter(x=>!(hideSg&&x.signBy)).forEach(x=>{let g=groups[groups.length-1];if(!g||g.date!==x.date){g={date:x.date,cap:x.cap,list:[]};groups.push(g);}g.list.push(x);});
         const allOpen=groups.length>0&&groups.every(g=>adjOpen[adjShift+g.date]);
         return(<div key={'adj-'+adjShift} className="space-y-1.5">
           {groups.length>1&&<div className="text-right"><button onClick={()=>{const o={...adjOpen};groups.forEach(g=>{o[adjShift+g.date]=!allOpen;});setAdjOpen(o);}} className="text-[11px] text-violet-300">{allOpen?t.adjNone2:t.adjAll}</button></div>}
@@ -716,6 +729,11 @@ function LeavePage({me}){
         <div className="space-y-1.5 pt-1 border-t border-gray-800"><p className="text-xs text-gray-400">{lang==='vi'?'Giai đoạn thử nghiệm (nhắc khi gửi đơn nghỉ)':'測試階段（勾選後，送出休假時會提醒）'}</p>
           {[['p1','10號00:00~12號23:59 開放排休時，除線上申請外，仍需依公司規定填寫小白單並由本人親自張貼於櫃台指定地點，測試期間，將以小白單上的順序為主。'],['p2','改休 / 臨時休 / 增加休假 / 取消休假，線上申請後，仍請依公司規定寫小白單給主管說明原因。']].map(o=>(<label key={o[0]} className="flex items-start gap-2 text-[13px] text-gray-200 leading-snug"><input type="checkbox" checked={!!pap[o[0]]} onChange={e=>setCf({...cv,paper:{...pap,[o[0]]:e.target.checked}})} className="mt-1 w-4 h-4 accent-violet-600"/><span>{o[1]}</span></label>))}</div>
         <Btn loading={busy} onClick={()=>run(async()=>{const r=await api('lv2SettingsSet',Object.assign({store:d.store,wd:cv.wd,we:cv.we,seqMode:cv.mode,groups:JSON.stringify(grs),paper:JSON.stringify({p1:!!pap.p1,p2:!!pap.p2})},d.canDuty?{duty:JSON.stringify({early:dArr((cv.duty||{}).early),late:dArr((cv.duty||{}).late)})}:{}));if(r&&r.ok){setMsg(t.setOk);setCf(null);reloadR();}else setErr((r&&r.error)||t.fail);})}>{t.setSave}</Btn></Card>);})()}
+    {d.isMgr&&d.adminFlow&&(()=>{const vi=lang==='vi';const av=af||d.adminFlow;const rows=[['leave',vi?'Xin nghỉ':'請休（新增休假）'],['change',vi?'Đổi ngày nghỉ':'改休（取消舊的＋改新日期）'],['cancel',vi?'Hủy nghỉ':'取消休假']];
+      return (<Card className="space-y-2"><p className="font-bold text-white">{vi?'🛡️ Quản trị viên':'🛡️ 管理者'}</p><div className="space-y-2">
+        <p className="text-xs text-gray-400 leading-snug">{(vi?'Cửa hàng ':'本店（')+d.store+(vi?': ':'）')}{vi?'Chọn thao tác nghỉ của quản trị viên cần cấp trên ký duyệt (mặc định tự động có hiệu lực).':'管理者本人的休假變動，勾選的項目會送其他主管簽核（未勾選＝照舊直接生效）。管理者不能簽核自己的假。'}</p>
+        {rows.map(o=>(<label key={o[0]} className="flex items-center gap-2 text-[13px] text-gray-200"><input type="checkbox" checked={!!av[o[0]]} onChange={e=>setAf({...av,[o[0]]:e.target.checked})} className="w-4 h-4 accent-violet-600"/><span>{o[1]}</span></label>))}
+        <Btn loading={busy} onClick={()=>run(async()=>{const r=await api('lv2SettingsSet',{store:d.store,wd:(cf||{wd:String(lim.weekday)}).wd,we:(cf||{we:String(lim.weekend)}).we,seqMode:d.seqMode,adminFlow:JSON.stringify({leave:!!av.leave,change:!!av.change,cancel:!!av.cancel})});if(r&&r.ok){setMsg(t.setOk);setAf(null);reloadR();}else setErr((r&&r.error)||t.fail);})}>{t.setSave}</Btn></div></Card>);})()}
     {d.isMgr&&(()=>{const dl=d.deleg||{list:[],sups:[],mine:[]};const vi=lang==='vi';const can=!!d.canDeleg;const sups=dl.sups||[];const nm=id=>{const x=sups.filter(y=>y.id===id)[0];return x?x.label:id;};
       const stTxt={on:vi?'Đang đại diện':'代理中',wait:vi?'Chưa bắt đầu':'未開始',ended:vi?'Đã kết thúc':'已結束'};const stCls={on:'bg-emerald-900 text-emerald-200',wait:'bg-amber-900 text-amber-200',ended:'bg-gray-700 text-gray-300'};
       const md=x=>parseInt(x.slice(5,7),10)+'/'+parseInt(x.slice(8),10);
