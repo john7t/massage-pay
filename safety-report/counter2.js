@@ -17,7 +17,7 @@ const dur=sec=>Math.round(sec/60)+' 分';
 const nextMark=(now,stepMin)=>{const st=stepMin*60000;return Math.floor((now+8*3600e3)/st)*st+st-8*3600e3;}; // 台北時間的下一個整/半點
 const LIMIT=3600;
 // ── 白底主題:版面用 cn-* 類別;其餘沿用的 Tailwind 深色類別,在 .cn-light 內改成淺色對應 ──
-const CN_VER='v1.0-025'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
+const CN_VER='v1.0-026'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
 window.__cnVer=CN_VER;
 const CN_CSS=String.raw`
 .cn-light{background:#f7f7f9;color:#1b1f2a;min-height:100vh;font-feature-settings:"tnum"}
@@ -286,7 +286,11 @@ function recommend(D,now,items,opt){
   const pool=teacherPool(D,now);const rel0=posRelease(D,now);
   const M=seatMap(D);const freeF=FEET.filter(x=>!M[x]).length,freeB=BEDS.filter(x=>!M[x]).length;
   const runOnce=(orders,minStart,split)=>{const used={t:{},p:{}};const res=[];
-    (opt.ahead||[]).forEach(g=>{(g||[]).forEach(x=>{planItem(D,now,pool,rel0,used,x,'foot',0,false);});}); // 前面候位的客人先占用老師與位置(R9.16)
+    // 前面候位的客人(R9.16、R5.29):指定老師(老點)才占該老師號碼;沒指定的只壓白牌張數,不壓號碼——壓最後面的白牌,前面的白牌現場客可先出
+    const ah=[];(opt.ahead||[]).forEach(g=>{(g||[]).forEach(x=>ah.push(x));});
+    ah.filter(x=>x&&x.teacher).forEach(x=>{planItem(D,now,pool,rel0,used,x,'foot',0,false);});
+    const resN=ah.filter(x=>x&&!x.teacher).reduce((a,x)=>a+(x.n||1),0);
+    if(resN>0)pool.filter(t=>t.white&&!used.t[t.code]).sort((a,b)=>b.order-a.order).slice(0,resN).forEach(t=>{used.t[t.code]=1;});
     for(let i=0;i<items.length;i++){const r=planItem(D,now,pool,rel0,used,items[i],orders[i],minStart,split);if(r.err)return {err:'項目 '+String.fromCharCode(65+i)+':'+r.err};r.label=String.fromCharCode(65+i);res.push(r);}return {items:res};};
   const isPkg=items.map(it=>it.kind==='pkg');
   // 套餐先後(R2.11、R9.9):預設先腳;腳位很滿、床位很空改先身;兩種都試,取最快(同樣快時依預設)
@@ -687,7 +691,7 @@ function RecBlock({D,now,req,bid,ahead,onClear,onEdit,adopt,onReserve,guest,pad}
   </div>);
   return(<div className="rounded-2xl border border-violet-500 bg-indigo-950 p-3 space-y-3">
     <div className="flex items-center justify-between"><p className="text-base font-bold text-white">排客人後的推薦</p><span className="text-xs text-indigo-200">{req.length} 項・{req.reduce((a,x)=>a+x.n,0)} 位</span></div>
-    {(ahead||[]).length>0&&<p className="text-sm font-bold text-amber-300">前面還有 {(ahead||[]).length} 組候位,以下推薦已排在他們後面(R9.16)</p>}
+    {(ahead||[]).length>0&&<p className="text-sm font-bold text-amber-300">前面候位 {(ahead||[]).length} 組,已先壓 {(ahead||[]).reduce((a,g)=>a+(g||[]).reduce((b,x)=>b+(x.n||1),0),0)} 張白牌(不指定號碼,R5.29)</p>}
     {R.full&&<p className="text-sm font-bold text-red-300">客滿!最快 {PL(R.soon.pos)} {hmFull(R.soon.at)} 空出</p>}
     {!R.full&&D.white.filter(p=>p.state==='white').length===0&&<p className="text-sm font-bold text-amber-300">老師全在紅牌區(或休息中)</p>}
     {plans.length>1&&<div className="flex gap-2">{plans.map((p,i)=>(<button key={i} onClick={()=>{setPi(i);setUseAlt(false);}} className={'rounded-xl border px-3 py-1.5 text-sm font-bold '+(i===pi?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-200')}>{p.label}</button>))}</div>}
@@ -980,8 +984,8 @@ function PlatesBar({D,now,hl,onPick,open,onToggle,lateN}){
   const mp=p=><Plate key={p.code} p={p} now={now} mini hl={hl&&hl[p.code]} onClick={()=>onPick(p.code)}/>;
   const late=D.gray.filter(p=>isLate(p,now)).map(p=>p.code);
   return(<div className="tb-pl">
-    <div className="tb-lr"><div className="tb-lb"><b>白 {D.white.length}</b> + 灰 {D.gray.length}{late.length>0&&<em style={{color:'#b91c1c'}}>⚠ 未到 {late.join('、')}</em>}<button className="tb-xb" onClick={onToggle}>{open?'收合 ▼':'展開 ▲'}</button></div>
-      <HRow>{D.white.map(mp)}{D.white.length>0&&D.gray.length>0&&<div className="tb-sep"></div>}{D.gray.map(mp)}</HRow></div>
+    <div className="tb-lr"><div className="tb-lb"><b>白 {D.white.length}</b> + 灰 {D.gray.length}{late.length>0&&<em style={{color:'#b91c1c'}}>⚠ 未到未電 {late.length} 人</em>}<button className="tb-xb" onClick={onToggle}>{open?'收合 ▼':'展開 ▲'}</button></div>
+      <HRow>{D.white.map(mp)}{D.white.length>0&&D.gray.some(p=>!isLate(p,now))&&<div className="tb-sep"></div>}{D.gray.filter(p=>!isLate(p,now)).map(mp)}</HRow></div>
     <div className="tb-lr"><div className="tb-lb" style={{color:'#b91c1c'}}><b>紅牌 {D.red.length}</b><em>做事中</em></div><HRow>{D.red.map(mp)}</HRow></div></div>);
 }
 function PlatesDetail({D,now,onPick,onClose}){
@@ -1126,13 +1130,13 @@ function CounterPage({who,kiosk,onSwitch,swLabel}){
       return(<div className="cn-chips"><div className="cn-chip"><b>{cnt('white')}</b><span>待派工</span><small>白牌老師{sg>0?' · 帶位中 '+sg+' 組':''}</small></div><div className="cn-chip"><b style={{color:'#b91c1c'}}>{D.red.length}</b><span>服務中</span><small>老師 · {sv} 組</small></div><div className="cn-chip"><b style={{color:'#0f8a5f'}}>{dn}</b><span>已買單</span><small>組</small></div><div className="cn-chip"><b style={{color:'#6b7280'}}>{wp+dn}</b><span>已完成</span><small>做完 · 待買單 {wp} 組</small></div></div>);})()}
     <div className="cn-cols"><div className="cn-ca">
     {err&&<p className="text-sm text-red-400 text-center">{err}</p>}
-    {lateN>0&&<div className="cn-alert"><b>未到未電 {lateN} 位</b>　{D.gray.filter(p=>isLate(p,now)).map(p=>p.code).join('、')}</div>}
+    {lateN>0&&<div className="cn-alert"><b>未到未電 {lateN} 位</b></div>}
     {req&&<RecBlock D={D} now={now} req={req} bid={bid} ahead={(fromWait?D.waits.slice(0,Math.max(0,D.waits.findIndex(x=>x.id===fromWait))):D.waits).map(x=>x.items)} onClear={()=>{setReq(null);setFromWait('');setBid('');setGuest(G0());}} onEdit={()=>setArranging(true)} guest={guest} onReserve={fromWait?null:v=>{act({act:'wadd',phone:v.phone,name:v.name,sur:v.sur,giv:'',title:v.title,src:v.src,items:req});setReq(null);setFromWait('');setBid('');setGuest(G0());}} adopt={(ops,pre)=>{const gid=rid();if(pre)setPreGid(gid);ops.forEach((o,i)=>act(Object.assign({},o,gFields(guest),{gid:gid},i===0&&bid?{bid:bid}:{})));setBid('');if(fromWait)act({act:'wdone',wid:fromWait,status:'seated'});setReq(null);setFromWait('');setGuest(G0());}}/>}
     <WaitList D={D} now={now} onPick={w=>setWaitSel(w.id)}/>
     {notes.length>0&&<div className="rounded-xl border border-amber-500 bg-amber-950 text-amber-200 px-3 py-2 text-sm space-y-1"><p className="font-bold">有操作沒有成功(可能別台櫃台已先處理),畫面已更新為最新牌況:</p>{notes.map((n,i)=><p key={i}>・{n}</p>)}<button onClick={()=>setNotes([])} className="text-xs underline">知道了</button></div>}
     <CSec first title={open?'全部牌況':'待派工'} right={<React.Fragment><span>白 {D.white.filter(p=>p.state==='white').length} · 綠 {cnt('green')} · 灰 {D.gray.length}　</span><button className="cn-link" onClick={()=>setOpen(!open)}>{open?'收合 ‹':'展開 ›'}</button></React.Fragment>}>
       {!open&&(D.white.length+D.gray.length===0?<p className="text-sm text-gray-500 py-2">目前沒有牌</p>:<Row scroll>{D.white.map(p=><Plate key={p.code} p={p} now={now} small onClick={click(p)}/>)}
-        {D.white.length>0&&D.gray.length>0&&<div style={{flex:'0 0 auto',width:1,background:'#d3d6de',margin:'0 3px'}}/>}{D.gray.map(p=><Plate key={p.code} p={p} now={now} small onClick={click(p)}/>)}</Row>)}</CSec>
+        {D.white.length>0&&D.gray.length>0&&<div style={{flex:'0 0 auto',width:1,background:'#d3d6de',margin:'0 3px'}}/>}{D.gray.filter(p=>open||!isLate(p,now)).map(p=><Plate key={p.code} p={p} now={now} small onClick={click(p)}/>)}</Row>)}</CSec>
     {!open?(<CSec title="做事中" right={D.red.length}>{D.red.length===0?<p className="text-sm text-gray-500 py-1">沒有做事中的老師</p>:<Row scroll>{D.red.map(p=><Plate key={p.code} p={p} now={now} small onClick={click(p)}/>)}</Row>}</CSec>)
     :(<React.Fragment>
       <Zone title="白牌(等待派工)" count={D.white.length} hint="依序派工;綠牌=休息中,輪到時跳過">{D.white.length?<Row>{D.white.map(p=><Plate key={p.code} p={p} now={now} onClick={click(p)}/>)}</Row>:<p className="text-sm text-gray-500">沒有白牌</p>}</Zone>
