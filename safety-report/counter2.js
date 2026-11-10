@@ -17,7 +17,7 @@ const dur=sec=>Math.round(sec/60)+' 分';
 const nextMark=(now,stepMin)=>{const st=stepMin*60000;return Math.floor((now+8*3600e3)/st)*st+st-8*3600e3;}; // 台北時間的下一個整/半點
 const LIMIT=3600;
 // ── 白底主題:版面用 cn-* 類別;其餘沿用的 Tailwind 深色類別,在 .cn-light 內改成淺色對應 ──
-const CN_VER='v1.0-026'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
+const CN_VER='v1.0-027'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
 window.__cnVer=CN_VER;
 const CN_CSS=String.raw`
 .cn-light{background:#f7f7f9;color:#1b1f2a;min-height:100vh;font-feature-settings:"tnum"}
@@ -187,6 +187,7 @@ function posRelease(D,now){
     const p=m.p;const end=Math.max(p.redEnd||now+60*MIN,now);
     if(m.kind==='rsv')rel[x]=end;
     else rel[x]=p.redTransfer>now?p.redTransfer:(p.redTransfer>0?now:end);
+    if(rel[x]<=now&&p.redEnd&&p.redEnd<=now)rel[x]=now+30000; // 該結束而未結束的位置不算空位(R9.18):有真正空位時一律先排空位
   });
   return rel;
 }
@@ -309,7 +310,8 @@ function recommend(D,now,items,opt){
   if(items.length>1&&!opt.minStart){
     const together=a.start<=now+60000?now:grid10(a.start);
     const t=mk(a.orders,together,'一起開始',['R9.11','R9.12'],splitTry);
-    if(!t.err){t.together=true;t.start=together;plans.unshift(t);a.label='各自最快';}
+    if(!t.err){t.together=true;t.start=together;plans.unshift(t);a.label='各自最快';
+      if(isPkg.some(Boolean)){const tb=mk(alt,together,'改先做'+(alt[isPkg.indexOf(true)]==='body'?'身體':'腳'),['R9.9','R9.11','R9.12'],splitTry);if(!tb.err){tb.together=true;tb.start=together;t.alt=tb;}}} // 「一起開始」也提供改先做身體/腳(R9.9)
   }
   // 白牌沒有合適女老師:列出紅牌女老師等待時間(R9.6)
   let femaleWait=null;
