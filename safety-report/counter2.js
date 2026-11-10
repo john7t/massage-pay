@@ -17,7 +17,7 @@ const dur=sec=>Math.round(sec/60)+' 分';
 const nextMark=(now,stepMin)=>{const st=stepMin*60000;return Math.floor((now+8*3600e3)/st)*st+st-8*3600e3;}; // 台北時間的下一個整/半點
 const LIMIT=3600;
 // ── 白底主題:版面用 cn-* 類別;其餘沿用的 Tailwind 深色類別,在 .cn-light 內改成淺色對應 ──
-const CN_VER='v1.0-021'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
+const CN_VER='v1.0-022'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
 window.__cnVer=CN_VER;
 const CN_CSS=String.raw`
 .cn-light{background:#f7f7f9;color:#1b1f2a;min-height:100vh;font-feature-settings:"tnum"}
@@ -853,7 +853,7 @@ function ShiftSheet({kind,getInfo,onSubmit,onClose}){
     </React.Fragment>)}
     <Bt tone="gray" onClick={onClose}>關閉</Bt></Sheet>);}
 // ── 主頁 ──
-function CounterPage({who,kiosk,onSwitch}){
+function CounterPage({who,kiosk,onSwitch,swLabel}){
   const c0=useRef(null);if(c0.current===null){const c=lsJ(SK,null);c0.current=(c&&c.srv&&c.at)?c:{};}
   const[server,setServer]=useState(c0.current.srv||null);const[fresh,setFresh]=useState(false);const[bid,setBid]=useState('');const[queue,setQueue]=useState(()=>lsGet());const[err,setErr]=useState('');const[notes,setNotes]=useState([]);
   const[open,setOpen]=useState(false);const[sel,setSel]=useState(null);const[opening,setOpening]=useState(null);const[arranging,setArranging]=useState(false);const[req,setReq]=useState(null);const[waitSheet,setWaitSheet]=useState(false);const[fromWait,setFromWait]=useState('');const[waitSel,setWaitSel]=useState(null);const[guest,setGuest]=useState(G0());const[ordSel,setOrdSel]=useState('');const[paySel,setPaySel]=useState('');const[preGid,setPreGid]=useState('');const[tool,setTool]=useState(()=>/[?&]unlock=1/.test(location.search)?'set':'');const[toolN,setToolN]=useState(0);
@@ -905,7 +905,7 @@ function CounterPage({who,kiosk,onSwitch}){
   const wtxt=D.window?hm(D.window[0])+'~'+(hm(D.window[1]+1).replace(/^0:00$/,'24:00')):'';
   const cnt=k=>D.white.filter(p=>p.state===k).length;
   return(<div className="cn-light"><style>{CN_CSS}</style><div className="cn-wrap">
-    <div className="cn-hd"><div><h1>主櫃 · {D.store} <small style={{fontSize:11,fontWeight:500,color:'#9aa0ad'}}>{CN_VER}</small>{kiosk&&<small style={{fontSize:12,fontWeight:700,color:'#6d28d9',marginLeft:8}}>操作人 {who} <button onClick={onSwitch} style={{textDecoration:'underline',fontWeight:600}}>換人</button></small>}</h1><div className="cn-tm"><span>{hmFull(now)}:{p2(tzp(now).s)}</span><button onClick={sync} className={'cn-sync'+(queue.length>0?' w':'')}>{syncing?<Spinner size={12}/>:'●'} {queue.length>0?'待上傳 '+queue.length+' 筆':fresh?'已同步'+(syncAt?' '+hmFull(syncAt):''):(c0.current.at?'本機資料 '+hmFull(c0.current.at)+' · 更新中':'載入中')}</button></div></div>
+    <div className="cn-hd"><div><h1>主櫃 · {D.store} <small style={{fontSize:11,fontWeight:500,color:'#9aa0ad'}}>{CN_VER}</small>{kiosk&&<small style={{fontSize:12,fontWeight:700,color:'#6d28d9',marginLeft:8}}>操作人 {who} <button onClick={onSwitch} style={{textDecoration:'underline',fontWeight:600}}>{swLabel||'換人'}</button></small>}</h1><div className="cn-tm"><span>{hmFull(now)}:{p2(tzp(now).s)}</span><button onClick={sync} className={'cn-sync'+(queue.length>0?' w':'')}>{syncing?<Spinner size={12}/>:'●'} {queue.length>0?'待上傳 '+queue.length+' 筆':fresh?'已同步'+(syncAt?' '+hmFull(syncAt):''):(c0.current.at?'本機資料 '+hmFull(c0.current.at)+' · 更新中':'載入中')}</button></div></div>
       <div className="cn-acts"><button onClick={()=>setArranging(true)} className="cn-btn">安排客人</button><button onClick={()=>setOpening('')} className="cn-btn p">＋開單</button></div></div>
     <div className="cn-tools"><button onClick={()=>setTool('cnt')} className="cn-btn">支數表</button><button onClick={()=>setTool('rep')} className="cn-btn">日報表</button><button onClick={()=>setTool('shift')} className="cn-btn">交班</button><button onClick={()=>setTool('set')} className="cn-btn">設定</button><button onClick={()=>{const bad={};(D.orders||[]).forEach(o=>{if((o.status==='seating'||o.status==='serving'||o.status==='wait_pay')&&!o.prepaid)bad[o.gid||o.id]=1;});const n=Object.keys(bad).length;if(n>0){setToolN(n);setTool('unpaid');}else setTool('close');}} className="cn-btn" style={{borderColor:'#b45309',color:'#b45309'}}>結帳</button>{(who&&D.canReset!==false)&&<button onClick={doReset} className="cn-btn" style={{borderColor:'#b91c1c',color:'#b91c1c'}}>還原</button>}</div>
     {(()=>{const GA=groupOrders(D.orders||[]);const gN=f=>GA.filter(f).length;const sg=gN(x=>x.st==='seating'),sv=gN(x=>x.st==='serving'),wp=gN(x=>x.st==='wait_pay'),dn=gN(x=>x.st==='done');
@@ -1001,11 +1001,42 @@ function CachedWho({w0}){
   useEffect(()=>{let dead=false;api('s2Me',{}).then(r=>{if(dead||!r||!r.ok)return;const c=(r.user&&r.user.code)||'';if(c){lsW(WK,{code:c});setWho(c);}}).catch(()=>{});return()=>{dead=true;};},[]);
   return <CounterPage who={who}/>;
 }
+// ── 主櫃首頁(非公務機):輸入登入碼入口;手機版另有「以本機帳號登入」 ──
+function CodeLoginScreen({onOk,onBack}){
+  const[code,setCode]=useState('');const[msg,setMsg]=useState('');const[busy,setBusy]=useState(false);
+  const press=async d=>{if(busy)return;const c=(code+d).slice(0,6);setCode(c);setMsg('');if(c.length<6)return;
+    setBusy(true);let r=null;try{r=await api('cnCodeLogin',{code:c});}catch(_e){}setBusy(false);setCode('');
+    if(r&&r.ok){window.__cnSess.set({session:r.session,exp:r.exp,name:r.name,store:r.store});onOk({name:r.name});}
+    else setMsg((r&&r.error)||'連不上伺服器,請確認網路後再試');};
+  return(<div className="cn-light"><style>{CN_CSS}</style><div className="cn-wrap" style={{maxWidth:420,paddingTop:50,textAlign:'center'}}>
+    <h1 style={{fontSize:22,fontWeight:800}}>輸入登入碼</h1><p className="text-sm text-gray-500" style={{margin:'6px 0 18px'}}>請輸入今日登入碼（到「我的」頁查看）</p>
+    <div style={{fontSize:30,letterSpacing:10,height:44}}>{busy?<Spinner size={30}/>:<React.Fragment>{'●'.repeat(code.length)}{'○'.repeat(6-code.length)}</React.Fragment>}</div><p className="text-sm text-red-400" style={{minHeight:22}}>{msg}</p>
+    <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginTop:10}}>{['1','2','3','4','5','6','7','8','9','','0','⌫'].map((d,i)=>d===''?<span key={i}></span>:<button key={i} disabled={busy} onClick={()=>d==='⌫'?setCode(code.slice(0,-1)):press(d)} className="cn-btn" style={{height:64,fontSize:24}}>{d}</button>)}</div>
+    <button onClick={onBack} className="text-sm text-gray-500" style={{marginTop:22,textDecoration:'underline'}}>返回</button></div></div>);
+}
+function CounterHome({onCode,onLocal,localCode,isPhone}){
+  const[now,setNow]=useState(Date.now());useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t);},[]);
+  return(<div className="cn-light"><style>{CN_CSS}</style><div className="cn-wrap" style={{maxWidth:420,paddingTop:70,textAlign:'center'}}>
+    <h1 style={{fontSize:22,fontWeight:800}}>主櫃 · {CN_HOME_STORE}</h1>
+    <div style={{fontSize:44,fontWeight:800,margin:'14px 0 30px',fontVariantNumeric:'tabular-nums'}}>{hmFull(now)}</div>
+    <button onClick={onCode} className="cn-btn p" style={{width:'100%',height:56,fontSize:18}}>輸入登入碼</button>
+    {isPhone&&<button onClick={onLocal} className="cn-btn" style={{width:'100%',height:56,fontSize:16,marginTop:12}}>{localCode?'以本機帳號（'+localCode+'）登入':'以 LINE 帳號登入'}</button>}
+    <p className="text-xs text-gray-500" style={{marginTop:18}}>{CN_VER}</p></div></div>);
+}
+const CN_HOME_STORE='龍山寺店';
 function Counter2Routes(){
-  if(window.__kiosk&&window.__kiosk.get())return <KioskGate/>; // 公務機鎖定:用個人碼辨識操作人,不用 LINE 登入
+  if(window.__kiosk&&window.__kiosk.get())return <KioskGate/>; // 公務機鎖定:用登入碼辨識操作人,不用 LINE 登入
+  const[sess,setSess]=useState(()=>window.__cnSess.get());
+  const[mode,setMode]=useState('home'); // home | code | local
+  if(sess)return <CounterPage who={sess.name} kiosk swLabel="登出" onSwitch={()=>{window.__cnSess.clear();setSess(null);setMode('home');}}/>;
+  if(mode==='code')return <CodeLoginScreen onOk={()=>setSess(window.__cnSess.get())} onBack={()=>setMode('home')}/>;
   const w0=lsJ(WK,null);
-  if(w0&&w0.code)return <CachedWho w0={w0.code}/>;
-  return(<NeedUser render={(me)=>{const code=(me.user&&me.user.code)||'櫃台';lsW(WK,{code:code});return <CounterPage who={code}/>;}}/>);
+  if(mode==='local'){
+    if(w0&&w0.code)return <CachedWho w0={w0.code}/>;
+    return(<NeedUser render={(me)=>{const code=(me.user&&me.user.code)||'櫃台';lsW(WK,{code:code});return <CounterPage who={code}/>;}}/>);
+  }
+  const isPhone=/iPhone|iPod|Android.*Mobile/i.test(navigator.userAgent||'')||Math.min(screen.width,screen.height)<600;
+  return <CounterHome onCode={()=>setMode('code')} onLocal={()=>setMode('local')} localCode={w0&&w0.code} isPhone={isPhone}/>;
 }
 window.Counter2Routes=Counter2Routes;
 })();
