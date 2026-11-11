@@ -1,4 +1,4 @@
-/* my2.js — 「我的」頁面 (v1.0-017)
+/* my2.js — 「我的」頁面 (v1.0-019)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 my2:  ?my2=1  我的(待我處理 + 公告 + 安全回報 + 手套團購 + 預排休假 + 拒接名單)
    只讀取各模組既有的 API(n2List / s2TodaySurveys / s2MyReports / gb2List / lv2Month / b2List),不新增後端;任何一區讀取失敗只隱藏該區。 */
 (function(){
@@ -37,8 +37,28 @@ const L={zh:{
   pts:'Điểm lao động (勞點)',ptsStd:'Chuẩn {n} điểm ({s})',ptsMet:'Đạt',ptsNot:'Chưa đạt',ptsNew:'Người mới (3 tháng đầu không tính)',ptsRank:'Hạng {r} / {t} ({s})',ptsMon:'Tháng {m}',ptsPt:'điểm',ptsHist:'Các tháng gần đây',ptsBar:'Điểm theo tháng (đường đứt = chuẩn {s}; viền tím = tháng đang chọn)',ptsTop:'Top 3 tháng {m}',ptsNo:'Số {n}',
   loading:'Đang tải…',fail:'Không tải được mục này'}};
 
+
+const WF_CSS=`
+html:not(.s2-nolight) .wf{background:#e3e6ec;min-height:100vh}html:not(.s2-nolight) .wf .min-h-screen{background:#e3e6ec!important}
+html:not(.s2-nolight) .wf .rounded-2xl,html:not(.s2-nolight) .wf .rounded-3xl{border-radius:2px!important;border:2px solid #0f1424!important;background:#f4f5f8!important;background-image:none!important;box-shadow:none!important}
+html:not(.s2-nolight) .wf .rounded-xl,html:not(.s2-nolight) .wf .rounded-lg,html:not(.s2-nolight) .wf .rounded-full,html:not(.s2-nolight) .wf .rounded{border-radius:2px!important}
+html:not(.s2-nolight) .wf .border-t{border-top:2px solid #cfd4de!important}
+html:not(.s2-nolight) .wf .wf-top{background:#0f1424;border:2px solid #0f1424;padding:12px 14px}html:not(.s2-nolight) .wf .wf-top *{color:#f4f5f8!important}html:not(.s2-nolight) .wf .wf-top p{color:#aab2c8!important}html:not(.s2-nolight) .wf .wf-top h1{font-weight:800}
+html:not(.s2-nolight) .wf .wf-sh{background:#0f1424;margin:-16px -16px 10px;padding:7px 14px}html:not(.s2-nolight) .wf .wf-sh *{color:#f4f5f8!important}html:not(.s2-nolight) .wf .wf-sh button{color:#ffc94a!important;font-weight:700}html:not(.s2-nolight) .wf .wf-sh span{background:#ffc94a!important;color:#0f1424!important}
+html:not(.s2-nolight) .wf .wf-code{background:#0f1424!important}html:not(.s2-nolight) .wf .wf-code *{color:#f4f5f8!important}html:not(.s2-nolight) .wf .wf-code .wf-codebtn{background:#ffc94a!important;color:#0f1424!important;font-weight:800}
+html:not(.s2-nolight) .wf .shrink-0.rounded-full{border:2px solid #0f1424;font-weight:800}
+html:not(.s2-nolight) .wf .bg-red-600,html:not(.s2-nolight) .wf .bg-red-600 *{background-color:#c42b1f!important;color:#fff!important}
+html:not(.s2-nolight) .wf .bg-emerald-600,html:not(.s2-nolight) .wf .bg-emerald-600 *{background-color:#c9ecd6!important;color:#0b3d22!important}
+html:not(.s2-nolight) .wf .bg-amber-500,html:not(.s2-nolight) .wf .bg-amber-500 *{background-color:#ffe28a!important;color:#4d3500!important}
+html:not(.s2-nolight) .wf .bg-sky-700,html:not(.s2-nolight) .wf .bg-sky-700 *{background-color:#2548d6!important;color:#fff!important}
+html:not(.s2-nolight) .wf .bg-orange-600{background-color:#ffb4ac!important;color:#6b0f08!important}html:not(.s2-nolight) .wf .bg-gray-600{background-color:#dfe3ea!important;color:#0f1424!important}
+html:not(.s2-nolight) .wf .bg-violet-600,html:not(.s2-nolight) .wf .bg-violet-600 *{background-color:#0f1424!important;color:#ffc94a!important;border-color:#0f1424!important}
+html:not(.s2-nolight) .wf .text-violet-300,html:not(.s2-nolight) .wf .text-violet-200{color:#2548d6!important}
+html:not(.s2-nolight) .wf .bg-emerald-500{background-color:#2548d6!important}
+html:not(.s2-nolight) .wf .text-4xl,html:not(.s2-nolight) .wf .font-mono{font-family:ui-monospace,"SF Mono",Menlo,monospace}
+`;
 function SecHead({icon,title,n,onAll,t}){
-  return(<div className="flex items-center justify-between"><p className="text-base font-bold text-white">{icon} {title}{n>0&&<span className="ml-2 text-xs bg-gray-700 text-gray-100 rounded-full px-2 py-0.5">{n}</span>}</p>
+  return(<div className="flex items-center justify-between wf-sh"><p className="text-base font-bold text-white">{icon} {title}{n>0&&<span className="ml-2 text-xs bg-gray-700 text-gray-100 rounded-full px-2 py-0.5">{n}</span>}</p>
     {onAll&&<button onClick={onAll} className="text-xs text-violet-300">{t.all}</button>}</div>);
 }
 const Pill=({cls,children})=>(<span className={'shrink-0 text-xs font-bold text-white rounded-full px-3 py-1 '+cls}>{children}</span>);
@@ -132,11 +152,16 @@ function MainCodeCard({lang}){
   const[st]=useLoad('cnMyDayCode',{});
   const d=st.data&&st.data.ok?st.data:null;
   if(!d&&st.loading)return(<div className="rounded-2xl border border-emerald-800 bg-emerald-950/40 px-4 py-3 flex items-center gap-3 text-emerald-300"><C.Spinner size={22}/><span className="text-sm text-gray-300">{vi?'Đang tạo mã đăng nhập…':'產生今日登入碼中…'}</span></div>);
-  if(!d||!d.code)return null;
-  return(<div className="rounded-2xl border border-emerald-800 bg-emerald-950/40 px-4 py-3">
+  if(!d||!d.code){ // 該有碼卻拿不到時,顯示原因(不再整塊消失);一般老師(身分、主管等級、系統管理者都不符)維持隱藏
+    const r=st.data||{},e=String(r.error||'');
+    const should=r.notOp?(/系統管理者=是/.test(e)||/主管等級=(?!無)/.test(e)||/身分=counter/.test(e)):(!!e&&!r._net);
+    if(!should)return null;
+    return(<div className="rounded-2xl border border-amber-700 bg-amber-950/30 px-4 py-3"><p className="text-sm text-amber-200">🔑 {vi?'Mã đăng nhập quầy: không hiển thị':'今日主櫃登入碼:無法顯示'}</p><p className="text-[11px] text-gray-400 mt-1 break-all">{e}</p></div>);
+  }
+  return(<div className="rounded-2xl border border-emerald-800 bg-emerald-950/40 px-4 py-3 wf-code">
     <div className="flex items-center justify-between gap-3">
       <div className="min-w-0"><p className="text-sm text-gray-200">🔑 {vi?'Mã đăng nhập quầy hôm nay':'今日主櫃登入碼'}</p><p className="text-[11px] text-gray-500">{d.store}・{vi?'Ngày làm việc':'營業日'} {d.day}</p></div>
-      <button onClick={()=>setShow(!show)} className="min-h-[44px] px-4 rounded-xl bg-white/10 text-white font-mono text-xl tracking-widest" style={{fontVariantNumeric:'tabular-nums'}}>{show?d.code:'••••••'}</button>
+      <button onClick={()=>setShow(!show)} className="min-h-[44px] px-4 rounded-xl bg-white/10 text-white font-mono text-xl tracking-widest wf-codebtn" style={{fontVariantNumeric:'tabular-nums'}}>{show?d.code:'••••••'}</button>
     </div>
     {show&&d.nextCode&&<p className="text-[11px] text-gray-500 mt-1.5 text-right">{vi?'Ngày mai':'明日'}（{d.nextDay}）{d.nextCode}</p>}
   </div>);
@@ -201,8 +226,8 @@ function My2Page({me}){
 
   if(loadingAny&&!ok(ns)&&!ok(ss))return(<Loading text={t.loading}/>);
   const roleName=(t.roleT[u.role]||'');
-  return(<Box {...bar}>
-    <div className="flex items-start justify-between"><div><h1 className="text-2xl font-bold text-white">{t.title}</h1>
+  return(<div className="wf"><style>{WF_CSS}</style><Box {...bar}>
+    <div className="flex items-start justify-between wf-top"><div><h1 className="text-2xl font-bold text-white">{t.title}</h1>
       <p className="text-xs text-gray-400 mt-0.5">{u.store||''}{u.code?'　'+u.code+(lang==='vi'?'':' 號'):''}{roleName?'　'+roleName:''}</p></div></div>
 
     <UsageGuard><UsageBanner lang={lang}/></UsageGuard>
@@ -283,11 +308,11 @@ function My2Page({me}){
         {vals.length>0&&<div className="border-t border-gray-800 pt-2"><p className="text-[11px] text-gray-500">{fmt(t.ptsBar,{s:P.std})}</p>
           <div className="relative flex items-end gap-1.5 border-b border-gray-700 mt-4" style={{height:84}}>
             {P.std>0&&<div className="absolute left-0 right-0" style={{bottom:Math.round(P.std/mx*84)+'px',borderTop:'1px dashed #f59e0b'}}><span className="absolute right-0 text-[9px] text-amber-400" style={{top:-13}}>{P.std}</span></div>}
-            {Array.from({length:12}).map((_,i)=>{const m=ym(i+1),v=smap[m];return(<div key={m} className="flex-1 relative" style={{height:v===undefined?0:Math.max(2,Math.round(v/mx*84)),background:v===undefined?'transparent':(P.std>0&&v<P.std?'#ef4444':'#10b981'),borderRadius:'4px 4px 0 0',outline:m===P.month&&v!==undefined?'2px solid #a78bfa':'none'}}>{v!==undefined&&<span className="absolute left-0 right-0 text-center text-[9px] text-gray-300" style={{top:-13}}>{v}</span>}</div>);})}</div>
+            {Array.from({length:12}).map((_,i)=>{const m=ym(i+1),v=smap[m];return(<div key={m} className="flex-1 relative" style={{height:v===undefined?0:Math.max(2,Math.round(v/mx*84)),background:v===undefined?'transparent':(P.std>0&&v<P.std?'#c42b1f':'#2548d6'),borderRadius:'4px 4px 0 0',outline:m===P.month&&v!==undefined?'2px solid #a78bfa':'none'}}>{v!==undefined&&<span className="absolute left-0 right-0 text-center text-[9px] text-gray-300" style={{top:-13}}>{v}</span>}</div>);})}</div>
           <div className="flex gap-1.5 mt-0.5">{Array.from({length:12}).map((_,i)=>(<span key={i} className="flex-1 text-center text-[9px] text-gray-500">{i+1}</span>))}</div></div>}
         {window.S2Core.PtsAll&&<div><button onClick={()=>setPallV(!pallV)} className="w-full rounded-xl border border-gray-600 text-gray-200 py-2 text-sm">{pallV?'收起全店名單':'📋 查看 '+parseInt(String(P.month).slice(5),10)+' 月全店勞點'}</button>{pallV&&<window.S2Core.PtsAll month={P.month}/>}</div>}
       </Card>);})()}
-  </Box>);
+  </Box></div>);
 }
 function My2Routes(){return(<NeedUser render={(me)=><My2Page me={me}/>}/>);}
 window.My2Routes=My2Routes;
