@@ -17,7 +17,7 @@ const dur=sec=>Math.round(sec/60)+' 分';
 const nextMark=(now,stepMin)=>{const st=stepMin*60000;return Math.floor((now+8*3600e3)/st)*st+st-8*3600e3;}; // 台北時間的下一個整/半點
 const LIMIT=3600;
 // ── 白底主題:版面用 cn-* 類別;其餘沿用的 Tailwind 深色類別,在 .cn-light 內改成淺色對應 ──
-const CN_VER='v1.0-033'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
+const CN_VER='v1.0-034'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
 window.__cnVer=CN_VER;
 const CN_CSS=String.raw`
 .cn-light{background:#f7f7f9;color:#1b1f2a;min-height:100vh;font-feature-settings:"tnum"}
@@ -26,21 +26,21 @@ const CN_CSS=String.raw`
 .cn-hd h1{font-size:20px;font-weight:700}.cn-tm{font-size:13px;color:#5b6270;margin-top:3px;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:6px}
 .cn-acts{display:flex;gap:8px}.cn-btn{height:38px;padding:0 14px;border-radius:10px;font-size:14px;font-weight:600;border:1px solid #d3d6de;color:#1b1f2a;background:#fff}
 .cn-tools{display:flex;gap:8px;margin:-2px 0 10px}.cn-tools .cn-btn{flex:1;padding:0 6px}
-.cn-btn.p{background:#1f8a5f;border-color:#1f8a5f;color:#fff}
+.cn-btn.p{background:#2548d6;border-color:#2548d6;color:#fff}
 .cn-sync{font-size:13px;color:#0f8a5f;font-weight:600;background:none;border:0;padding:0}.cn-sync.w{color:#b45309}
 .cn-chip small{display:block;font-size:10px;color:#9aa0ad;margin-top:1px;white-space:nowrap}.cn-chips{display:flex;gap:8px;margin-bottom:12px}.cn-chip{flex:1;background:#fff;border:1px solid #e3e5eb;border-radius:10px;padding:8px 10px}
 .cn-chip b{display:block;font-size:20px;line-height:1.1;font-variant-numeric:tabular-nums}.cn-chip span{font-size:12px;color:#5b6270}
 .cn-alert{border-left:3px solid #dc2626;background:#fdecee;border-radius:6px;padding:8px 10px;font-size:13px;margin-bottom:12px;color:#9b1c1c}
 .cn-sec{padding:14px 0;border-top:1px solid #e3e5eb}.cn-sec.f{border-top:0;padding-top:4px;margin-top:8px}
 .cn-sh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}.cn-sh h2{font-size:13px;font-weight:600;color:#5b6270;letter-spacing:.08em}
-.cn-sh em{font-style:normal;font-size:12px;color:#6b7280}.cn-link{font-size:12px;color:#1f8a5f;font-weight:600;background:none;border:0;padding:0}
+.cn-sh em{font-style:normal;font-size:12px;color:#6b7280}.cn-link{font-size:12px;color:#2548d6;font-weight:600;background:none;border:0;padding:0}
 .cn-card{background:#fff;border:1px solid #e3e5eb;border-radius:14px;padding:12px;margin-top:10px}
 .cn-tabs{display:flex;gap:4px;background:#e9ebf0;border-radius:10px;padding:3px;margin-bottom:10px}
 .cn-tab{flex:1;text-align:center;font-size:13px;padding:8px 0;border-radius:8px;color:#5b6270;font-weight:600;background:none;border:0}
 .cn-tab.on{background:#fff;color:#1b1f2a;box-shadow:0 1px 2px rgba(0,0,0,.12)}
 .cn-ord{padding:12px 0;border-top:1px solid #e3e5eb}.cn-ord:first-child{border-top:0;padding-top:2px}.cn-ord.click{cursor:pointer}
 .cn-oh{display:flex;align-items:center;gap:8px}.cn-no{white-space:nowrap;font:600 12px ui-monospace,monospace;color:#5b6270;background:#e9ebf0;border-radius:6px;padding:2px 6px}
-.cn-gn{font-weight:700;font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cn-cnt{white-space:nowrap;font-size:12px;color:#146b49;background:#d3efdf;border-radius:6px;padding:1px 7px}.cn-sp{flex:1}
+.cn-gn{font-weight:700;font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cn-cnt{white-space:nowrap;font-size:12px;color:#1b36a8;background:#d6defa;border-radius:2px;padding:1px 7px}.cn-sp{flex:1}
 .cn-m{font-size:13px;color:#3a4050;margin-top:6px;display:flex;gap:8px;font-variant-numeric:tabular-nums;align-items:baseline;flex-wrap:wrap}
 .cn-m .c{font-family:ui-monospace,monospace;min-width:46px;color:#111;font-weight:700}.cn-m b{color:#111}.cn-m .tt{margin-left:auto;color:#5b6270;white-space:nowrap}
 .cn-meta{font-size:12px;color:#5b6270;margin-top:6px;display:flex;justify-content:space-between;gap:8px}
@@ -54,10 +54,10 @@ const CN_CSS=String.raw`
 .cn-bk{display:flex;align-items:center;gap:8px;padding:10px 0;border-top:1px solid #e3e5eb}.cn-bk:first-of-type{border-top:0;padding-top:0}
 .cn-bk .tm{font:700 15px ui-monospace,monospace;min-width:48px}.cn-bk .tc{font-weight:800;font-size:16px;min-width:34px;text-align:center;background:#fff4c2;border:1.5px solid #d99a06;border-radius:8px;padding:2px 4px}
 .cn-bk .bt{height:34px;padding:0 12px;border-radius:9px;font-size:13px;font-weight:700;border:1px solid #d3d6de;background:#fff;color:#1b1f2a}
-.cn-bk .bt.p{background:#1f8a5f;border-color:#1f8a5f;color:#fff}
+.cn-bk .bt.p{background:#2548d6;border-color:#2548d6;color:#fff}
 .cn-light .text-white,.cn-light .text-gray-100{color:#1b1f2a}.cn-light .text-gray-200{color:#2f3542}.cn-light .text-gray-300{color:#3a4050}
 .cn-light .text-gray-400{color:#5b6270}.cn-light .text-gray-500{color:#6b7280}.cn-light .text-gray-600{color:#9aa0ad}
-.cn-light .text-violet-200,.cn-light .text-violet-300{color:#1f8a5f}.cn-light .text-emerald-300,.cn-light .text-emerald-400{color:#0f8a5f}
+.cn-light .text-violet-200,.cn-light .text-violet-300{color:#2548d6}.cn-light .text-emerald-300,.cn-light .text-emerald-400{color:#0f8a5f}
 .cn-light .text-sky-300{color:#0369a1}.cn-light .text-amber-200,.cn-light .text-amber-300{color:#b45309}
 .cn-light .text-red-200,.cn-light .text-red-300,.cn-light .text-red-400{color:#b91c1c}.cn-light .text-rose-200,.cn-light .text-rose-300{color:#be123c}
 .cn-light .text-indigo-200{color:#4338ca}.cn-light .text-violet-100{color:#5b21b6}
@@ -66,7 +66,7 @@ const CN_CSS=String.raw`
 .cn-light .bg-red-950{background:#fdecee}.cn-light .bg-amber-950{background:#fff6e0}.cn-light .bg-black\/30{background:rgba(0,0,0,.04)}
 .cn-light .border-gray-800{border-color:#e3e5eb}.cn-light .border-gray-700{border-color:#d3d6de}.cn-light .border-gray-600{border-color:#c2c6d0}
 .cn-light .border-amber-500{border-color:#d99a06}.cn-light .border-red-500{border-color:#dc2626}
-.cn-light .bg-violet-600{background:#1f8a5f;border-color:#1f8a5f}.cn-light .bg-violet-600.text-white,.cn-light .bg-emerald-600.text-white{color:#fff}
+.cn-light .bg-violet-600{background:#2548d6;border-color:#2548d6}.cn-light .bg-violet-600.text-white,.cn-light .bg-emerald-600.text-white{color:#fff}
 .cn-light .active\:bg-gray-800:active{background:#eceef2}
 .cn-light input::placeholder{color:#9aa0ad}
 /* iPad / 平板:600px 以上放寬單欄;900px 以上(iPad 橫放)左右兩欄——左:牌區+推薦+候位+位置圖+預約+支出,右:訂單(獨立一欄、頂端對齊、自己捲動)(手機/直放維持 牌區→位置圖→預約/支出→訂單) */
@@ -94,10 +94,10 @@ const CN_CSS=String.raw`
 /* ══ iPad 一屏版面(>=700×600):固定一屏不捲動,牌區在最下方 ══ */
 .tb-app{position:relative;height:100vh;height:100dvh;display:flex;flex-direction:column;gap:8px;padding:10px 12px;overflow:hidden;overscroll-behavior:none;background:#f7f7f9;color:#1b1f2a}
 .tb-bar{position:relative;display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #e3e5eb;border-radius:14px;padding:6px 12px;min-height:56px;flex:0 0 auto}
-.tb-bar h1{font-size:18px;font-weight:700;white-space:nowrap}.tb-bar small{font-size:11px;color:#9aa0ad;font-weight:500}.tb-op{display:block;color:#1f8a5f!important;font-weight:700!important}.tb-op button{text-decoration:underline;font-weight:600;background:none;border:0;padding:0;color:#1f8a5f}
+.tb-bar h1{font-size:18px;font-weight:700;white-space:nowrap}.tb-bar small{font-size:11px;color:#9aa0ad;font-weight:500}.tb-op{display:block;color:#2548d6!important;font-weight:700!important}.tb-op button{text-decoration:underline;font-weight:600;background:none;border:0;padding:0;color:#2548d6}
 .tb-tm{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
 .tb-chips{display:flex;gap:6px;flex:1;min-width:0}.tb-chips.port{flex:0 0 auto}.tb-chip{flex:1;background:#f3f4f8;border-radius:10px;padding:3px 8px;text-align:center;line-height:1.1;min-width:56px}.tb-chip b{font-size:18px;display:block}.tb-chip span{font-size:11px;color:#5b6270}.tb-chip.hot{background:#fff1d6;outline:1.5px solid #e0a41c}.tb-chip.hot b{color:#b45309}
-.tb-btn{height:44px;padding:0 14px;border-radius:11px;border:1px solid #d3d6de;background:#fff;font-size:15px;font-weight:600;white-space:nowrap;color:#1b1f2a}.tb-btn.p{background:#1f8a5f;border-color:#1f8a5f;color:#fff}.tb-btn.v{border-color:#1f8a5f;color:#1f8a5f}.tb-btn.sq{width:44px;padding:0}
+.tb-btn{height:44px;padding:0 14px;border-radius:11px;border:1px solid #d3d6de;background:#fff;font-size:15px;font-weight:600;white-space:nowrap;color:#1b1f2a}.tb-btn.p{background:#2548d6;border-color:#2548d6;color:#fff}.tb-btn.v{border-color:#2548d6;color:#2548d6}.tb-btn.sq{width:44px;padding:0}
 .tb-menu{position:absolute;right:12px;top:60px;z-index:35;background:#fff;border:1px solid #d3d6de;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.2);padding:6px;display:flex;flex-direction:column;min-width:170px}.tb-menu button{height:46px;text-align:left;padding:0 14px;font-size:15px;font-weight:600;border-radius:8px;background:none;border:0;color:#1b1f2a}.tb-menu button:active{background:#eceef2}
 .tb-note{flex:0 0 auto;font-size:12px;color:#92400e;background:#fff6e0;border:1px solid #d99a06;border-radius:10px;padding:4px 10px}
 .tb-main{flex:1;min-height:0;display:grid;gap:8px}.tb-main.land{grid-template-columns:1.45fr 1fr}.tb-main.port{grid-template-rows:minmax(0,.9fr) minmax(0,1.1fr)}
@@ -107,16 +107,16 @@ const CN_CSS=String.raw`
 .tb-cells{flex:1;display:flex;gap:5px;min-height:0;max-height:150px}.tb-grp{display:flex;gap:3px;border:1px solid #e3e5eb;border-radius:10px;padding:3px;min-width:0}.tb-cells button{height:auto}
 .tb-two{display:grid;grid-template-columns:1fr 1fr;gap:10px;flex:0 0 28%;min-height:0;overflow-y:auto;margin-top:6px}.tb-two .cn-card{margin-top:0}
 .tb-tabs{display:flex;gap:3px;margin-bottom:6px;flex:0 0 auto}.tb-tabs button{flex:1;height:44px;border-radius:10px;border:1px solid #d3d6de;font-size:12px;font-weight:700;background:#fff;color:#1b1f2a;white-space:nowrap;padding:0 2px;display:flex;align-items:center;justify-content:center;gap:2px}
-.tb-tabs button b{font-size:10px;background:#eceef2;border-radius:8px;padding:0 4px}.tb-tabs button.on{background:#1f8a5f;color:#fff;border-color:#1f8a5f}.tb-tabs button.on b{background:#fff;color:#1f8a5f}.tb-tabs button.hot b{background:#dc2626;color:#fff}.tb-tabs button.ar{border-color:#1f8a5f;color:#1f8a5f}.tb-tabs button.ar.on{color:#fff}
+.tb-tabs button b{font-size:10px;background:#eceef2;border-radius:8px;padding:0 4px}.tb-tabs button.on{background:#2548d6;color:#fff;border-color:#2548d6}.tb-tabs button.on b{background:#fff;color:#2548d6}.tb-tabs button.hot b{background:#dc2626;color:#fff}.tb-tabs button.ar{border-color:#2548d6;color:#2548d6}.tb-tabs button.ar.on{color:#fff}
 .tb-dot{width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block}
 .tb-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .tb-pl{background:#fff;border:1px solid #e3e5eb;border-radius:14px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;flex:0 0 auto}
 .tb-lr{display:flex;align-items:center;gap:8px}.tb-lb{width:84px;flex:0 0 auto;font-size:12px;font-weight:700;color:#5b6270;line-height:1.3}.tb-lb em{display:block;font-style:normal;font-weight:500;color:#6b7280;font-size:11px}
-.tb-xb{margin-top:3px;height:28px;width:100%;border-radius:8px;border:1px solid #1f8a5f;color:#1f8a5f;font-size:12px;font-weight:800;background:#fff;display:flex;align-items:center;justify-content:center}
+.tb-xb{margin-top:3px;height:28px;width:100%;border-radius:8px;border:1px solid #2548d6;color:#2548d6;font-size:12px;font-weight:800;background:#fff;display:flex;align-items:center;justify-content:center}
 .tb-rwv{position:relative;flex:1;min-width:0}.tb-rw{display:flex;gap:3px;overflow-x:auto;scrollbar-width:none;padding:2px 34px 2px 2px;-webkit-overflow-scrolling:touch}.tb-rw::-webkit-scrollbar{display:none}
-.tb-rwv.more:after{content:"›";position:absolute;right:0;top:0;bottom:0;width:34px;background:linear-gradient(90deg,rgba(255,255,255,0),#fff 60%);display:flex;align-items:center;justify-content:flex-end;font-size:26px;color:#1f8a5f;font-weight:700;padding-right:4px;pointer-events:none}
+.tb-rwv.more:after{content:"›";position:absolute;right:0;top:0;bottom:0;width:34px;background:linear-gradient(90deg,rgba(255,255,255,0),#fff 60%);display:flex;align-items:center;justify-content:flex-end;font-size:26px;color:#2548d6;font-weight:700;padding-right:4px;pointer-events:none}
 .tb-sep{flex:0 0 auto;width:1px;background:#d3d6de;margin:0 4px}
-.tb-xp{position:absolute;left:12px;right:12px;bottom:12px;z-index:30;background:#fff;border:2px solid #1f8a5f;border-radius:16px;box-shadow:0 -10px 36px rgba(60,40,140,.22);padding:10px 14px;display:flex;flex-direction:column;gap:6px;max-height:calc(100% - 90px)}
+.tb-xp{position:absolute;left:12px;right:12px;bottom:12px;z-index:30;background:#fff;border:2px solid #2548d6;border-radius:16px;box-shadow:0 -10px 36px rgba(60,40,140,.22);padding:10px 14px;display:flex;flex-direction:column;gap:6px;max-height:calc(100% - 90px)}
 .tb-xh{display:flex;justify-content:space-between;align-items:center;gap:10px}.tb-xh b{font-size:16px}.tb-xh span{font-size:12px;color:#6b7280;flex:1}
 .tb-xg{display:grid;grid-template-columns:1.1fr 1fr .9fr;gap:12px;min-height:0;overflow-y:auto}.tb-xg h4{font-size:12px;color:#5b6270;margin:0 0 4px;display:flex;justify-content:space-between}.tb-xg h4 em{font-style:normal}
 .tb-xr{display:flex;align-items:center;gap:8px;border:0;border-top:1px solid #eceef2;padding:5px 2px;font-size:13px;width:100%;text-align:left;background:none;color:#1b1f2a}.tb-xn{width:44px;height:34px;border-radius:8px;border:2px solid #aab0bd;background:#e9ebf0;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
@@ -132,29 +132,30 @@ const CN_CSS=String.raw`
 .tb-arrf button{white-space:nowrap;min-height:0}.tb-arrf .px-3.py-2,.tb-arrf .px-4.py-2{padding:3px 11px!important;font-size:13px!important}.tb-arrf .py-3{padding-top:9px!important;padding-bottom:9px!important;font-size:15px!important}
 .tb-arrf .p-3{padding:7px 9px!important}.tb-arrf .space-y-2>*+*{margin-top:5px!important}.tb-arrf input,.tb-arrf select{padding:3px 10px!important;height:34px;font-size:14px}.tb-arrf .w-9.h-9{width:30px;height:30px}.tb-arrf .tb-hint{display:none}
 .tb-arrf .tb-kp button{height:34px;font-size:17px}.tb-arrf .tb-ph{font-size:18px;height:36px}.tb-arrf .tb-ph::placeholder{letter-spacing:0;font-size:13px;font-weight:500}.tb-arrf .tb-sel{height:36px;min-width:80px}
-/* ══ Dose 風格(v1.0-033):暖白底、圓角、藥丸牌號、淡彩頂欄、藥局綠為主色 ══ */
-.cn-light,.tb-app{background:#f4efe3}
-.tb-bar{background:linear-gradient(90deg,#f9d9d3,#fbeab9 30%,#d3efdf 60%,#dce8f8 85%,#e6def7);border:1px solid #e6dfcc;border-radius:18px;box-shadow:0 3px 10px rgba(30,60,45,.08)}
-.tb-pn,.tb-pl,.cn-card,.cn-chip{background:#fbf8f0;border:1px solid #e6dfcc;border-radius:18px;box-shadow:0 4px 14px rgba(30,60,45,.07)}
-.tb-grp{border-color:#e3e8dc;border-radius:14px}
-.tb-tm,.tb-chip b,.cn-chip b{font-family:ui-monospace,"SF Mono",Menlo,monospace}
-.tb-chip{background:#ffffffaa;border-radius:12px}
-.tb-btn,.cn-btn,.tb-tabs button,.tb-menu{border-radius:99px}
-.tb-btn,.cn-btn{background:#ffffffcc;border-color:#d9e0d2}
-.tb-btn.p,.cn-btn.p{background:#1f8a5f;border-color:#1f8a5f;color:#fff}
-.tb-tabs button{background:#fffdf7;border-color:#d9e0d2}.tb-tabs button.on{background:#1f8a5f;border-color:#1f8a5f;color:#fff}
-.tb-tabs button b{background:#e7efe6}.tb-tabs button.on b{background:#fff;color:#1f8a5f}
-.tb-menu{border-radius:18px;background:#fbf8f0}
-.tb-xp{background:#fbf8f0;border-color:#1f8a5f;border-radius:22px}
-.tb-xn{border-radius:99px;width:48px;background:#fffdf7;border-color:#cfd9c9}.tb-xn.r{background:#f9d6d0;border-color:#e08c80}
-.tb-xb{border-radius:99px}.tb-rwv.more:after{background:linear-gradient(90deg,rgba(251,248,240,0),#fbf8f0 60%)}
-.tb-main.land .tb-ac3{background:#fbf8f0}
-.cn-tab.on{background:#fbf8f0}.cn-tabs{background:#ece6d4;border-radius:99px}.cn-tab{border-radius:99px}
-.cn-light .bg-violet-600{background:#1f8a5f;border-color:#1f8a5f}
-.cn-light .text-violet-200,.cn-light .text-violet-300,.cn-light .text-violet-100{color:#146b49}
-.cn-light .bg-violet-950,.cn-light .bg-violet-900{background:#e3f3ea}
-.cn-light .bg-gray-900{background:#fbf8f0}
-.tb-dot{background:#e2a93b}
+/* ══ Wayfind 風格(v1.0-034):冷灰紙、藍黑色 2px 粗框、方角、深色頂欄、鈷藍=進行中、黃=重點 ══ */
+.cn-light,.tb-app{background:#e3e6ec}
+.tb-bar{background:#0f1424;color:#f4f5f8;border:2px solid #0f1424;border-radius:2px}
+.tb-bar h1,.tb-bar .tb-tm{color:#f4f5f8}.tb-bar .tb-tm{color:#ffc94a;font-family:ui-monospace,"SF Mono",Menlo,monospace}.tb-bar small{color:#aab2c8}.tb-op,.tb-op button{color:#ffc94a!important}
+.tb-bar .tb-chip{background:#222a40;border-radius:2px}.tb-bar .tb-chip b{color:#ffc94a;font-family:ui-monospace,Menlo,monospace}.tb-bar .tb-chip span{color:#aab2c8}.tb-bar .tb-chip.hot{background:#222a40;outline:2px solid #ffc94a}.tb-bar .tb-chip.hot b{color:#ff8a7e}
+.tb-bar .tb-btn{background:#0f1424;color:#f4f5f8;border:2px solid #f4f5f8;border-radius:2px}.tb-bar .tb-btn.p{background:#ffc94a;border-color:#ffc94a;color:#0f1424}
+.tb-pn,.tb-pl,.cn-card,.cn-chip{background:#f4f5f8;border:2px solid #0f1424;border-radius:2px;box-shadow:none}
+.tb-grp{border:2px solid #8d96ab;border-radius:2px}
+.tb-btn,.cn-btn,.tb-tabs button,.tb-menu,.tb-menu button,.tb-xb,.cn-tab,.cn-tabs,.tb-kp button,.cn-bk .bt{border-radius:2px}
+.tb-btn,.cn-btn{border:2px solid #0f1424;background:#f4f5f8}.tb-btn.p,.cn-btn.p,.cn-bk .bt.p{background:#0f1424;border-color:#0f1424;color:#ffc94a}
+.tb-tabs button{border:2px solid #0f1424;background:#f4f5f8}.tb-tabs button.on{background:#0f1424;border-color:#0f1424;color:#ffc94a}
+.tb-tabs button b{background:#dfe3ea;border-radius:2px}.tb-tabs button.on b{background:#ffc94a;color:#0f1424}
+.tb-menu{border:2px solid #0f1424;background:#f4f5f8;box-shadow:4px 4px 0 #0f1424}
+.tb-xp{background:#f4f5f8;border:3px solid #0f1424;border-radius:2px;box-shadow:6px 6px 0 #0f1424}
+.tb-xn{border-radius:2px;border:2px solid #0f1424;background:#f4f5f8}.tb-xn.r{background:#c42b1f;color:#fff}.tb-xn.gy{background:#dfe3ea;border:2px dashed #8d96ab}
+.tb-xb{border:2px solid #0f1424;color:#0f1424}.tb-rwv.more:after{background:linear-gradient(90deg,rgba(244,245,248,0),#f4f5f8 60%)}
+.tb-main.land .tb-ac3{background:#f4f5f8}
+.cn-tabs{background:#dfe3ea}.cn-tab.on{background:#0f1424;color:#ffc94a}
+.tb-lb,.tb-h{letter-spacing:.02em}
+.tb-lb b,.tb-ft b{color:#0f1424}
+.cn-light .bg-violet-600{background:#0f1424;border-color:#0f1424;color:#ffc94a!important}
+.cn-light .text-violet-200,.cn-light .text-violet-300,.cn-light .text-violet-100{color:#1b36a8}
+.cn-light .bg-gray-900{background:#f4f5f8}
+.tb-dot{background:#ffc94a}
 
 `;
 
@@ -162,8 +163,8 @@ const CN_CSS=String.raw`
 // ── 位置與項目(R1、R8) ──
 const FEET=['1','2','3','4','5','6','7','8','9','10','11','12'];
 const BEDS=['21','22','23','31','32','33','34','35','36','37','38','39','310','311'];
-const TimeToggles=({tv,onTv})=>{const T=tv||{};const B=({k,t})=><button onClick={()=>onTv(Object.assign({},T,{[k]:!T[k]}))} style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:12,fontWeight:700,color:T[k]?'#1f8a5f':'#6b7280',background:'none',border:'none',padding:'2px 4px',whiteSpace:'nowrap'}}><i style={{width:15,height:15,borderRadius:4,border:'1.5px solid '+(T[k]?'#1f8a5f':'#9aa0ad'),background:T[k]?'#1f8a5f':'#fff',color:'#fff',fontSize:11,lineHeight:'12px',textAlign:'center',fontStyle:'normal'}}>{T[k]?'✓':''}</i>{t}</button>;return(<span style={{display:'inline-flex',gap:6,alignItems:'center'}}><B k="t" t="轉場時間"/><B k="e" t="到場時間"/><B k="r" t="剩餘時間"/></span>);};
-const SeatLegend=()=>{const Sq=({bg,bd,st})=><i style={{display:'inline-block',width:14,height:11,borderRadius:3,background:bg,border:'1.5px '+(st||'solid')+' '+bd,marginRight:3,verticalAlign:'-1px'}}></i>;return(<div style={{display:'flex',flexWrap:'wrap',gap:'3px 12px',fontSize:11,color:'#4b5563',padding:'4px 2px 0'}}><span><Sq bg='#d3efdf' bd='#7cc9a0'/>時間充裕</span><span><Sq bg='#fbeab9' bd='#e2bd5e'/>5 分內</span><span><Sq bg='#f9d6d0' bd='#e08c80'/>超時</span><span><Sq bg='#e0f2fe' bd='#0284c7'/>推薦(疊卡=後面有安排,底字=老師號)</span><span><Sq bg='#f3effe' bd='#7c3aed' st='dashed'/>預定轉入</span></div>);};
+const TimeToggles=({tv,onTv})=>{const T=tv||{};const B=({k,t})=><button onClick={()=>onTv(Object.assign({},T,{[k]:!T[k]}))} style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:12,fontWeight:700,color:T[k]?'#2548d6':'#6b7280',background:'none',border:'none',padding:'2px 4px',whiteSpace:'nowrap'}}><i style={{width:15,height:15,borderRadius:4,border:'1.5px solid '+(T[k]?'#2548d6':'#9aa0ad'),background:T[k]?'#2548d6':'#fff',color:'#fff',fontSize:11,lineHeight:'12px',textAlign:'center',fontStyle:'normal'}}>{T[k]?'✓':''}</i>{t}</button>;return(<span style={{display:'inline-flex',gap:6,alignItems:'center'}}><B k="t" t="轉場時間"/><B k="e" t="到場時間"/><B k="r" t="剩餘時間"/></span>);};
+const SeatLegend=()=>{const Sq=({bg,bd,st})=><i style={{display:'inline-block',width:14,height:11,borderRadius:3,background:bg,border:'1.5px '+(st||'solid')+' '+bd,marginRight:3,verticalAlign:'-1px'}}></i>;return(<div style={{display:'flex',flexWrap:'wrap',gap:'3px 12px',fontSize:11,color:'#4b5563',padding:'4px 2px 0'}}><span><Sq bg='#c9ecd6' bd='#0f1424'/>時間充裕</span><span><Sq bg='#ffe28a' bd='#0f1424'/>5 分內</span><span><Sq bg='#ffb4ac' bd='#0f1424'/>超時</span><span><Sq bg='#e0f2fe' bd='#0284c7'/>推薦(疊卡=後面有安排,底字=老師號)</span><span><Sq bg='#f3effe' bd='#7c3aed' st='dashed'/>預定轉入</span></div>);};
 const isFoot=p=>FEET.indexOf(p)>=0;
 const PL=x=>x?(isFoot(x)?'腳'+x:x+'床'):''; // 位置顯示名:腳1~腳12、21床~311床
 const MIN=60000;
@@ -365,21 +366,21 @@ const isLate=(p,now)=>p.state==='gray'&&p.due<=now&&!(p.lateTo&&p.lateTo>now); /
 // ── 號碼牌 ──
 function Plate({p,now,small,mini,hl,onClick}){
   const st=p.state;const fem=p.gender==='F';const w=mini?36:small?50:64,h=mini?42:small?60:72;
-  let bg='#fff',bd='#c9ccd5',bs='solid',col=fem?'#be123c':'#111',sub='',subCol='#5b6270',ring='none';
+  let bg='#f4f5f8',bd='#0f1424',bs='solid',col=fem?'#be123c':'#111',sub='',subCol='#5b6270',ring='none';
   if(st==='white'){sub=p.onAt?hm(p.onAt):'';if(p.bk){bg='#fff4c2';bd='#d99a06';sub=hm(p.bk.at)+' 勞點';subCol='#92400e';}}
-  else if(st==='green'){const g=greenInfo(p,now);bg='#d3efdf';bd=g.over?'#e08c80':'#7cc9a0';col='#0b6b46';subCol='#0b6b46';ring=g.over?'0 0 0 2px #fca5a5':'none';
+  else if(st==='green'){const g=greenInfo(p,now);bg='#c9ecd6';bd=g.over?'#c42b1f':'#0f1424';col='#0b6b46';subCol='#0b6b46';ring=g.over?'0 0 0 2px #fca5a5':'none';
     if(g.over){sub='超時'+hm(g.overAt);subCol='#b91c1c';}else if(!g.noLimit&&g.left<=60){sub=mmss(g.left);subCol='#b45309';}else{sub='翻'+hm(p.greenStart);}}
   else if(st==='gray'){const late=isLate(p,now);bg='#eceef2';bd='#a9aeba';bs='dashed';col=fem?'#be123c':'#5b6270';sub=p.due?hm(p.due):'';subCol='#6b7280';
     if(late){sub='未到未電';subCol='#b91c1c';bd='#dc2626';ring='0 0 0 2px #fecaca';}
     if(p.lateTo&&p.lateTo>now){sub=(p.lateKind==='after'?'未到晚到':'晚到')+hm(p.lateTo);subCol='#b45309';}
     else if(p.lateTo&&late){sub=(p.lateKind==='after'?'未到晚到':'晚到')+hm(p.lateTo)+' 未到';subCol='#b91c1c';}}
-  else if(st==='red'){bg='#f9d6d0';bd='#e08c80';col=fem?'#9f1239':'#8f1d1d';subCol='#b91c1c';sub=(p.redItem||'')+(p.redEnd?' '+hm(p.redEnd):'');}
+  else if(st==='red'){bg='#ffb4ac';bd='#0f1424';col=fem?'#9f1239':'#8f1d1d';subCol='#b91c1c';sub=(p.redItem||'')+(p.redEnd?' '+hm(p.redEnd):'');}
   else if(st==='off'){bg='transparent';bd='#a9aeba';col='#6b7280';}
   else if(st==='leave'){bg='transparent';bd='#a9aeba';bs='dashed';col='#9aa0ad';sub=p.leaveKind==='temp'?'臨時請假':'請假';subCol='#9aa0ad';}
   if((st==='white'||st==='red')&&zhunOn(p,now)){sub='准下'+(sub?' '+sub:'');subCol='#b45309';}
   const sw=st==='red'&&!mini?w+10:w;if(hl)ring='0 0 0 3px #0284c7';
-  if(mini)return(<button onClick={onClick} title={p.code+(sub?' '+sub:'')} style={{width:sw,minWidth:sw,height:h,flex:'0 0 auto',borderRadius:14,border:'1.5px '+bs+' '+bd,background:bg,boxShadow:ring,display:'flex',alignItems:'center',justifyContent:'center',padding:0,cursor:'pointer'}}><span style={{fontSize:p.code.length>2?14:17,fontWeight:800,color:col,letterSpacing:'-.02em',fontVariantNumeric:'tabular-nums'}}>{p.code}</span></button>);
-  return(<button onClick={onClick} style={{width:sw,minWidth:sw,height:h,flex:'0 0 auto',borderRadius:14,border:'1.5px '+bs+' '+bd,background:bg,boxShadow:ring,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:2,padding:0,cursor:'pointer'}}>
+  if(mini)return(<button onClick={onClick} title={p.code+(sub?' '+sub:'')} style={{width:sw,minWidth:sw,height:h,flex:'0 0 auto',borderRadius:2,border:'2px '+bs+' '+bd,background:bg,boxShadow:ring,display:'flex',alignItems:'center',justifyContent:'center',padding:0,cursor:'pointer'}}><span style={{fontSize:p.code.length>2?14:17,fontWeight:800,color:col,letterSpacing:'-.02em',fontVariantNumeric:'tabular-nums'}}>{p.code}</span></button>);
+  return(<button onClick={onClick} style={{width:sw,minWidth:sw,height:h,flex:'0 0 auto',borderRadius:2,border:'2px '+bs+' '+bd,background:bg,boxShadow:ring,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:2,padding:0,cursor:'pointer'}}>
     <span style={{fontSize:p.code.length>2?17:19,fontWeight:800,lineHeight:1,color:col,fontVariantNumeric:'tabular-nums'}}>{p.code}</span>
     {sub?<span style={{fontSize:sub.length>6?9:10,fontWeight:600,lineHeight:1.05,color:subCol,textAlign:'center',maxWidth:sw-4}}>{sub}</span>:null}</button>);
 }
@@ -404,10 +405,10 @@ function RulesSheet({onClose}){
           {secs.length===0&&<p className="text-sm text-gray-500 py-4 text-center">沒有符合的規則</p>}
           {secs.map(({sc,rows})=>{const isOpen=kw?true:openId===sc.id;return(<div key={sc.id} style={{border:'1px solid #e3e5eb',borderRadius:12,background:'#fff'}}>
             <button onClick={()=>setOpenId(isOpen&&!kw?'':sc.id)} className="w-full flex items-center justify-between px-3 text-left" style={{minHeight:48}}>
-              <span className="text-base font-bold text-white"><span style={{color:'#1f8a5f'}}>{sc.id}</span>　{sc.title}</span><span className="text-xs text-gray-400">{rows.length} 條　{isOpen?'▲':'▼'}</span></button>
+              <span className="text-base font-bold text-white"><span style={{color:'#2548d6'}}>{sc.id}</span>　{sc.title}</span><span className="text-xs text-gray-400">{rows.length} 條　{isOpen?'▲':'▼'}</span></button>
             {isOpen&&<div className="px-3 pb-3 space-y-2">{sc.note&&<p className="text-xs text-gray-400">{sc.note}</p>}
               {rows.map(r=>(<div key={r[0]} style={{borderTop:'1px solid #eceef2',paddingTop:8}}>
-                <div className="flex items-start justify-between gap-2"><p className="text-sm font-bold text-white"><span style={{color:'#1f8a5f'}}>{r[0]}</span>　{r[1]}</p><span style={Object.assign({fontSize:10,border:'1px solid',borderRadius:6,padding:'1px 6px',whiteSpace:'nowrap'},tone(r[3]))}>{r[3]}</span></div>
+                <div className="flex items-start justify-between gap-2"><p className="text-sm font-bold text-white"><span style={{color:'#2548d6'}}>{r[0]}</span>　{r[1]}</p><span style={Object.assign({fontSize:10,border:'1px solid',borderRadius:6,padding:'1px 6px',whiteSpace:'nowrap'},tone(r[3]))}>{r[3]}</span></div>
                 <p className="text-sm text-gray-300 mt-1" style={{lineHeight:1.55}}>{r[2]}</p></div>))}</div>}
           </div>);})}
         </div>
@@ -463,7 +464,7 @@ function OrderLog({D,onOpen,onPay,onPre,act,forced}){
       <div className="cn-oh"><span className="cn-no">{g.no||'…'}</span><span className="cn-gn">{g.gnm||'客人未登記'}</span>{g.list.length>1?<span className="cn-cnt">{g.list.length} 位</span>:null}<span className="cn-sp"></span>
         {g.st==='wait_pay'&&g.due!==null?<span className="cn-money">應收 {g.due}</span>:g.st==='done'?<span className="cn-money">{g.pay?g.pay.total:g.paid}</span>:<span className="cn-st" style={{color:st[2]}}><i className="cn-dot" style={{background:st[1]}}></i>{st[0]}</span>}</div>
       {g.list.map(o=><Mem key={o.id} o={o}/>)}
-      {clickable&&<div className="cn-meta"><span></span><span style={{color:'#1f8a5f',fontWeight:600}}>回牌 · 轉場 · 加時 ›</span></div>}
+      {clickable&&<div className="cn-meta"><span></span><span style={{color:'#2548d6',fontWeight:600}}>回牌 · 轉場 · 加時 ›</span></div>}
       {g.st==='seating'&&<button className="cn-act" style={{background:'#38bdf8'}} onClick={()=>{if(confirm(nm(g)+'已打單?\n(會以打單時間重算轉場與結束時間)'))act({act:'dadan',wid:g.key});}}>打單</button>}
       {g.st==='wait_pay'&&<button className="cn-act" style={{background:'#f59e0b'}} onClick={()=>onPay(g.key)}>買單</button>}
       {g.prepaid&&g.st!=='done'&&<div className="cn-meta"><span style={{color:'#0f8a5f',fontWeight:700}}>✔ 已先付 {g.pay?g.pay.total:g.paid}{g.pay?' · '+payTxt(g.pay):''}</span></div>}
@@ -522,21 +523,21 @@ function seatMap(D){const m={};D.red.forEach(p=>{if(p.redPos)m[p.redPos]={p:p,ki
 // 位置格:本身時間狀態(R6.4):接近(≤5 分)黃、超時紅、其餘綠
 const cdTxt=ms=>{const o=ms<0,a=Math.floor(Math.abs(ms)/1000),h=Math.floor(a/3600),m=Math.floor(a%3600/60),sc=a%60,pd=n=>(n<10?'0':'')+n;return (o?'超 ':'剩')+(h>0?h+':'+pd(m):pd(m))+':'+pd(sc);};
 function Seat({pos,occ,now,onClick,h,hl,tv}){
-  let bg='#fffdf7',bd='#e3e8dc',bs='solid',body=<span style={{color:'#9aa0ad',fontSize:12}}>空</span>;
+  let bg='#f4f5f8',bd='#8d96ab',bs='solid',body=<span style={{color:'#9aa0ad',fontSize:12}}>空</span>;
   if(hl&&!occ){bd='#0284c7';bs='solid';bg='#e0f2fe';body=<React.Fragment><span style={{fontSize:18,fontWeight:800,color:'#111',lineHeight:1}}>{hl.t}</span><span style={{fontSize:10,fontWeight:800,color:'#0369a1'}}>{hl.k===2?'轉場':'推薦'}</span></React.Fragment>;} // 推薦=藍色實線框(紫色虛線留給預定轉場「轉入」)
   if(occ){const p=occ.p;const fem=p.gender==='F';
     if(occ.kind==='rsv'){bd='#7c3aed';bs='dashed';bg='#f3effe';body=<React.Fragment><span style={{fontSize:16,fontWeight:800,color:'#6d28d9'}}>{p.code}</span><span style={{fontSize:9,color:'#6d28d9'}}>轉入{p.redTransfer?' '+hm(p.redTransfer):''}</span></React.Fragment>;}
     else{const key=p.redTransfer>0?p.redTransfer:p.redEnd;const left=key?(key-now)/60000:999;const over=p.redEnd&&now>p.redEnd;
       const T=tv||{t:true,e:true,r:false};const tShow=T.t&&p.redTransfer>0,rShow=T.r&&key>0;let eShow=T.e&&p.redEnd>0;if(tShow&&rShow&&eShow)eShow=false; // 最多 2 排:轉場+剩餘+到場 三排同時有時不顯示「到」
-      bg=over?'#f9d6d0':left<=5?'#fbeab9':'#d3efdf';bd=over?'#e08c80':left<=5?'#e2bd5e':'#7cc9a0';
+      bg=over?'#ffb4ac':left<=5?'#ffe28a':'#c9ecd6';bd='#0f1424';
       body=<React.Fragment><span style={{fontSize:p.code.length>2?17:20,fontWeight:800,color:fem?'#be123c':'#111',lineHeight:1}}>{p.code}</span><span style={{fontSize:10,fontWeight:700,color:'#3a4050'}}>{p.redItem}</span>
         {tShow&&<span style={{fontSize:10,color:'#92400e'}}>{hm(p.redTransfer)}轉</span>}{rShow&&<span style={{fontSize:10,fontWeight:700,color:key===p.redTransfer?'#92400e':(over?'#b91c1c':'#0b6b46')}}>{cdTxt(key-now)}</span>}{eShow&&<span style={{fontSize:10,color:over?'#b91c1c':'#0b6b46'}}>到{hm(p.redEnd)}</span>}</React.Fragment>;}}
   const hit=!!(hl&&occ); // 推薦要排到這格,但這格現在還有人(例:21 床還在做):疊兩張卡片——前面是目前的客人,後面藍色那張=推薦的後續安排,底部小字=老師號
   const lab=<span style={{fontSize:11,color:'#6b7280',alignSelf:'flex-start',paddingLeft:4}}>{PL(pos)}</span>;
-  if(!hit)return(<button onClick={onClick} style={{flex:'1 1 0',minWidth:0,minHeight:h===undefined?92:h,borderRadius:12,boxShadow:'inset 0 2px 0 rgba(255,255,255,.8),0 2px 6px rgba(30,60,45,.10)',border:'1.5px '+bs+' '+bd,background:bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:1,padding:'2px 0'}}>{lab}{body}</button>);
+  if(!hit)return(<button onClick={onClick} style={{flex:'1 1 0',minWidth:0,minHeight:h===undefined?92:h,borderRadius:2,border:'1.5px '+bs+' '+bd,background:bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:1,padding:'2px 0'}}>{lab}{body}</button>);
   return(<div style={{flex:'1 1 0',minWidth:0,minHeight:h===undefined?100:h,position:'relative'}}>
-    <div style={{position:'absolute',left:8,right:0,top:8,bottom:0,borderRadius:12,border:'1.5px solid #0284c7',background:'#e0f2fe',display:'flex',alignItems:'flex-end',justifyContent:'center',paddingBottom:1,fontSize:10,fontWeight:800,color:'#0369a1'}}>{hl.t}</div>
-    <button onClick={onClick} style={{position:'absolute',left:0,right:8,top:0,bottom:14,borderRadius:12,boxShadow:'0 2px 6px rgba(30,60,45,.14)',border:'1.5px '+bs+' '+bd,background:bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:1,padding:'2px 0',overflow:'hidden'}}>{lab}{body}</button></div>);
+    <div style={{position:'absolute',left:8,right:0,top:8,bottom:0,borderRadius:2,border:'2px solid #0284c7',background:'#e0f2fe',display:'flex',alignItems:'flex-end',justifyContent:'center',paddingBottom:1,fontSize:10,fontWeight:800,color:'#0369a1'}}>{hl.t}</div>
+    <button onClick={onClick} style={{position:'absolute',left:0,right:8,top:0,bottom:14,borderRadius:2,border:'1.5px '+bs+' '+bd,background:bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:1,padding:'2px 0',overflow:'hidden'}}>{lab}{body}</button></div>);
 }
 const Grp=({children})=>(<div style={{display:'flex',gap:3,flex:'1 1 0',minWidth:0,border:'1px solid #e3e5eb',borderRadius:10,padding:3}}>{children}</div>);
 function SeatMap({D,now,onSeat,tv,onTv}){
@@ -1170,9 +1171,9 @@ function CounterPage({who,kiosk,onSwitch,swLabel}){
     </div></div>);
   }
   return(<div className="cn-light"><style>{CN_CSS}</style><div className="cn-wrap">
-    <div className="cn-hd"><div><h1>主櫃 · {D.store} <small style={{fontSize:11,fontWeight:500,color:'#9aa0ad'}}>{CN_VER}</small>{kiosk&&<small style={{fontSize:12,fontWeight:700,color:'#1f8a5f',marginLeft:8}}>操作人 {who} <button onClick={onSwitch} style={{textDecoration:'underline',fontWeight:600}}>{swLabel||'換人'}</button></small>}</h1><div className="cn-tm"><span>{hmFull(now)}:{p2(tzp(now).s)}</span><button onClick={sync} className={'cn-sync'+(queue.length>0?' w':'')}>{syncing?<Spinner size={12}/>:'●'} {queue.length>0?'待上傳 '+queue.length+' 筆':fresh?'已同步'+(syncAt?' '+hmFull(syncAt):''):(c0.current.at?'本機資料 '+hmFull(c0.current.at)+' · 更新中':'載入中')}</button></div></div>
+    <div className="cn-hd"><div><h1>主櫃 · {D.store} <small style={{fontSize:11,fontWeight:500,color:'#9aa0ad'}}>{CN_VER}</small>{kiosk&&<small style={{fontSize:12,fontWeight:700,color:'#2548d6',marginLeft:8}}>操作人 {who} <button onClick={onSwitch} style={{textDecoration:'underline',fontWeight:600}}>{swLabel||'換人'}</button></small>}</h1><div className="cn-tm"><span>{hmFull(now)}:{p2(tzp(now).s)}</span><button onClick={sync} className={'cn-sync'+(queue.length>0?' w':'')}>{syncing?<Spinner size={12}/>:'●'} {queue.length>0?'待上傳 '+queue.length+' 筆':fresh?'已同步'+(syncAt?' '+hmFull(syncAt):''):(c0.current.at?'本機資料 '+hmFull(c0.current.at)+' · 更新中':'載入中')}</button></div></div>
       <div className="cn-acts"><button onClick={()=>setArranging(true)} className="cn-btn">安排客人</button><button onClick={()=>setOpening('')} className="cn-btn p">＋開單</button></div></div>
-    <div className="cn-tools"><button onClick={()=>setTool('rules')} className="cn-btn" style={{borderColor:'#1f8a5f',color:'#1f8a5f'}}>📖 規則</button><button onClick={()=>setTool('cnt')} className="cn-btn">支數表</button><button onClick={()=>setTool('rep')} className="cn-btn">日報表</button><button onClick={()=>setTool('shift')} className="cn-btn">交班</button><button onClick={()=>setTool('set')} className="cn-btn">設定</button><button onClick={()=>{const bad={};(D.orders||[]).forEach(o=>{if((o.status==='seating'||o.status==='serving'||o.status==='wait_pay')&&!o.prepaid)bad[o.gid||o.id]=1;});const n=Object.keys(bad).length;if(n>0){setToolN(n);setTool('unpaid');}else setTool('close');}} className="cn-btn" style={{borderColor:'#b45309',color:'#b45309'}}>結帳</button>{(who&&D.canReset!==false)&&<button onClick={doReset} className="cn-btn" style={{borderColor:'#b91c1c',color:'#b91c1c'}}>還原</button>}</div>
+    <div className="cn-tools"><button onClick={()=>setTool('rules')} className="cn-btn" style={{borderColor:'#2548d6',color:'#2548d6'}}>📖 規則</button><button onClick={()=>setTool('cnt')} className="cn-btn">支數表</button><button onClick={()=>setTool('rep')} className="cn-btn">日報表</button><button onClick={()=>setTool('shift')} className="cn-btn">交班</button><button onClick={()=>setTool('set')} className="cn-btn">設定</button><button onClick={()=>{const bad={};(D.orders||[]).forEach(o=>{if((o.status==='seating'||o.status==='serving'||o.status==='wait_pay')&&!o.prepaid)bad[o.gid||o.id]=1;});const n=Object.keys(bad).length;if(n>0){setToolN(n);setTool('unpaid');}else setTool('close');}} className="cn-btn" style={{borderColor:'#b45309',color:'#b45309'}}>結帳</button>{(who&&D.canReset!==false)&&<button onClick={doReset} className="cn-btn" style={{borderColor:'#b91c1c',color:'#b91c1c'}}>還原</button>}</div>
     {(()=>{const GA=groupOrders(D.orders||[]);const gN=f=>GA.filter(f).length;const sg=gN(x=>x.st==='seating'),sv=gN(x=>x.st==='serving'),wp=gN(x=>x.st==='wait_pay'),dn=gN(x=>x.st==='done');
       return(<div className="cn-chips"><div className="cn-chip"><b>{cnt('white')}</b><span>待派工</span><small>白牌老師{sg>0?' · 帶位中 '+sg+' 組':''}</small></div><div className="cn-chip"><b style={{color:'#b91c1c'}}>{D.red.length}</b><span>服務中</span><small>老師 · {sv} 組</small></div><div className="cn-chip"><b style={{color:'#0f8a5f'}}>{dn}</b><span>已買單</span><small>組</small></div><div className="cn-chip"><b style={{color:'#6b7280'}}>{wp+dn}</b><span>已完成</span><small>做完 · 待買單 {wp} 組</small></div></div>);})()}
     <div className="cn-cols"><div className="cn-ca">
