@@ -1,3 +1,4 @@
+// v1.13-045 / 只留純白主題,THEMES 精簡
 /* ════════════════════════════════════════════════════════════
    common.js — 薪資追蹤系統 共用工具
    v1.13-044 / 綁定設備註記(bindClaimNow/bindVerify,新設備綁定後舊設備自動解綁)。備份安全網:本機無記錄不上傳、綁LINE待處理時暫停自動上傳(localHasPersonalData/backupUploadAllowed)。 | 前: v1.13-042 / 越南文「老師」改譯 Sư phụ。
