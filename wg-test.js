@@ -1,6 +1,6 @@
 // wg-test.js v0.1(測試版)——Scriptile 小工具 +1/+2/+3 的網頁端:綁定、自動/手動合併、查詢並下載
 // 流程:小工具 → GAS(WgEvents 暫存表,只追加)→ 這裡 wgList 取回未合併 → 合併進本機月資料 → wgMark 標記已合併
-// 掛載方式:app-core.js 首頁 <window.WgPanel code year/>;依賴 window.MP(common.js)
+// 掛載方式:settings.js 設定頁 <window.WgPanel code/>;依賴 window.MP(common.js)
 const{useState:wgUseState,useEffect:wgUseEffect}=React;
 const WG_LIFF_ID='2010673151-QNFLrsH0';
 const WG_KEY='wg-dev',WG_SEEN='wg-merged-eids';
