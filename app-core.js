@@ -1819,7 +1819,6 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
       </div>
     </div>)}
     {moreFuncBlocked&&!showMoreFunc&&<p className="text-xs text-red-400 text-center mt-2">{t.moreFuncLeftMsg||'此區功能僅開放在職員工使用'}</p>}
-    {window.WgPanel&&<window.WgPanel code={settings.code}/>}
     {showMoreFunc&&(<>
       <div className="grid grid-cols-4 mt-1 border-y border-white/[0.1]">
       <button onClick={()=>onGotoMonthly&&onGotoMonthly()} className="relative flex flex-col items-center justify-center gap-2 min-h-[92px] text-[14px] font-semibold text-gray-100 active:bg-white/[0.06]"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-amber-400"><rect x="3" y="4" width="18" height="17" rx="2"/><path strokeWidth={1.8} d="M3 9h18M8 2v4M16 2v4"/></svg><span>{t.monthly}</span></button>
