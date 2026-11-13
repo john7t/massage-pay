@@ -17,7 +17,7 @@ const dur=sec=>Math.round(sec/60)+' 分';
 const nextMark=(now,stepMin)=>{const st=stepMin*60000;return Math.floor((now+8*3600e3)/st)*st+st-8*3600e3;}; // 台北時間的下一個整/半點
 const LIMIT=3600;
 // ── 白底主題:版面用 cn-* 類別;其餘沿用的 Tailwind 深色類別,在 .cn-light 內改成淺色對應 ──
-const CN_VER='v1.0-044'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
+const CN_VER='v1.0-045'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
 window.__cnVer=CN_VER;
 const CN_CSS=String.raw`
 .cn-light{background:#f7f7f9;color:#1b1f2a;min-height:100vh;font-feature-settings:"tnum"}
@@ -590,15 +590,15 @@ const cdTxt=ms=>{const o=ms<0,a=Math.floor(Math.abs(ms)/1000),h=Math.floor(a/360
 function Seat({pos,occ,now,onClick,h,hl,tv}){
   const stackCur=!!(occ&&occ.kind==='cur'&&(occ.nx||hl));
   let bg='#f4f5f8',bd='#8d96ab',bs='solid',body=<span style={{color:'#9aa0ad',fontSize:12}}>空</span>;
-  if(hl&&!occ){bd='#0284c7';bs='solid';bg='#e0f2fe';body=<React.Fragment><span style={{fontSize:18,fontWeight:800,color:'#111',lineHeight:1}}>{hl.t}</span><span style={{fontSize:10,fontWeight:800,color:'#0369a1'}}>{hl.k===2?'轉場':'推薦'}</span></React.Fragment>;} // 推薦=藍色實線框(紫色虛線留給預定轉場「轉入」)
+  if(hl&&!occ){bd='#0284c7';bs=hl.k===2?'dashed':'solid';bg='#e0f2fe';body=<React.Fragment><span style={{fontSize:18,fontWeight:800,color:'#111',lineHeight:1}}>{hl.t}</span><span style={{fontSize:10,fontWeight:800,color:'#0369a1'}}>{hl.k===2?'轉場':'推薦'}</span></React.Fragment>;} // 推薦=藍色實線框(紫色虛線留給預定轉場「轉入」)
   if(occ){const p=occ.p;const fem=p.gender==='F';
     if(occ.kind==='rsv'){bd='#7c3aed';bs='dashed';bg='#f3effe';body=<React.Fragment><span style={{fontSize:16,fontWeight:800,color:'#6d28d9'}}>{p.code}</span><span style={{fontSize:9,color:'#6d28d9'}}>轉入{p.redTransfer?' '+hm(p.redTransfer):''}</span></React.Fragment>;}
     else{const key=p.redTransfer>0?p.redTransfer:p.redEnd;const left=key?(key-now)/60000:999;const over=p.redEnd&&now>p.redEnd;
       const T=tv||{t:true,e:true,r:false};let tShow=T.t&&p.redTransfer>0,rShow=T.r&&key>0,eShow=T.e&&p.redEnd>0;if(stackCur){const w=rShow?'r':tShow?'t':eShow?'e':(key>0?'r':'');rShow=w==='r';tShow=w==='t';eShow=w==='e';}else if(tShow&&rShow&&eShow)eShow=false; // 最多 2 排:轉場+剩餘+到場 三排同時有時不顯示「到」
       bg=over?'#ffb4ac':left<=5?'#ffe28a':'#c9ecd6';bd='#0f1424';
-      if(occ.seat){bg='#e0f2fe';bd='#0284c7';tShow=false;rShow=false;eShow=false;}
+      if(occ.seat){bg='#c9ecd6';bd='#0b6b46';bs='dashed';tShow=false;rShow=false;eShow=false;}
       body=<React.Fragment><span style={{fontSize:p.code.length>2?17:20,fontWeight:800,color:fem?'#be123c':'#111',lineHeight:1}}>{p.code}</span><span style={{fontSize:10,fontWeight:700,color:'#3a4050'}}>{p.redItem}</span>
-        {occ.seat&&<span style={{fontSize:10,fontWeight:800,color:'#0369a1'}}>帶位中</span>}{tShow&&<span style={{fontSize:10,color:'#92400e'}}>{hm(p.redTransfer)}轉</span>}{rShow&&<span style={{fontSize:10,fontWeight:700,color:key===p.redTransfer?'#92400e':(over?'#b91c1c':'#0b6b46')}}>{cdTxt(key-now)}</span>}{eShow&&<span style={{fontSize:10,color:over?'#b91c1c':'#0b6b46'}}>到{hm(p.redEnd)}</span>}</React.Fragment>;}}
+        {occ.seat&&<span style={{fontSize:10,fontWeight:800,color:'#0b6b46'}}>帶位中</span>}{tShow&&<span style={{fontSize:10,color:'#92400e'}}>{hm(p.redTransfer)}轉</span>}{rShow&&<span style={{fontSize:10,fontWeight:700,color:key===p.redTransfer?'#92400e':(over?'#b91c1c':'#0b6b46')}}>{cdTxt(key-now)}</span>}{eShow&&<span style={{fontSize:10,color:over?'#b91c1c':'#0b6b46'}}>到{hm(p.redEnd)}</span>}</React.Fragment>;}}
   const stk=(hl&&occ)?{c:'#0284c7',bg:'#e0f2fe',tx:'#0369a1',t:hl.t}:(occ&&occ.kind==='cur'&&occ.nx?{c:'#7c3aed',bg:'#f3effe',tx:'#6d28d9',t:occ.nx.code}:null); // 推薦要排到這格,但這格現在還有人(例:21 床還在做):疊兩張卡片——前面是目前的客人,後面藍色那張=推薦的後續安排,底部小字=老師號
   const lab=<span style={{fontSize:11,color:'#6b7280',alignSelf:'flex-start',paddingLeft:4}}>{PL(pos)}</span>;
   if(!stk)return(<button onClick={onClick} style={{flex:'1 1 0',minWidth:0,minHeight:h===undefined?92:h,borderRadius:2,border:'1.5px '+bs+' '+bd,background:bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:1,padding:'2px 0'}}>{lab}{body}</button>);
@@ -848,7 +848,7 @@ function RedPanel({p,D,now,go,onClose}){
 // 開單(手動選位置;系統推薦待 P3,R9)
 function OpenSheet({D,now,presetPos,act,onClose}){
   const[item,setItem]=useState('');const[extra,setExtra]=useState(0);const[start,setStart]=useState(now);const[endAdj,setEndAdj]=useState(0);
-  const[code,setCode]=useState('');const[pos,setPos]=useState(presetPos||'');const[pos2,setPos2]=useState('');const[g,setG]=useState(G0());
+  const[code,setCode]=useState('');const[tmode,setTmode]=useState('auto');const TBo=useTablet();const[pos,setPos]=useState(presetPos||'');const[pos2,setPos2]=useState('');const[g,setG]=useState(G0());
   const c=item?itemCalc(item,extra,start):null;
   const M=seatMap(D);
   const grid=[];{const t0=Math.ceil((now+8*3600e3)/600000)*600000-8*3600e3;for(let i=0;i<=12;i++)grid.push(t0+i*600000);}
@@ -856,22 +856,24 @@ function OpenSheet({D,now,presetPos,act,onClose}){
   const teachers=D.white.filter(p=>p.state==='white'&&(!c||!c.oil||p.gender==='F'));
   const need=c?c.first:'';const freeFor=t=>(t==='foot'?FEET:t==='bed'?BEDS:[]).filter(x=>!M[x]);
   const posOk=pos&&(!need||(need==='foot')===isFoot(pos));
-  const ready=c&&code&&posOk&&!M[pos]&&guestOk(g);
+  const eff=tmode==='auto'?(teachers[0]?teachers[0].code:''):code; // 預設不指定:派白牌第 1 位;老點才自己選
+  const ready=c&&eff&&posOk&&!M[pos]&&guestOk(g);
   useEffect(()=>{if(c&&code&&!teachers.some(p=>p.code===code))setCode('');},[item]);
   const Chip=({on,children,onClick})=>(<button onClick={onClick} className={'rounded-xl border px-3 py-2 text-base font-bold '+(on?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-200')}>{children}</button>);
   return(<Sheet title="＋ 開單" onClose={onClose}>
-    <GuestPick g={g} setG={setG}/>
+    <GuestPick g={g} setG={setG} pad={TBo.tab}/>
     {ITEM_GROUPS.map(g=>(<div key={g[0]}><p className="text-xs text-gray-400 mb-1">{g[0]}</p><div className="flex flex-wrap gap-2">{g[1].map(k=><Chip key={k} on={item===k} onClick={()=>{setItem(k);setPos2('');if(pos&&((itemCalc(k,0,0).first==='foot')!==isFoot(pos)))setPos('');}}>{k}</Chip>)}</div></div>))}
     <div className="flex items-center gap-3"><span className="text-sm text-gray-300">加時(每 30 分 1 支)</span><button onClick={()=>setExtra(Math.max(0,extra-1))} className="w-9 h-9 rounded-lg border border-gray-600 text-white">−</button><span className="text-white font-bold w-6 text-center">{extra}</span><button onClick={()=>setExtra(Math.min(6,extra+1))} className="w-9 h-9 rounded-lg border border-gray-600 text-white">+</button></div>
     <div className="grid grid-cols-2 gap-2"><div><p className="text-xs text-gray-400 mb-1">開始於</p><select value={start} onChange={e=>setStart(parseInt(e.target.value,10))} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-2 py-2 text-white"><option value={now}>現在 {hmFull(now)}</option>{grid.filter(x=>x>now+60000).map(x=><option key={x} value={x}>{hmOpt(x)}</option>)}</select></div>
       <div><p className="text-xs text-gray-400 mb-1">應結束於</p><select value={endAdj} onChange={e=>setEndAdj(parseInt(e.target.value,10))} disabled={!c} className="w-full rounded-xl bg-gray-800 border border-gray-700 px-2 py-2 text-white">{[-30,-20,-10,0,10,20,30,60].map(m=><option key={m} value={m}>{c?hmFull(c.end+m*MIN)+(m?(m>0?' (+'+m+')':' ('+m+')'):' (自動)'):'—'}</option>)}</select></div></div>
     {c&&c.transfer>0&&<p className="text-sm text-amber-300">轉場 {hmFull(c.transfer)}(第一段 {c.segs[0][1]} 分)・{c.second==='foot'?'再轉腳位':'再轉床位'}</p>}
     <div><p className="text-xs text-gray-400 mb-1">老師(白牌順序{c&&c.oil?',油壓只能女老師':''})</p>
-      {teachers.length===0?<p className="text-sm text-red-300">目前沒有可派的白牌老師</p>:<div className="space-y-1">{teachers.map((p,i)=>(<button key={p.code} onClick={()=>setCode(p.code)} className={'w-full text-left rounded-xl border px-3 py-2 flex items-center gap-3 '+(code===p.code?'border-violet-500 bg-violet-950':'border-gray-700')}><span className={'text-xl font-bold '+(p.gender==='F'?'text-rose-300':'text-white')}>{p.code}</span><span className="text-sm text-gray-300">白牌第 {i+1} 位・{p.gender==='F'?'女':'男'}{p.onAt?'・'+hm(p.onAt)+' 上牌':''}</span></button>))}</div>}</div>
+      {teachers.length===0?<p className="text-sm text-red-300">目前沒有可派的白牌老師</p>:<div className="flex gap-2 flex-wrap mb-1"><Chip on={tmode==='auto'} onClick={()=>setTmode('auto')}>不指定(白牌第 1 位是 {teachers[0].code} 號)</Chip><Chip on={tmode==='pick'} onClick={()=>setTmode('pick')}>老點</Chip></div>}
+      {teachers.length>0&&tmode==='pick'&&<div className="space-y-1">{teachers.map((p,i)=>(<button key={p.code} onClick={()=>setCode(p.code)} className={'w-full text-left rounded-xl border px-3 py-2 flex items-center gap-3 '+(code===p.code?'border-violet-500 bg-violet-950':'border-gray-700')}><span className={'text-xl font-bold '+(p.gender==='F'?'text-rose-300':'text-white')}>{p.code}</span><span className="text-sm text-gray-300">白牌第 {i+1} 位・{p.gender==='F'?'女':'男'}{p.onAt?'・'+hm(p.onAt)+' 上牌':''}</span></button>))}</div>}</div>
     <div><p className="text-xs text-gray-400 mb-1">位置{need?(need==='foot'?'(腳位)':'(床位)'):''}</p><div className="flex flex-wrap gap-2">{(need?freeFor(need):FEET.concat(BEDS).filter(x=>!M[x])).map(x=><Chip key={x} on={pos===x} onClick={()=>{setPos(x);if(pos2===x)setPos2('');}}>{PL(x)}</Chip>)}</div></div>
     {c&&c.second&&<div><p className="text-xs text-gray-400 mb-1">轉場後位置(可稍後再選)</p><div className="flex flex-wrap gap-2"><Chip on={!pos2} onClick={()=>setPos2('')}>稍後選</Chip>{freeFor(c.second).filter(x=>x!==pos).map(x=><Chip key={x} on={pos2===x} onClick={()=>setPos2(x)}>{PL(x)}</Chip>)}</div></div>}
-    <Bt disabled={!ready} onClick={()=>act(Object.assign({act:'red',code:code,item:c.label,pos:pos,pos2:pos2,start:start,end:end,transfer:c.transfer},gFields(g)))}>{ready?'確認開單 '+c.label+'　老師 '+code+'　位置 '+pos:'請選稱謂、客源、項目、老師、位置'}</Bt>
-    <Bt disabled={!ready} tone="green" onClick={()=>act(Object.assign({act:'red',code:code,item:c.label,pos:pos,pos2:pos2,start:start,end:end,transfer:c.transfer},gFields(g),{gid:rid()}),true)}>先付(開單後立刻收款)</Bt>
+    <Bt disabled={!ready} onClick={()=>act(Object.assign({act:'red',code:eff,item:c.label,pos:pos,pos2:pos2,start:start,end:end,transfer:c.transfer},gFields(g)))}>{ready?'確認開單 '+c.label+'　老師 '+eff+'　位置 '+pos:'請選稱謂、客源、項目、老師、位置'}</Bt>
+    <Bt disabled={!ready} tone="green" onClick={()=>act(Object.assign({act:'red',code:eff,item:c.label,pos:pos,pos2:pos2,start:start,end:end,transfer:c.transfer},gFields(g),{gid:rid()}),true)}>先付(開單後立刻收款)</Bt>
     <Bt tone="gray" onClick={onClose}>取消</Bt></Sheet>);
 }
 
@@ -1077,7 +1079,7 @@ function ShiftSheet({kind,getInfo,onSubmit,onClose}){
       {close&&I.unpaid>0&&<p className="text-base text-red-300 font-bold">未付有 {I.unpaid} 筆,請先完成付款再結帳</p>}
       <p className="text-xs text-gray-400">{close?'全日':'本班(自上次交班 '+(I.since>0&&I.records.length?hmFull(I.since):'營業日開始')+' 起)'}現金收款 {I.paid.n} 筆</p>
       {step===0&&(<React.Fragment>
-        <div className="space-y-2"><F l="零用金" v={petty} set={setPetty}/><F l={close?'今天再補的支出':'支出'} v={exp} set={setExp}/><div className="flex items-center gap-2"><span className="text-sm text-gray-300 w-20">支出說明</span><input value={note} maxLength={40} onChange={e=>setNote(e.target.value)} placeholder="例:買衛生紙" className="flex-1 rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/></div><F l="實點現金(選填)" v={actual} set={setActual} ph="不填"/></div>
+        <div className="space-y-2">{F({l:"零用金",v:petty,set:setPetty})}{F({l:close?'今天再補的支出':'支出',v:exp,set:setExp})}<div className="flex items-center gap-2"><span className="text-sm text-gray-300 w-20">支出說明</span><input value={note} maxLength={40} onChange={e=>setNote(e.target.value)} placeholder="例:買衛生紙" className="flex-1 rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-white"/></div>{F({l:"實點現金(選填)",v:actual,set:setActual,ph:"不填"})}</div>
         <div className="rounded-xl bg-black/30 p-3 space-y-1"><Info k="零用金" v={num(petty)}/><Info k={close?'全日現金收款':'本班現金收款'} v={cash}/>{I.paid.ticket>0&&<Info k="票券抵用(不算現金)" v={I.paid.ticket}/>}<Info k={'支出'+(I.expBlock?'(含登記 '+I.expBlock+')':'')} v={'− '+expAll}/><div className="flex justify-between text-base pt-1 border-t border-gray-700"><span className="text-gray-200 font-bold">應結現金</span><b className="text-violet-300 text-xl">{expected}</b></div>{actual!==''&&<p className={'text-sm '+(num(actual)===expected?'text-emerald-300':'text-amber-300')}>實點 {num(actual)}　差 {num(actual)-expected}</p>}</div>
         {close?<Bt disabled={I.unpaid>0} onClick={()=>setStep(1)}>下一步:確認收支</Bt>:<Bt onClick={submit}>確認交班</Bt>}</React.Fragment>)}
       {step===1&&(<React.Fragment><p className="text-lg text-amber-300 font-bold">請確認收支是否正確</p><div className="rounded-xl bg-black/30 p-3 space-y-1"><Info k="零用金" v={num(petty)}/><Info k="全日現金收款" v={cash}/><Info k="支出合計" v={expAll}/><Info k="應結現金" v={expected}/>{actual!==''&&<Info k="實點現金" v={num(actual)}/>}</div>
