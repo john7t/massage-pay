@@ -274,7 +274,7 @@ function fmtLog(s,args){return args.reduce((r,a,i)=>r.replace(`{${i}}`,a),s)}
 function fmtDate(ts){const d=new Date(ts);return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
 
 /* ══════════ Theme ══════════ */
-const THEMES={pink:'#fce4f6',black:'#030712',white:'#f9fafb',gray:'#1f2937',smooth:'#0d0d18',apple:'#f5f5f7',neon:'#0b0f19',forest:'#121a15',sunset:'#18120b',ocean:'#0b1329',quiet:'#17161a'};
+const THEMES={white:'#ffffff'};
 
 /* ══════════ Data helpers (salary tracking) ══════════ */
 const SKILL_KEYS=['guasha','baguang','xiujiao'];
