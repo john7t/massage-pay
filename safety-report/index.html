@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>員工專區 v1.13-180</title>
+<title>員工專區 v1.13-181</title>
 <meta property="og:title" content="員工專區">
 <meta property="og:description" content="公告、安全回報、拒接名單、手套團購、價目表等功能入口與說明">
 <meta property="og:type" content="website">
@@ -48,11 +48,23 @@
 /* 公務機鎖定:本機有 mp:kiosk:v1(on=1)時,這個資料夾底下任何網址都導回主櫃(?cn2=1);只放行 LIFF 登入回來的參數與 unlock=1 */
 try{var __k=JSON.parse(localStorage.getItem('mp:kiosk:v1')||'null');if(__k&&__k.on&&__k.token){var __q=new URLSearchParams(location.search),__bad=!__q.has('cn2');__q.forEach(function(v,key){if(!/^(cn2|unlock|code|state|liff.*|access_token|id_token|friendship_status_changed|utm_.*|fbclid)$/.test(key))__bad=true;});if(__bad)location.replace(location.pathname+'?cn2=1');}}catch(_e){}
 </script>
+<script>/* 開啟速度計時:網址加 ?timing=1 會在左下角顯示各階段秒數(從開始載入算起);最後一次結果也存在 localStorage cn2:timing */
+window.__T={};window.__tm=function(k,v){try{if(k in window.__T)return;window.__T[k]=(v!==undefined?v:Math.round(performance.now()));try{localStorage.setItem('cn2:timing',JSON.stringify(window.__T));}catch(e){}if(window.__tmShow)window.__tmShow();}catch(e){}};
+window.__tm('html');document.addEventListener('DOMContentLoaded',function(){window.__tm('dcl');});window.addEventListener('load',function(){window.__tm('load');});
+(function(){var on=/[?&]time?i?ng=1/.test(location.search);if(!on)return;var NM={html:'HTML 開始',react:'React 載入完',babel:'Babel 載入完',tw:'Tailwind 載入完',liff:'LIFF SDK 載入完',dcl:'頁面骨架完成(Babel 開始翻譯)',common:'common.js 執行完',counterJs:'全部程式翻譯+執行完(counter2.js 結尾)',boot:'啟動腳本開始',render:'主櫃第一次畫面',sync1:'第一次同步回來',load:'window load'};
+window.__tmShow=function(){var d=document.getElementById('__tmbox');if(!d){if(!document.body)return;d=document.createElement('div');d.id='__tmbox';d.style.cssText='position:fixed;left:6px;bottom:6px;z-index:99999;background:rgba(0,0,0,.82);color:#fff;font:11px/1.45 monospace;padding:6px 8px;border-radius:8px;max-width:92vw;pointer-events:none;white-space:pre';document.body.appendChild(d);}
+var ks=Object.keys(window.__T).filter(function(k){return typeof window.__T[k]==='number';}).sort(function(a,b){return window.__T[a]-window.__T[b];});var prev=0;d.textContent=ks.map(function(k){var v=window.__T[k],l=(NM[k]||k)+' '+(v/1000).toFixed(1)+'s'+(k!=='html'?'  (+'+((v-prev)/1000).toFixed(1)+')':'');prev=v;return l;}).join('\n')+(window.__T.snap!==undefined?'\n本機快照: '+(window.__T.snap?'有':'沒有'):'')+(window.__T.syncMs?'\n同步 API 耗時: '+(window.__T.syncMs/1000).toFixed(1)+'s':'');};
+setInterval(function(){window.__tmShow&&window.__tmShow();},500);})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script>window.__tm("react");</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
+<script>window.__tm("babel");</script>
 <script src="https://cdn.tailwindcss.com"></script>
+<script>window.__tm("tw");</script>
 <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script>window.__tm("liff");</script>
 <script>window.__liffReady=new Promise(function(r){window.__liffReadyRes=r;});</script>
 <script>try{var __p=new URLSearchParams(location.search);if(__p.get('lv2')==='pdf'||__p.has('cn2'))document.documentElement.classList.add('s2-nolight');}catch(e){}</script>
 <style>body{background:#ffffff;color:#111827;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}#root{min-height:100vh}
@@ -160,6 +172,7 @@ html:not(.s2-nolight) [style*="gradient"],html:not(.s2-nolight) [style*="gradien
 
 <script>try{if('serviceWorker' in navigator&&location.protocol==='https:'){window.addEventListener('load',function(){navigator.serviceWorker.register('../sw.js').catch(function(){});});}}catch(_e){}</script>
 <script src="../common.js"></script>
+<script>window.__tm("common");</script>
 <script type="text/babel" src="./safety2.js?v=1.13-050"></script>
 <script type="text/babel" src="./notice2.js?v=1.0-016"></script>
 <script type="text/babel" src="./blacklist2.js?v=1.0-010"></script>
@@ -168,8 +181,9 @@ html:not(.s2-nolight) [style*="gradient"],html:not(.s2-nolight) [style*="gradien
 <script type="text/babel" src="./my2.js?v=1.0-019"></script>
 <script type="text/babel" src="./shop2.js?v=1.0-001"></script>
 <script src="./counter-rules-data.js?v=1.0-037"></script>
-  <script type="text/babel" src="./counter2.js?v=1.0-051"></script>
+  <script type="text/babel" src="./counter2.js?v=1.0-052"></script>
 <script type="text/babel">
+window.__tm&&window.__tm("boot");
 (function(){
 const{useState,useEffect,useMemo}=React;
 const{gasCall,gasCallPost,getGasUrl,setGasUrl,TW_REGIONS,LANG_SCHOOLS,isValidPin,lockPwdCred,gasSetInitialPwd,gasLoginPwd}=window.MP||{};
