@@ -1,4 +1,4 @@
-/* gloves2.js — 手套團購 2.0 前端(v1.0-006)
+/* gloves2.js — 手套團購 2.0 前端(v1.0-009:我要+1 本機先顯示、認領前先提醒)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 gb2:
      ?gb2=l   團購首頁(預設)   ?gb2=h  歷史/我的紀錄   ?gb2=set  設定(主管:達標箱數、收單時限、各店推播用量)
    人員/權限共用 window.S2Core(safety2.js)。後端:gas-gloves2.gs.txt(gb2List/gb2Join/gb2Start/gb2ItemSet/gb2ItemDel/gb2Claim/gb2Status/gb2Paid/gb2Vendor/gb2Settings/gb2SettingsSet) */
@@ -15,12 +15,12 @@ WRITE_CLEAR.gb2SettingsSet=['gb2Settings'];
 const COLORS=['白色','藍色','均可'];
 const SIZES=['XS','S','M','L','XL'];
 const L={
-  zh:{title:'手套團購',plus:'我要 +1',need:'我有需求',noOrder:'目前沒有收單中的團購',noOrderHint:'有需求就按「我有需求」,會發起本店新團購',
+  zh:{title:'手套團購',views:'瀏覽紀錄',ppl2:'人次',vTime:'時間',vCode:'編號',vStore:'所屬店',vNote:'僅顯示最近 50 筆;同一人 10 分鐘內只記一次',plus:'我要 +1',need:'我有需求',noOrder:'目前沒有收單中的團購',noOrderHint:'有需求就按「我有需求」,會發起本店新團購',
       color:'顏色',size:'尺寸',boxes:'箱數',submit:'送出',save:'儲存',cancel:'取消',edit:'修改',del:'刪除',claim:'我來認領',release:'放棄認領',claimer:'認領人',none:'尚無',
       startClaim:'我來發起並認領（自己先不買）',proxyTitle:'代老師記錄（單純記事，不會推播）',proxyCode:'老師編號',proxyAdd:'記錄',proxyTag:'記事',progress:'達標進度',noClaimerWarn:'已達標,還沒有認領人!',people:'訂購名單',paid:'已交錢',unpaid:'未交錢',copyVendor:'複製廠商訂購單',copied:'已複製',
       admin:'認領人專區',history:'歷史',mine:'我的紀錄',back:'返回',set:'設定',store:'店別',expired:'已超過收單時限',claimHint:'認領人負責收錢、叫貨並更新狀態(老師或主管皆可)',
       changeTo:'變更狀態',mergeCopy:'合併複製(各店截止/收錢中)',failed:'失敗',pushed:'已推播給',ppl:'人',pushBlock:'(LINE 額度不足,未推播)',confirm:'確定要變更成「{0}」嗎?'},
-  vi:{title:'Mua chung găng tay',plus:'Tôi +1',need:'Tôi có nhu cầu',noOrder:'Hiện chưa có đơn đang nhận',noOrderHint:'Có nhu cầu hãy bấm "Tôi có nhu cầu" để tạo đơn mới cho chi nhánh',
+  vi:{title:'Mua chung găng tay',views:'Lịch sử xem',ppl2:'lượt',vTime:'Thời gian',vCode:'Số',vStore:'Chi nhánh',vNote:'Chỉ hiển thị 50 lượt gần nhất; cùng một người trong 10 phút chỉ ghi 1 lần',plus:'Tôi +1',need:'Tôi có nhu cầu',noOrder:'Hiện chưa có đơn đang nhận',noOrderHint:'Có nhu cầu hãy bấm "Tôi có nhu cầu" để tạo đơn mới cho chi nhánh',
       color:'Màu',size:'Size',boxes:'Số thùng',submit:'Gửi',save:'Lưu',cancel:'Hủy',edit:'Sửa',del:'Xóa',claim:'Tôi nhận phụ trách',release:'Bỏ nhận',claimer:'Người phụ trách',none:'Chưa có',
       startClaim:'Tôi khởi tạo và phụ trách (không mua)',proxyTitle:'Ghi hộ Sư phụ (chỉ ghi chú, không gửi thông báo)',proxyCode:'Số Sư phụ',proxyAdd:'Ghi',proxyTag:'ghi chú',progress:'Tiến độ',noClaimerWarn:'Đủ số lượng, chưa có người phụ trách!',people:'Danh sách đặt',paid:'Đã nộp tiền',unpaid:'Chưa nộp',copyVendor:'Sao chép đơn gửi nhà cung cấp',copied:'Đã sao chép',
       admin:'Dành cho người phụ trách',history:'Lịch sử',mine:'Của tôi',back:'Quay lại',set:'Cài đặt',store:'Chi nhánh',expired:'Đã quá hạn nhận đơn',claimHint:'Người phụ trách thu tiền, đặt hàng và cập nhật trạng thái',
@@ -57,7 +57,13 @@ function ItemForm({t,lang,init,onSubmit,onCancel,busy,submitText}){
 
 // ───────── 一張訂單 ─────────
 function OrderCard({o,t,lang,last,reload,showForm,setShowForm}){
-  const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');const[editId,setEditId]=useState('');const[pcode,setPcode]=useState('');
+  const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');const[editId,setEditId]=useState('');const[pcode,setPcode]=useState('');const[opt,setOpt]=useState([]);const[claimAsk,setClaimAsk]=useState(false);
+  // 我要 +1:先在本機清單顯示並關閉表單,背景送出;失敗才移除並顯示錯誤(避免以為沒按成功而重複按)
+  const joinNow=v=>{const key='o'+Date.now()+Math.random();setOpt(a=>a.concat([Object.assign({key:key},v)]));setShowForm(false);setMsg('');
+    api('gb2Join',Object.assign({orderId:o.id},v)).then(r=>{const drop=()=>setOpt(a=>a.filter(x=>x.key!==key));
+      if(!r||!r.ok){drop();setMsg((r&&r.error)||t.failed);return;}
+      const m=[];if(r.pushed)m.push(t.pushed+' '+r.pushed+' '+t.ppl);if(r.pushBlocked)m.push(t.pushBlock);if(m.length)setMsg(m.join(' '));
+      Promise.resolve(reload()).then(drop,drop);}).catch(()=>{setOpt(a=>a.filter(x=>x.key!==key));setMsg(t.failed);});};
   const run=async(action,params,okMsg)=>{setBusy(true);setMsg('');const r=await api(action,params);setBusy(false);
     if(!r.ok){setMsg(r.error||t.failed);return null;}
     if(okMsg!==false){const m=[];if(r.pushed)m.push(t.pushed+' '+r.pushed+' '+t.ppl);if(r.pushBlocked)m.push(t.pushBlock);if(m.length)setMsg(m.join(' '));}
@@ -75,11 +81,12 @@ function OrderCard({o,t,lang,last,reload,showForm,setShowForm}){
     {o.attention&&<p className="text-sm text-amber-300 font-semibold">⚠ {t.noClaimerWarn}</p>}
     <div className="flex items-center justify-between gap-2 text-sm">
       <p className="text-gray-300">{t.claimer}：<span className="text-white">{o.claimer||t.none}</span></p>
-      {!o.claimer&&o.status!=='ended'&&o.status!=='cancelled'&&<button disabled={busy} className="px-3 py-1.5 rounded-lg bg-violet-700 text-white text-sm" onClick={()=>run('gb2Claim',{orderId:o.id})}>{t.claim}</button>}
+      {!o.claimer&&o.status!=='ended'&&o.status!=='cancelled'&&<button disabled={busy} className="px-3 py-1.5 rounded-lg bg-violet-700 text-white text-sm" onClick={()=>setClaimAsk(true)}>{t.claim}</button>}
       {o.claimer&&o.canAdmin&&o.status!=='ended'&&o.status!=='cancelled'&&<button disabled={busy} className="px-3 py-1.5 rounded-lg border border-gray-600 text-gray-300 text-xs" onClick={()=>run('gb2Claim',{orderId:o.id,release:true})}>{t.release}</button>}
     </div>
     {!o.claimer&&<p className="text-[11px] text-gray-500">{t.claimHint}</p>}
-    {o.people.length>0&&(<div className="space-y-2"><p className="text-xs text-gray-500">{t.people}（{o.peopleCount}）</p>
+    {(o.people.length>0||opt.length>0)&&(<div className="space-y-2"><p className="text-xs text-gray-500">{t.people}（{o.peopleCount}）</p>
+      {opt.map(x=>(<div key={x.key} className="rounded-xl px-3 py-2 bg-violet-950/40 border border-dashed border-violet-500/60"><p className="text-sm text-white">⭐ {lang==='vi'?'Bạn':'我'}<span className="ml-2 text-[11px] text-violet-300">{lang==='vi'?'đang gửi…':'送出中…'}</span></p><p className="mt-1 text-sm text-gray-300">{cLabel(x.color,lang)}　{x.size} × {x.boxes}</p></div>))}
       {o.people.map((pp,i)=>(<div key={i} className={'rounded-xl px-3 py-2 '+(pp.mine?'bg-violet-950/40 border border-violet-700/50':'bg-gray-800/60')}>
         <div className="flex items-center justify-between gap-2"><p className="text-sm text-white">{pp.label}{pp.mine&&' ⭐'}{pp.proxy&&<span className="ml-1 text-[11px] text-sky-300">（{t.proxyTag}）</span>}</p>
           {o.canAdmin&&o.status!=='cancelled'?(<label className="flex items-center gap-1.5 text-xs text-gray-300"><input type="checkbox" disabled={busy} checked={pp.paid} onChange={e=>run('gb2Paid',{itemId:pp.firstItem,paid:e.target.checked})}/>{t.paid}</label>)
@@ -91,7 +98,7 @@ function OrderCard({o,t,lang,last,reload,showForm,setShowForm}){
             {ln.editable&&collecting&&<span className="space-x-3 text-xs"><button className="text-violet-300" onClick={()=>setEditId(ln.id)}>{t.edit}</button><button className="text-red-400" onClick={()=>{if(window.confirm(t.del+'?'))run('gb2ItemDel',{itemId:ln.id},false);}}>{t.del}</button></span>}</div>))}</div>
       </div>))}</div>)}
     {collecting&&!o.expired&&(showForm?(<div className="rounded-xl border border-gray-700 p-3"><ItemForm t={t} lang={lang} init={last||{}} busy={busy} submitText={t.submit} onCancel={()=>setShowForm(false)}
-        onSubmit={async v=>{const r=await run('gb2Join',Object.assign({orderId:o.id},v),false);if(r)setShowForm(false);}}/></div>)
+        onSubmit={v=>joinNow(v)}/></div>)
       :<Btn onClick={()=>setShowForm(true)}>{t.plus}</Btn>)}
     {o.canAdmin&&collecting&&(<div className="rounded-xl border border-sky-700/40 p-3 space-y-2">
       <p className="text-xs text-sky-300">{t.proxyTitle}</p>
@@ -106,6 +113,10 @@ function OrderCard({o,t,lang,last,reload,showForm,setShowForm}){
           {o.status==='closed'&&<button disabled={busy} onClick={()=>changeStatus('collecting')} className="rounded-lg py-2 text-sm border border-amber-700 text-amber-300">{sLabel('collecting',lang)}</button>}</div></>)}
     </div>)}
     {msg&&<p className="text-center text-sm text-gray-300 whitespace-pre-wrap">{msg}</p>}
+    {claimAsk&&(<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6" onClick={()=>setClaimAsk(false)}><div className="w-full max-w-sm rounded-2xl bg-gray-900 border border-violet-600 p-5 space-y-3" onClick={e=>e.stopPropagation()}>
+      <p className="text-lg font-bold text-white">{lang==='vi'?'Người nhận đơn cần làm:':'認領人要做：'}</p>
+      <ol className="list-decimal pl-5 space-y-1 text-base text-gray-100"><li>{lang==='vi'?'Thu tiền của mọi người':'收錢'}</li><li>{lang==='vi'?'Khi hàng về, thông báo cho người đã đặt':'貨到後通知團購的人'}</li></ol>
+      <div className="flex gap-2"><Btn color="bg-gray-700 text-white" onClick={()=>setClaimAsk(false)}>{t.cancel}</Btn><Btn loading={busy} onClick={()=>{setClaimAsk(false);run('gb2Claim',{orderId:o.id});}}>{lang==='vi'?'Tôi nhận đơn':'我來認領'}</Btn></div></div></div>)}
   </Card>);
 }
 
@@ -137,7 +148,11 @@ function MainPage({me,tab}){
     if(!window.__gb2Synced&&st.data&&st.data.ok&&st.data._at&&Date.now()-st.data._at>2000){window.__gb2Synced=1;reload();}
     else if(st.data&&st.data.ok)window.__gb2Synced=1;
   },[]);
-  const[showForm,setShowForm]=useState(false);const[need,setNeed]=useState(false);const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');
+  const[showForm,setShowForm]=useState(false);const[need,setNeed]=useState(false);const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');const[showViews,setShowViews]=useState(false);
+  useEffect(()=>{ // 記一筆「誰點進來」:每次開頁面只送一次(切分頁/重新整理不重送;後端同人同店 10 分鐘內也只記 1 筆),失敗不影響使用
+    if(window.__gb2Viewed||!st.data||!st.data.ok)return;window.__gb2Viewed=1;
+    try{api('gb2View',{store:st.data.store}).then(()=>{}).catch(()=>{});}catch(_e){}
+  },[st.data&&st.data.ok]);
   if(st.loading&&!st.data)return(<Loading/>);
   const d=st.data;if(!d||!d.ok)return(<Msg text={(d&&d.error)||t.failed}/>);
   const mine=d.store===d.myStore;
@@ -161,6 +176,14 @@ function MainPage({me,tab}){
     {tab==='h'&&(<>
       {d.history.map(o=><HistoryCard key={o.id} o={o} t={t} lang={lang}/>)}
     </>)}
+    {d.views&&(<div className="pt-2 border-t border-gray-800">
+      <button onClick={()=>setShowViews(v=>!v)} className="w-full flex items-center justify-between min-h-[44px] text-sm text-gray-400">
+        <span>👁 {t.views}（{lang==='vi'?'hôm nay':'今日'} {d.views.today} {t.ppl2}）</span><span>{showViews?'▲':'▼'}</span></button>
+      {showViews&&(d.views.list.length===0?<p className="text-sm text-gray-500 py-2">—</p>:(<div className="text-sm">
+        <div className="flex py-1.5 text-xs text-gray-500 border-b border-gray-800"><span className="w-[104px]">{t.vTime}</span><span className="w-[64px]">{t.vCode}</span><span className="flex-1">{t.vStore}</span></div>
+        {d.views.list.map((v,i)=>(<div key={i} className="flex py-2 border-b border-gray-800/60 text-gray-300"><span className="w-[104px] tabular-nums">{v.at.slice(5)}</span><span className="w-[64px] tabular-nums">{v.code}</span><span className="flex-1">{v.store}</span></div>))}
+        <p className="text-xs text-gray-600 pt-2">{t.vNote}</p></div>))}
+    </div>)}
   </Box>);
 }
 
