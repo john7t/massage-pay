@@ -17,7 +17,7 @@ const dur=sec=>Math.round(sec/60)+' 分';
 const nextMark=(now,stepMin)=>{const st=stepMin*60000;return Math.floor((now+8*3600e3)/st)*st+st-8*3600e3;}; // 台北時間的下一個整/半點
 const LIMIT=3600;
 // ── 白底主題:版面用 cn-* 類別;其餘沿用的 Tailwind 深色類別,在 .cn-light 內改成淺色對應 ──
-const CN_VER='v1.0-041'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
+const CN_VER='v1.0-042'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
 window.__cnVer=CN_VER;
 const CN_CSS=String.raw`
 .cn-light{background:#f7f7f9;color:#1b1f2a;min-height:100vh;font-feature-settings:"tnum"}
@@ -295,7 +295,9 @@ function planItem(D,now,pool,rel0,used,it,order,minStart,split){
     const nz=pickTeachers(pool,Object.assign({},f1,{nobk:true,nozhun:true}),it.n,usedT);
     return {err:nb?'老師近 2 小時內有勞點預約,時間不夠做這個項目(R5.11)':nz?'符合條件的老師已喊准下,下牌前來不及做完這個項目(R5.28)':'沒有符合條件的老師'};}
   const posType=need;
-  const pos1=pickPositions(posType,it.n,rel,usedP,posType==='foot'?PREF_FOOT:(f.oil?PREF_OIL:bedPref(it.n)),Math.max(now,minStart||0),{near:(used.grp&&used.grp[posType])||[],more:used.more||0});
+  let conflict=false;let pos1;
+  if(it.forcePos&&it.n===1&&(posType==='foot'?FEET:BEDS).indexOf(it.forcePos)>=0){pos1=[it.forcePos];conflict=!!usedP[it.forcePos];} // 自行決定:指定位置(衝突只標紅,不擋)
+  else pos1=pickPositions(posType,it.n,rel,usedP,posType==='foot'?PREF_FOOT:(f.oil?PREF_OIL:bedPref(it.n)),Math.max(now,minStart||0),{near:it.sep?[]:((used.grp&&used.grp[posType])||[]),more:it.sep?0:(used.more||0)});
   if(!pos1)return {err:'沒有'+(posType==='foot'?'腳位':'床位')};
   if(f.oil&&posType==='bed'){rules.push('R3.2','R3.3');}else if(posType==='bed')rules.push('R3.4');
   if(it.n>1)rules.push('R3.5');
@@ -304,10 +306,10 @@ function planItem(D,now,pool,rel0,used,it,order,minStart,split){
   const first=segs[0][1]*MIN;const transfer=segs.length>1?st+first:0;
   const total=segs.reduce((a,x)=>a+x[1],0)+30*extra;const end=st+total*MIN;
   pos1.forEach(x=>{usedP[x]=1;rel[x]=transfer||end;});tchs.forEach(t=>{usedT[t.code]=1;});
-  let people=pos1.map((x,i)=>({teacher:tchs[i].code,white:tchs[i].white,ready:tchs[i].ready,pos1:x,pos2:'',start:st,transfer:transfer,end:end}));
+  let people=pos1.map((x,i)=>({teacher:tchs[i].code,white:tchs[i].white,ready:tchs[i].ready,pos1:x,pos2:'',start:st,transfer:transfer,end:end,conflict:conflict,first:posType}));
   // 轉場後位置、(拆單)換女老師
   if(segs.length>1){
-    const t2=calc.second;const pos2=pickPositions(t2,it.n,rel,usedP,t2==='foot'?PREF_FOOT:(f.oil?PREF_OIL:bedPref(it.n)),transfer,{near:(used.grp&&used.grp[t2])||[],more:used.more||0});
+    const t2=calc.second;const pos2=pickPositions(t2,it.n,rel,usedP,t2==='foot'?PREF_FOOT:(f.oil?PREF_OIL:bedPref(it.n)),transfer,{near:it.sep?[]:((used.grp&&used.grp[t2])||[]),more:it.sep?0:(used.more||0)});
     if(pos2){const late=Math.max(...pos2.map(x=>rel[x]))-transfer;pos2.forEach((x,i)=>{people[i].pos2=x;usedP[x]=1;rel[x]=end;});if(late>60000)notes.push('轉場時位置還沒空出,約需再等 '+Math.ceil(late/60000)+' 分');}
     else notes.push('轉場後沒有空'+(t2==='foot'?'腳位':'床位'));
     if(isSplit){
@@ -325,19 +327,19 @@ function recommend(D,now,items,opt){
   opt=opt||{};if(opt.bid)D=Object.assign({},D,{bookings:(D.bookings||[]).filter(b=>b.id!==opt.bid)}); // 客人是來赴這筆勞點的:不算這筆
   const pool=teacherPool(D,now);const rel0=posRelease(D,now);
   const M=seatMap(D);const freeF=FEET.filter(x=>!M[x]).length,freeB=BEDS.filter(x=>!M[x]).length;
-  const runOnce=(orders,minStart,split)=>{const used={t:{},p:{}};const res=[];
+  const runOnce=(orders,minStart,split,its)=>{const IT=its||items;const used={t:{},p:{}};const res=[];
     // 前面候位的客人(R9.16、R5.29):指定老師(老點)才占該老師號碼;沒指定的只壓白牌張數,不壓號碼——壓最後面的白牌,前面的白牌現場客可先出
     const ah=[];(opt.ahead||[]).forEach(g=>{(g||[]).forEach(x=>ah.push(x));});
     ah.filter(x=>x&&x.teacher).forEach(x=>{planItem(D,now,pool,rel0,used,x,'foot',0,false);});
     const resN=ah.filter(x=>x&&!x.teacher).reduce((a,x)=>a+(x.n||1),0);
     if(resN>0)pool.filter(t=>t.white&&!used.t[t.code]).sort((a,b)=>b.order-a.order).slice(0,resN).forEach(t=>{used.t[t.code]=1;});
     used.grp={foot:[],bed:[]};
-    for(let i=0;i<items.length;i++){used.more=items.slice(i+1).reduce((a,x)=>a+(x.n||1),0);const r=planItem(D,now,pool,rel0,used,items[i],orders[i],minStart,split);if(r.err)return {err:'項目 '+String.fromCharCode(65+i)+':'+r.err};r.label=String.fromCharCode(65+i);res.push(r);}return {items:res};};
+    for(let i=0;i<IT.length;i++){used.more=IT.slice(i+1).reduce((a,x)=>a+(x.n||1),0);const r=planItem(D,now,pool,rel0,used,IT[i],orders[i],minStart,split);if(r.err)return {err:'項目 '+String.fromCharCode(65+i)+':'+r.err};r.label=String.fromCharCode(65+i);res.push(r);}return {items:res};};
   const isPkg=items.map(it=>it.kind==='pkg');
   // 套餐先後(R2.11、R9.9):預設先腳;腳位很滿、床位很空改先身;兩種都試,取最快(同樣快時依預設)
   const def=isPkg.map(()=>freeF<=1&&freeB>=3?'body':'foot');
   const alt=def.map((d,i)=>isPkg[i]?(d==='foot'?'body':'foot'):d);
-  const mk=(orders,minStart,label,extraRules,split)=>{const r=runOnce(orders,minStart||0,split);if(r.err)return {label:label,err:r.err};
+  const mk=(orders,minStart,label,extraRules,split,its)=>{const r=runOnce(orders,minStart||0,split,its);if(r.err)return {label:label,err:r.err};
     const starts=r.items.map(x=>x.start);return {label:label,items:r.items,start:Math.max(...starts),rules:extraRules||[],orders:orders};};
   const plans=[];
   const need=items.some(it=>it.oil||it.gender==='F');
@@ -352,6 +354,19 @@ function recommend(D,now,items,opt){
     const t=mk(a.orders,together,'一起開始',['R9.11','R9.12'],splitTry);
     if(!t.err){t.together=true;t.start=together;plans.unshift(t);a.label='各自最快';
       if(isPkg.some(Boolean)){const tb=mk(alt,together,'改先做'+(alt[isPkg.indexOf(true)]==='body'?'身體':'腳'),['R9.9','R9.11','R9.12'],splitTry);if(!tb.err){tb.together=true;tb.start=together;t.alt=tb;}}} // 「一起開始」也提供改先做身體/腳(R9.9)
+  }
+  // 4 人以上套餐(只有 1 個項目時):多給 3 個方案——2身+2腳、2+2 分兩組、自行決定(每位客人自選先身/先腳與位置;老師一律自動配)
+  if(items.length===1&&isPkg[0]&&(items[0].n||1)>=4){
+    const it0=items[0],n0=it0.n,h=Math.floor(n0/2);plans[0].label='4人連坐';
+    const grpItems=sep=>[Object.assign({},it0,{n:h,sep:sep}),Object.assign({},it0,{n:n0-h,sep:sep})];
+    const p1=mk(['body','foot'],opt.minStart,'2身+2腳',['R9.9'],splitTry,grpItems(false)); // 身先組馬上開始,腳先組等腳位;兩組各做各的,不自動對調
+    if(!p1.err){p1.groups=true;plans.push(p1);}
+    const p2=mk([def[0],def[0]],opt.minStart,'2+2分兩組',[],splitTry,grpItems(true));
+    if(!p2.err){p2.groups=true;plans.push(p2);}
+    const cu=opt.custom||{};const ord=[];for(let i=0;i<n0;i++)ord.push((cu.ord&&cu.ord[i])||a.orders[0]);
+    const pe=[];for(let i=0;i<n0;i++)pe.push(Object.assign({},it0,{n:1,forcePos:(cu.pos&&cu.pos[i])||''}));
+    const p3=mk(ord,opt.minStart,'自行決定',['R9.9'],splitTry,pe);
+    if(!p3.err){p3.custom=true;p3.cOrders=ord;plans.push(p3);}
   }
   // 白牌沒有合適女老師:列出紅牌女老師等待時間(R9.6)
   let femaleWait=null;
@@ -375,7 +390,8 @@ const isLate=(p,now)=>p.state==='gray'&&p.due<=now&&!(p.lateTo&&p.lateTo>now); /
 function Plate({p,now,small,mini,hl,onClick}){
   const st=p.state;const fem=p.gender==='F';const w=mini?36:small?50:64,h=mini?42:small?60:72;
   let bg='#f4f5f8',bd='#0f1424',bs='solid',col=fem?'#be123c':'#111',sub='',subCol='#5b6270',ring='none';
-  if(st==='white'){sub=p.onAt?hm(p.onAt):'';if(p.bk){bg='#fff4c2';bd='#d99a06';sub=hm(p.bk.at)+' 勞點';subCol='#92400e';}}
+  if(st==='white'){sub=p.onAt?hm(p.onAt):'';if(p.bk){bg='#fff4c2';bd='#d99a06';sub=hm(p.bk.at)+' 勞點';subCol='#92400e';}
+    else if(p.offHour>0){const oa=offAbs(p.offHour,now),offT=hm(oa);if(zhunOn(p,now)){sub='准下'+offT;subCol='#b45309';}else if(oa-now<=2*3600e3&&oa-now>0){sub='下'+offT;subCol='#b45309';}}}
   else if(st==='green'){const g=greenInfo(p,now);bg='#c9ecd6';bd=g.over?'#c42b1f':'#0f1424';col='#0b6b46';subCol='#0b6b46';ring=g.over?'0 0 0 2px #fca5a5':'none';
     if(g.over){sub='超時'+hm(g.overAt);subCol='#b91c1c';}else if(!g.noLimit&&g.left<=60){sub=mmss(g.left);subCol='#b45309';}else{sub='翻'+hm(p.greenStart);}}
   else if(st==='gray'){const late=isLate(p,now);bg='#eceef2';bd='#a9aeba';bs='dashed';col=fem?'#be123c':'#5b6270';sub=p.due?hm(p.due):'';subCol='#6b7280';
@@ -385,7 +401,7 @@ function Plate({p,now,small,mini,hl,onClick}){
   else if(st==='red'){bg='#ffb4ac';bd='#0f1424';col=fem?'#9f1239':'#8f1d1d';subCol='#b91c1c';sub=(p.redItem||'')+(p.redEnd?' '+hm(p.redEnd):'');}
   else if(st==='off'){bg='transparent';bd='#a9aeba';col='#6b7280';}
   else if(st==='leave'){bg='transparent';bd='#a9aeba';bs='dashed';col='#9aa0ad';sub=p.leaveKind==='temp'?'臨時請假':'請假';subCol='#9aa0ad';}
-  if((st==='white'||st==='red')&&zhunOn(p,now)){sub='准下'+(sub?' '+sub:'');subCol='#b45309';}
+  if(st==='red'&&zhunOn(p,now)){sub='准下'+(sub?' '+sub:'');subCol='#b45309';}
   const sw=st==='red'&&!mini?w+10:w;if(hl)ring='0 0 0 3px #0284c7';
   if(mini)return(<button onClick={onClick} title={p.code+(sub?' '+sub:'')} style={{width:sw,minWidth:sw,height:h,flex:'0 0 auto',borderRadius:2,border:'2px '+bs+' '+bd,background:bg,boxShadow:ring,display:'flex',alignItems:'center',justifyContent:'center',padding:0,cursor:'pointer'}}><span style={{fontSize:p.code.length>2?14:17,fontWeight:800,color:col,letterSpacing:'-.02em',fontVariantNumeric:'tabular-nums'}}>{p.code}</span></button>);
   return(<button onClick={onClick} style={{width:sw,minWidth:sw,height:h,flex:'0 0 auto',borderRadius:2,border:'2px '+bs+' '+bd,background:bg,boxShadow:ring,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:2,padding:0,cursor:'pointer'}}>
@@ -547,7 +563,7 @@ function OrderSheet({g,D,act,onClose,now,onPay,onPre}){
       {g.canPre&&(g.st==='seating'||g.st==='serving')&&<Bt tone="green" onClick={()=>{onClose();onPre(g.key);}}>先付</Bt>}</div>}</Sheet>);
 }
 // 位置佔用:{位置:{p:老師牌, kind:'cur'|'rsv'}}
-function seatMap(D){const m={};D.red.forEach(p=>{if(p.redPos)m[p.redPos]={p:p,kind:'cur'};});D.red.forEach(p=>{if(p.redPos2){const o=m[p.redPos2];if(o&&o.kind==='cur'&&o.p!==p)o.nx=p;else m[p.redPos2]={p:p,kind:'rsv'};}});return m;}
+function seatMap(D){const m={};D.red.forEach(p=>{if(p.redPos)m[p.redPos]={p:p,kind:'cur',seat:(D.orders||[]).some(x=>x.code===p.code&&x.status==='seating')};});D.red.forEach(p=>{if(p.redPos2){const o=m[p.redPos2];if(o&&o.kind==='cur'&&o.p!==p)o.nx=p;else m[p.redPos2]={p:p,kind:'rsv'};}});return m;}
 const CN_TOL=5*60000;
 function SoonLbl({M,x,p,now}){const q=M[x].p;const rel=q.redTransfer>0?q.redTransfer:q.redEnd;const over=rel>p.redTransfer;return(<span className="block text-[10px]">{q.code}號 {hm(rel)}{q.redTransfer>0?'轉':'結束'}<br/><b>{cdTxt(rel-now)}</b>{over&&<span style={{color:'#b45309'}}>　需調節(差{Math.ceil((rel-p.redTransfer)/60000)}分)</span>}</span>);}
 function soonSeats(p,M,needType){const tr=p.redTransfer>0?p.redTransfer:0;if(!tr)return [];return (needType==='foot'?FEET:needType==='bed'?BEDS:FEET.concat(BEDS)).filter(x=>{const o=M[x];if(!o||o.kind!=='cur'||o.p===p||o.nx)return false;const rel=o.p.redTransfer>0?o.p.redTransfer:o.p.redEnd;return rel>0&&rel<=tr+CN_TOL;});}
@@ -562,8 +578,9 @@ function Seat({pos,occ,now,onClick,h,hl,tv}){
     else{const key=p.redTransfer>0?p.redTransfer:p.redEnd;const left=key?(key-now)/60000:999;const over=p.redEnd&&now>p.redEnd;
       const T=tv||{t:true,e:true,r:false};let tShow=T.t&&p.redTransfer>0,rShow=T.r&&key>0,eShow=T.e&&p.redEnd>0;if(stackCur){const w=rShow?'r':tShow?'t':eShow?'e':(key>0?'r':'');rShow=w==='r';tShow=w==='t';eShow=w==='e';}else if(tShow&&rShow&&eShow)eShow=false; // 最多 2 排:轉場+剩餘+到場 三排同時有時不顯示「到」
       bg=over?'#ffb4ac':left<=5?'#ffe28a':'#c9ecd6';bd='#0f1424';
+      if(occ.seat){bg='#e0f2fe';bd='#0284c7';tShow=false;rShow=false;eShow=false;}
       body=<React.Fragment><span style={{fontSize:p.code.length>2?17:20,fontWeight:800,color:fem?'#be123c':'#111',lineHeight:1}}>{p.code}</span><span style={{fontSize:10,fontWeight:700,color:'#3a4050'}}>{p.redItem}</span>
-        {tShow&&<span style={{fontSize:10,color:'#92400e'}}>{hm(p.redTransfer)}轉</span>}{rShow&&<span style={{fontSize:10,fontWeight:700,color:key===p.redTransfer?'#92400e':(over?'#b91c1c':'#0b6b46')}}>{cdTxt(key-now)}</span>}{eShow&&<span style={{fontSize:10,color:over?'#b91c1c':'#0b6b46'}}>到{hm(p.redEnd)}</span>}</React.Fragment>;}}
+        {occ.seat&&<span style={{fontSize:10,fontWeight:800,color:'#0369a1'}}>帶位中</span>}{tShow&&<span style={{fontSize:10,color:'#92400e'}}>{hm(p.redTransfer)}轉</span>}{rShow&&<span style={{fontSize:10,fontWeight:700,color:key===p.redTransfer?'#92400e':(over?'#b91c1c':'#0b6b46')}}>{cdTxt(key-now)}</span>}{eShow&&<span style={{fontSize:10,color:over?'#b91c1c':'#0b6b46'}}>到{hm(p.redEnd)}</span>}</React.Fragment>;}}
   const stk=(hl&&occ)?{c:'#0284c7',bg:'#e0f2fe',tx:'#0369a1',t:hl.t}:(occ&&occ.kind==='cur'&&occ.nx?{c:'#7c3aed',bg:'#f3effe',tx:'#6d28d9',t:occ.nx.code}:null); // 推薦要排到這格,但這格現在還有人(例:21 床還在做):疊兩張卡片——前面是目前的客人,後面藍色那張=推薦的後續安排,底部小字=老師號
   const lab=<span style={{fontSize:11,color:'#6b7280',alignSelf:'flex-start',paddingLeft:4}}>{PL(pos)}</span>;
   if(!stk)return(<button onClick={onClick} style={{flex:'1 1 0',minWidth:0,minHeight:h===undefined?92:h,borderRadius:2,border:'1.5px '+bs+' '+bd,background:bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:1,padding:'2px 0'}}>{lab}{body}</button>);
@@ -741,9 +758,9 @@ function WaitEntrySheet({w,idx,act,onSeat,onClose}){
 }
 // 推薦區塊(主畫面最上方)
 function RecBlock({D,now,req,bid,ahead,onClear,onEdit,adopt,onReserve,guest,pad,onShow}){
-  const[pg,setPg]=useState(1);const[gx,setGx]=useState(null);const[wait,setWait0]=useState(0);const setWait=m=>{setWait0(m);setPg(1);};const[pi,setPi]=useState(0);const[useAlt,setUseAlt]=useState(false);const[together,setTogether]=useState(true);
+  const[pg,setPg]=useState(1);const[gx,setGx]=useState(null);const[wait,setWait0]=useState(0);const setWait=m=>{setWait0(m);setPg(1);};const[pi,setPi]=useState(0);const[useAlt,setUseAlt]=useState(false);const[together,setTogether]=useState(true);const[custom,setCustom]=useState(null);
   const q5=Math.floor(now/30000)*30000; // 每 30 秒重算
-  const R=window.__cnRec.recommend(D,q5,req,Object.assign({ahead:ahead||[],bid:bid||''},wait?{minStart:q5+wait*MIN}:{}));
+  const R=window.__cnRec.recommend(D,q5,req,Object.assign({ahead:ahead||[],bid:bid||'',custom:custom||undefined},wait?{minStart:q5+wait*MIN}:{}));
   const _bs=R.error?null:R.plans[Math.min(pi,R.plans.length-1)];const _pl=_bs?((useAlt&&_bs.alt)?_bs.alt:_bs):null;
   const _non=!!onReserve&&!!_pl&&(R.full||_pl.items.some(r=>r.wait>0));
   const hlKey=JSON.stringify(_pl&&!_non?[].concat(...(_pl.items.map(r=>r.people.map(q=>({t:q.teacher,p1:q.pos1,p2:q.pos2}))))):[]);
@@ -771,12 +788,19 @@ function RecBlock({D,now,req,bid,ahead,onClear,onEdit,adopt,onReserve,guest,pad,
     {(ahead||[]).length>0&&<p className="text-sm font-bold text-amber-300">前面候位 {(ahead||[]).length} 組,已先壓 {(ahead||[]).reduce((a,g)=>a+(g||[]).reduce((b,x)=>b+(x.n||1),0),0)} 張白牌(不指定號碼,R5.29)</p>}
     {R.full&&<p className="text-sm font-bold text-red-300">客滿!最快 {PL(R.soon.pos)} {hmFull(R.soon.at)} 空出</p>}
     {!R.full&&D.white.filter(p=>p.state==='white').length===0&&<p className="text-sm font-bold text-amber-300">老師全在紅牌區(或休息中)</p>}
-    {plans.length>1&&<div className="flex gap-2">{plans.map((p,i)=>(<button key={i} onClick={()=>{setPi(i);setUseAlt(false);}} className={'rounded-xl border px-3 py-1.5 text-sm font-bold '+(i===pi?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-200')}>{p.label}</button>))}</div>}
+    {plans.length>1&&<div className="flex gap-2 flex-wrap">{plans.map((p,i)=>(<button key={i} onClick={()=>{if(p.custom&&!custom){const cur=(useAlt&&base.alt)?base.alt:base;const ord=[];(cur.items||[]).forEach((r,k)=>{for(let j=0;j<r.n;j++)ord.push((cur.custom&&cur.cOrders)?cur.cOrders[ord.length]:(cur.orders&&cur.orders[k])||'foot');});if(ord.length)setCustom({ord:ord,pos:[]});}setPi(i);setUseAlt(false);}} className={'rounded-xl border px-3 py-1.5 text-sm font-bold '+(i===pi?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-200')}>{p.label}</button>))}</div>}
     {pl.items.map(r=>(<div key={r.label} className="rounded-xl bg-black/30 p-2 space-y-1">
       <div className="flex items-center gap-2 flex-wrap"><span className="text-violet-200 font-bold">{r.label}</span><span className="text-white font-bold text-lg" style={{fontFamily:'monospace'}}>{r.code}</span><span className="text-xs text-gray-300">{r.n} 位</span><span className={'text-xs font-bold '+(r.wait>0?'text-amber-300':'text-emerald-300')}>{r.wait>0?'稍候 '+r.wait+' 分':'現在開始'}</span>{r.rules.concat(pl.rules||[]).filter((x,i,a)=>a.indexOf(x)===i).map(x=><RuleTag key={x} r={x}/>)}</div>
       {nonImm?<p className="text-sm font-bold" style={{color:'#4c1d95'}}>壓 {r.n} 張白牌　<span className="text-xs font-normal text-gray-300">不指定號碼,到時依出牌順序派</span></p>:r.people.map((p,i)=>(<p key={i} className="text-sm text-gray-100">
         <b className={p.white?'text-white':'text-amber-300'}>{p.teacher}</b>{p.teacher2?<span className="text-rose-300"> → {p.teacher2}</span>:null}{p.white?'':'(紅牌)'}　{PL(p.pos1)}{p.pos2?' → 轉場 '+PL(p.pos2):''}　{hmFull(p.start)}{p.transfer?'　轉'+hm(p.transfer):''}　{hm(p.end)}到</p>))}
       {!nonImm&&r.notes.map((n,i)=><p key={i} className="text-xs text-amber-200">・{n}</p>)}</div>))}
+    {pl.custom&&!nonImm&&(()=>{const rel1=window.__cnRec.posRelease(D,q5);const ord=(custom&&custom.ord)||pl.cOrders;const setO=(i,v)=>{const o=ord.slice();o[i]=v;const p2=((custom&&custom.pos)||[]).slice();p2[i]='';setCustom({ord:o,pos:p2});};const setP=(i,v)=>{const p2=((custom&&custom.pos)||[]).slice();p2[i]=v;setCustom({ord:ord,pos:p2});};
+      return(<div className="rounded-xl border border-indigo-400/40 p-2 space-y-2"><p className="text-xs text-indigo-200">每位客人自己選先做身體或腳,位置只列出那個時間有空的;選到衝突會標紅,但不擋你。老師由系統自動配。</p>
+      {pl.items.map((r,i)=>{const p=r.people[0];const ty=ord[i]==='body'?'bed':'foot';const opts=(ty==='foot'?FEET:BEDS).filter(x=>x===p.pos1||rel1[x]<=p.start+60000);
+        return(<div key={i} className="flex items-center gap-2 flex-wrap"><span className="text-sm text-violet-200 font-bold w-14">客人{i+1}</span>
+          {['body','foot'].map(v=><button key={v} onClick={()=>setO(i,v)} className={'rounded-lg border px-3 py-1 text-sm font-bold '+(ord[i]===v?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-200')}>{v==='body'?'先身':'先腳'}</button>)}
+          <select value={(custom&&custom.pos&&custom.pos[i])||''} onChange={e=>setP(i,e.target.value)} className="rounded-lg bg-gray-800 border border-gray-600 text-white text-sm px-2 py-1"><option value="">自動 {PL(p.pos1)}</option>{opts.map(x=><option key={x} value={x}>{PL(x)}</option>)}</select>
+          {p.conflict&&<span className="text-xs font-bold text-red-400">⚠ 位置衝突</span>}</div>);})}</div>);})()}
     {R.femaleWait&&R.femaleWait.length>0&&<p className="text-xs text-rose-200">白牌沒有女老師;紅牌女老師:{R.femaleWait.slice(0,4).map(x=>x.code+'(約 '+x.wait+' 分)').join('、')}　可先請客人稍候,或改非指定(R9.6)</p>}
     <div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-indigo-200">稍候</span>{[0,10,20,30].map(m=><button key={m} onClick={()=>setWait(m)} className={'rounded-lg border px-3 py-1 text-sm '+(wait===m?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-200')}>{m?m+' 分':'不等'}</button>)}</div>
     {base.alt&&<button onClick={()=>setUseAlt(!useAlt)} className="text-xs rounded-lg border border-indigo-400 text-indigo-200 px-3 py-1">{useAlt?'← 回到推薦':'換成:'+base.alt.label}</button>}
