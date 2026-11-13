@@ -17,7 +17,7 @@ const dur=sec=>Math.round(sec/60)+' 分';
 const nextMark=(now,stepMin)=>{const st=stepMin*60000;return Math.floor((now+8*3600e3)/st)*st+st-8*3600e3;}; // 台北時間的下一個整/半點
 const LIMIT=3600;
 // ── 白底主題:版面用 cn-* 類別;其餘沿用的 Tailwind 深色類別,在 .cn-light 內改成淺色對應 ──
-const CN_VER='v1.0-043'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
+const CN_VER='v1.0-044'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
 window.__cnVer=CN_VER;
 const CN_CSS=String.raw`
 .cn-light{background:#f7f7f9;color:#1b1f2a;min-height:100vh;font-feature-settings:"tnum"}
@@ -157,7 +157,7 @@ const CN_CSS=String.raw`
 .cn-light .bg-gray-900{background:#f4f5f8}
 .tb-dot{background:#ffc94a}
 .tb-sheethost{display:none;flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}.tb-pn.hasSheet>*:not(.tb-sheethost){display:none!important}.tb-pn.hasSheet>.tb-sheethost{display:block}
-.tb-fullhost{position:absolute;left:12px;right:12px;bottom:12px;top:72px;z-index:30;background:#f4f5f8;border:3px solid #0f1424;box-shadow:6px 6px 0 #0f1424;padding:12px 16px;overflow-y:auto}.tb-fullhost:empty{display:none}.tb-fullhost .tb-sh{max-width:960px;margin:0 auto}
+.tb-fullhost{position:absolute;left:12px;right:12px;bottom:12px;top:72px;z-index:30;background:#f4f5f8;border:3px solid #0f1424;box-shadow:6px 6px 0 #0f1424;padding:12px 16px;overflow-y:auto}.tb-fullhost:empty{display:none}.tb-bnhost{position:absolute;left:12px;right:12px;bottom:12px;z-index:45}.tb-bnhost:empty{display:none}.tb-bnhost .tb-sh{background:#dbe5ff;border:3px solid #2548d6;box-shadow:0 -8px 28px rgba(15,20,36,.35);padding:8px 14px 10px;max-height:210px;overflow-y:auto}.tb-bnhost .tb-sh>*+*{margin-top:6px}.tb-fullhost .tb-sh{max-width:960px;margin:0 auto}
 .tb-pn{position:relative}.tb-sheethost:has(.tb-ask)>.tb-sh:not(.tb-ask){display:block!important;opacity:.4;pointer-events:none}.tb-ask{position:absolute!important;left:0;right:0;bottom:0;background:#f4f5f8;border-top:2px solid #0f1424;padding:10px 12px 12px!important;box-shadow:0 -8px 20px rgba(15,20,36,.18);z-index:5}.tb-ask .tb-shh{display:none}.tb-ask p{font-size:16px!important;font-weight:700;white-space:pre-line;line-height:1.4}.tb-ask>*+*{margin-top:6px}.tb-sh>*+*{margin-top:8px}
 .cn-ord{padding:7px 10px;border:2px solid #0f1424;margin-bottom:6px}.cn-ord:first-child{padding-top:7px;border-top:2px solid #0f1424}.cn-ord:nth-child(odd){background:#fff}.cn-ord:nth-child(even){background:#dde3f0}
 .zb{border:2px solid #0f1424;background:transparent!important;padding:0!important}.zb>*{padding:5px 10px}.zb>*:nth-child(odd){background:#fff}.zb>*:nth-child(even){background:#dde3f0}.zb>p{background:#0f1424!important;color:#ffc94a!important;font-weight:800;font-size:12px}
@@ -456,13 +456,13 @@ function RulesSheet({onClose}){
       {body}
     </div></div>);
 }
-const CNP={el:null,full:null,map:null,n:0};
+const CNP={el:null,full:null,map:null,bn:null,n:0};
 const SheetWhere=React.createContext('');
 const CNQ={fire:null};
 function cnAsk(msg,fn){if(CNQ.fire)CNQ.fire({msg:msg,fn:fn});else if(confirm(msg))fn();}
 function Sheet({title,onClose,children,cls,where:wp}){
-  const where=wp||React.useContext(SheetWhere);const host=where==='full'?CNP.full:where==='map'?CNP.map:CNP.el;
-  useEffect(()=>{if(!host)return;CNP.n++;const pn=host.parentNode;if(pn)pn.classList.add('hasSheet');return()=>{CNP.n--;if(CNP.n<=0){CNP.n=0;if(pn)pn.classList.remove('hasSheet');}};},[host]);
+  const where=wp||React.useContext(SheetWhere);const host=where==='full'?CNP.full:where==='map'?CNP.map:where==='bn'?CNP.bn:CNP.el;
+  useEffect(()=>{if(!host||where==='bn')return;CNP.n++;const pn=host.parentNode;if(pn)pn.classList.add('hasSheet');return()=>{CNP.n--;if(CNP.n<=0){CNP.n=0;if(pn)pn.classList.remove('hasSheet');}};},[host]);
   if(host)return ReactDOM.createPortal(<div className={"tb-sh"+(cls?" "+cls:"")}><div className="tb-shh"><button onClick={onClose} className="cn-btn">‹ 返回</button><p className="text-lg font-bold text-white">{title}</p></div>{children}</div>,host);
   return(<div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center" style={{background:'rgba(20,22,30,.45)'}} onClick={onClose}>
     <div className="w-full max-w-md rounded-t-2xl sm:rounded-2xl bg-gray-900 border border-gray-700 p-4 space-y-3" onClick={e=>e.stopPropagation()} style={{maxHeight:'85vh',overflowY:'auto'}}>
@@ -554,6 +554,14 @@ function OrderSheet({g,D,act,onClose,now,onPay,onPre}){
     <div className="zb"><Info k="開單時間" v={hmFull(g.createdAt)+(g.openBy?'　'+g.openBy:'')}/><Info k="帶位時間" v={g.start0>0?hmFull(g.start0):'—'}/><Info k="打單時間" v={g.ordAt>0?hmFull(g.ordAt)+(g.ordBy?'　'+g.ordBy:''):'尚未打單'}/>
       {mem.map(o=>(<div key={o.id} className="zb"><p>老師 {o.code}　{o.item}</p><Info k="轉場時間" v={o.movedAt>0?hmFull(o.movedAt):(o.transfer>0?'預定 '+hmFull(o.transfer):'—')}/><Info k="回牌時間" v={o.doneAt>0?hmFull(o.doneAt)+(o.doneBy?'　'+o.doneBy:''):'—'}/></div>))}
       {g.paidAt>0&&<Info k="買單時間" v={hmFull(g.paidAt)+(g.paidBy?'　'+g.paidBy:'')+(g.prepaid?'(先付)':'')+(g.pay?'　'+payTxt(g.pay):'')}/>}</div>
+    {(()=>{const live=mem.map(o=>({o:o,p:D.red.find(x=>x.code===o.code&&x.redItem===o.item)})).filter(x=>x.o.status==='serving'&&x.p);if(live.length<2)return null;
+      const mv=live.filter(x=>x.p.redTransfer>0&&x.p.redPos2&&(!M[x.p.redPos2]||(M[x.p.redPos2].p===x.p&&M[x.p.redPos2].kind==='rsv')));const noMv=live.filter(x=>x.p.redTransfer>0).length-mv.length;
+      return(<div className="rounded-xl border-2 border-violet-500 p-3 space-y-2"><p className="text-sm font-bold text-violet-200">一起操作(全部 {live.length} 位)</p>
+        {pick==='ext:*'?(<div className="space-y-2"><p className="text-sm text-gray-300">全部加時多久?</p><div className="flex gap-2">{[1,2,3,4].map(k=><button key={k} onClick={()=>{live.forEach(x=>go('extend',{code:x.o.code,n:k}));setPick('');}} className="flex-1 rounded-xl border border-emerald-500 text-emerald-300 py-3 font-bold">{k*30} 分</button>)}</div><Bt tone="gray" onClick={()=>setPick('')}>返回</Bt></div>)
+        :(<div className="flex gap-2"><CBtn onYes={()=>{live.forEach(x=>go('back',{code:x.o.code}));}} className="flex-1 rounded-xl border border-red-500 text-red-300 py-2 font-bold">全部回牌</CBtn>
+          <button disabled={mv.length===0} onClick={()=>{mv.forEach(x=>go('move',{code:x.o.code,pos2:x.p.redPos2}));}} className={'flex-1 rounded-xl py-2 font-bold '+(mv.length?'bg-violet-600 text-white':'border border-gray-700 text-gray-600')}>{mv.length?'全部轉場':'無轉場'}</button>
+          <button onClick={()=>setPick('ext:*')} className="flex-1 rounded-xl border border-emerald-500 text-emerald-300 py-2 font-bold">全部加時</button></div>)}
+        {noMv>0&&pick!=='ext:*'&&<p className="text-xs text-amber-300">有 {noMv} 位沒有可立即轉的建議位置,請在下面個別轉場</p>}</div>);})()}
     {mem.map(o=>{const p=D.red.find(x=>x.code===o.code&&x.redItem===o.item);
       if(o.status!=='serving'||!p)return(<div key={o.id} className="rounded-xl border border-gray-800 p-3"><p className="text-sm text-gray-300">老師 <b>{o.code}</b>　{o.item}　{o.status==='wait_pay'?'已完成 '+hmFull(o.doneAt):'—'}</p></div>);
       const second=itemCalc(p.redItem.replace(/\+\d+$/,''),0,0);const needType=second&&second.second?(isFoot(p.redPos)?'bed':'foot'):'';
@@ -870,7 +878,7 @@ function OpenSheet({D,now,presetPos,act,onClose}){
 function ZhunBt({p,now,go}){const on=zhunOn(p,now);
   return(<div className="space-y-1">{on&&<p className="text-sm text-amber-300">已喊准下:只能接 {p.offHour%24===0?'24:00':p2(p.offHour%24)+':00'} 前做得完的客人</p>}
     {p.offHour>0?<Bt tone="gray" onClick={()=>{{const dz=()=>go('zhun',{on:on?'0':'1'});if(on)dz();else cnAsk(p.code+' 號喊准下?\n之後只接下牌時間('+p2(p.offHour%24)+':00)前做得完的客人',dz);}}}>{on?'取消准下':'准下(老師要下班)'}</Bt>:<p className="text-xs text-gray-500">此老師沒有設定下牌時間,無法使用准下</p>}</div>);}
-function PlateSheet({p,D,now,act,onClose}){
+function PlateSheet({p,D,now,act,onClose,bn}){
   const[mode,setMode]=useState('');const[item,setItem]=useState('');const[pos,setPos]=useState('');
   const st=p.state;const off=p.offHour?(p2(p.offHour%24)+':00'):'—';const on=p.onHour?(p2(p.onHour%24)+':00'):'不固定';
   const go=(a,extra)=>act(Object.assign({act:a,code:p.code},extra||{}));
@@ -903,7 +911,7 @@ function PlateSheet({p,D,now,act,onClose}){
       <Bt onClick={()=>go('on')}>上牌</Bt><CBt tone="red" onYes={()=>go('leave')}>請假</CBt></div>);
   else if(st==='leave')body=(<div className="space-y-2"><Info k="類別" v={p.leaveKind==='temp'?'臨時請假':'預排休假'}/>
       {p.leaveKind==='temp'&&<Bt tone="gray" onClick={()=>go('unleave')}>取消請假</Bt>}<Bt onClick={()=>go('on')}>上牌(今天有來)</Bt></div>);
-  return(<Sheet title={title} onClose={onClose}>{body}</Sheet>);
+  return(<Sheet title={title} onClose={onClose} where={bn?'bn':undefined}>{body}</Sheet>);
 }
 
 // ── 本機暫存與背景上傳 ──
@@ -1187,7 +1195,7 @@ function CounterPage({who,kiosk,onSwitch,swLabel}){
     {tool==='rep'&&<SheetWhere.Provider value="full"><ReportSheet local={getRpt} onClose={()=>setTool('')}/></SheetWhere.Provider>}
     {(tool==='shift'||tool==='close')&&<SheetWhere.Provider value="map"><ShiftSheet kind={tool} getInfo={getInfo} onSubmit={act} onClose={()=>{if(tool==='close')sync();setTool('');}}/></SheetWhere.Provider>}
     {tool==='unpaid'&&<Sheet where="map" title="還不能結帳" onClose={()=>setTool('')}><p className="text-base text-red-300 font-bold">未付有 {toolN} 筆,請先完成付款再結帳</p><p className="text-sm text-gray-400">帶位中、服務中、待買單的訂單都要先付款(先付也算)。</p><Bt onClick={()=>setTool('')}>知道了</Bt></Sheet>}
-    {selP&&<PlateSheet key={selP.code+selP.state} p={selP} D={D} now={now} act={act} onClose={()=>setSel(null)}/>}
+    {selP&&<PlateSheet key={selP.code+selP.state} p={selP} D={D} now={now} act={act} bn={plOpen&&TB.tab} onClose={()=>setSel(null)}/>}
     {waitSheet&&req&&<WaitSheet req={req} guest={guest} onClose={()=>setWaitSheet(false)} onDone={v=>{act({act:'wadd',phone:v.phone,name:v.name,sur:v.sur,giv:v.giv,title:guest.title,src:guest.src,items:req});setWaitSheet(false);setReq(null);setGuest(G0());}}/>}
     {waitSel&&D.waits.some(x=>x.id===waitSel)&&<WaitEntrySheet w={D.waits.find(x=>x.id===waitSel)} idx={D.waits.findIndex(x=>x.id===waitSel)} act={o=>{act(o);setWaitSel(null);}} onSeat={w=>{setReq(w.items);setGuest({title:w.title||'',src:w.src||'',phone:w.phone||'',sur:w.sur||w.name||'',giv:w.sur?String(w.name||'').slice(w.sur.length):''});setFromWait(w.id);setWaitSel(null);}} onClose={()=>setWaitSel(null)}/>}
     {arranging&&<ArrangeSheet init={req} ginit={guest} D={D} now={now} onDone={(its,g)=>{setReq(its);setGuest(g);setArranging(false);}} onBook={(it,g,at)=>{act(Object.assign({act:'bk_add',code:String(it.teacher),at:at,it:JSON.stringify(it),item:(baseCode(it)||'')+(it.extra?'+'+it.extra:'')},gFields(g)));setArranging(false);setReq(null);setBid('');setGuest(G0());}} onClose={()=>setArranging(false)}/>}
@@ -1235,6 +1243,7 @@ function CounterPage({who,kiosk,onSwitch,swLabel}){
       <PlatesBar D={D} now={now} hl={hlT} onPick={c=>setSel(c)} open={plOpen} onToggle={()=>setPlOpen(!plOpen)}/>
       {plOpen&&<PlatesDetail D={D} now={now} onPick={c=>setSel(c)} onClose={()=>setPlOpen(false)}/>}
       <div className="tb-fullhost" ref={e=>{CNP.full=e;}}></div>
+      <div className="tb-bnhost" ref={e=>{CNP.bn=e;}}></div>
       {overlays}
     </div></div>);
   }
