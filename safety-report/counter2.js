@@ -17,7 +17,7 @@ const dur=sec=>Math.round(sec/60)+' 分';
 const nextMark=(now,stepMin)=>{const st=stepMin*60000;return Math.floor((now+8*3600e3)/st)*st+st-8*3600e3;}; // 台北時間的下一個整/半點
 const LIMIT=3600;
 // ── 白底主題:版面用 cn-* 類別;其餘沿用的 Tailwind 深色類別,在 .cn-light 內改成淺色對應 ──
-const CN_VER='v1.0-042'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
+const CN_VER='v1.0-043'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
 window.__cnVer=CN_VER;
 const CN_CSS=String.raw`
 .cn-light{background:#f7f7f9;color:#1b1f2a;min-height:100vh;font-feature-settings:"tnum"}
@@ -355,17 +355,27 @@ function recommend(D,now,items,opt){
     if(!t.err){t.together=true;t.start=together;plans.unshift(t);a.label='各自最快';
       if(isPkg.some(Boolean)){const tb=mk(alt,together,'改先做'+(alt[isPkg.indexOf(true)]==='body'?'身體':'腳'),['R9.9','R9.11','R9.12'],splitTry);if(!tb.err){tb.together=true;tb.start=together;t.alt=tb;}}} // 「一起開始」也提供改先做身體/腳(R9.9)
   }
-  // 4 人以上套餐(只有 1 個項目時):多給 3 個方案——2身+2腳、2+2 分兩組、自行決定(每位客人自選先身/先腳與位置;老師一律自動配)
-  if(items.length===1&&isPkg[0]&&(items[0].n||1)>=4){
-    const it0=items[0],n0=it0.n,h=Math.floor(n0/2);plans[0].label='4人連坐';
+  // 單一項目(1 人或多人一起)時的多元方案:1 人=推薦+自訂;2 人以上=一起+分開+自訂;套餐另有「改先做身體/腳」;4 人以上套餐再多 2身+2腳、2+2分兩組。自訂=每位客人可改位置(套餐也可改先身/先腳),老師一律自動配
+  if(items.length===1){
+    const it0=items[0],n0=it0.n||1,h=Math.floor(n0/2);
     const grpItems=sep=>[Object.assign({},it0,{n:h,sep:sep}),Object.assign({},it0,{n:n0-h,sep:sep})];
-    const p1=mk(['body','foot'],opt.minStart,'2身+2腳',['R9.9'],splitTry,grpItems(false)); // 身先組馬上開始,腳先組等腳位;兩組各做各的,不自動對調
-    if(!p1.err){p1.groups=true;plans.push(p1);}
-    const p2=mk([def[0],def[0]],opt.minStart,'2+2分兩組',[],splitTry,grpItems(true));
-    if(!p2.err){p2.groups=true;plans.push(p2);}
+    const altLbl='改先做'+(alt[0]==='body'?'身體':'腳');
+    if(n0===1){plans[0].label='推薦';}
+    else if(isPkg[0]&&n0>=4){
+      plans[0].label='4人連坐';
+      const p1=mk(['body','foot'],opt.minStart,'2身+2腳',['R9.9'],splitTry,grpItems(false)); // 身先組馬上開始,腳先組等腳位;兩組各做各的,不自動對調
+      if(!p1.err){p1.groups=true;plans.push(p1);}
+      const p2=mk([def[0],def[0]],opt.minStart,'2+2分兩組',[],splitTry,grpItems(true));
+      if(!p2.err){p2.groups=true;plans.push(p2);}
+    }else{
+      plans[0].label='一起';
+      const singles=[];for(let i=0;i<n0;i++)singles.push(Object.assign({},it0,{n:1,sep:true}));
+      const ps=mk(singles.map(()=>def[0]),opt.minStart,'分開',[],splitTry,singles);
+      if(!ps.err){ps.groups=true;if(isPkg[0]){const pb=mk(singles.map(()=>alt[0]),opt.minStart,altLbl,['R9.9'],splitTry,singles);if(!pb.err)ps.alt=pb;}plans.push(ps);}
+    }
     const cu=opt.custom||{};const ord=[];for(let i=0;i<n0;i++)ord.push((cu.ord&&cu.ord[i])||a.orders[0]);
     const pe=[];for(let i=0;i<n0;i++)pe.push(Object.assign({},it0,{n:1,forcePos:(cu.pos&&cu.pos[i])||''}));
-    const p3=mk(ord,opt.minStart,'自行決定',['R9.9'],splitTry,pe);
+    const p3=mk(ord,opt.minStart,'自訂',isPkg[0]?['R9.9']:[],splitTry,pe);
     if(!p3.err){p3.custom=true;p3.cOrders=ord;plans.push(p3);}
   }
   // 白牌沒有合適女老師:列出紅牌女老師等待時間(R9.6)
@@ -795,10 +805,10 @@ function RecBlock({D,now,req,bid,ahead,onClear,onEdit,adopt,onReserve,guest,pad,
         <b className={p.white?'text-white':'text-amber-300'}>{p.teacher}</b>{p.teacher2?<span className="text-rose-300"> → {p.teacher2}</span>:null}{p.white?'':'(紅牌)'}　{PL(p.pos1)}{p.pos2?' → 轉場 '+PL(p.pos2):''}　{hmFull(p.start)}{p.transfer?'　轉'+hm(p.transfer):''}　{hm(p.end)}到</p>))}
       {!nonImm&&r.notes.map((n,i)=><p key={i} className="text-xs text-amber-200">・{n}</p>)}</div>))}
     {pl.custom&&!nonImm&&(()=>{const rel1=window.__cnRec.posRelease(D,q5);const ord=(custom&&custom.ord)||pl.cOrders;const setO=(i,v)=>{const o=ord.slice();o[i]=v;const p2=((custom&&custom.pos)||[]).slice();p2[i]='';setCustom({ord:o,pos:p2});};const setP=(i,v)=>{const p2=((custom&&custom.pos)||[]).slice();p2[i]=v;setCustom({ord:ord,pos:p2});};
-      return(<div className="rounded-xl border border-indigo-400/40 p-2 space-y-2"><p className="text-xs text-indigo-200">每位客人自己選先做身體或腳,位置只列出那個時間有空的;選到衝突會標紅,但不擋你。老師由系統自動配。</p>
-      {pl.items.map((r,i)=>{const p=r.people[0];const ty=ord[i]==='body'?'bed':'foot';const opts=(ty==='foot'?FEET:BEDS).filter(x=>x===p.pos1||rel1[x]<=p.start+60000);
+      return(<div className="rounded-xl border border-indigo-400/40 p-2 space-y-2"><p className="text-xs text-indigo-200">每位客人可自己選位置(套餐也可選先身或先腳),位置只列出那個時間有空的;選到衝突會標紅,但不擋你。老師由系統自動配。</p>
+      {pl.items.map((r,i)=>{const p=r.people[0];const ty=p.first==='foot'?'foot':'bed';const opts=(ty==='foot'?FEET:BEDS).filter(x=>x===p.pos1||rel1[x]<=p.start+60000);
         return(<div key={i} className="flex items-center gap-2 flex-wrap"><span className="text-sm text-violet-200 font-bold w-14">客人{i+1}</span>
-          {['body','foot'].map(v=><button key={v} onClick={()=>setO(i,v)} className={'rounded-lg border px-3 py-1 text-sm font-bold '+(ord[i]===v?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-200')}>{v==='body'?'先身':'先腳'}</button>)}
+          {req[0]&&req[0].kind==='pkg'&&['body','foot'].map(v=><button key={v} onClick={()=>setO(i,v)} className={'rounded-lg border px-3 py-1 text-sm font-bold '+(ord[i]===v?'bg-violet-600 border-violet-600 text-white':'border-gray-600 text-gray-200')}>{v==='body'?'先身':'先腳'}</button>)}
           <select value={(custom&&custom.pos&&custom.pos[i])||''} onChange={e=>setP(i,e.target.value)} className="rounded-lg bg-gray-800 border border-gray-600 text-white text-sm px-2 py-1"><option value="">自動 {PL(p.pos1)}</option>{opts.map(x=><option key={x} value={x}>{PL(x)}</option>)}</select>
           {p.conflict&&<span className="text-xs font-bold text-red-400">⚠ 位置衝突</span>}</div>);})}</div>);})()}
     {R.femaleWait&&R.femaleWait.length>0&&<p className="text-xs text-rose-200">白牌沒有女老師;紅牌女老師:{R.femaleWait.slice(0,4).map(x=>x.code+'(約 '+x.wait+' 分)').join('、')}　可先請客人稍候,或改非指定(R9.6)</p>}
