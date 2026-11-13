@@ -1091,6 +1091,8 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme,onClose,onLogout}){
         <div className="bg-white/[0.04] border border-white/[0.06] rounded-2xl overflow-hidden divide-y divide-white/[0.06]">
           <div className="flex items-center gap-3 min-h-[52px] px-4"><span className="text-base text-gray-200">{t.language}</span>
             <div className="ml-auto flex bg-white/[0.06] rounded-lg p-0.5">{[['zh','中文'],['vi','Tiếng Việt']].map(([c,l])=>(<button key={c} onClick={()=>upd({lang:c})} className={`px-3.5 min-h-[36px] rounded-md text-sm font-semibold ${form.lang===c?'bg-amber-600 text-white':'text-gray-400'}`}>{l}</button>))}</div></div>
+          <div className="px-4 py-3"><div className="flex items-center justify-between mb-2"><span className="text-base text-gray-200">{t.theme}</span><span className="text-sm text-gray-500">{t.themeWhite}</span></div>
+            <div className="flex flex-wrap gap-2.5">{[['white',t.themeWhite,'#ffffff']].map(([k,l,c])=>(<button key={k} aria-label={l} onClick={()=>setTheme(k)} className="w-11 h-11 rounded-full border border-white/[0.2] ring-2 ring-amber-500 ring-offset-2 ring-offset-transparent" style={{background:c}}></button>))}</div></div>
         </div>
         <div className="text-[13px] font-semibold text-gray-400 px-1 -mb-3">{lang==='zh'?'帳號與備份':'Tài khoản & sao lưu'}</div>
         <div className="bg-white/[0.04] border border-white/[0.06] rounded-2xl overflow-hidden divide-y divide-white/[0.06]">
@@ -1122,6 +1124,7 @@ function SettingsPage({settings,onUpdate,t,theme,setTheme,onClose,onLogout}){
           <label className="flex items-center gap-2 bg-white/[0.04] rounded-xl px-4 py-3 cursor-pointer"><input type="checkbox" checked={!!form.disableHomePwd} onChange={e=>upd({disableHomePwd:e.target.checked})} className="w-4 h-4 rounded accent-amber-500"/><span className="text-sm text-gray-300">{t.disableHomePwdLabel}</span></label>
           <div className="bg-white/[0.04] rounded-xl px-4 py-3"><label className="text-xs text-gray-500 block mb-1.5">{t.lockAutoTimeLabel}</label><div className="flex items-center gap-2"><select value={[5,10,20,30,40,50,60,120].includes(form.lockAutoTime)?form.lockAutoTime:60} onChange={e=>upd({lockAutoTime:parseInt(e.target.value,10)})} className="bg-white/[0.06] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-amber-500">{[5,10,20,30,40,50,60,120].map(v=>(<option key={v} value={v}>{v}</option>))}</select><span className="text-xs text-gray-500">{t.lockAutoTimeHint}</span></div></div>
         </div>}
+        {window.WgPanel&&(<><div className="text-[13px] font-semibold text-gray-400 px-1 -mb-3">{lang==='zh'?'小工具(測試)':'Widget (thử)'}</div><window.WgPanel code={settings.code}/></>)}
         <div className="text-[13px] font-semibold text-gray-400 px-1 -mb-3">{lang==='zh'?'首頁':'Trang chủ'}</div>
         <div className="bg-white/[0.04] border border-white/[0.06] rounded-2xl overflow-hidden divide-y divide-white/[0.06]">
           <div className="flex items-center justify-between gap-3 min-h-[52px] px-4"><span className="text-base text-gray-200">{t.homeLayoutA}</span>{Tgl(form.homeShowA!==false,()=>upd({homeShowA:form.homeShowA===false}))}</div>
