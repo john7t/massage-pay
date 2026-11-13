@@ -1,4 +1,4 @@
-/* gloves2.js — 手套團購 2.0 前端(v1.0-009:我要+1 本機先顯示、認領前先提醒)
+/* gloves2.js — 手套團購 2.0 前端(v1.0-010 認領/放棄/刪除按鈕處理中變灰+轉圈; v1.0-009:我要+1 本機先顯示、認領前先提醒)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 gb2:
      ?gb2=l   團購首頁(預設)   ?gb2=h  歷史/我的紀錄   ?gb2=set  設定(主管:達標箱數、收單時限、各店推播用量)
    人員/權限共用 window.S2Core(safety2.js)。後端:gas-gloves2.gs.txt(gb2List/gb2Join/gb2Start/gb2ItemSet/gb2ItemDel/gb2Claim/gb2Status/gb2Paid/gb2Vendor/gb2Settings/gb2SettingsSet) */
@@ -6,7 +6,7 @@
 const{useState,useEffect}=React;
 const C=window.S2Core;
 if(!C){window.Gloves2Routes=()=>React.createElement('div',{className:'p-6 text-center text-red-400'},'載入失敗:缺少 safety2.js');return;}
-const{api,useLoad,Box,Card,Btn,Loading,Msg,NeedUser,go,copyText,barOf,peek,CACHEABLE,WRITE_CLEAR}=C;
+const{api,useLoad,Box,Card,Btn,Loading,Msg,Spinner,NeedUser,go,copyText,barOf,peek,CACHEABLE,WRITE_CLEAR}=C;
 // 本機暫存:切分頁不重讀;寫入(報名/認領/改狀態…)成功會自動清掉;按「重新整理」才強制重讀。每次開頁面有暫存時,背景更新一次
 ['gb2List','gb2Settings'].forEach(a=>{if(CACHEABLE.indexOf(a)<0)CACHEABLE.push(a);});
 ['gb2Join','gb2Start','gb2ItemSet','gb2ItemDel','gb2Claim','gb2Status','gb2Paid'].forEach(a=>{WRITE_CLEAR[a]=['gb2List','gb2Settings'];});
@@ -41,6 +41,9 @@ function Gloves2Routes(){
   return(<NeedUser render={(me)=>p==='set'?<SetPage me={me}/>:<MainPage me={me} tab={p==='h'?'h':'l'}/>}/>);
 }
 
+// 處理中的按鈕:按下後馬上變灰並轉圈,直到主機回應且清單重讀完才恢復(避免以為沒反應而重複按)
+const AB=({k,ak,onClick,className,children})=>(<button disabled={!!ak} onClick={onClick} className={className+(ak?' opacity-40':'')}>{ak===k?<Spinner size={12}/>:null}{ak===k?' ':''}{children}</button>);
+
 // ───────── 下單表單(新增/修改共用)─────────
 function ItemForm({t,lang,init,onSubmit,onCancel,busy,submitText}){
   const[color,setColor]=useState(init.color||'均可');const[size,setSize]=useState(init.size||'M');const[boxes,setBoxes]=useState(String(init.boxes||1));
@@ -57,17 +60,18 @@ function ItemForm({t,lang,init,onSubmit,onCancel,busy,submitText}){
 
 // ───────── 一張訂單 ─────────
 function OrderCard({o,t,lang,last,reload,showForm,setShowForm}){
-  const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');const[editId,setEditId]=useState('');const[pcode,setPcode]=useState('');const[opt,setOpt]=useState([]);const[claimAsk,setClaimAsk]=useState(false);
+  const[busy,setBusy]=useState(false);const[msg,setMsg]=useState('');const[editId,setEditId]=useState('');const[pcode,setPcode]=useState('');const[opt,setOpt]=useState([]);const[ak,setAk]=useState('');const[claimAsk,setClaimAsk]=useState(false);
   // 我要 +1:先在本機清單顯示並關閉表單,背景送出;失敗才移除並顯示錯誤(避免以為沒按成功而重複按)
   const joinNow=v=>{const key='o'+Date.now()+Math.random();setOpt(a=>a.concat([Object.assign({key:key},v)]));setShowForm(false);setMsg('');
     api('gb2Join',Object.assign({orderId:o.id},v)).then(r=>{const drop=()=>setOpt(a=>a.filter(x=>x.key!==key));
       if(!r||!r.ok){drop();setMsg((r&&r.error)||t.failed);return;}
       const m=[];if(r.pushed)m.push(t.pushed+' '+r.pushed+' '+t.ppl);if(r.pushBlocked)m.push(t.pushBlock);if(m.length)setMsg(m.join(' '));
       Promise.resolve(reload()).then(drop,drop);}).catch(()=>{setOpt(a=>a.filter(x=>x.key!==key));setMsg(t.failed);});};
-  const run=async(action,params,okMsg)=>{setBusy(true);setMsg('');const r=await api(action,params);setBusy(false);
-    if(!r.ok){setMsg(r.error||t.failed);return null;}
+  const run=async(action,params,okMsg,key)=>{setBusy(true);setMsg('');if(key)setAk(key);const r=await api(action,params);
+    if(!r.ok){setBusy(false);setAk('');setMsg(r.error||t.failed);return null;}
     if(okMsg!==false){const m=[];if(r.pushed)m.push(t.pushed+' '+r.pushed+' '+t.ppl);if(r.pushBlocked)m.push(t.pushBlock);if(m.length)setMsg(m.join(' '));}
-    reload();return r;};
+    try{await Promise.resolve(reload());}catch(_e){}
+    setBusy(false);setAk('');return r;};
   const pct=Math.min(100,Math.round(o.boxes/o.threshold*100));
   const collecting=o.status==='collecting';
   const copyVendor=async()=>{setBusy(true);const r=await api('gb2Vendor',{orderId:o.id});setBusy(false);if(!r.ok){setMsg(r.error||t.failed);return;}const ok=await copyText(r.text);setMsg(ok?t.copied:r.text);};
@@ -81,8 +85,8 @@ function OrderCard({o,t,lang,last,reload,showForm,setShowForm}){
     {o.attention&&<p className="text-sm text-amber-300 font-semibold">⚠ {t.noClaimerWarn}</p>}
     <div className="flex items-center justify-between gap-2 text-sm">
       <p className="text-gray-300">{t.claimer}：<span className="text-white">{o.claimer||t.none}</span></p>
-      {!o.claimer&&o.status!=='ended'&&o.status!=='cancelled'&&<button disabled={busy} className="px-3 py-1.5 rounded-lg bg-violet-700 text-white text-sm" onClick={()=>setClaimAsk(true)}>{t.claim}</button>}
-      {o.claimer&&o.canAdmin&&o.status!=='ended'&&o.status!=='cancelled'&&<button disabled={busy} className="px-3 py-1.5 rounded-lg border border-gray-600 text-gray-300 text-xs" onClick={()=>run('gb2Claim',{orderId:o.id,release:true})}>{t.release}</button>}
+      {!o.claimer&&o.status!=='ended'&&o.status!=='cancelled'&&<AB k="claim" ak={ak||(busy?'x':'')} className="px-3 py-1.5 rounded-lg bg-violet-700 text-white text-sm" onClick={()=>setClaimAsk(true)}>{t.claim}</AB>}
+      {o.claimer&&o.canAdmin&&o.status!=='ended'&&o.status!=='cancelled'&&<AB k="release" ak={ak||(busy?'x':'')} className="px-3 py-1.5 rounded-lg border border-gray-600 text-gray-300 text-xs" onClick={()=>run('gb2Claim',{orderId:o.id,release:true},undefined,'release')}>{t.release}</AB>}
     </div>
     {!o.claimer&&<p className="text-[11px] text-gray-500">{t.claimHint}</p>}
     {(o.people.length>0||opt.length>0)&&(<div className="space-y-2"><p className="text-xs text-gray-500">{t.people}（{o.peopleCount}）</p>
@@ -95,7 +99,7 @@ function OrderCard({o,t,lang,last,reload,showForm,setShowForm}){
             onSubmit={async v=>{const r=await run('gb2ItemSet',Object.assign({itemId:ln.id},v),false);if(r)setEditId('');}}/>)
           :(<div key={ln.id} className="flex items-center justify-between gap-2 text-sm text-gray-300"><span>{cLabel(ln.color,lang)}　{ln.size} × {ln.boxes}</span>
             {li===0&&pp.paid&&pp.paidAt&&<span className="ml-auto text-[11px] text-gray-500">{pp.paidAt}</span>}
-            {ln.editable&&collecting&&<span className="space-x-3 text-xs"><button className="text-violet-300" onClick={()=>setEditId(ln.id)}>{t.edit}</button><button className="text-red-400" onClick={()=>{if(window.confirm(t.del+'?'))run('gb2ItemDel',{itemId:ln.id},false);}}>{t.del}</button></span>}</div>))}</div>
+            {ln.editable&&collecting&&<span className="space-x-3 text-xs"><button className="text-violet-300" onClick={()=>setEditId(ln.id)}>{t.edit}</button><AB k={'del'+ln.id} ak={ak||(busy?'x':'')} className="text-red-400" onClick={()=>{if(window.confirm(t.del+'?'))run('gb2ItemDel',{itemId:ln.id},false,'del'+ln.id);}}>{t.del}</AB></span>}</div>))}</div>
       </div>))}</div>)}
     {collecting&&!o.expired&&(showForm?(<div className="rounded-xl border border-gray-700 p-3"><ItemForm t={t} lang={lang} init={last||{}} busy={busy} submitText={t.submit} onCancel={()=>setShowForm(false)}
         onSubmit={v=>joinNow(v)}/></div>)
@@ -116,7 +120,7 @@ function OrderCard({o,t,lang,last,reload,showForm,setShowForm}){
     {claimAsk&&(<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6" onClick={()=>setClaimAsk(false)}><div className="w-full max-w-sm rounded-2xl bg-gray-900 border border-violet-600 p-5 space-y-3" onClick={e=>e.stopPropagation()}>
       <p className="text-lg font-bold text-white">{lang==='vi'?'Người nhận đơn cần làm:':'認領人要做：'}</p>
       <ol className="list-decimal pl-5 space-y-1 text-base text-gray-100"><li>{lang==='vi'?'Thu tiền của mọi người':'收錢'}</li><li>{lang==='vi'?'Khi hàng về, thông báo cho người đã đặt':'貨到後通知團購的人'}</li></ol>
-      <div className="flex gap-2"><Btn color="bg-gray-700 text-white" onClick={()=>setClaimAsk(false)}>{t.cancel}</Btn><Btn loading={busy} onClick={()=>{setClaimAsk(false);run('gb2Claim',{orderId:o.id});}}>{lang==='vi'?'Tôi nhận đơn':'我來認領'}</Btn></div></div></div>)}
+      <div className="flex gap-2"><Btn color="bg-gray-700 text-white" onClick={()=>setClaimAsk(false)}>{t.cancel}</Btn><Btn loading={busy} onClick={()=>{setClaimAsk(false);run('gb2Claim',{orderId:o.id},undefined,'claim');}}>{lang==='vi'?'Tôi nhận đơn':'我來認領'}</Btn></div></div></div>)}
   </Card>);
 }
 
