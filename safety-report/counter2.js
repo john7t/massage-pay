@@ -17,7 +17,7 @@ const dur=sec=>Math.round(sec/60)+' 分';
 const nextMark=(now,stepMin)=>{const st=stepMin*60000;return Math.floor((now+8*3600e3)/st)*st+st-8*3600e3;}; // 台北時間的下一個整/半點
 const LIMIT=3600;
 // ── 白底主題:版面用 cn-* 類別;其餘沿用的 Tailwind 深色類別,在 .cn-light 內改成淺色對應 ──
-const CN_VER='v1.0-040'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
+const CN_VER='v1.0-041'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
 window.__cnVer=CN_VER;
 const CN_CSS=String.raw`
 .cn-light{background:#f7f7f9;color:#1b1f2a;min-height:100vh;font-feature-settings:"tnum"}
@@ -262,7 +262,9 @@ function pickPositions(type,n,rel,usedP,pref,minT,grp){
     let gp=0; // 同行客人(不同項目)盡量緊靠、同樓層(R9.8):已有同行客人的位置→要緊靠它;後面還有同行客人→不要挑旁邊沒空位的落單位置(例:腳 7)
     if(near.length){if(!cb.some(x=>near.some(y=>adj(x,y)||adj(y,x))))gp=200000;}
     else if(more>0){if(!cand.some(x=>cb.indexOf(x)<0&&cb.some(y=>adj(x,y)||adj(y,x))))gp=150000;}
-    const sc=together*100000+gp+(no22&&cb.indexOf('22')>=0?300000:0)+(50-pairs)*pw+pi;if(sc<bs){bs=sc;best=cb;}});
+    // 4 人以上同行:能 2+2 就 2+2,避免「3 人坐一起、剩 1 人落單」(沒有其他選擇——例如客滿——才分開)
+    let orph=0;if(n>=4){cb.forEach(x=>{if(!cb.some(y=>y!==x&&(adj(x,y)||adj(y,x))))orph++;});}
+    const sc=together*100000+orph*130000+gp+(no22&&cb.indexOf('22')>=0?300000:0)+(50-pairs)*pw+pi;if(sc<bs){bs=sc;best=cb;}});
   return best;
 }
 // 規劃一個項目(含人數):回傳 {code,start,end,transfer,people:[...],notes,rules,wait}
