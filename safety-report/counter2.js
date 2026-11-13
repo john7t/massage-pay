@@ -17,7 +17,7 @@ const dur=sec=>Math.round(sec/60)+' 分';
 const nextMark=(now,stepMin)=>{const st=stepMin*60000;return Math.floor((now+8*3600e3)/st)*st+st-8*3600e3;}; // 台北時間的下一個整/半點
 const LIMIT=3600;
 // ── 白底主題:版面用 cn-* 類別;其餘沿用的 Tailwind 深色類別,在 .cn-light 內改成淺色對應 ──
-const CN_VER='v1.0-047'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
+const CN_VER='v1.0-048'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
 window.__cnVer=CN_VER;
 const CN_CSS=String.raw`
 .cn-light{background:#f7f7f9;color:#1b1f2a;min-height:100vh;font-feature-settings:"tnum"}
@@ -1169,6 +1169,7 @@ function CounterPage({who,kiosk,onSwitch,swLabel}){
   const TB=useTablet();const[selBn,setSelBn]=useState(false);const[arrMode,setArrMode]=useState('');const[recHl,setRecHl]=useState(null);const[tv,setTv0]=useState(()=>{try{const o=JSON.parse(localStorage.getItem('cn2:tv')||'null');if(o&&typeof o==='object')return{t:!!o.t,e:!!o.e,r:!!o.r};}catch(e){}return{t:true,e:true,r:false};});const setTv=v=>{setTv0(v);try{localStorage.setItem('cn2:tv',JSON.stringify(v));}catch(e){}};const[tabSel,setTabSel]=useState('');const[plOpen,setPlOpen]=useState(false);const[more,setMore]=useState(false);
   useEffect(()=>{if(TB.tab&&req)setTabSel('arr');},[!!req]);
   useEffect(()=>{if(!TB.tab)return;const b=document.body,h=document.documentElement;const o=b.style.overflow,o2=h.style.overscrollBehavior;b.style.overflow='hidden';h.style.overscrollBehavior='none';return()=>{b.style.overflow=o;h.style.overscrollBehavior=o2;};},[TB.tab]);
+  useEffect(()=>{if(window.__tm){window.__tm('snap',c0.current.srv?1:0);window.__tm('render');}},[]);
   const[skew,setSkew]=useState(c0.current.skew||0);const[,setTick]=useState(0);const[syncAt,setSyncAt]=useState(0);const[syncing,setSyncing]=useState(false);
   const qR=useRef(queue);const flying=useRef(false);const dayRefH=useRef(null);if(dayRefH.current===null){const d=lsJ(DK,null);dayRefH.current={orders:(d&&d.orders)||{}};}const aoRef=useRef({});
   useEffect(()=>{if(!server)return;const m={};Object.keys(aoRef.current).forEach(k=>{const x=aoRef.current[k];if(Date.now()-(x.createdAt||0)<3*86400e3)m[k]=x;});dayRefH.current.orders=m;lsW(DK,{orders:m});},[server,queue]);
@@ -1178,8 +1179,8 @@ function CounterPage({who,kiosk,onSwitch,swLabel}){
     if(flying.current)return;flying.current=true;setSyncing(true);
     const sent=qR.current.slice(0,50);let more=false;
     try{
-      const r=await api('cnBatch',{ops:JSON.stringify(sent)},true);
-      if(r&&r.ok){
+      const t0s=Date.now();const r=await api('cnBatch',{ops:JSON.stringify(sent)},true);
+      if(r&&r.ok){if(window.__tm){window.__tm('sync1');window.__tm('syncMs',Date.now()-t0s);}
         const ids={};sent.forEach(o=>{ids[o.id]=1;});setQ(q=>q.filter(o=>!ids[o.id]));more=qR.current.length>0&&sent.length>=50;
         setServer(r);const sk=(r.now||Date.now())-Date.now();setSkew(sk);setSyncAt(Date.now());setErr('');setFresh(true);
         try{const c=Object.assign({},r);delete c.results;lsW(SK,{srv:c,skew:sk,at:Date.now()});}catch(_e){}
@@ -1322,7 +1323,7 @@ function SettingsSheet({who,onClose}){
   let li=false;try{li=!!(liff.isLoggedIn&&liff.isLoggedIn()&&liff.getAccessToken());}catch(_e){}
   const six=/^\d{6}$/.test(code);
   const run=async(fn)=>{setBusy(true);setMsg('');try{await fn();}catch(_e){setMsg('網路不通或需要登入,請再試一次');}finally{setBusy(false);}};
-  const[my,setMy]=useState(null);
+  const[my,setMy]=useState(null);const[tmv,setTmv]=useState(false);
   const showMy=()=>run(async()=>{const r=await api('cnMyDayCode',{});if(r&&r.ok)setMy(r);else setMsg((r&&r.error)||'失敗');});
   const lock=()=>run(async()=>{if(!confirm('把這台設成公務機並鎖定?\n\n鎖定後這台不論開哪個網址都只會進主櫃,要輸入今日登入碼才能操作;解除需要 LINE 登入+你的今日登入碼。'))return;
     const r=await api('cnKioskLock',{});if(r&&r.ok){lsW(KK,{on:1,token:r.token,store:r.store,at:Date.now(),by:r.by});lsW(KOPS,r.opList||[]);try{localStorage.removeItem(KOP);}catch(_e){}location.replace(kioskUrl());}else setMsg((r&&r.error)||'失敗');});
@@ -1338,6 +1339,16 @@ function SettingsSheet({who,onClose}){
     </React.Fragment>)}
     {k&&(<div className="space-y-2"><p className="text-base text-emerald-300 font-bold">這台已鎖定為公務機</p><p className="text-xs text-gray-400">解除需要:LINE 登入 + 你自己的今日登入碼(經理以上)。</p>
       {li?(<React.Fragment>{CI}<Bt disabled={!six||busy} onClick={unlock}>解除鎖定</Bt></React.Fragment>):(<Bt disabled={busy} onClick={loginForUnlock}>用 LINE 登入以解除</Bt>)}</div>)}
+    <div className="space-y-2 pt-2 border-t border-gray-800"><p className="text-base text-white font-bold">載入計時</p><p className="text-xs text-gray-400">看這次打開主櫃各階段花了幾秒(從開始載入算起),用來找出開得慢的原因。</p>
+      <Bt tone="gray" onClick={()=>setTmv(!tmv)}>{tmv?'收起計時':'顯示載入計時'}</Bt>
+      {tmv&&(()=>{const NM={html:'HTML 開始',react:'React 載入完',babel:'Babel 載入完',tw:'Tailwind 載入完',liff:'LIFF SDK 載入完',dcl:'頁面骨架完成(Babel 開始翻譯)',common:'common.js 執行完',counterJs:'全部程式翻譯+執行完',boot:'啟動腳本開始',render:'主櫃第一次畫面',sync1:'第一次同步回來',load:'window load',snap:'有本機暫存(1=有)',syncMs:'第一次同步耗時(毫秒)'};
+        const T=window.__T||{};const rows=Object.keys(T).filter(k=>typeof T[k]==='number').sort((a,b)=>(a==='snap'||a==='syncMs'?1:0)-(b==='snap'||b==='syncMs'?1:0)||T[a]-T[b]);
+        const tr=(T.counterJs!=null&&T.dcl!=null)?Math.round((T.counterJs-T.dcl)/100)/10:null;
+        const nav=(performance.getEntriesByType&&performance.getEntriesByType('navigation')[0])||{};
+        return(<div className="rounded-xl bg-gray-800 p-3 text-xs text-gray-200 space-y-0.5" style={{fontFamily:'monospace'}}>
+          {rows.map(k=><div key={k} className="flex justify-between gap-3"><span>{NM[k]||k}</span><span>{k==='snap'?T[k]:k==='syncMs'?T[k]:(Math.round(T[k]/100)/10)+' 秒'}</span></div>)}
+          {tr!=null&&<div className="flex justify-between gap-3 pt-1 border-t border-gray-700 text-amber-300"><span>程式翻譯+執行約</span><span>{tr} 秒</span></div>}
+          <div className="text-gray-500 pt-1">載入方式:{nav.type||'?'}{document.wasDiscarded?'(分頁曾被系統收掉)':''}</div></div>);})()}</div>
     <Bt tone="gray" onClick={onClose}>關閉</Bt></Sheet>);
 }
 function KioskCodeScreen({onOk}){
@@ -1402,5 +1413,5 @@ function Counter2Routes(){
   const isPhone=/iPhone|iPod|Android.*Mobile/i.test(navigator.userAgent||'')||Math.min(screen.width,screen.height)<600;
   return <CounterHome onCode={()=>setMode('code')} onLocal={()=>setMode('local')} localCode={w0&&w0.code} isPhone={isPhone}/>;
 }
-window.Counter2Routes=Counter2Routes;
+window.Counter2Routes=Counter2Routes;window.__tm&&window.__tm('counterJs');
 })();
