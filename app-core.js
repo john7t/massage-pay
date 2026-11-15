@@ -1,6 +1,7 @@
 // app-core.js v1.13-077 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
+// v1.14-005 / 卡片順序改為:前一期、昨天、今天、本期、年度費用明細、功能按鈕(拿掉前天以前的日卡片)
 // v1.14-004 / 卡片加上移動的亮光(只有目前這張卡片,來回一次 10 秒;系統開「減少動態效果」時不播)。CSS 變數 --ch-speed(倍速,預設 1)、--ch-glow(亮度 0~1,預設 1)
 // v1.14-003 / 卡片首頁新增「年度費用明細」卡(本期統計之後、功能按鈕之前)
 // v1.14-002 / 卡片首頁固定滿版(不能上下拉動)、底色與瀏覽器上下邊改淺粉紅
@@ -1706,11 +1707,12 @@ function ChHome({settings,t,refreshKey,onChanged,onStore,onBasic,fn,settingsAler
       try{upsertCust(settings.code,sv)}catch(_e){}}
     setEditSlip(null);};
   // 日期卡:往前 14 天 + 今天
-  const DAYS=14;const days=[];for(let i=DAYS;i>=0;i--){const dt=new Date(bp.y,bp.m-1,bp.d-i);days.push({Y:dt.getFullYear(),M:dt.getMonth()+1,D:dt.getDate(),isToday:i===0});}
+  // v1.14-005 順序(由左到右):前一期、昨天、今天、本期、年度費用明細、功能按鈕。只留昨天和今天兩張日卡片,更早的日子從統計卡點進去
+  const days=[];for(let i=1;i>=0;i--){const dt=new Date(bp.y,bp.m-1,bp.d-i);days.push({Y:dt.getFullYear(),M:dt.getMonth()+1,D:dt.getDate(),isToday:i===0});}
   // 上一期 / 本期:1~15 號時=上個月 16~月底、本月 1~15;16 號之後=本月 1~15、本月 16~月底
   const pm=bp.m===1?{y:bp.y-1,m:12}:{y:bp.y,m:bp.m-1};
   const periods=bp.d<=15?[{Y:pm.y,M:pm.m,from:16,to:dim(pm.y,pm.m)},{Y:bp.y,M:bp.m,from:1,to:15}]:[{Y:bp.y,M:bp.m,from:1,to:15},{Y:bp.y,M:bp.m,from:16,to:dim(bp.y,bp.m)}];
-  const nPg=days.length+periods.length+2;const todayIdx=days.length-1;
+  const nPg=days.length+periods.length+2;const todayIdx=days.length; // 第 0 頁是前一期
   const toToday=(smooth)=>{const dk_=deckRef.current,el=todayRef.current;if(!dk_||!el)return;const x=el.offsetLeft-(dk_.clientWidth-el.clientWidth)/2;if(smooth&&dk_.scrollTo)dk_.scrollTo({left:x,behavior:'smooth'});else dk_.scrollLeft=x;};
   React.useLayoutEffect(()=>{toToday(false);setIdx(todayIdx);},[]);
   useEffect(()=>{setVer(v=>v+1);},[refreshKey]);
@@ -1720,16 +1722,17 @@ function ChHome({settings,t,refreshKey,onChanged,onStore,onBasic,fn,settingsAler
   const FB=({k,label,onClick,href,alert})=>href?(<a className="ch-fb" href={href} target="_blank" rel="noopener"><span className="ch-fi"><ChIcon k={k}/></span><span>{label}</span></a>):(<button className="ch-fb" onClick={onClick}><span className="ch-fi"><ChIcon k={k}/></span>{alert&&<span className="al">❗</span>}<span>{label}</span></button>);
   const sd=CARD_STORE_DEFAULTS[settings.storeSel||settings.store]||CARD_STORE_DEFAULTS['龍山寺店'];
   // 下方圓點:最多顯示最後 4 天 + 2 張統計 + 年度 + 功能
-  const dotFrom=Math.max(0,todayIdx-3);const dots=[];for(let i=dotFrom;i<nPg;i++)dots.push(i);const cur=idx<dotFrom?dotFrom:idx;
+  const dotFrom=0;const dots=[];for(let i=dotFrom;i<nPg;i++)dots.push(i);const cur=idx<dotFrom?dotFrom:idx;
   const es=editSlip?(getDay(editSlip.Y,editSlip.M,editSlip.D).slips||[]).find(x=>x.id===editSlip.id):null;
   const ed=editDay?getDay(editDay.Y,editDay.M,editDay.D):null;
   return(<>
     <div className="ch-bg"/>
     <div className="ch-hd"><div className="st" onClick={onStore}><span>{sd.bm}</span><small>{sd.bs}</small><i>24h</i><button className="cd" onClick={e=>{e.stopPropagation();onBasic();}}>#{settings.code}</button></div><span className="tt">{zh?'支數記錄':'Ghi số ca'}</span></div>
     <div className="ch-deck" ref={deckRef} onScroll={onScroll}>
-      {days.map((x,i)=>(<section key={x.Y+'-'+x.M+'-'+x.D} className={'ch-pg'+(idx===i?' cur':'')} ref={x.isToday?todayRef:null}><ChDayCard settings={settings} t={t} zh={zh} Y={x.Y} M={x.M} D={x.D} isToday={x.isToday} day={getDay(x.Y,x.M,x.D)} up={upOf(x.Y,x.M,x.D)} onAdd={addUnits} onSkill={addSkill} onOpenDay={(Y,M,D)=>setEditDay({Y,M,D})} onEditSlip={(Y,M,D,id)=>setEditSlip({Y,M,D,id})} hlId={hlId}/></section>))}
-      {periods.map((p,j)=>(<section key={'p'+p.M+'-'+p.from} className={'ch-pg'+(idx===days.length+j?' cur':'')}><ChPeriodCard settings={settings} t={t} zh={zh} Y={p.Y} M={p.M} from={p.from} to={p.to} getDay={getDay} upOf={upOf} today={today} onOpenDay={(Y,M,D)=>setEditDay({Y,M,D})}/></section>))}
-      <section className={'ch-pg'+(idx>=days.length+periods.length?' cur':'')}><ChYearCard settings={settings} t={t} zh={zh} Y={bp.y} getDay={getDay} upOf={upOf} today={today} onMonth={m=>fn.monthly(m)}/></section>
+      {[periods[0]].map((p)=>(<section key={'p'+p.M+'-'+p.from} className={'ch-pg'+(idx===0?' cur':'')}><ChPeriodCard settings={settings} t={t} zh={zh} Y={p.Y} M={p.M} from={p.from} to={p.to} getDay={getDay} upOf={upOf} today={today} onOpenDay={(Y,M,D)=>setEditDay({Y,M,D})}/></section>))}
+      {days.map((x,i)=>(<section key={x.Y+'-'+x.M+'-'+x.D} className={'ch-pg'+(idx===i+1?' cur':'')} ref={x.isToday?todayRef:null}><ChDayCard settings={settings} t={t} zh={zh} Y={x.Y} M={x.M} D={x.D} isToday={x.isToday} day={getDay(x.Y,x.M,x.D)} up={upOf(x.Y,x.M,x.D)} onAdd={addUnits} onSkill={addSkill} onOpenDay={(Y,M,D)=>setEditDay({Y,M,D})} onEditSlip={(Y,M,D,id)=>setEditSlip({Y,M,D,id})} hlId={hlId}/></section>))}
+      {[periods[1]].map((p)=>(<section key={'p'+p.M+'-'+p.from} className={'ch-pg'+(idx===todayIdx+1?' cur':'')}><ChPeriodCard settings={settings} t={t} zh={zh} Y={p.Y} M={p.M} from={p.from} to={p.to} getDay={getDay} upOf={upOf} today={today} onOpenDay={(Y,M,D)=>setEditDay({Y,M,D})}/></section>))}
+      <section className={'ch-pg'+(idx>=todayIdx+2?' cur':'')}><ChYearCard settings={settings} t={t} zh={zh} Y={bp.y} getDay={getDay} upOf={upOf} today={today} onMonth={m=>fn.monthly(m)}/></section>
       <section className="ch-fnpg"><div className="ch-fn">
         <FB k="monthly" label={t.monthly} onClick={()=>fn.monthly()}/><FB k="cal" label={t.monthlyCalendar||'月曆'} onClick={fn.calendar}/><FB k="book" label={t.tabBook2} onClick={fn.book}/><FB k="acu" label={t.acupointBtn} onClick={fn.acupoint}/>
         <FB k="cust" label={t.custManage} onClick={fn.customers}/><FB k="card" label={t.cardBtn||'名片'} onClick={fn.card}/><FB k="gb" label={t.groupBuyBtn||'團購'} href={GLOVE_LIFF}/><FB k="backup" label={t.tabBackup||'備份'} onClick={fn.backup}/>
