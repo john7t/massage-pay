@@ -1,4 +1,4 @@
-/* my2.js — 「我的」頁面 (v1.0-019)
+/* my2.js — 「我的」頁面 (v1.0-020:粉紅色卡片 UI 時不套用 Wayfind 深色樣式)
    由 safety-report.html 載入(在 safety2.js 之後),網址參數 my2:  ?my2=1  我的(待我處理 + 公告 + 安全回報 + 手套團購 + 預排休假 + 拒接名單)
    只讀取各模組既有的 API(n2List / s2TodaySurveys / s2MyReports / gb2List / lv2Month / b2List),不新增後端;任何一區讀取失敗只隱藏該區。 */
 (function(){
@@ -39,23 +39,23 @@ const L={zh:{
 
 
 const WF_CSS=`
-html:not(.s2-nolight) .wf{background:#e3e6ec;min-height:100vh}html:not(.s2-nolight) .wf .min-h-screen{background:#e3e6ec!important}
-html:not(.s2-nolight) .wf .rounded-2xl,html:not(.s2-nolight) .wf .rounded-3xl{border-radius:2px!important;border:2px solid #0f1424!important;background:#f4f5f8!important;background-image:none!important;box-shadow:none!important}
-html:not(.s2-nolight) .wf .rounded-xl,html:not(.s2-nolight) .wf .rounded-lg,html:not(.s2-nolight) .wf .rounded-full,html:not(.s2-nolight) .wf .rounded{border-radius:2px!important}
-html:not(.s2-nolight) .wf .border-t{border-top:2px solid #cfd4de!important}
-html:not(.s2-nolight) .wf .wf-top{background:#0f1424;border:2px solid #0f1424;padding:12px 14px}html:not(.s2-nolight) .wf .wf-top *{color:#f4f5f8!important}html:not(.s2-nolight) .wf .wf-top p{color:#aab2c8!important}html:not(.s2-nolight) .wf .wf-top h1{font-weight:800}
-html:not(.s2-nolight) .wf .wf-sh{background:#0f1424;margin:-16px -16px 10px;padding:7px 14px}html:not(.s2-nolight) .wf .wf-sh *{color:#f4f5f8!important}html:not(.s2-nolight) .wf .wf-sh button{color:#ffc94a!important;font-weight:700}html:not(.s2-nolight) .wf .wf-sh span{background:#ffc94a!important;color:#0f1424!important}
-html:not(.s2-nolight) .wf .wf-code{background:#0f1424!important}html:not(.s2-nolight) .wf .wf-code *{color:#f4f5f8!important}html:not(.s2-nolight) .wf .wf-code .wf-codebtn{background:#ffc94a!important;color:#0f1424!important;font-weight:800}
-html:not(.s2-nolight) .wf .shrink-0.rounded-full{border:2px solid #0f1424;font-weight:800}
-html:not(.s2-nolight) .wf .bg-red-600,html:not(.s2-nolight) .wf .bg-red-600 *{background-color:#c42b1f!important;color:#fff!important}
-html:not(.s2-nolight) .wf .bg-emerald-600,html:not(.s2-nolight) .wf .bg-emerald-600 *{background-color:#c9ecd6!important;color:#0b3d22!important}
-html:not(.s2-nolight) .wf .bg-amber-500,html:not(.s2-nolight) .wf .bg-amber-500 *{background-color:#ffe28a!important;color:#4d3500!important}
-html:not(.s2-nolight) .wf .bg-sky-700,html:not(.s2-nolight) .wf .bg-sky-700 *{background-color:#2548d6!important;color:#fff!important}
-html:not(.s2-nolight) .wf .bg-orange-600{background-color:#ffb4ac!important;color:#6b0f08!important}html:not(.s2-nolight) .wf .bg-gray-600{background-color:#dfe3ea!important;color:#0f1424!important}
-html:not(.s2-nolight) .wf .bg-violet-600,html:not(.s2-nolight) .wf .bg-violet-600 *{background-color:#0f1424!important;color:#ffc94a!important;border-color:#0f1424!important}
-html:not(.s2-nolight) .wf .text-violet-300,html:not(.s2-nolight) .wf .text-violet-200{color:#2548d6!important}
-html:not(.s2-nolight) .wf .bg-emerald-500{background-color:#2548d6!important}
-html:not(.s2-nolight) .wf .text-4xl,html:not(.s2-nolight) .wf .font-mono{font-family:ui-monospace,"SF Mono",Menlo,monospace}
+html:not(.s2-nolight):not(.s2-pink) .wf{background:#e3e6ec;min-height:100vh}html:not(.s2-nolight):not(.s2-pink) .wf .min-h-screen{background:#e3e6ec!important}
+html:not(.s2-nolight):not(.s2-pink) .wf .rounded-2xl,html:not(.s2-nolight):not(.s2-pink) .wf .rounded-3xl{border-radius:2px!important;border:2px solid #0f1424!important;background:#f4f5f8!important;background-image:none!important;box-shadow:none!important}
+html:not(.s2-nolight):not(.s2-pink) .wf .rounded-xl,html:not(.s2-nolight):not(.s2-pink) .wf .rounded-lg,html:not(.s2-nolight):not(.s2-pink) .wf .rounded-full,html:not(.s2-nolight):not(.s2-pink) .wf .rounded{border-radius:2px!important}
+html:not(.s2-nolight):not(.s2-pink) .wf .border-t{border-top:2px solid #cfd4de!important}
+html:not(.s2-nolight):not(.s2-pink) .wf .wf-top{background:#0f1424;border:2px solid #0f1424;padding:12px 14px}html:not(.s2-nolight):not(.s2-pink) .wf .wf-top *{color:#f4f5f8!important}html:not(.s2-nolight):not(.s2-pink) .wf .wf-top p{color:#aab2c8!important}html:not(.s2-nolight):not(.s2-pink) .wf .wf-top h1{font-weight:800}
+html:not(.s2-nolight):not(.s2-pink) .wf .wf-sh{background:#0f1424;margin:-16px -16px 10px;padding:7px 14px}html:not(.s2-nolight):not(.s2-pink) .wf .wf-sh *{color:#f4f5f8!important}html:not(.s2-nolight):not(.s2-pink) .wf .wf-sh button{color:#ffc94a!important;font-weight:700}html:not(.s2-nolight):not(.s2-pink) .wf .wf-sh span{background:#ffc94a!important;color:#0f1424!important}
+html:not(.s2-nolight):not(.s2-pink) .wf .wf-code{background:#0f1424!important}html:not(.s2-nolight):not(.s2-pink) .wf .wf-code *{color:#f4f5f8!important}html:not(.s2-nolight):not(.s2-pink) .wf .wf-code .wf-codebtn{background:#ffc94a!important;color:#0f1424!important;font-weight:800}
+html:not(.s2-nolight):not(.s2-pink) .wf .shrink-0.rounded-full{border:2px solid #0f1424;font-weight:800}
+html:not(.s2-nolight):not(.s2-pink) .wf .bg-red-600,html:not(.s2-nolight):not(.s2-pink) .wf .bg-red-600 *{background-color:#c42b1f!important;color:#fff!important}
+html:not(.s2-nolight):not(.s2-pink) .wf .bg-emerald-600,html:not(.s2-nolight):not(.s2-pink) .wf .bg-emerald-600 *{background-color:#c9ecd6!important;color:#0b3d22!important}
+html:not(.s2-nolight):not(.s2-pink) .wf .bg-amber-500,html:not(.s2-nolight):not(.s2-pink) .wf .bg-amber-500 *{background-color:#ffe28a!important;color:#4d3500!important}
+html:not(.s2-nolight):not(.s2-pink) .wf .bg-sky-700,html:not(.s2-nolight):not(.s2-pink) .wf .bg-sky-700 *{background-color:#2548d6!important;color:#fff!important}
+html:not(.s2-nolight):not(.s2-pink) .wf .bg-orange-600{background-color:#ffb4ac!important;color:#6b0f08!important}html:not(.s2-nolight):not(.s2-pink) .wf .bg-gray-600{background-color:#dfe3ea!important;color:#0f1424!important}
+html:not(.s2-nolight):not(.s2-pink) .wf .bg-violet-600,html:not(.s2-nolight):not(.s2-pink) .wf .bg-violet-600 *{background-color:#0f1424!important;color:#ffc94a!important;border-color:#0f1424!important}
+html:not(.s2-nolight):not(.s2-pink) .wf .text-violet-300,html:not(.s2-nolight):not(.s2-pink) .wf .text-violet-200{color:#2548d6!important}
+html:not(.s2-nolight):not(.s2-pink) .wf .bg-emerald-500{background-color:#2548d6!important}
+html:not(.s2-nolight):not(.s2-pink) .wf .text-4xl,html:not(.s2-nolight):not(.s2-pink) .wf .font-mono{font-family:ui-monospace,"SF Mono",Menlo,monospace}
 `;
 function SecHead({icon,title,n,onAll,t}){
   return(<div className="flex items-center justify-between wf-sh"><p className="text-base font-bold text-white">{icon} {title}{n>0&&<span className="ml-2 text-xs bg-gray-700 text-gray-100 rounded-full px-2 py-0.5">{n}</span>}</p>
