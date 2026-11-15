@@ -1,6 +1,7 @@
 // app-core.js v1.13-077 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
+// v1.14-003 / 卡片首頁新增「年度費用明細」卡(本期統計之後、功能按鈕之前)
 // v1.14-002 / 卡片首頁固定滿版(不能上下拉動)、底色與瀏覽器上下邊改淺粉紅
 // v1.14-001 / 首頁改成卡片式(ChHome):一天一張毛玻璃卡片左右滑、上下期統計卡、功能按鈕移到最右;舊版首頁存於 themes/classic/classic-app-core.js
 // v1.13-056 / UI 改版(Impeccable 建議,使用者逐頁確認預覽):(1)首頁:上一筆縮成一行、今日卡右側金額+支數老點(拿掉「看明細›」)、+1+2+3+更多一排貼在今日卡下方(0支時顯示提示)、流水→手套團購→更多功能(上排4個大圖示、下排2欄文字磚);手套團購橫幅改兩行版面。(2)月份明細:大字月份+月薪水、上/下半月並排小卡、底線式月份分頁、區段小計與欄位標題、空日淡化、「回到今天」浮動鈕。(3)啟動頁:白底仿LINE風格(.ob-line範圍CSS)、Email(選填)欄位拿掉(NoticeBox不傳setEmail)、左上返回‹、送出鈕停用時顯示還差什麼。舊版區塊一律 {false&&...} 隱藏不刪。
@@ -1596,6 +1597,13 @@ div:has(>.ch-root){overflow:hidden!important}
 .ch-dc .dn{font-weight:800;font-size:15px;width:21px;text-align:right;color:#4a2337}.ch-dc em{font-style:normal;font-size:11px;color:#b08a9b;width:13px}.ch-dc .un{margin-left:auto;font-size:15px;font-weight:400;color:#4a2337;white-space:nowrap}.ch-dc .un small{font-size:10px;color:#9a6b82;margin-left:1px}
 .ch-dc u{text-decoration:none;font-size:11px;font-weight:600;color:#c2336f;background:rgba(240,97,154,.13);border-radius:99px;line-height:18px;min-width:32px;text-align:center;padding:0 4px;white-space:nowrap}.ch-dc u.z{visibility:hidden}
 .ch-dc .off{margin-left:auto;color:#b08a9b;font-size:12px}.ch-dc.td{background:rgba(240,97,154,.14);border-radius:10px}.ch-dc.fu .dn{color:#c9a7b6}.ch-dc.fu em{color:#d9c0cb}
+.ch-yh,.ch-yr{display:flex;align-items:center;gap:6px;padding:0 6px;flex:0 0 auto}.ch-yh{margin-top:10px;height:26px;font-size:11px;font-weight:700;color:#9a6b82;border-bottom:1px solid rgba(214,96,146,.25)}.ch-yh u{text-decoration:none}
+.ch-yl{flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:none;display:flex;flex-direction:column}.ch-yl::-webkit-scrollbar{display:none}
+.ch-yr{flex:1 0 30px;max-height:40px;border-bottom:1px solid rgba(214,96,146,.13);font-size:14px}.ch-yr:active{background:rgba(240,97,154,.1)}
+.ch-yr .ym{width:44px;font-weight:800;color:#4a2337}.ch-yh .ym{width:44px}.ch-yr .yp{flex:1;text-align:right;font-weight:700;color:#d83a7c;font-variant-numeric:tabular-nums}.ch-yh .yp{flex:1;text-align:right}
+.ch-yr .yu{width:62px;text-align:right;color:#4a2337;white-space:nowrap}.ch-yr .yu small{font-size:10px;color:#9a6b82;margin-left:1px}.ch-yh .yu{width:62px;text-align:right}
+.ch-yr u,.ch-yh u{width:46px;text-align:center}.ch-yr u{text-decoration:none;font-size:11.5px;font-weight:600;color:#c2336f;background:rgba(240,97,154,.13);border-radius:99px;line-height:18px;white-space:nowrap}
+.ch-yr.td{background:rgba(240,97,154,.14);border-radius:10px}.ch-yr.fu .ym{color:#c9a7b6}
 .ch-fn{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:space-between;gap:6px;overflow-y:auto;scrollbar-width:none;padding:2px 0}.ch-fn::-webkit-scrollbar{display:none}
 .ch-fb{position:relative;display:flex;align-items:center;gap:8px;background:none;border:0;padding:0;text-align:left;font-size:13px;font-weight:800;color:#a02c5e;line-height:1.2;text-decoration:none}.ch-fb:active{opacity:.6}
 .ch-fi{flex:0 0 42px;height:42px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.95);box-shadow:0 6px 14px rgba(214,96,146,.2);color:#d83a7c}
@@ -1655,12 +1663,28 @@ function ChPeriodCard({settings,t,zh,Y,M,from,to,getDay,upOf,today,onOpenDay}){
   </div>);
 }
 
+// 年度費用明細:今年 1~12 月各一列(費用、支數、老點);點某個月開那個月的月份明細
+function ChYearCard({settings,t,zh,Y,getDay,upOf,today,onMonth}){
+  let yPay=0,yTot=0,yLao=0,nm=0;const rows=[];
+  for(let m=1;m<=12;m++){const fu=(Y>today.y)||(Y===today.y&&m>today.m);let pay=0,tot=0,lao=0;
+    if(!fu){const n=dim(Y,m);for(let d=1;d<=n;d++){if(Y===today.y&&m===today.m&&d>today.d)break;const day=getDay(Y,m,d);tot+=day.total||0;lao+=day.laodian||0;pay+=calcSal(day,upOf(Y,m,d),settings.skills);}}
+    const has=tot>0||lao>0||pay>0;if(has){yPay+=pay;yTot+=tot;yLao+=lao;nm++;}
+    rows.push(<div key={m} className={'ch-yr'+(Y===today.y&&m===today.m?' td':'')+(fu||!has?' fu':'')} onClick={()=>{if(!fu)onMonth(m);}}><span className="ym">{zh?(m+'月'):('T'+m)}</span>{has?(<><span className="yp">${pay.toLocaleString()}</span><span className="yu">{tot}<small>{t.units}</small></span><u>{lao}{zh?'點':'đ'}</u></>):(<span className="yp" style={{color:'#c9a7b6',fontWeight:400}}>{fu?'':'—'}</span>)}</div>);}
+  return(<div className="ch-card">
+    <div className="ch-dt"><b>{zh?(Y+'年'):Y}</b><em>{zh?'年度費用明細':'Chi tiết cả năm'}</em></div>
+    <div className="ch-pay"><small>{zh?'今年應領費用':'Tiền lương năm nay'}</small><b>NT$ {yPay.toLocaleString()}</b></div>
+    <div className="ch-kp"><div><b>{yTot.toLocaleString()}</b><small>{zh?'支數':t.units}</small></div><div><b>{yLao}</b><small>{t.laodian}</small></div><div><b>{nm}</b><small>{zh?'有記錄的月份':'Số tháng'}</small></div></div>
+    <div className="ch-yh"><span className="ym">{zh?'月份':'Tháng'}</span><span className="yp">{zh?'費用':'Lương'}</span><span className="yu">{zh?'支數':t.units}</span><u>{t.laodian}</u></div>
+    <div className="ch-yl">{rows}</div>
+  </div>);
+}
+
 function ChHome({settings,t,refreshKey,onChanged,onStore,onBasic,fn,settingsAlert}){
   const zh=t===T.zh;const bp=bizParts();const yOff=(settings.year||bp.y)-bp.y; // 沿用原本「settings.year 可指定年份」的行為
   const[ver,setVer]=useState(0);const[hlId,setHlId]=useState(null);const[editSlip,setEditSlip]=useState(null);const[editDay,setEditDay]=useState(null);const[custQ,setCustQ]=useState({});
   const[idx,setIdx]=useState(-1);const deckRef=React.useRef(null);const todayRef=React.useRef(null);
   const key=(Y,M)=>dk(settings.code,Y+yOff,M);
-  const cache={};
+  const cache=useMemo(()=>({}),[ver,settings.code,refreshKey]); // 月份資料的讀取快取:同一版資料只解析一次(年度卡要讀 12 個月)
   const getMon=(Y,M)=>{const k=key(Y,M);if(k in cache)return cache[k];const md=LS.get(k);if(md&&migrateMonthGroups(md))LS.set(k,md);cache[k]=md;return md;};
   const getDay=(Y,M,D)=>{const md=getMon(Y,M);return(md&&md.days&&md.days[D])||eDay();};
   const upOf=(Y,M,D)=>getUnitPriceForDate(settings,Y+yOff,M,D);
@@ -1680,7 +1704,7 @@ function ChHome({settings,t,refreshKey,onChanged,onStore,onBasic,fn,settingsAler
   // 上一期 / 本期:1~15 號時=上個月 16~月底、本月 1~15;16 號之後=本月 1~15、本月 16~月底
   const pm=bp.m===1?{y:bp.y-1,m:12}:{y:bp.y,m:bp.m-1};
   const periods=bp.d<=15?[{Y:pm.y,M:pm.m,from:16,to:dim(pm.y,pm.m)},{Y:bp.y,M:bp.m,from:1,to:15}]:[{Y:bp.y,M:bp.m,from:1,to:15},{Y:bp.y,M:bp.m,from:16,to:dim(bp.y,bp.m)}];
-  const nPg=days.length+periods.length+1;const todayIdx=days.length-1;
+  const nPg=days.length+periods.length+2;const todayIdx=days.length-1;
   const toToday=(smooth)=>{const dk_=deckRef.current,el=todayRef.current;if(!dk_||!el)return;const x=el.offsetLeft-(dk_.clientWidth-el.clientWidth)/2;if(smooth&&dk_.scrollTo)dk_.scrollTo({left:x,behavior:'smooth'});else dk_.scrollLeft=x;};
   React.useLayoutEffect(()=>{toToday(false);setIdx(todayIdx);},[]);
   useEffect(()=>{setVer(v=>v+1);},[refreshKey]);
@@ -1689,7 +1713,7 @@ function ChHome({settings,t,refreshKey,onChanged,onStore,onBasic,fn,settingsAler
   const today={y:bp.y,m:bp.m,d:bp.d};
   const FB=({k,label,onClick,href,alert})=>href?(<a className="ch-fb" href={href} target="_blank" rel="noopener"><span className="ch-fi"><ChIcon k={k}/></span><span>{label}</span></a>):(<button className="ch-fb" onClick={onClick}><span className="ch-fi"><ChIcon k={k}/></span>{alert&&<span className="al">❗</span>}<span>{label}</span></button>);
   const sd=CARD_STORE_DEFAULTS[settings.storeSel||settings.store]||CARD_STORE_DEFAULTS['龍山寺店'];
-  // 下方圓點:最多顯示最後 4 天 + 2 張統計 + 功能
+  // 下方圓點:最多顯示最後 4 天 + 2 張統計 + 年度 + 功能
   const dotFrom=Math.max(0,todayIdx-3);const dots=[];for(let i=dotFrom;i<nPg;i++)dots.push(i);const cur=idx<dotFrom?dotFrom:idx;
   const es=editSlip?(getDay(editSlip.Y,editSlip.M,editSlip.D).slips||[]).find(x=>x.id===editSlip.id):null;
   const ed=editDay?getDay(editDay.Y,editDay.M,editDay.D):null;
@@ -1699,8 +1723,9 @@ function ChHome({settings,t,refreshKey,onChanged,onStore,onBasic,fn,settingsAler
     <div className="ch-deck" ref={deckRef} onScroll={onScroll}>
       {days.map(x=>(<section key={x.Y+'-'+x.M+'-'+x.D} className="ch-pg" ref={x.isToday?todayRef:null}><ChDayCard settings={settings} t={t} zh={zh} Y={x.Y} M={x.M} D={x.D} isToday={x.isToday} day={getDay(x.Y,x.M,x.D)} up={upOf(x.Y,x.M,x.D)} onAdd={addUnits} onSkill={addSkill} onOpenDay={(Y,M,D)=>setEditDay({Y,M,D})} onEditSlip={(Y,M,D,id)=>setEditSlip({Y,M,D,id})} hlId={hlId}/></section>))}
       {periods.map(p=>(<section key={'p'+p.M+'-'+p.from} className="ch-pg"><ChPeriodCard settings={settings} t={t} zh={zh} Y={p.Y} M={p.M} from={p.from} to={p.to} getDay={getDay} upOf={upOf} today={today} onOpenDay={(Y,M,D)=>setEditDay({Y,M,D})}/></section>))}
+      <section className="ch-pg"><ChYearCard settings={settings} t={t} zh={zh} Y={bp.y} getDay={getDay} upOf={upOf} today={today} onMonth={m=>fn.monthly(m)}/></section>
       <section className="ch-fnpg"><div className="ch-fn">
-        <FB k="monthly" label={t.monthly} onClick={fn.monthly}/><FB k="cal" label={t.monthlyCalendar||'月曆'} onClick={fn.calendar}/><FB k="book" label={t.tabBook2} onClick={fn.book}/><FB k="acu" label={t.acupointBtn} onClick={fn.acupoint}/>
+        <FB k="monthly" label={t.monthly} onClick={()=>fn.monthly()}/><FB k="cal" label={t.monthlyCalendar||'月曆'} onClick={fn.calendar}/><FB k="book" label={t.tabBook2} onClick={fn.book}/><FB k="acu" label={t.acupointBtn} onClick={fn.acupoint}/>
         <FB k="cust" label={t.custManage} onClick={fn.customers}/><FB k="card" label={t.cardBtn||'名片'} onClick={fn.card}/><FB k="gb" label={t.groupBuyBtn||'團購'} href={GLOVE_LIFF}/><FB k="backup" label={t.tabBackup||'備份'} onClick={fn.backup}/>
         <FB k="line" label={zh?'LINE 官方帳號':'LINE OA'} href="https://lin.ee/58Dsob3"/><FB k="qr" label="QRcode" onClick={fn.qr}/><FB k="set" label={t.settings} onClick={fn.settings} alert={settingsAlert}/>
       </div></section>
@@ -1924,7 +1949,7 @@ function HomePage({settings,t,refreshKey,onGotoProfile,onGotoNotices,onGotoBook,
     {showBasicInfo&&<InfoEditModal type="basic" settings={settings} t={t} onClose={()=>setShowBasicInfo(false)} onUpdateSettings={onUpdateSettings} onLogout={onLogout}/>}
     {/* v1.14-001:卡片式首頁(ChHome)。舊版首頁的內容(上一筆、今日卡、流水清單、其他功能…)保留在 themes/classic/classic-app-core.js */}
     <ChHome settings={settings} t={t} refreshKey={refreshKey} onChanged={load} onStore={()=>setShowStoreInfo(true)} onBasic={()=>setShowBasicInfo(true)} settingsAlert={settingsAlert}
-      fn={{monthly:()=>onGotoMonthly&&onGotoMonthly(),calendar:()=>onGotoMonthlyCalendar&&onGotoMonthlyCalendar(),book:()=>onGotoBook&&onGotoBook(),acupoint:()=>onGotoAcupoint&&onGotoAcupoint(),customers:()=>onGotoCustomers&&onGotoCustomers(),card:()=>setShowCard(true),backup:()=>onGotoBackup&&onGotoBackup(),qr:()=>setShowLineQr(true),settings:()=>onGotoSettings&&onGotoSettings()}}/>
+      fn={{monthly:(m)=>onGotoMonthly&&onGotoMonthly(m),calendar:()=>onGotoMonthlyCalendar&&onGotoMonthlyCalendar(),book:()=>onGotoBook&&onGotoBook(),acupoint:()=>onGotoAcupoint&&onGotoAcupoint(),customers:()=>onGotoCustomers&&onGotoCustomers(),card:()=>setShowCard(true),backup:()=>onGotoBackup&&onGotoBackup(),qr:()=>setShowLineQr(true),settings:()=>onGotoSettings&&onGotoSettings()}}/>
     {showGroupBuy&&<GroupBuyModal t={t} settings={settings} onClose={()=>setShowGroupBuy(false)}/>}
     {showCard&&<NameCardModal t={t} settings={settings} onClose={()=>setShowCard(false)} onUpdateSettings={onUpdateSettings}/>}
     {showLineQr&&(()=>{
