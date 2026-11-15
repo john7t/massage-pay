@@ -1,6 +1,7 @@
 // app-core.js v1.13-077 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
+// v1.14-004 / 卡片加上移動的亮光(只有目前這張卡片,來回一次 10 秒;系統開「減少動態效果」時不播)。CSS 變數 --ch-speed(倍速,預設 1)、--ch-glow(亮度 0~1,預設 1)
 // v1.14-003 / 卡片首頁新增「年度費用明細」卡(本期統計之後、功能按鈕之前)
 // v1.14-002 / 卡片首頁固定滿版(不能上下拉動)、底色與瀏覽器上下邊改淺粉紅
 // v1.14-001 / 首頁改成卡片式(ChHome):一天一張毛玻璃卡片左右滑、上下期統計卡、功能按鈕移到最右;舊版首頁存於 themes/classic/classic-app-core.js
@@ -1571,6 +1572,11 @@ div:has(>.ch-root){overflow:hidden!important}
 .ch-pg{flex:0 0 86%;min-width:0;scroll-snap-align:center;scroll-snap-stop:always;padding:0 6px;display:flex}
 .ch-fnpg{flex:0 0 36%;min-width:0;scroll-snap-align:end;display:flex;padding-left:4px}
 .ch-card{flex:1;min-width:0;display:flex;flex-direction:column;border-radius:30px;padding:20px 20px 14px;background:rgba(255,255,255,.42);-webkit-backdrop-filter:blur(18px) saturate(1.3);backdrop-filter:blur(18px) saturate(1.3);border:1px solid rgba(255,255,255,.85);box-shadow:0 14px 30px rgba(214,96,146,.2),inset 0 1px 0 rgba(255,255,255,.9)}
+.ch-card{position:relative;overflow:hidden}.ch-card>*{position:relative;z-index:1}
+.ch-card::before{content:"";position:absolute;top:0;bottom:0;left:0;width:300%;z-index:0;pointer-events:none;opacity:0;transition:opacity .8s;will-change:transform;background:linear-gradient(120deg,rgba(255,255,255,0) 0%,rgba(255,255,255,0) 30%,rgba(255,255,255,.75) 44%,rgba(255,150,195,.55) 52%,rgba(255,255,255,.35) 60%,rgba(255,255,255,0) 72%,rgba(255,255,255,0) 100%)}
+.ch-pg.cur .ch-card::before{opacity:var(--ch-glow,1);animation:ch-glow calc(10s / var(--ch-speed,1)) ease-in-out infinite}
+@keyframes ch-glow{0%,100%{transform:translateX(0)}50%{transform:translateX(-66.667%)}}
+@media (prefers-reduced-motion:reduce){.ch-pg.cur .ch-card::before{animation:none;opacity:0}}
 .ch-dt{display:flex;align-items:baseline;gap:8px;flex:0 0 auto}.ch-dt b{font-size:21px;font-weight:800}.ch-dt em{font-style:normal;font-size:14px;color:#9a6b82}.ch-dt u{margin-left:auto;text-decoration:none;font-size:12px;font-weight:800;color:#fff;background:#f0619a;border-radius:99px;padding:2px 10px}.ch-dt s{text-decoration:none;font-size:12px;font-weight:800;color:#b02f66;background:rgba(240,97,154,.16);border-radius:99px;padding:2px 10px}
 .ch-big{margin-top:14px;display:flex;align-items:baseline;gap:6px;flex:0 0 auto}.ch-big>b{font-size:80px;line-height:.95;font-weight:900;letter-spacing:-.03em;color:#d83a7c;font-variant-numeric:tabular-nums}.ch-big>small{font-size:20px;font-weight:700;color:#9a6b82}
 .ch-lao{margin-left:auto;align-self:center;font-size:14px;font-weight:700;color:#b02f66;background:rgba(240,97,154,.14);border-radius:99px;padding:5px 12px;white-space:nowrap}.ch-lao b{font-size:17px}
@@ -1721,9 +1727,9 @@ function ChHome({settings,t,refreshKey,onChanged,onStore,onBasic,fn,settingsAler
     <div className="ch-bg"/>
     <div className="ch-hd"><div className="st" onClick={onStore}><span>{sd.bm}</span><small>{sd.bs}</small><i>24h</i><button className="cd" onClick={e=>{e.stopPropagation();onBasic();}}>#{settings.code}</button></div><span className="tt">{zh?'支數記錄':'Ghi số ca'}</span></div>
     <div className="ch-deck" ref={deckRef} onScroll={onScroll}>
-      {days.map(x=>(<section key={x.Y+'-'+x.M+'-'+x.D} className="ch-pg" ref={x.isToday?todayRef:null}><ChDayCard settings={settings} t={t} zh={zh} Y={x.Y} M={x.M} D={x.D} isToday={x.isToday} day={getDay(x.Y,x.M,x.D)} up={upOf(x.Y,x.M,x.D)} onAdd={addUnits} onSkill={addSkill} onOpenDay={(Y,M,D)=>setEditDay({Y,M,D})} onEditSlip={(Y,M,D,id)=>setEditSlip({Y,M,D,id})} hlId={hlId}/></section>))}
-      {periods.map(p=>(<section key={'p'+p.M+'-'+p.from} className="ch-pg"><ChPeriodCard settings={settings} t={t} zh={zh} Y={p.Y} M={p.M} from={p.from} to={p.to} getDay={getDay} upOf={upOf} today={today} onOpenDay={(Y,M,D)=>setEditDay({Y,M,D})}/></section>))}
-      <section className="ch-pg"><ChYearCard settings={settings} t={t} zh={zh} Y={bp.y} getDay={getDay} upOf={upOf} today={today} onMonth={m=>fn.monthly(m)}/></section>
+      {days.map((x,i)=>(<section key={x.Y+'-'+x.M+'-'+x.D} className={'ch-pg'+(idx===i?' cur':'')} ref={x.isToday?todayRef:null}><ChDayCard settings={settings} t={t} zh={zh} Y={x.Y} M={x.M} D={x.D} isToday={x.isToday} day={getDay(x.Y,x.M,x.D)} up={upOf(x.Y,x.M,x.D)} onAdd={addUnits} onSkill={addSkill} onOpenDay={(Y,M,D)=>setEditDay({Y,M,D})} onEditSlip={(Y,M,D,id)=>setEditSlip({Y,M,D,id})} hlId={hlId}/></section>))}
+      {periods.map((p,j)=>(<section key={'p'+p.M+'-'+p.from} className={'ch-pg'+(idx===days.length+j?' cur':'')}><ChPeriodCard settings={settings} t={t} zh={zh} Y={p.Y} M={p.M} from={p.from} to={p.to} getDay={getDay} upOf={upOf} today={today} onOpenDay={(Y,M,D)=>setEditDay({Y,M,D})}/></section>))}
+      <section className={'ch-pg'+(idx>=days.length+periods.length?' cur':'')}><ChYearCard settings={settings} t={t} zh={zh} Y={bp.y} getDay={getDay} upOf={upOf} today={today} onMonth={m=>fn.monthly(m)}/></section>
       <section className="ch-fnpg"><div className="ch-fn">
         <FB k="monthly" label={t.monthly} onClick={()=>fn.monthly()}/><FB k="cal" label={t.monthlyCalendar||'月曆'} onClick={fn.calendar}/><FB k="book" label={t.tabBook2} onClick={fn.book}/><FB k="acu" label={t.acupointBtn} onClick={fn.acupoint}/>
         <FB k="cust" label={t.custManage} onClick={fn.customers}/><FB k="card" label={t.cardBtn||'名片'} onClick={fn.card}/><FB k="gb" label={t.groupBuyBtn||'團購'} href={GLOVE_LIFF}/><FB k="backup" label={t.tabBackup||'備份'} onClick={fn.backup}/>
