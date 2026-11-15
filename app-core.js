@@ -1,6 +1,7 @@
 // app-core.js v1.13-077 — 主程式核心元件(登入驗證/首頁/月報表/彈窗),從index.html拆分出來
 // 跟settings.js一樣用 <script type="text/babel" src="..."> 載入,共用同一個全域作用域
 // ═══ 1.13版起,版號改成全檔案統一對齊(不再各檔獨立遞增),標記拿掉公司化、朝個人記帳工具轉型的新系列起點 ═══
+// v1.14-002 / 卡片首頁固定滿版(不能上下拉動)、底色與瀏覽器上下邊改淺粉紅
 // v1.14-001 / 首頁改成卡片式(ChHome):一天一張毛玻璃卡片左右滑、上下期統計卡、功能按鈕移到最右;舊版首頁存於 themes/classic/classic-app-core.js
 // v1.13-056 / UI 改版(Impeccable 建議,使用者逐頁確認預覽):(1)首頁:上一筆縮成一行、今日卡右側金額+支數老點(拿掉「看明細›」)、+1+2+3+更多一排貼在今日卡下方(0支時顯示提示)、流水→手套團購→更多功能(上排4個大圖示、下排2欄文字磚);手套團購橫幅改兩行版面。(2)月份明細:大字月份+月薪水、上/下半月並排小卡、底線式月份分頁、區段小計與欄位標題、空日淡化、「回到今天」浮動鈕。(3)啟動頁:白底仿LINE風格(.ob-line範圍CSS)、Email(選填)欄位拿掉(NoticeBox不傳setEmail)、左上返回‹、送出鈕停用時顯示還差什麼。舊版區塊一律 {false&&...} 隱藏不刪。
 // v1.13-055 / 事假/病假/休假(狀態 1/3/4)不再清空當天資料:支數、老點數、金額照常顯示(首頁今日/上一筆卡、月份列表、月曆格),並計入上期/下期小計與整月合計;狀態只當標籤。編輯器(DayEditor)狀態選了休假後仍可輸入支數、存檔也保留。(舊資料已被清成 0 的無法還原。)
@@ -1557,8 +1558,9 @@ const HIDE_CHART=true; // 圖表功能:使用者要求移除(隱藏不刪:ChartP
    一天一張毛玻璃卡片,左右滑動換日期(今天在日期卡的最右邊);今天再往左滑依序是「上一期統計」「本期統計」,最後是功能按鈕(卡片留約 2/3)。
    舊的首頁完整保留在 themes/classic/classic-app-core.js(設定 → 主題可切回)。資料讀寫沿用原本的月份資料(dk/LS)、newSlip、calcSal,沒有新的資料格式。 */
 const CH_CSS=`
-.ch-root{position:relative;height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden;color:#4a2337;font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif}
-.ch-bg{position:absolute;inset:0;z-index:0;pointer-events:none;background:radial-gradient(circle at 18% 24%,#ff9ec4 0,rgba(255,158,196,0) 34%),radial-gradient(circle at 86% 46%,#ffb7d5 0,rgba(255,183,213,0) 30%),radial-gradient(circle at 30% 78%,#ffc9df 0,rgba(255,201,223,0) 32%),linear-gradient(165deg,#ffc6de 0%,#ffe6f0 45%,#ffffff 100%)}
+.ch-root{position:fixed;left:0;right:0;top:0;bottom:0;z-index:1;display:flex;flex-direction:column;overflow:hidden;color:#4a2337;font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif}
+.ch-bg{position:absolute;inset:0;z-index:0;pointer-events:none;background:radial-gradient(circle at 18% 24%,#ff9ec4 0,rgba(255,158,196,0) 34%),radial-gradient(circle at 86% 46%,#ffb7d5 0,rgba(255,183,213,0) 30%),radial-gradient(circle at 30% 78%,#ffc9df 0,rgba(255,201,223,0) 32%),linear-gradient(165deg,#ffc6de 0%,#ffe6f0 45%,#ffe9f1 100%)}
+div:has(>.ch-root){overflow:hidden!important}
 .ch-hd{position:relative;z-index:1;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 14px) 22px 8px}
 .ch-hd .st{display:flex;align-items:baseline;gap:6px;min-width:0;font-size:16px;font-weight:800;color:#5a2f45}.ch-hd .st small{font-size:11px;font-weight:600;color:#96687e}.ch-hd .st i{font-style:normal;font-size:10px;font-weight:800;color:#fff;background:#e0245e;border-radius:99px;padding:1px 6px}
 .ch-hd .cd{font-size:15px;font-weight:800;color:#d83a7c;background:none;border:0;padding:8px 4px;font-family:ui-monospace,monospace}
