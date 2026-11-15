@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>員工專區 v1.13-181</title>
+<title>員工專區 v1.13-182</title>
 <meta property="og:title" content="員工專區">
 <meta property="og:description" content="公告、安全回報、拒接名單、手套團購、價目表等功能入口與說明">
 <meta property="og:type" content="website">
@@ -66,7 +66,9 @@ setInterval(function(){window.__tmShow&&window.__tmShow();},500);})();
 <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>window.__tm("liff");</script>
 <script>window.__liffReady=new Promise(function(r){window.__liffReadyRes=r;});</script>
-<script>try{var __p=new URLSearchParams(location.search);if(__p.get('lv2')==='pdf'||__p.has('cn2'))document.documentElement.classList.add('s2-nolight');}catch(e){}</script>
+<script>try{var __p=new URLSearchParams(location.search);if(__p.get('lv2')==='pdf'||__p.has('cn2'))document.documentElement.classList.add('s2-nolight');
+/* v1.13-182 員工專區粉紅色卡片 UI:主櫃(cn2)與預排休 PDF 不套用;localStorage s2-ui=classic 可回到原本的白底 */
+else{var __u='';try{__u=localStorage.getItem('s2-ui')||''}catch(e){}if(__u!=='classic'){document.documentElement.classList.add('s2-pink');var __m=document.querySelector('meta[name="theme-color"]');if(__m)__m.setAttribute('content','#f8c8dc');}}}catch(e){}</script>
 <style>body{background:#ffffff;color:#111827;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}#root{min-height:100vh}
 /* 點狀圓環載入圖(AIMRAN Dotted ring loader):12 點如時鐘排列,依序淡出縮小 */
 .ul-dr{position:relative;display:inline-block;width:var(--s,72px);height:var(--s,72px);flex:none;vertical-align:middle}
@@ -153,6 +155,42 @@ html:not(.s2-nolight) .bg-indigo-600,html:not(.s2-nolight) .bg-indigo-600 *{colo
 html:not(.s2-nolight) .bg-teal-700,html:not(.s2-nolight) .bg-teal-700 *{color:#ffffff !important}
 html:not(.s2-nolight) .bg-orange-600,html:not(.s2-nolight) .bg-orange-600 *{color:#ffffff !important}
 html:not(.s2-nolight) [style*="gradient"],html:not(.s2-nolight) [style*="gradient"] *{color:#ffffff !important}
+
+/* ══ 員工專區粉紅色卡片 UI(v1.13-182):疊在白底主題上面 ══ */
+html.s2-pink body{background:#ffe9f1 !important;color:#4a2337 !important;overscroll-behavior-y:none}
+html.s2-pink body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(circle at 18% 18%,#ff9ec4 0,rgba(255,158,196,0) 34%),radial-gradient(circle at 86% 46%,#ffb7d5 0,rgba(255,183,213,0) 30%),radial-gradient(circle at 30% 82%,#ffc9df 0,rgba(255,201,223,0) 32%),linear-gradient(165deg,#ffc6de 0%,#ffe6f0 45%,#ffe9f1 100%)}
+html.s2-pink #root,html.s2-pink .min-h-screen{background:transparent !important}
+html.s2-pink .rounded-2xl.bg-gray-900,html.s2-pink .rounded-3xl,html.s2-pink .bg-gray-900.rounded-xl{background:rgba(255,255,255,.42) !important;-webkit-backdrop-filter:blur(18px) saturate(1.3);backdrop-filter:blur(18px) saturate(1.3);border:1px solid rgba(255,255,255,.85) !important;border-radius:24px !important;box-shadow:0 12px 26px rgba(214,96,146,.16),inset 0 1px 0 rgba(255,255,255,.9) !important}
+html.s2-pink .bg-gray-900{background-color:rgba(255,255,255,.55) !important}
+html.s2-pink .bg-gray-800,html.s2-pink [class*="bg-gray-800/"]{background-color:rgba(255,255,255,.55) !important}
+html.s2-pink .bg-gray-700,html.s2-pink .bg-gray-600,html.s2-pink [class*="bg-gray-700/"],html.s2-pink [class*="bg-gray-600/"]{background-color:rgba(255,255,255,.7) !important;color:#7a4a62 !important}
+html.s2-pink .bg-gray-700 *,html.s2-pink .bg-gray-600 *{color:#7a4a62 !important}
+html.s2-pink [class*="bg-white/"],html.s2-pink .bg-black\/20,html.s2-pink .bg-black\/25,html.s2-pink .bg-black\/30{background-color:rgba(255,255,255,.5) !important}
+html.s2-pink [class*="border-gray-"],html.s2-pink [class*="border-white/"]{border-color:rgba(214,96,146,.2) !important}
+html.s2-pink .border-t{border-top-color:rgba(214,96,146,.16) !important}html.s2-pink .border-b{border-bottom-color:rgba(214,96,146,.16) !important}
+html.s2-pink .text-white{color:#4a2337 !important}
+html.s2-pink .text-gray-100,html.s2-pink .text-gray-200,html.s2-pink .text-gray-300{color:#4a2337 !important}
+html.s2-pink .text-gray-400,html.s2-pink .text-gray-500,html.s2-pink [class*='text-gray-'][class*='/']{color:#8a5f74 !important}
+html.s2-pink .text-gray-600,html.s2-pink .text-gray-700{color:#a07d8e !important}
+html.s2-pink .text-violet-200,html.s2-pink .text-violet-300,html.s2-pink .text-violet-400,html.s2-pink .text-violet-500,html.s2-pink .text-violet-600{color:#c2336f !important}
+html.s2-pink [class*="border-violet-"]{border-color:rgba(240,97,154,.55) !important}
+html.s2-pink [class*="bg-violet-9"],html.s2-pink [class*="bg-violet-950"]{background-color:rgba(255,255,255,.5) !important}
+html.s2-pink .bg-violet-600,html.s2-pink .bg-violet-700,html.s2-pink .bg-violet-500{background-color:#f0619a !important;border-color:#f0619a !important;box-shadow:0 8px 18px rgba(240,97,154,.3)}
+html.s2-pink .bg-violet-600,html.s2-pink .bg-violet-600 *,html.s2-pink .bg-violet-700,html.s2-pink .bg-violet-700 *,html.s2-pink .bg-violet-500,html.s2-pink .bg-violet-500 *{color:#ffffff !important}
+html.s2-pink .rounded-xl,html.s2-pink .rounded-lg{border-radius:15px !important}
+html.s2-pink button.rounded-full.border:not([class*="bg-"]){background-color:rgba(255,255,255,.55) !important;border-color:rgba(255,255,255,.95) !important;color:#7a4a62 !important}
+html.s2-pink input,html.s2-pink textarea,html.s2-pink select{background:rgba(255,255,255,.72) !important;color:#4a2337 !important;border-color:rgba(240,97,154,.3) !important;border-radius:15px !important}
+html.s2-pink input:focus,html.s2-pink textarea:focus,html.s2-pink select:focus{outline:2px solid rgba(240,97,154,.45) !important;outline-offset:0}
+html.s2-pink input::placeholder,html.s2-pink textarea::placeholder{color:#b08a9b !important}
+html.s2-pink .bg-black\/40,html.s2-pink .bg-black\/50,html.s2-pink .bg-black\/60{background-color:rgba(90,30,60,.32) !important}
+html.s2-pink .fixed .bg-gray-900,html.s2-pink .fixed .rounded-2xl.bg-gray-900{background:rgba(255,246,250,.94) !important}
+html.s2-pink .bg-emerald-600,html.s2-pink .bg-green-600{background-color:#e8f6ee !important}html.s2-pink .bg-emerald-600,html.s2-pink .bg-emerald-600 *,html.s2-pink .bg-green-600,html.s2-pink .bg-green-600 *{color:#1f7a4a !important}
+html.s2-pink .bg-red-600,html.s2-pink .bg-red-500{background-color:#e0245e !important}
+html.s2-pink .bg-sky-700,html.s2-pink .bg-sky-600{background-color:#f0619a !important}html.s2-pink .bg-sky-700,html.s2-pink .bg-sky-700 *{color:#fff !important}
+html.s2-pink .bg-amber-500{background-color:#ffd9a0 !important}html.s2-pink .bg-amber-500,html.s2-pink .bg-amber-500 *{color:#7a3f00 !important}
+html.s2-pink .bg-emerald-500{background-color:#f0619a !important}
+html.s2-pink .from-violet-100,html.s2-pink .from-sky-100{--tw-gradient-from:rgba(255,255,255,.55) !important;--tw-gradient-to:rgba(255,255,255,.4) !important;--tw-gradient-stops:var(--tw-gradient-from),var(--tw-gradient-to) !important}
+html.s2-pink [style*="gradient"],html.s2-pink [style*="gradient"] *{color:inherit}
 </style>
 </head>
 <body>
@@ -178,7 +216,7 @@ html:not(.s2-nolight) [style*="gradient"],html:not(.s2-nolight) [style*="gradien
 <script type="text/babel" src="./blacklist2.js?v=1.0-010"></script>
 <script type="text/babel" src="./gloves2.js?v=1.0-010"></script>
 <script type="text/babel" src="./leave2.js?v=1.0-069"></script>
-<script type="text/babel" src="./my2.js?v=1.0-019"></script>
+<script type="text/babel" src="./my2.js?v=1.0-020"></script>
 <script type="text/babel" src="./shop2.js?v=1.0-001"></script>
 <script src="./counter-rules-data.js?v=1.0-037"></script>
   <script type="text/babel" src="./counter2.js?v=1.0-052"></script>
