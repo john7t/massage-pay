@@ -17,7 +17,7 @@ const dur=sec=>Math.round(sec/60)+' 分';
 const nextMark=(now,stepMin)=>{const st=stepMin*60000;return Math.floor((now+8*3600e3)/st)*st+st-8*3600e3;}; // 台北時間的下一個整/半點
 const LIMIT=3600;
 // ── 白底主題:版面用 cn-* 類別;其餘沿用的 Tailwind 深色類別,在 .cn-light 內改成淺色對應 ──
-const CN_VER='v1.0-048'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
+const CN_VER='v1.0-050'; // 檔案版本(顯示在主櫃標題旁,用來確認平板載入的是不是新檔)
 window.__cnVer=CN_VER;
 const CN_CSS=String.raw`
 .cn-light{background:#f7f7f9;color:#1b1f2a;min-height:100vh;font-feature-settings:"tnum"}
@@ -163,6 +163,39 @@ const CN_CSS=String.raw`
 .zb{border:2px solid #0f1424;background:transparent!important;padding:0!important}.zb>*{padding:5px 10px}.zb>*:nth-child(odd){background:#fff}.zb>*:nth-child(even){background:#dde3f0}.zb>p{background:#0f1424!important;color:#ffc94a!important;font-weight:800;font-size:12px}
 .cn-light [data-arm]{background:#c42b1f!important;color:#fff!important;border-color:#c42b1f!important}
 .tb-actbar{position:sticky;bottom:0;background:#f4f5f8;border-top:2px solid #0f1424;padding:8px 0 2px;display:flex;flex-direction:column;gap:6px;z-index:3}.tb-shh{display:flex;align-items:center;gap:10px;position:sticky;top:0;background:#f4f5f8;padding:2px 0 6px;z-index:2}.tb-shh .cn-btn{width:auto;padding:0 12px;height:38px}
+/* ══ 粉紅色卡片 UI(v1.0-049):html.cn-pink 時套用(safety-report.html 預設加上;localStorage cn2-ui=classic 回到 Wayfind) ══ */
+html.cn-pink body{background:#ffe9f1!important;color:#4a2337}
+html.cn-pink body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(circle at 12% 20%,#ff9ec4 0,rgba(255,158,196,0) 30%),radial-gradient(circle at 88% 40%,#ffb7d5 0,rgba(255,183,213,0) 28%),radial-gradient(circle at 40% 92%,#ffc9df 0,rgba(255,201,223,0) 30%),linear-gradient(165deg,#ffc6de 0%,#ffe6f0 45%,#ffe9f1 100%)}
+html.cn-pink .cn-light,html.cn-pink .tb-app{background:transparent!important;color:#4a2337}
+html.cn-pink .tb-bar{background:rgba(255,255,255,.42)!important;-webkit-backdrop-filter:blur(18px) saturate(1.3);backdrop-filter:blur(18px) saturate(1.3);border:1px solid rgba(255,255,255,.85)!important;box-shadow:0 10px 24px rgba(214,96,146,.16),inset 0 1px 0 rgba(255,255,255,.9)!important;color:#4a2337;border-radius:20px}
+html.cn-pink .tb-bar h1,html.cn-pink .tb-bar .tb-tm{color:#4a2337}html.cn-pink .tb-bar small{color:#9a6b82}html.cn-pink .tb-op,html.cn-pink .tb-op button{color:#c2336f!important}
+html.cn-pink .tb-bar .tb-chip{background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.95);border-radius:13px}html.cn-pink .tb-bar .tb-chip b{color:#4a2337}html.cn-pink .tb-bar .tb-chip span{color:#9a6b82}html.cn-pink .tb-bar .tb-chip.hot{background:rgba(255,255,255,.7);outline:2px solid #f0619a}html.cn-pink .tb-bar .tb-chip.hot b{color:#e0245e}
+html.cn-pink .tb-btn,html.cn-pink .cn-btn,html.cn-pink .tb-bar .tb-btn{background:rgba(255,255,255,.65);border:1px solid rgba(214,96,146,.3);color:#7a3355;border-radius:14px}
+html.cn-pink .tb-btn.p,html.cn-pink .cn-btn.p,html.cn-pink .cn-bk .bt.p,html.cn-pink .tb-bar .tb-btn.p{background:#f0619a;border-color:#f0619a;color:#fff;box-shadow:0 8px 16px rgba(240,97,154,.3)}
+html.cn-pink .tb-btn.v{border-color:#f0619a;color:#c2336f}
+html.cn-pink .tb-pn,html.cn-pink .tb-pl,html.cn-pink .cn-card,html.cn-pink .cn-chip{background:rgba(255,255,255,.42)!important;-webkit-backdrop-filter:blur(18px) saturate(1.3);backdrop-filter:blur(18px) saturate(1.3);border:1px solid rgba(255,255,255,.85)!important;box-shadow:0 10px 24px rgba(214,96,146,.16),inset 0 1px 0 rgba(255,255,255,.9)!important;border-radius:22px}
+html.cn-pink .tb-grp{border:1px solid rgba(255,255,255,.7);background:rgba(255,255,255,.28);border-radius:14px}
+html.cn-pink .tb-tabs button,html.cn-pink .tb-kp button,html.cn-pink .cn-bk .bt,html.cn-pink .tb-xb,html.cn-pink .cn-tab{border-radius:12px}
+html.cn-pink .tb-tabs button{border:1px solid rgba(255,255,255,.9);background:rgba(255,255,255,.55);color:#7a4a62}html.cn-pink .tb-tabs button.on{background:#f0619a;border-color:#f0619a;color:#fff}
+html.cn-pink .tb-tabs button b{background:rgba(240,97,154,.14);color:#c2336f;border-radius:8px}html.cn-pink .tb-tabs button.on b{background:#fff;color:#c2336f}html.cn-pink .tb-tabs button.ar{border-color:#f0619a;color:#c2336f}
+html.cn-pink .tb-menu{background:rgba(255,246,250,.96)!important;border:1px solid rgba(214,96,146,.3);border-radius:16px;box-shadow:0 14px 34px rgba(214,96,146,.3)}html.cn-pink .tb-menu button{border-radius:10px}
+html.cn-pink .tb-xp,html.cn-pink .tb-fullhost{background:rgba(255,246,250,.96)!important;border:2px solid #f0619a;border-radius:20px;box-shadow:0 -10px 30px rgba(214,96,146,.3)}
+html.cn-pink .tb-xn{border-radius:10px;border:1.5px solid rgba(74,35,55,.35);background:rgba(255,255,255,.85)}html.cn-pink .tb-xn.r{background:#ffd6de;border-color:#e0245e;color:#9f1239}html.cn-pink .tb-xn.gy{background:rgba(255,255,255,.35);border:1.5px dashed rgba(122,74,98,.5)}
+html.cn-pink .tb-xb{border:1px solid #f0619a;color:#c2336f;background:rgba(255,255,255,.7)}
+html.cn-pink .tb-rwv.more:after{background:linear-gradient(90deg,rgba(255,240,246,0),#fff0f6 60%);color:#c2336f}
+html.cn-pink .tb-main.land .tb-ac3,html.cn-pink .tb-actbar,html.cn-pink .tb-shh,html.cn-pink .tb-ask{background:rgba(255,246,250,.96)!important}html.cn-pink .tb-actbar,html.cn-pink .tb-ask{border-top:1px solid rgba(214,96,146,.3)!important}
+html.cn-pink .cn-tabs{background:rgba(255,255,255,.45);border-radius:14px}html.cn-pink .cn-tab.on{background:#f0619a;color:#fff}
+html.cn-pink .cn-ord{border:1px solid rgba(255,255,255,.95)!important;border-radius:16px;margin-bottom:8px}html.cn-pink .cn-ord:nth-child(odd),html.cn-pink .cn-ord:nth-child(even){background:rgba(255,255,255,.66)}
+html.cn-pink .zb{border:1px solid rgba(214,96,146,.3);border-radius:14px;overflow:hidden}html.cn-pink .zb>*:nth-child(odd){background:rgba(255,255,255,.8)}html.cn-pink .zb>*:nth-child(even){background:rgba(255,236,244,.8)}html.cn-pink .zb>p{background:#f0619a!important;color:#fff!important}
+html.cn-pink .cn-light .bg-violet-600{background:#f0619a!important;border-color:#f0619a!important;color:#fff!important}
+html.cn-pink .cn-light .text-violet-200,html.cn-pink .cn-light .text-violet-300,html.cn-pink .cn-light .text-violet-100,html.cn-pink .cn-link,html.cn-pink .tb-op button{color:#c2336f}
+html.cn-pink .cn-light .bg-gray-900{background:rgba(255,255,255,.6)}html.cn-pink .cn-light .bg-gray-800{background:rgba(255,255,255,.5)}html.cn-pink .cn-light .bg-gray-700{background:rgba(255,255,255,.75)}
+html.cn-pink .cn-light .border-gray-800,html.cn-pink .cn-light .border-gray-700,html.cn-pink .cn-light .border-gray-600{border-color:rgba(214,96,146,.25)}
+html.cn-pink .cn-cnt{color:#c2336f;background:rgba(240,97,154,.14);border-radius:99px}html.cn-pink .cn-no{background:rgba(240,97,154,.1);color:#8a5f74}
+html.cn-pink .cn-dots i.on{background:#f0619a}html.cn-pink .tb-dot{background:#f0619a}
+html.cn-pink .tb-bnhost .tb-sh{background:rgba(255,246,250,.96)!important;border:2px solid #f0619a!important;border-radius:20px;box-shadow:0 -10px 30px rgba(214,96,146,.35)!important}html.cn-pink .tb-bnx{border-color:rgba(214,96,146,.35);color:#c2336f}html.cn-pink .tb-bnc{color:#2a1520}
+html.cn-pink .cn-light input,html.cn-pink .cn-light select,html.cn-pink .cn-light textarea{border-radius:12px}
+
 `;
 
 
@@ -170,7 +203,7 @@ const CN_CSS=String.raw`
 const FEET=['1','2','3','4','5','6','7','8','9','10','11','12'];
 const BEDS=['21','22','23','31','32','33','34','35','36','37','38','39','310','311'];
 const TimeToggles=({tv,onTv})=>{const T=tv||{};const B=({k,t})=><button onClick={()=>onTv(Object.assign({},T,{[k]:!T[k]}))} style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:12,fontWeight:700,color:T[k]?'#2548d6':'#6b7280',background:'none',border:'none',padding:'2px 4px',whiteSpace:'nowrap'}}><i style={{width:15,height:15,borderRadius:4,border:'1.5px solid '+(T[k]?'#2548d6':'#9aa0ad'),background:T[k]?'#2548d6':'#fff',color:'#fff',fontSize:11,lineHeight:'12px',textAlign:'center',fontStyle:'normal'}}>{T[k]?'✓':''}</i>{t}</button>;return(<span style={{display:'inline-flex',gap:6,alignItems:'center'}}><B k="t" t="轉場時間"/><B k="e" t="到場時間"/><B k="r" t="剩餘時間"/></span>);};
-const SeatLegend=()=>{const Sq=({bg,bd,st})=><i style={{display:'inline-block',width:14,height:11,borderRadius:3,background:bg,border:'1.5px '+(st||'solid')+' '+bd,marginRight:3,verticalAlign:'-1px'}}></i>;return(<div style={{display:'flex',flexWrap:'wrap',gap:'3px 12px',fontSize:11,color:'#4b5563',padding:'4px 2px 0'}}><span><Sq bg='#c9ecd6' bd='#0f1424'/>時間充裕</span><span><Sq bg='#ffe28a' bd='#0f1424'/>5 分內</span><span><Sq bg='#ffb4ac' bd='#0f1424'/>超時</span><span><Sq bg='#e0f2fe' bd='#0284c7'/>推薦(疊卡=後面有安排,底字=老師號)</span><span><Sq bg='#f3effe' bd='#7c3aed' st='dashed'/>預定轉入</span></div>);};
+const SeatLegend=()=>{const Sq=({bg,bd,st})=><i style={Object.assign(cnGlass({display:'inline-block',width:14,height:11,borderRadius:3,background:bg,border:'1.5px '+(st||'solid')+' '+bd,marginRight:3,verticalAlign:'-1px'}),{borderRadius:4,boxShadow:'none'})}></i>;return(<div style={{display:'flex',flexWrap:'wrap',gap:'3px 12px',fontSize:11,color:'#4b5563',padding:'4px 2px 0'}}><span><Sq bg='#c9ecd6' bd='#0f1424'/>時間充裕</span><span><Sq bg='#ffe28a' bd='#0f1424'/>5 分內</span><span><Sq bg='#ffb4ac' bd='#0f1424'/>超時</span><span><Sq bg='#e0f2fe' bd='#0284c7'/>推薦(疊卡=後面有安排,底字=老師號)</span><span><Sq bg='#f3effe' bd='#7c3aed' st='dashed'/>預定轉入</span><span><Sq bg='#c9ecd6' bd='#0b6b46' st='dashed'/>帶位中</span></div>);};
 const isFoot=p=>FEET.indexOf(p)>=0;
 const PL=x=>x?(isFoot(x)?'腳'+x:x+'床'):''; // 位置顯示名:腳1~腳12、21床~311床
 const MIN=60000;
@@ -405,6 +438,24 @@ function greenInfo(p,now){
 const isLate=(p,now)=>p.state==='gray'&&p.due<=now&&!(p.lateTo&&p.lateTo>now); // 過上牌時間(或晚到時間)仍未到 → 未到未電(R5.10)
 
 // ── 號碼牌 ──
+// ── 粉紅 UI 時,座位與號碼牌改成毛玻璃(顏色意思不變:綠=充裕、黃=5 分內、紅=超時;虛線=帶位中/預定轉入/灰牌)──
+function cnPink(){try{return document.documentElement.classList.contains('cn-pink');}catch(_e){return false;}}
+const CN_TINT={'#c9ecd6':['rgba(150,225,185,.62)','rgba(120,205,160,.38)','58,166,115'],'#ffe28a':['rgba(255,224,130,.7)','rgba(255,206,90,.42)','224,162,26'],'#ffb4ac':['rgba(255,150,170,.66)','rgba(255,120,145,.42)','224,36,94'],'#fff4c2':['rgba(255,236,160,.72)','rgba(255,220,120,.44)','217,154,6']};
+function cnGlass(st){
+  if(!cnPink())return st;
+  const bg=st.background,b=String(st.border||''),dashed=/dashed/.test(b),bdC=((b.match(/#[0-9a-f]{6}/i)||[''])[0]).toLowerCase();
+  const o=Object.assign({},st,{borderRadius:12,WebkitBackdropFilter:'blur(14px) saturate(1.4)',backdropFilter:'blur(14px) saturate(1.4)'});
+  const ring=(st.boxShadow&&st.boxShadow!=='none')?st.boxShadow+',':'';const hi='inset 0 1px 0 rgba(255,255,255,.9)';
+  if(bg==='#e0f2fe'){o.background='rgba(255,255,255,.72)';o.border='2px '+(dashed?'dashed':'solid')+' #f0619a';o.boxShadow=ring+'0 0 0 3px rgba(240,97,154,.2),0 6px 16px rgba(240,97,154,.22)';return o;}
+  if(bg==='#f3effe'){o.background='rgba(255,255,255,.45)';o.border='2px dashed rgba(194,51,111,.75)';o.boxShadow=ring+hi;return o;}
+  const T=CN_TINT[bg];
+  if(T){o.background='linear-gradient(160deg,'+T[0]+','+T[1]+')';
+    if(dashed){o.border='2px dashed rgba('+T[2]+',.8)';o.boxShadow=ring+hi;}
+    else{const red=bdC==='#c42b1f'||bdC==='#dc2626';o.border='1px solid rgba(255,255,255,.9)';o.boxShadow=ring+'0 6px 14px rgba('+T[2]+',.22),inset 0 0 0 '+(red?'2px #e0245e':'1.5px rgba('+T[2]+',.6)')+','+hi;}
+    return o;}
+  if(bg==='transparent'||bg==='#eceef2'){o.background=bg==='transparent'?'rgba(255,255,255,.18)':'rgba(255,255,255,.28)';o.border=b.replace(/#[0-9a-f]{6}/i,m=>m.toLowerCase()==='#dc2626'?'#e0245e':'rgba(122,74,98,.5)');return o;}
+  o.background='rgba(255,255,255,.5)';o.border=dashed?b:'1px solid rgba(255,255,255,.95)';o.boxShadow=ring+'0 4px 10px rgba(214,96,146,.14),inset 0 0 0 1.5px rgba(74,35,55,'+(bdC==='#8d96ab'?'.12':'.28')+'),inset 0 1px 0 #fff';return o;
+}
 function Plate({p,now,small,mini,hl,onClick}){
   const st=p.state;const fem=p.gender==='F';const w=mini?36:small?50:64,h=mini?42:small?60:72;
   let bg='#f4f5f8',bd='#0f1424',bs='solid',col=fem?'#be123c':'#111',sub='',subCol='#5b6270',ring='none';
@@ -420,9 +471,9 @@ function Plate({p,now,small,mini,hl,onClick}){
   else if(st==='off'){bg='transparent';bd='#a9aeba';col='#6b7280';}
   else if(st==='leave'){bg='transparent';bd='#a9aeba';bs='dashed';col='#9aa0ad';sub=p.leaveKind==='temp'?'臨時請假':'請假';subCol='#9aa0ad';}
   if(st==='red'&&zhunOn(p,now)){sub='准下'+(sub?' '+sub:'');subCol='#b45309';}
-  const sw=st==='red'&&!mini?w+10:w;if(hl)ring='0 0 0 3px #0284c7';
-  if(mini)return(<button onClick={onClick} title={p.code+(sub?' '+sub:'')} style={{width:sw,minWidth:sw,height:h,flex:'0 0 auto',borderRadius:2,border:'2px '+bs+' '+bd,background:bg,boxShadow:ring,display:'flex',alignItems:'center',justifyContent:'center',padding:0,cursor:'pointer'}}><span style={{fontSize:p.code.length>2?14:17,fontWeight:800,color:col,letterSpacing:'-.02em',fontVariantNumeric:'tabular-nums'}}>{p.code}</span></button>);
-  return(<button onClick={onClick} style={{width:sw,minWidth:sw,height:h,flex:'0 0 auto',borderRadius:2,border:'2px '+bs+' '+bd,background:bg,boxShadow:ring,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:2,padding:0,cursor:'pointer'}}>
+  const sw=st==='red'&&!mini?w+10:w;if(hl)ring='0 0 0 3px '+(cnPink()?'#f0619a':'#0284c7');
+  if(mini)return(<button onClick={onClick} title={p.code+(sub?' '+sub:'')} style={cnGlass({width:sw,minWidth:sw,height:h,flex:'0 0 auto',borderRadius:2,border:'2px '+bs+' '+bd,background:bg,boxShadow:ring,display:'flex',alignItems:'center',justifyContent:'center',padding:0,cursor:'pointer'})}><span style={{fontSize:p.code.length>2?14:17,fontWeight:800,color:col,letterSpacing:'-.02em',fontVariantNumeric:'tabular-nums'}}>{p.code}</span></button>);
+  return(<button onClick={onClick} style={cnGlass({width:sw,minWidth:sw,height:h,flex:'0 0 auto',borderRadius:2,border:'2px '+bs+' '+bd,background:bg,boxShadow:ring,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:2,padding:0,cursor:'pointer'})}>
     <span style={{fontSize:p.code.length>2?17:19,fontWeight:800,lineHeight:1,color:col,fontVariantNumeric:'tabular-nums'}}>{p.code}</span>
     {sub?<span style={{fontSize:sub.length>6?9:10,fontWeight:600,lineHeight:1.05,color:subCol,textAlign:'center',maxWidth:sw-4}}>{sub}</span>:null}</button>);
 }
@@ -596,23 +647,23 @@ function soonSeats(p,M,needType){const tr=p.redTransfer>0?p.redTransfer:0;if(!tr
 // 位置格:本身時間狀態(R6.4):接近(≤5 分)黃、超時紅、其餘綠
 const cdTxt=ms=>{const o=ms<0,a=Math.floor(Math.abs(ms)/1000),h=Math.floor(a/3600),m=Math.floor(a%3600/60),sc=a%60,pd=n=>(n<10?'0':'')+n;return (o?'超 ':'剩')+(h>0?h+':'+pd(m):pd(m))+':'+pd(sc);};
 function Seat({pos,occ,now,onClick,h,hl,tv}){
-  const stackCur=!!(occ&&occ.kind==='cur'&&(occ.nx||hl));
+  const stackCur=!!(occ&&occ.kind==='cur'&&(occ.nx||hl));const pk=cnPink();const cRec=pk?'#c2336f':'#0369a1',cRsv=pk?'#c2336f':'#6d28d9';
   let bg='#f4f5f8',bd='#8d96ab',bs='solid',body=<span style={{color:'#9aa0ad',fontSize:12}}>空</span>;
-  if(hl&&!occ){bd='#0284c7';bs=hl.k===2?'dashed':'solid';bg='#e0f2fe';body=<React.Fragment><span style={{fontSize:18,fontWeight:800,color:'#111',lineHeight:1}}>{hl.t}</span><span style={{fontSize:10,fontWeight:800,color:'#0369a1'}}>{hl.k===2?'轉場':'推薦'}</span></React.Fragment>;} // 推薦=藍色實線框(紫色虛線留給預定轉場「轉入」)
+  if(hl&&!occ){bd='#0284c7';bs=hl.k===2?'dashed':'solid';bg='#e0f2fe';body=<React.Fragment><span style={{fontSize:18,fontWeight:800,color:'#111',lineHeight:1}}>{hl.t}</span><span style={{fontSize:10,fontWeight:800,color:cRec}}>{hl.k===2?'轉場':'推薦'}</span></React.Fragment>;} // 推薦=藍色實線框(紫色虛線留給預定轉場「轉入」)
   if(occ){const p=occ.p;const fem=p.gender==='F';
-    if(occ.kind==='rsv'){bd='#7c3aed';bs='dashed';bg='#f3effe';body=<React.Fragment><span style={{fontSize:16,fontWeight:800,color:'#6d28d9'}}>{p.code}</span><span style={{fontSize:9,color:'#6d28d9'}}>轉入{p.redTransfer?' '+hm(p.redTransfer):''}</span></React.Fragment>;}
+    if(occ.kind==='rsv'){bd='#7c3aed';bs='dashed';bg='#f3effe';body=<React.Fragment><span style={{fontSize:16,fontWeight:800,color:cRsv}}>{p.code}</span><span style={{fontSize:9,color:cRsv}}>轉入{p.redTransfer?' '+hm(p.redTransfer):''}</span></React.Fragment>;}
     else{const key=p.redTransfer>0?p.redTransfer:p.redEnd;const left=key?(key-now)/60000:999;const over=p.redEnd&&now>p.redEnd;
       const T=tv||{t:true,e:true,r:false};let tShow=T.t&&p.redTransfer>0,rShow=T.r&&key>0,eShow=T.e&&p.redEnd>0;if(stackCur){const w=rShow?'r':tShow?'t':eShow?'e':(key>0?'r':'');rShow=w==='r';tShow=w==='t';eShow=w==='e';}else if(tShow&&rShow&&eShow)eShow=false; // 最多 2 排:轉場+剩餘+到場 三排同時有時不顯示「到」
       bg=over?'#ffb4ac':left<=5?'#ffe28a':'#c9ecd6';bd='#0f1424';
       if(occ.seat){bg='#c9ecd6';bd='#0b6b46';bs='dashed';tShow=false;rShow=false;eShow=false;}
       body=<React.Fragment><span style={{fontSize:p.code.length>2?17:20,fontWeight:800,color:fem?'#be123c':'#111',lineHeight:1}}>{p.code}</span><span style={{fontSize:10,fontWeight:700,color:'#3a4050'}}>{p.redItem}</span>
         {occ.seat&&<span style={{fontSize:10,fontWeight:800,color:'#0b6b46'}}>帶位中</span>}{tShow&&<span style={{fontSize:10,color:'#92400e'}}>{hm(p.redTransfer)}轉</span>}{rShow&&<span style={{fontSize:10,fontWeight:700,color:key===p.redTransfer?'#92400e':(over?'#b91c1c':'#0b6b46')}}>{cdTxt(key-now)}</span>}{eShow&&<span style={{fontSize:10,color:over?'#b91c1c':'#0b6b46'}}>到{hm(p.redEnd)}</span>}</React.Fragment>;}}
-  const stk=(hl&&occ)?{c:'#0284c7',bg:'#e0f2fe',tx:'#0369a1',t:hl.t}:(occ&&occ.kind==='cur'&&occ.nx?{c:'#7c3aed',bg:'#f3effe',tx:'#6d28d9',t:occ.nx.code}:null); // 推薦要排到這格,但這格現在還有人(例:21 床還在做):疊兩張卡片——前面是目前的客人,後面藍色那張=推薦的後續安排,底部小字=老師號
+  const stk=(hl&&occ)?{c:pk?'#f0619a':'#0284c7',bg:'#e0f2fe',tx:cRec,t:hl.t}:(occ&&occ.kind==='cur'&&occ.nx?{c:pk?'#c2336f':'#7c3aed',bg:'#f3effe',tx:cRsv,t:occ.nx.code}:null); // 推薦要排到這格,但這格現在還有人(例:21 床還在做):疊兩張卡片——前面是目前的客人,後面藍色那張=推薦的後續安排,底部小字=老師號
   const lab=<span style={{fontSize:11,color:'#6b7280',alignSelf:'flex-start',paddingLeft:4}}>{PL(pos)}</span>;
-  if(!stk)return(<button onClick={onClick} style={{flex:'1 1 0',minWidth:0,minHeight:h===undefined?92:h,borderRadius:2,border:'1.5px '+bs+' '+bd,background:bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:1,padding:'2px 0'}}>{lab}{body}</button>);
+  if(!stk)return(<button onClick={onClick} style={cnGlass({flex:'1 1 0',minWidth:0,minHeight:h===undefined?92:h,borderRadius:2,border:'1.5px '+bs+' '+bd,background:bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:1,padding:'2px 0'})}>{lab}{body}</button>);
   return(<div style={{flex:'1 1 0',minWidth:0,minHeight:h===undefined?100:h,position:'relative'}}>
-    <div style={{position:'absolute',left:8,right:0,top:8,bottom:0,borderRadius:2,border:'2px solid '+stk.c,background:stk.bg,display:'flex',alignItems:'flex-end',justifyContent:'center',paddingBottom:1,fontSize:10,fontWeight:800,color:stk.tx}}>{stk.t}</div>
-    <button onClick={onClick} style={{position:'absolute',left:0,right:8,top:0,bottom:14,borderRadius:2,border:'1.5px '+bs+' '+bd,background:bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:1,padding:'2px 0',overflow:'hidden'}}>{lab}{body}</button></div>);
+    <div style={{position:'absolute',left:8,right:0,top:8,bottom:0,borderRadius:pk?12:2,border:'2px '+(pk&&stk.bg==='#f3effe'?'dashed':'solid')+' '+stk.c,background:pk?'rgba(255,255,255,.6)':stk.bg,display:'flex',alignItems:'flex-end',justifyContent:'center',paddingBottom:1,fontSize:10,fontWeight:800,color:stk.tx}}>{stk.t}</div>
+    <button onClick={onClick} style={cnGlass({position:'absolute',left:0,right:8,top:0,bottom:14,borderRadius:2,border:'1.5px '+bs+' '+bd,background:bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:1,padding:'2px 0',overflow:'hidden'})}>{lab}{body}</button></div>);
 }
 const Grp=({children})=>(<div style={{display:'flex',gap:3,flex:'1 1 0',minWidth:0,border:'1px solid #e3e5eb',borderRadius:10,padding:3}}>{children}</div>);
 function SeatMap({D,now,onSeat,tv,onTv}){
