@@ -31,7 +31,7 @@
       var root=document.getElementById("root");if(root)root.style.display="none";
     }catch(e){}
   };
-  window.addEventListener("error",function(e){window.__showFallback(1,{lineno:e.lineno})},true);
+  window.addEventListener("error",function(e){var t=e&&e.target,u=t&&(t.src||t.href);window.__showFallback(1,{lineno:e.lineno,msg:u?"檔案載入失敗:"+String(u).split("/").pop():(e.message||"")})},true); /* 檔案 404 時顯示是哪個檔 */
   window.addEventListener("unhandledrejection",function(e){window.__showFallback(2,{lineno:0,msg:(e.reason&&e.reason.message)||String(e.reason||'')})});
   window.addEventListener("unhandledrejection",function(e){try{console.warn('unhandledrejection:',e&&e.reason)}catch(_e){}try{if(e&&e.preventDefault)e.preventDefault()}catch(_e){}});
 })();

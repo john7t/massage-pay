@@ -1,3 +1,4 @@
+/*BUILD c=app-core.c.js v=1.14-006 src=dev/app-core.js h=17db5447 t=2026-11-17 10:41*/
 var {
   LS,
   getKeyConfig,

@@ -1,3 +1,4 @@
+/*BUILD c=notice-modal.c.js v=1.12-047 src=dev/notice-modal.js h=0934e646 t=2026-11-17 10:41*/
 (function () {
   var {
     useState,

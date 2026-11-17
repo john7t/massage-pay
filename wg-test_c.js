@@ -1,3 +1,4 @@
+/*BUILD c=wg-test.c.js v=0.1 src=dev/wg-test.js h=9204e6b8 t=2026-11-17 10:41*/
 var {
   useState: wgUseState,
   useEffect: wgUseEffect

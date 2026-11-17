@@ -1,3 +1,4 @@
+/*BUILD c=settings.c.js v=1.13-079 src=dev/settings.js h=ecba3c8f t=2026-11-17 10:41*/
 var {
   useState,
   useEffect,

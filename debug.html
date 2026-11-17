@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-<title>診斷頁 v3</title>
+<title>診斷頁 v4</title>
 <style>
   body{background:#0a0a0f;color:#e5e7eb;font-family:-apple-system,sans-serif;padding:16px;margin:0;font-size:14px;line-height:1.6}
   h1{font-size:18px;margin:0 0 16px}
@@ -25,6 +25,10 @@
 
 <h2>1. 主程式檔案版本(直接讀原始文字,不執行,壞了也讀得到)</h2>
 <div id="versions">檢查中…</div>
+
+<h2>1b. 支數記錄 正式編譯版(index.html 載入的 *.c.js)</h2>
+<p style="font-size:11px;color:#9ca3af;margin:0 0 6px">「宣告」=index.html 裡 ?v= 的版號;「檔頭」=.c.js 第一行 BUILD 寫的版號與編譯時間;「語法」=只檢查能不能解析(不執行);「對 dev」=跟 dev/ 原始檔內容比對,不一致代表 dev 改過但正式版沒重新編譯/上傳</p>
+<div id="cmp">檢查中…</div>
 
 <h2>2. 員工專區 safety-report/ 版本(頁面標題、2 系列 js)</h2>
 <p style="font-size:11px;color:#9ca3af;margin:0 0 6px">「頁面宣告」=safety-report/index.html 裡 ?v= 的版號(實際會載入的);「檔頭」=js 檔第一段註解寫的版號(可能沒更新);大小/行數可用來判斷檔案是否上傳完整、是否與預期同一批。</p>
@@ -52,11 +56,12 @@ function extractVersion(text, patterns) {
 async function checkVersions() {
   const files = [
     { name: 'index.html', patterns: [/<title>薪資追蹤\s*v([\d.\-]+)<\/title>/] },
+    { name: 'dev/dev-index.html', patterns: [/<title>薪資追蹤\s*v([\d.\-]+) \(dev\)<\/title>/] },
     { name: 'auth.html', patterns: [/<title>薪資追蹤 · 管理\s*v([\d.\-]+)<\/title>/] },
     { name: 'common.js', patterns: [/v(\d+\.\d+-\d+(?:\.\d+)?)\s*\//] },
-    { name: 'settings.js', patterns: [/\/\/\s*v(\d+\.\d+-\d+(?:\.\d+)?)\s*\//] },
-    { name: 'notice-modal.js', patterns: [/notice-modal\.js\s*v(\d+\.\d+-\d+(?:\.\d+)?)/] },
-    { name: 'app-core.js', patterns: [/app-core\.js\s*v(\d+\.\d+-\d+(?:\.\d+)?)/] },
+    { name: 'dev/settings.js', patterns: [/\/\/\s*v(\d+\.\d+-\d+(?:\.\d+)?)\s*\//] },
+    { name: 'dev/notice-modal.js', patterns: [/notice-modal\.js\s*v(\d+\.\d+-\d+(?:\.\d+)?)/] },
+    { name: 'dev/app-core.js', patterns: [/\/\/\s*v(\d+\.\d+-\d+(?:\.\d+)?)\s*\//,/app-core\.js\s*v(\d+\.\d+-\d+(?:\.\d+)?)/] },
   ];
   let html = '';
   for (const f of files) {
@@ -96,6 +101,41 @@ const SR_JS = ['safety2.js', 'notice2.js', 'blacklist2.js', 'gloves2.js', 'leave
 // 特徵檢查:確認檔案內真的有某版的功能(檔頭版號有時沒跟著改);沒有就代表上傳的是舊檔
 const SR_FEATURES = { 'counter2.js': [['還原按鈕(v1.0-014)', 'doReset'], ['iPad 版面(v1.0-015)', 'min-width:900px'], ['先付/交班/結帳(v1.0-012)', 'prepay'], ['日報表(v1.0-012)', 'ReportSheet'], ['訂單詳情時間(v1.0-013)', 'movedAt']] };
  // 載入順序同 safety-report/index.html
+// 支數記錄正式版:index.html 實際載入的 .c.js 是否存在、版號是否一致、語法能否解析、內容是否跟 dev 一致
+async function sha8(buf){try{if(!(window.crypto&&crypto.subtle))return null;const d=await crypto.subtle.digest('SHA-1',buf);return Array.from(new Uint8Array(d)).slice(0,4).map(b=>b.toString(16).padStart(2,'0')).join('');}catch(e){return null;}}
+async function checkCompiled() {
+  const el = document.getElementById('cmp'); window.__diag.cmp = [];
+  let html = '';
+  const row = (k, v, ok, det) => { html += `<div class="row"><span>${k}</span><span class="${ok ? 'ok' : 'fail'}">${v}</span></div>` + (det ? `<div class="detail">${det}</div>` : ''); window.__diag.cmp.push([k, v, det || '']); el.innerHTML = html; };
+  let idx = '';
+  try { const r = await fetch('./index.html?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) { row('index.html', 'HTTP ' + r.status, false); return; } idx = await r.text(); }
+  catch (e) { row('index.html', '讀取失敗: ' + e.message, false); return; }
+  if (/text\/babel/.test(idx)) { row('index.html', '✗ 不是編譯版(還有 text/babel)', false); return; }
+  const list = []; let m;
+  const re1 = /src="\.\/([^"?]+\.c\.js)(?:\?v=([^"]*))?"/g; while ((m = re1.exec(idx))) list.push([m[1], m[2] || '']);
+  const re2 = /'\.\/([^'?]+\.c\.js)\?v=([^']*)'/g; while ((m = re2.exec(idx))) if (!list.some(x => x[0] === m[1])) list.push([m[1], m[2]]);
+  if (!list.length) { row('index.html', '✗ 找不到任何 .c.js', false); return; }
+  for (const [f, dv] of list) {
+    try {
+      const r = await fetch('./' + f + '?t=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) { row(f, '✗ HTTP ' + r.status + '(檔案沒上傳或路徑錯)', false); continue; }
+      const text = await r.text();
+      const hd = /^\/\*BUILD c=(\S+) v=(\S*) src=(\S+) h=(\S+) t=([^*]+)\*\//.exec(text);
+      const probs = []; let syn = '✓';
+      try { new Function(text); } catch (e) { syn = '✗ ' + e.message; probs.push('語法錯誤'); }
+      let devTxt = '—';
+      if (!hd) probs.push('沒有 BUILD 檔頭(舊檔?)');
+      else {
+        if (hd[2] !== dv) probs.push('檔頭 v' + hd[2] + ' ≠ 宣告 v' + dv);
+        try { const r2 = await fetch('./' + hd[3] + '?t=' + Date.now(), { cache: 'no-store' }); if (r2.ok) { const h2 = await sha8(await r2.arrayBuffer()); devTxt = h2 === null ? '無法比對' : (h2 === hd[4] ? '✓ 一致' : '✗ dev 已更新,正式版未重新編譯'); if (h2 !== null && h2 !== hd[4]) probs.push('與 dev 不一致'); } else devTxt = 'dev 檔 HTTP ' + r2.status; } catch (e) { devTxt = '讀取 dev 失敗'; }
+      }
+      const kb = Math.round(text.length / 1024);
+      row(f, probs.length ? '✗ ' + probs.join('、') : '✓ v' + dv, !probs.length && syn === '✓',
+        '宣告 v' + dv + '　檔頭 ' + (hd ? 'v' + hd[2] + '　編譯 ' + hd[5] : '—') + '\n語法 ' + syn + '　大小 ' + kb + 'KB　對 dev ' + devTxt);
+    } catch (e) { row(f, '讀取失敗: ' + e.message, false); }
+  }
+}
+
 async function checkSafetyReport() {
   const el = document.getElementById('sr');
   let html = '';
@@ -272,21 +312,21 @@ async function checkLoads() {
     loadsEl.innerHTML = html;
   }
 
-  const rn = await checkBabelScript('./notice-modal.js', 'notice-modal.js');
+  const rn = await checkBabelScript('./dev/notice-modal.js', 'dev/notice-modal.js');
   const nmMsg = rn.ok ? '✓ 轉譯+執行成功' : '✗ 有問題';
   html += `<div class="row"><span>notice-modal.js</span><span class="${rn.ok ? 'ok' : 'fail'}">${nmMsg}</span></div>`;
   if (!rn.ok) html += `<div class="detail">${rn.msg}</div>`;
   window.__diag.loads.push(['notice-modal.js', nmMsg, rn.msg || '']);
   loadsEl.innerHTML = html;
 
-  const rs = await checkBabelScript('./settings.js', 'settings.js');
+  const rs = await checkBabelScript('./dev/settings.js', 'dev/settings.js');
   const stMsg = rs.ok ? '✓ 轉譯+執行成功' : '✗ 有問題';
   html += `<div class="row"><span>settings.js</span><span class="${rs.ok ? 'ok' : 'fail'}">${stMsg}</span></div>`;
   if (!rs.ok) html += `<div class="detail">${rs.msg}</div>`;
   window.__diag.loads.push(['settings.js', stMsg, rs.msg || '']);
   loadsEl.innerHTML = html;
 
-  const ra = await checkBabelScript('./app-core.js', 'app-core.js');
+  const ra = await checkBabelScript('./dev/app-core.js', 'dev/app-core.js');
   const acMsg = ra.ok ? '✓ 轉譯+執行成功' : '✗ 有問題';
   html += `<div class="row"><span>app-core.js</span><span class="${ra.ok ? 'ok' : 'fail'}">${acMsg}</span></div>`;
   if (!ra.ok) html += `<div class="detail">${ra.msg}</div>`;
@@ -301,6 +341,8 @@ function copyMarkdown() {
   const d = window.__diag;
   let md = '### 部署診斷結果\n\n測試時間：' + new Date().toLocaleString('zh-TW', { hour12: false }) + '\n\n**檔案版本**\n\n';
   d.versions.forEach(([name, ver]) => { md += `- ${name}: \`${ver}\`\n`; });
+  md += '\n**支數記錄 正式編譯版**\n\n';
+  (d.cmp || []).forEach(([name, ver, extra]) => { md += `- ${name}: ${ver}\n`; if (extra) md += '  - ' + extra.replace(/\n/g, '　') + '\n'; });
   md += '\n**safety-report/ 版本**\n\n';
   (d.sr || []).forEach(([name, ver, extra]) => { md += `- ${name}: ${ver}\n`; if (extra) md += `  - ${extra}\n`; });
   md += '\n**2 系列 js 轉譯＋執行**\n\n';
@@ -332,6 +374,7 @@ function copyMarkdown() {
 
 document.getElementById('testTime').textContent = '測試時間：' + new Date().toLocaleString('zh-TW', { hour12: false });
 checkVersions();
+checkCompiled();
 checkSafetyReport();
 checkLoads().then(checkSafetyReportRun);
 </script>
