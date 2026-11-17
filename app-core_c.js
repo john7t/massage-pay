@@ -1,4 +1,4 @@
-/*BUILD c=app-core_c.js v=1.14-007 src=dev/app-core.js h=8a0f4ce2 t=2026-11-17 11:15*/
+/*BUILD c=app-core_c.js v=1.14-008 src=dev/app-core.js h=8b63dc1c t=2026-11-17 16:23*/
 var {
   LS,
   getKeyConfig,
@@ -4174,7 +4174,8 @@ function ChDayCard({
     }, chHm(s.startAt || s.createdAt)), React.createElement("b", null, (() => {
       var ex = s.extra || 0;
       var base = Math.max(1, (s.units || 1) - ex);
-      return (zh ? '加' : '+') + base + (s.svc ? ' ' + String(s.svc).toUpperCase() : '') + (ex > 0 ? ' +' + ex : '');
+      var sv = s.svc ? ' ' + String(s.svc).toUpperCase() : '';
+      return (zh ? base + '支' : '+' + base) + sv + (ex > 0 ? (sv ? ' +' : '+') + ex : '');
     })()), (s.laodian || 0) > 0 && React.createElement("u", null, t.laodian, " ", s.laodian)), (nm || ph) && React.createElement("div", {
       className: "l2"
     }, nm, nm && ph ? '　' : '', ph));
