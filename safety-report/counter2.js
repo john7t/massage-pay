@@ -1,4 +1,4 @@
-/*BUILD counter2.js v1.0-054 編譯版 h=acab680c t=2026-11-17 16:44*/
+/*BUILD counter2.js v1.0-056 編譯版 h=2de0410e t=2026-11-17 17:53*/
 let _2 = t => t,
   _t;
 (function () {
@@ -52,7 +52,7 @@ let _2 = t => t,
     return Math.floor((now + 8 * 3600e3) / st) * st + st - 8 * 3600e3;
   };
   const LIMIT = 3600;
-  const CN_VER = 'v1.0-050';
+  const CN_VER = 'v1.0-052';
   window.__cnVer = CN_VER;
   const CN_CSS = String.raw(_t || (_t = _2`
 .cn-light{background:#f7f7f9;color:#1b1f2a;min-height:100vh;font-feature-settings:"tnum"}
@@ -213,7 +213,7 @@ html.cn-pink .tb-grp{border:1px solid rgba(255,255,255,.7);background:rgba(255,2
 html.cn-pink .tb-tabs button,html.cn-pink .tb-kp button,html.cn-pink .cn-bk .bt,html.cn-pink .tb-xb,html.cn-pink .cn-tab{border-radius:12px}
 html.cn-pink .tb-tabs button{border:1px solid rgba(255,255,255,.9);background:rgba(255,255,255,.55);color:#7a4a62}html.cn-pink .tb-tabs button.on{background:#f0619a;border-color:#f0619a;color:#fff}
 html.cn-pink .tb-tabs button b{background:rgba(240,97,154,.14);color:#c2336f;border-radius:8px}html.cn-pink .tb-tabs button.on b{background:#fff;color:#c2336f}html.cn-pink .tb-tabs button.ar{border-color:#f0619a;color:#c2336f}
-html.cn-pink .tb-menu{background:rgba(255,246,250,.96)!important;border:1px solid rgba(214,96,146,.3);border-radius:16px;box-shadow:0 14px 34px rgba(214,96,146,.3)}html.cn-pink .tb-menu button{border-radius:10px}
+html.cn-pink .tb-bar{position:relative;z-index:40}html.cn-pink .tb-menu{background:rgba(255,246,250,.96)!important;border:1px solid rgba(214,96,146,.3);border-radius:16px;box-shadow:0 14px 34px rgba(214,96,146,.3)}html.cn-pink .tb-menu button{border-radius:10px}
 html.cn-pink .tb-xp,html.cn-pink .tb-fullhost{background:rgba(255,246,250,.96)!important;border:2px solid #f0619a;border-radius:20px;box-shadow:0 -10px 30px rgba(214,96,146,.3)}
 html.cn-pink .tb-xn{border-radius:10px;border:1.5px solid rgba(74,35,55,.35);background:rgba(255,255,255,.85)}html.cn-pink .tb-xn.r{background:#ffd6de;border-color:#e0245e;color:#9f1239}html.cn-pink .tb-xn.gy{background:rgba(255,255,255,.35);border:1.5px dashed rgba(122,74,98,.5)}
 html.cn-pink .tb-xb{border:1px solid #f0619a;color:#c2336f;background:rgba(255,255,255,.7)}
