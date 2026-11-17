@@ -1,4 +1,4 @@
-/*BUILD counter2.js v1.0-058 編譯版 h=ee9a73b8 t=2026-11-17 22:52*/
+/*BUILD counter2.js v1.0-059 編譯版 h=62974f26 t=2026-11-17 23:01*/
 let _2 = t => t,
   _t;
 (function () {
@@ -52,7 +52,7 @@ let _2 = t => t,
     return Math.floor((now + 8 * 3600e3) / st) * st + st - 8 * 3600e3;
   };
   const LIMIT = 3600;
-  const CN_VER = 'v1.0-054';
+  const CN_VER = 'v1.0-055';
   window.__cnVer = CN_VER;
   const CN_CSS = String.raw(_t || (_t = _2`
 .cn-light{background:#f7f7f9;color:#1b1f2a;min-height:100vh;font-feature-settings:"tnum"}
@@ -224,7 +224,8 @@ html.cn-pink .cn-ord{border:1px solid rgba(255,255,255,.95)!important;border-rad
 html.cn-pink .zb{border:1px solid rgba(214,96,146,.3);border-radius:14px;overflow:hidden}html.cn-pink .zb>*:nth-child(odd){background:rgba(255,255,255,.8)}html.cn-pink .zb>*:nth-child(even){background:rgba(255,236,244,.8)}html.cn-pink .zb>p{background:#f0619a!important;color:#fff!important}
 html.cn-pink .cn-light .bg-violet-600{background:#f0619a!important;border-color:#f0619a!important;color:#fff!important}
 html.cn-pink .cn-light .text-violet-200,html.cn-pink .cn-light .text-violet-300,html.cn-pink .cn-light .text-violet-100,html.cn-pink .cn-link,html.cn-pink .tb-op button{color:#c2336f}
-html.cn-pink .cn-light .bg-gray-900{background:rgba(255,255,255,.6)}html.cn-pink .cn-light .bg-gray-800{background:rgba(255,255,255,.5)}html.cn-pink .cn-light .bg-gray-700{background:rgba(255,255,255,.75)}
+html.cn-pink .cn-light .bg-gray-900{background:rgba(255,255,255,.6)}
+html.cn-pink .cn-light .cn-modal{background:#fff6fa!important;border-color:rgba(214,96,146,.35)!important;box-shadow:0 -10px 30px rgba(120,40,80,.25)} /* v1.0-055 手機彈出視窗不透明(拿掉毛玻璃後會看到後面的字) */html.cn-pink .cn-light .bg-gray-800{background:rgba(255,255,255,.5)}html.cn-pink .cn-light .bg-gray-700{background:rgba(255,255,255,.75)}
 html.cn-pink .cn-light .border-gray-800,html.cn-pink .cn-light .border-gray-700,html.cn-pink .cn-light .border-gray-600{border-color:rgba(214,96,146,.25)}
 html.cn-pink .cn-cnt{color:#c2336f;background:rgba(240,97,154,.14);border-radius:99px}html.cn-pink .cn-no{background:rgba(240,97,154,.1);color:#8a5f74}
 html.cn-pink .cn-dots i.on{background:#f0619a}html.cn-pink .tb-dot{background:#f0619a}
@@ -1419,7 +1420,7 @@ html.cn-pink .cn-light input,html.cn-pink .cn-light select,html.cn-pink .cn-ligh
       },
       onClick: onClose
     }, React.createElement("div", {
-      className: "w-full max-w-md rounded-t-2xl sm:rounded-2xl bg-gray-900 border border-gray-700 p-4 space-y-3",
+      className: "cn-modal w-full max-w-md rounded-t-2xl sm:rounded-2xl bg-gray-900 border border-gray-700 p-4 space-y-3",
       onClick: e => e.stopPropagation(),
       style: {
         maxHeight: '85vh',
