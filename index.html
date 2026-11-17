@@ -40,10 +40,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#ffffff">
-<title>薪資追蹤 v1.14-005</title>
+<title>薪資追蹤 v1.14-006</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
@@ -269,102 +268,558 @@ input[type=number]{-moz-appearance:textfield}
 </div>
 <style>@keyframes fbspin{to{transform:rotate(360deg)}}@keyframes fbpulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
 <script src="./common.js?v=1.13-045"></script>
-<script type="text/babel" src="./notice-modal.js?v=1.12-047"></script>
-<script type="text/babel" src="./settings.js?v=1.13-079"></script>
-<script type="text/babel" src="./wg-test.js?v=0.1"></script>
+<script src="./notice-modal.c.js?v=1.12-047"></script>
+<script src="./settings.c.js?v=1.13-079"></script>
+<script src="./wg-test.c.js?v=0.1"></script>
 <script>/* 首頁 UI 主題:預設=卡片式(app-core.js);localStorage app-ui=classic 時載入舊版首頁(themes/classic/app-core.js)。在「設定 → 主題」切換 */
 (function(){var u='card';try{u=localStorage.getItem('app-ui')||'card'}catch(e){}if(u!=='classic')u='card';window.__appUi=u;
 if(u==='card'){try{document.documentElement.setAttribute('data-ui','card');var mt=document.querySelector('meta[name="theme-color"]');if(mt)mt.setAttribute('content','#f8c8dc');var st=document.createElement('style');st.textContent='html[data-ui="card"],html[data-ui="card"] body{background:#ffe9f1 !important;overscroll-behavior:none}';document.head.appendChild(st);}catch(e){}}
-document.write('<script type="text/babel" src="'+(u==='classic'?'./themes/classic/classic-app-core.js?v=1.13-079':'./app-core.js?v=1.14-005')+'"><\/script>');})();</script>
-<script type="text/babel">
-const{LS,getKeyConfig,saveKeyConfig,buildDynamicKey,getCK,xEnc,xDec,fnv,adminHash,genAdminAct,revokeHash,approveHash,supApproveHash,genSimpleAct,isValidPin,lockPwdCred,encWithKey,decWithKey,actKey,genActWithToken,verifyActToken,gasCall,gasCallPost,gasSubmitAction,gasCheckAction,gasUpdatePwd,gasLoginPwd,gasSyncProfile,gasCheckCode,gasSetInitialPwd,gasVerifyKey,gasLeaveTeacher,gasLogDailyCheck,gasCreateGroupBuy,gasListGroupBuys,gasJoinGroupBuy,gasMyGroupBuyOrders,gasDeclineGroupBuy,gasLogGroupBuyOpen,gasGroupBuyDetail,gasCloseGroupBuy,gasSubmitDisasterReport,gasListDisasterSurveys,gasMyDisasterReports,getMyKey,setMyKey,genReqCode,parseReqCode,decReqCode,parseReqHash,buildReqLink,genConfirmCode,verifyConfirmCode,confirmCodeIsBound,genUUID,getDeviceId,SUP_LEVELS,supLevelName,getGHConfig,saveGHConfigLocal,saveGHConfig,ghReadFile,ghWriteFile,ghAppendLine,ghRemoveLine,readStaff,writeStaff,DISABLE_GH_DATA_FETCH,checkApproved,writeApproval,loadStores,saveStores,loadStats,getApproved,saveApproved,addApproved,addLog,getLogs,fmtLog,fmtDate,THEMES,SKILL_KEYS,SKILL_SHORT,SKILL_PRICES,SKILL_COLORS,SK,SBG,STC,canWork,toB36,fromB36,dim,dow,bizDate,bizParts,dk,eDay,stamp,calcSal,eMon,newSlip,gasWarmup,getNoticesLocal,fetchNotices,getNoticeHomeCount,getNoticeShow,noticeBody,noticeTitle,noticeSummary,getGasUrl,hasMyKey,isNoticeRead,getNoticeReadCount,slipUnitsTotal,slipLaodianTotal,PRESS_LEVELS,BODY_PARTS,CLIENT_REQS,custKey,loadCustDB,getCust,upsertCust,searchCustDB,migrateDayGroups,migrateMonthGroups,slipSvcLabel,SERVICES,slipStartTime,loadTagHistory,addTagHistory,visitStats,collectSlips,collectAllSlips,tagStats,searchSlips,bookTitleName,BOOK_TITLES,encMonth,decBackup,TW_REGIONS,LANG_SCHOOLS,T}=window.MP;
-const{useState,useEffect,useCallback,useMemo}=React;
-
-function App(){
-  const[settings,setSettings]=useState(null);const[tab,setTab]=useState('home');const[curM,setCurM]=useState(bizParts().m);const[preYearTab,setPreYearTab]=useState('monthly');const[yearlyYear,setYearlyYear]=useState(null);const[ready,setReady]=useState(false);const[needOnboard,setNeedOnboard]=useState(false);const[refreshKey,setRefreshKey]=useState(0);const[theme,setTheme]=useState('white');
-  const bgColor='#ffffff';const isLight=true;
-  useEffect(()=>{try{gasWarmup()}catch(_e){}},[]);
-  // v1.13-072:從設定頁「使用LINE登入」導去 LIFF 網址回來(?lineBind=1):清掉登出旗標、自動開設定頁,設定頁掛載時的靜默偵測會存下 LINE userId
-  useEffect(()=>{if(!ready)return;try{if(new URLSearchParams(location.search).has('lineBind')){localStorage.removeItem('my-line-logout');sessionStorage.setItem('__settingsSub','home');setTab('settings');history.replaceState(null,'',location.pathname+location.hash)}}catch(_e){}},[ready]);
-  useEffect(()=>{document.documentElement.setAttribute('data-theme',theme);document.documentElement.style.setProperty('--bg',bgColor)},[bgColor,theme]);
-  useEffect(()=>{localStorage.setItem('app-theme',theme)},[theme]);
-  useEffect(()=>{buildDynamicKey()},[]);
-  useEffect(()=>{const tmr=setTimeout(()=>{if(!ready)window.__showFallback(4,{lineno:0,msg:'初始化逾時(8秒)，可能是網路較慢或本機資料異常'})},8000);return()=>clearTimeout(tmr)},[ready]);
-  // 1.13版:DISABLE_GH_DATA_FETCH=true時整個跳過,連fetch('./staff.json')都不送出——GitHub Pages上目前根本沒有
-  // 部署這份檔案,readStaff每次都是空手而回,這個effect從頭到尾只是白白發一次請求,拿掉以後基資/店資的「公司端最新值」
-  // 同步功能停用(settings保持本機原值不被覆蓋),之後如果真的有部署staff.json,把common.js的開關改回false即可恢復
-  useEffect(()=>{if(DISABLE_GH_DATA_FETCH)return;if(!settings||!settings.code)return;const _bd=bizDate();const today=_bd.getFullYear()+'-'+String(_bd.getMonth()+1).padStart(2,'0')+'-'+String(_bd.getDate()).padStart(2,'0');const lastCheck=localStorage.getItem('staff-sync-date');(async()=>{
-    try{const staff=await readStaff({});const me=Array.isArray(staff)?staff.find(s=>String(s.code)===String(settings.code)):null;
-      if(me){
-        // token綁定檢查(原邏輯)
-        const gh=getGHConfig();if(gh.token&&me.hasToken===false){saveGHConfigLocal({})}
-        // 每日同步基資/店資:老師沒改過的欄位跟staff一致;改過且不一致的保留本機值(UI下方紅字顯示staff值)
-        const SYNC_FIELDS=['nameZh','nameVi','phone','email','store','storeSel','shift','permitNo','permitExpiry','permitDate','permitOrg','gender','school','major','schoolType','workStart','workEnd','unitPrice','skills','preg','oil','techMentor','lockerNo'];
-        const confP=settings.confirmedProfile||{};const confS=settings.confirmedStore||{};
-        const ns={...settings};const staffVals={};let changed=false;
-        SYNC_FIELDS.forEach(k=>{
-          if(me[k]===undefined||me[k]===null)return;
-          staffVals[k]=me[k];
-          const confVal=(confP[k]!==undefined?confP[k]:confS[k]);
-          const localVal=settings[k];
-          const isObj=k==='skills';
-          const localEmpty=isObj?(!localVal||Object.keys(localVal).length===0):(localVal===undefined||localVal==='');
-          const matchesConfirmed=isObj?(JSON.stringify(localVal||{})===JSON.stringify(confVal||{})):(localVal===confVal);
-          // 老師沒改過(本機值=上次確認值,或本機根本沒值),用staff覆蓋
-          if(localEmpty||matchesConfirmed){
-            const differs=isObj?(JSON.stringify(ns[k]||{})!==JSON.stringify(me[k]||{})):(ns[k]!==me[k]);
-            if(differs){ns[k]=me[k];changed=true}
-          }
-          // 否則保留本機(老師改過未送出)→ 紅字由staffVals提供
-        });
-        ns.staffValues=staffVals;
-        localStorage.setItem('staff-sync-date',today);
-        setSettings(ns);LS.set('app-settings',ns);
+document.write('<script src="'+(u==='classic'?'./themes/classic/classic-app-core.c.js?v=1.13-080':'./app-core.c.js?v=1.14-006')+'"><\/script>');})();</script>
+<script>var {
+  LS,
+  getKeyConfig,
+  saveKeyConfig,
+  buildDynamicKey,
+  getCK,
+  xEnc,
+  xDec,
+  fnv,
+  adminHash,
+  genAdminAct,
+  revokeHash,
+  approveHash,
+  supApproveHash,
+  genSimpleAct,
+  isValidPin,
+  lockPwdCred,
+  encWithKey,
+  decWithKey,
+  actKey,
+  genActWithToken,
+  verifyActToken,
+  gasCall,
+  gasCallPost,
+  gasSubmitAction,
+  gasCheckAction,
+  gasUpdatePwd,
+  gasLoginPwd,
+  gasSyncProfile,
+  gasCheckCode,
+  gasSetInitialPwd,
+  gasVerifyKey,
+  gasLeaveTeacher,
+  gasLogDailyCheck,
+  gasCreateGroupBuy,
+  gasListGroupBuys,
+  gasJoinGroupBuy,
+  gasMyGroupBuyOrders,
+  gasDeclineGroupBuy,
+  gasLogGroupBuyOpen,
+  gasGroupBuyDetail,
+  gasCloseGroupBuy,
+  gasSubmitDisasterReport,
+  gasListDisasterSurveys,
+  gasMyDisasterReports,
+  getMyKey,
+  setMyKey,
+  genReqCode,
+  parseReqCode,
+  decReqCode,
+  parseReqHash,
+  buildReqLink,
+  genConfirmCode,
+  verifyConfirmCode,
+  confirmCodeIsBound,
+  genUUID,
+  getDeviceId,
+  SUP_LEVELS,
+  supLevelName,
+  getGHConfig,
+  saveGHConfigLocal,
+  saveGHConfig,
+  ghReadFile,
+  ghWriteFile,
+  ghAppendLine,
+  ghRemoveLine,
+  readStaff,
+  writeStaff,
+  DISABLE_GH_DATA_FETCH,
+  checkApproved,
+  writeApproval,
+  loadStores,
+  saveStores,
+  loadStats,
+  getApproved,
+  saveApproved,
+  addApproved,
+  addLog,
+  getLogs,
+  fmtLog,
+  fmtDate,
+  THEMES,
+  SKILL_KEYS,
+  SKILL_SHORT,
+  SKILL_PRICES,
+  SKILL_COLORS,
+  SK,
+  SBG,
+  STC,
+  canWork,
+  toB36,
+  fromB36,
+  dim,
+  dow,
+  bizDate,
+  bizParts,
+  dk,
+  eDay,
+  stamp,
+  calcSal,
+  eMon,
+  newSlip,
+  gasWarmup,
+  getNoticesLocal,
+  fetchNotices,
+  getNoticeHomeCount,
+  getNoticeShow,
+  noticeBody,
+  noticeTitle,
+  noticeSummary,
+  getGasUrl,
+  hasMyKey,
+  isNoticeRead,
+  getNoticeReadCount,
+  slipUnitsTotal,
+  slipLaodianTotal,
+  PRESS_LEVELS,
+  BODY_PARTS,
+  CLIENT_REQS,
+  custKey,
+  loadCustDB,
+  getCust,
+  upsertCust,
+  searchCustDB,
+  migrateDayGroups,
+  migrateMonthGroups,
+  slipSvcLabel,
+  SERVICES,
+  slipStartTime,
+  loadTagHistory,
+  addTagHistory,
+  visitStats,
+  collectSlips,
+  collectAllSlips,
+  tagStats,
+  searchSlips,
+  bookTitleName,
+  BOOK_TITLES,
+  encMonth,
+  decBackup,
+  TW_REGIONS,
+  LANG_SCHOOLS,
+  T
+} = window.MP;
+var {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo
+} = React;
+function App() {
+  var [settings, setSettings] = useState(null);
+  var [tab, setTab] = useState('home');
+  var [curM, setCurM] = useState(bizParts().m);
+  var [preYearTab, setPreYearTab] = useState('monthly');
+  var [yearlyYear, setYearlyYear] = useState(null);
+  var [ready, setReady] = useState(false);
+  var [needOnboard, setNeedOnboard] = useState(false);
+  var [refreshKey, setRefreshKey] = useState(0);
+  var [theme, setTheme] = useState('white');
+  var bgColor = '#ffffff';
+  var isLight = true;
+  useEffect(() => {
+    try {
+      gasWarmup();
+    } catch (_e) {}
+  }, []);
+  useEffect(() => {
+    if (!ready) return;
+    try {
+      if (new URLSearchParams(location.search).has('lineBind')) {
+        localStorage.removeItem('my-line-logout');
+        sessionStorage.setItem('__settingsSub', 'home');
+        setTab('settings');
+        history.replaceState(null, '', location.pathname + location.hash);
       }
-    }catch(_e){}
-  })()},[settings&&settings.code]);
-  useEffect(()=>{
-    // #setkey=編號:金鑰 → 救援用,直接覆蓋本機存的金鑰(裝置端金鑰跟GAS的Keys表對不上時用),不影響其他登入狀態
-    const hashNow=window.location.hash;
-    if(hashNow&&hashNow.indexOf('setkey=')>=0){
-      try{
-        const raw=decodeURIComponent(hashNow.replace(/^#/,'').split('setkey=')[1]||'');
-        const ci=raw.indexOf(':');
-        if(ci>0){
-          const kc=raw.slice(0,ci).trim();
-          const kk=raw.slice(ci+1).trim();
-          if(kc&&kk&&setMyKey){setMyKey(kc,kk);history.replaceState(null,'',location.pathname);alert('已更新編號 '+kc+' 的本機金鑰，請重新整理頁面');}
+    } catch (_e) {}
+  }, [ready]);
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.style.setProperty('--bg', bgColor);
+  }, [bgColor, theme]);
+  useEffect(() => {
+    localStorage.setItem('app-theme', theme);
+  }, [theme]);
+  useEffect(() => {
+    buildDynamicKey();
+  }, []);
+  useEffect(() => {
+    var tmr = setTimeout(() => {
+      if (!ready) window.__showFallback(4, {
+        lineno: 0,
+        msg: '初始化逾時(8秒)，可能是網路較慢或本機資料異常'
+      });
+    }, 8000);
+    return () => clearTimeout(tmr);
+  }, [ready]);
+  useEffect(() => {
+    if (DISABLE_GH_DATA_FETCH) return;
+    if (!settings || !settings.code) return;
+    var _bd = bizDate();
+    var today = _bd.getFullYear() + '-' + String(_bd.getMonth() + 1).padStart(2, '0') + '-' + String(_bd.getDate()).padStart(2, '0');
+    var lastCheck = localStorage.getItem('staff-sync-date');
+    (async () => {
+      try {
+        var staff = await readStaff({});
+        var me = Array.isArray(staff) ? staff.find(s => String(s.code) === String(settings.code)) : null;
+        if (me) {
+          var gh = getGHConfig();
+          if (gh.token && me.hasToken === false) {
+            saveGHConfigLocal({});
+          }
+          var SYNC_FIELDS = ['nameZh', 'nameVi', 'phone', 'email', 'store', 'storeSel', 'shift', 'permitNo', 'permitExpiry', 'permitDate', 'permitOrg', 'gender', 'school', 'major', 'schoolType', 'workStart', 'workEnd', 'unitPrice', 'skills', 'preg', 'oil', 'techMentor', 'lockerNo'];
+          var confP = settings.confirmedProfile || {};
+          var confS = settings.confirmedStore || {};
+          var ns = {
+            ...settings
+          };
+          var staffVals = {};
+          var changed = false;
+          SYNC_FIELDS.forEach(k => {
+            if (me[k] === undefined || me[k] === null) return;
+            staffVals[k] = me[k];
+            var confVal = confP[k] !== undefined ? confP[k] : confS[k];
+            var localVal = settings[k];
+            var isObj = k === 'skills';
+            var localEmpty = isObj ? !localVal || Object.keys(localVal).length === 0 : localVal === undefined || localVal === '';
+            var matchesConfirmed = isObj ? JSON.stringify(localVal || {}) === JSON.stringify(confVal || {}) : localVal === confVal;
+            if (localEmpty || matchesConfirmed) {
+              var differs = isObj ? JSON.stringify(ns[k] || {}) !== JSON.stringify(me[k] || {}) : ns[k] !== me[k];
+              if (differs) {
+                ns[k] = me[k];
+                changed = true;
+              }
+            }
+          });
+          ns.staffValues = staffVals;
+          localStorage.setItem('staff-sync-date', today);
+          setSettings(ns);
+          LS.set('app-settings', ns);
         }
-      }catch(_e){}
+      } catch (_e) {}
+    })();
+  }, [settings && settings.code]);
+  useEffect(() => {
+    var hashNow = window.location.hash;
+    if (hashNow && hashNow.indexOf('setkey=') >= 0) {
+      try {
+        var raw = decodeURIComponent(hashNow.replace(/^#/, '').split('setkey=')[1] || '');
+        var ci = raw.indexOf(':');
+        if (ci > 0) {
+          var kc = raw.slice(0, ci).trim();
+          var kk = raw.slice(ci + 1).trim();
+          if (kc && kk && setMyKey) {
+            setMyKey(kc, kk);
+            history.replaceState(null, '', location.pathname);
+            alert('已更新編號 ' + kc + ' 的本機金鑰，請重新整理頁面');
+          }
+        }
+      } catch (_e) {}
     }
-    const s=LS.get('app-settings');if(s&&s.code&&s.code.length<=12){const act=LS.get(`activated-${s.code}`);if(act){setSettings(s);setReady(true);return}}
-    const hash=window.location.hash;
-    // #conn=編號:連線碼(或分段 &conn2= ...) → 自動連線啟用(含token)
-    if(hash&&hash.indexOf('conn=')>=0){try{const reassembled=parseReqHash(hash,'conn');const raw=reassembled||decodeURIComponent(hash.replace(/^#/,'').split('conn=')[1]||'');const ci=raw.indexOf(':');if(ci>0){const c=raw.slice(0,ci);const actCode=raw.slice(ci+1);const did=getDeviceId();const tk=verifyActToken(actCode,c,did);if(tk){saveGHConfigLocal({owner:tk.owner,repo:tk.repo,token:tk.token});const ns={code:c,unitPrice:250,lang:'zh',store:'龍山寺店',year:bizParts().y,deviceId:did};LS.set('app-settings',ns);LS.set(`activated-${c}`,{deviceId:did,ts:Date.now()});setSettings(ns);setReady(true);history.replaceState(null,'',location.pathname);return}}}catch(_e){}}
-    if(hash&&hash.length>5&&hash.indexOf('conn=')<0&&hash.indexOf('access_token=')<0&&hash.indexOf('context_token=')<0&&hash.indexOf('id_token=')<0){const p=decBackup(hash.slice(1));if(p&&p.code&&p.code.length<=12){LS.set(dk(p.code,p.year,p.month),p.data);const ns={code:p.code,unitPrice:250,lang:'zh',year:p.year,deviceId:getDeviceId()};LS.set('app-settings',ns);LS.set(`activated-${p.code}`,{deviceId:getDeviceId(),ts:Date.now()});setSettings(ns);setCurM(p.month);setTab('monthly');setReady(true);history.replaceState(null,'',location.pathname);return}}setNeedOnboard(true);setReady(true)},[]);
-  const onOnboardComplete=(s)=>{setSettings(s);setNeedOnboard(false)};
-  const doLogout=()=>{LS.set('app-settings',null);setSettings(null);setNeedOnboard(true)}; // 只清app-settings(目前登入者標記),不動任何個人資料(月報表/客戶資料庫都是依編號存的,不會被清掉)
-  const updateSettings=(s)=>{setSettings(s);LS.set('app-settings',s)};
-  // ===== 引導學習點A 已移除(7/1後):不再自動填工作證到期日,尊重使用者留空 =====
-  const handleTab=(id)=>{setTab(id);if(id==='home')setRefreshKey(k=>k+1)};
-  if(!ready)return<div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',backgroundColor:bgColor}}><div style={{width:32,height:32,border:'3px solid rgba(245,158,11,0.9)',borderTopColor:'transparent',borderRadius:'50%',animation:'fbspin 0.8s linear infinite'}}/></div>;
-  if(needOnboard)return<Onboarding onComplete={onOnboardComplete}/>;
-  if(!settings)return null;
-  const lang=settings.lang||'zh';const t=T[lang];
-  // 設定圖示❗:基資或店資有未確認變動(主管除外)
-  const settingsAlert=(()=>{const permExp=(()=>{if(!settings.permitExpiry)return false;const days=(new Date(settings.permitExpiry)-new Date())/86400000;return days<=30})();const gh=getGHConfig();if(gh&&gh.token)return permExp;const cp=settings.confirmedProfile,cs=settings.confirmedStore;const pf=['gender','nameZh','nameVi','phone','email','addrCity','addrDist','addrDetail','school','major','schoolType','permitNo','permitDate','permitExpiry','permitOrg'];const sf=['storeSel','shift','workStart','workEnd','workNote','unitPrice','preg','oil','techMentor','lockerNo'];const chg=(snap,fs)=>{if(!snap)return false;return fs.some(k=>(snap[k]||'')!==((settings[k]!==undefined?settings[k]:'')||''))};return chg(cp,pf)||chg(cs,sf)||permExp})();
-  return(<div className={`${isLight?'text-gray-900':'text-gray-100'} flex flex-col`} style={{backgroundColor:bgColor,height:'100vh',maxHeight:'100dvh'}} data-light={isLight||undefined}>
-    <div className="flex-1 overflow-y-auto">
-      <HomePage settings={settings} t={t} refreshKey={refreshKey} onUpdateSettings={updateSettings} onLogout={doLogout} onGotoProfile={()=>{try{sessionStorage.setItem('__settingsSub','basic')}catch(e){}handleTab('settings')}} onGotoNotices={()=>{try{sessionStorage.setItem('__settingsSub','notice')}catch(e){}handleTab('settings')}} onGotoBook={()=>{try{sessionStorage.setItem('__settingsSub','book')}catch(e){}handleTab('settings')}} onGotoChart={()=>{try{sessionStorage.setItem('__settingsSub','chart')}catch(e){}handleTab('settings')}} onGotoSuggest={()=>{try{sessionStorage.setItem('__settingsSub','suggest')}catch(e){}handleTab('settings')}} onGotoAcupoint={()=>{try{sessionStorage.setItem('__settingsSub','acupoint')}catch(e){}handleTab('settings')}} onGotoViolation={()=>{try{sessionStorage.setItem('__settingsSub','violation')}catch(e){}handleTab('settings')}} onGotoBackup={()=>{try{sessionStorage.setItem('__settingsSub','backup')}catch(e){}handleTab('settings')}} onGotoManage={()=>{location.href='./auth.html#lang='+(settings.lang||'zh')}} onGotoMonthly={(m)=>{if(typeof m==='number'&&m>=1&&m<=12)setCurM(m);handleTab('monthly')}} onGotoMonthlyCalendar={()=>handleTab('calendar')} onGotoCustomers={()=>handleTab('customers')} onGotoSettings={()=>handleTab('settings')} settingsAlert={settingsAlert}/>
-      {(tab==='monthly'||tab==='calendar'||tab==='yearly')&&<BottomSheetModal heightPct={80} onClose={()=>handleTab('home')}>{tab==='monthly'?<MonthlyPage settings={settings} curM={curM} setCurM={setCurM} t={t} onGotoYear={(yr)=>{setPreYearTab('monthly');setYearlyYear(yr);handleTab('yearly')}} onClose={()=>handleTab('home')}/>:tab==='calendar'?<MonthlyCalendarPage settings={settings} t={t} onGotoYear={(yr)=>{setPreYearTab('calendar');setYearlyYear(yr);handleTab('yearly')}} onClose={()=>handleTab('home')}/>:<YearlyPage settings={settings} t={t} year={yearlyYear} onBack={()=>handleTab(preYearTab)}/>}</BottomSheetModal>}
-      {tab==='customers'&&<BottomSheetModal heightPct={50} onClose={()=>handleTab('home')}>{(()=>{const CP=(window.__V&&window.__V.CustomerPage)||(()=>null);return<CP settings={settings} t={t} onClose={()=>handleTab('home')}/>})()}</BottomSheetModal>}
-      {tab==='settings'&&(()=>{const SP=(window.__V&&window.__V.SettingsPage)||(()=>null);return<SP settings={settings} onUpdate={updateSettings} t={t} theme={theme} setTheme={setTheme} onClose={()=>handleTab('home')} onLogout={doLogout}/>})()}
-    </div>
-  </div>)}
-
-class __EB extends React.Component{constructor(p){super(p);this.state={e:false}}static getDerivedStateFromError(){return{e:true}}componentDidCatch(err){try{window.__showFallback(3,{lineno:0,msg:(err&&err.message)||String(err)})}catch(e){}}render(){return this.state.e?null:this.props.children}}
-ReactDOM.createRoot(document.getElementById('root')).render(<__EB><App/></__EB>);
-</script>
+    var s = LS.get('app-settings');
+    if (s && s.code && s.code.length <= 12) {
+      var act = LS.get(`activated-${s.code}`);
+      if (act) {
+        setSettings(s);
+        setReady(true);
+        return;
+      }
+    }
+    var hash = window.location.hash;
+    if (hash && hash.indexOf('conn=') >= 0) {
+      try {
+        var reassembled = parseReqHash(hash, 'conn');
+        var _raw = reassembled || decodeURIComponent(hash.replace(/^#/, '').split('conn=')[1] || '');
+        var _ci = _raw.indexOf(':');
+        if (_ci > 0) {
+          var c = _raw.slice(0, _ci);
+          var actCode = _raw.slice(_ci + 1);
+          var did = getDeviceId();
+          var tk = verifyActToken(actCode, c, did);
+          if (tk) {
+            saveGHConfigLocal({
+              owner: tk.owner,
+              repo: tk.repo,
+              token: tk.token
+            });
+            var ns = {
+              code: c,
+              unitPrice: 250,
+              lang: 'zh',
+              store: '龍山寺店',
+              year: bizParts().y,
+              deviceId: did
+            };
+            LS.set('app-settings', ns);
+            LS.set(`activated-${c}`, {
+              deviceId: did,
+              ts: Date.now()
+            });
+            setSettings(ns);
+            setReady(true);
+            history.replaceState(null, '', location.pathname);
+            return;
+          }
+        }
+      } catch (_e) {}
+    }
+    if (hash && hash.length > 5 && hash.indexOf('conn=') < 0 && hash.indexOf('access_token=') < 0 && hash.indexOf('context_token=') < 0 && hash.indexOf('id_token=') < 0) {
+      var p = decBackup(hash.slice(1));
+      if (p && p.code && p.code.length <= 12) {
+        LS.set(dk(p.code, p.year, p.month), p.data);
+        var _ns = {
+          code: p.code,
+          unitPrice: 250,
+          lang: 'zh',
+          year: p.year,
+          deviceId: getDeviceId()
+        };
+        LS.set('app-settings', _ns);
+        LS.set(`activated-${p.code}`, {
+          deviceId: getDeviceId(),
+          ts: Date.now()
+        });
+        setSettings(_ns);
+        setCurM(p.month);
+        setTab('monthly');
+        setReady(true);
+        history.replaceState(null, '', location.pathname);
+        return;
+      }
+    }
+    setNeedOnboard(true);
+    setReady(true);
+  }, []);
+  var onOnboardComplete = s => {
+    setSettings(s);
+    setNeedOnboard(false);
+  };
+  var doLogout = () => {
+    LS.set('app-settings', null);
+    setSettings(null);
+    setNeedOnboard(true);
+  };
+  var updateSettings = s => {
+    setSettings(s);
+    LS.set('app-settings', s);
+  };
+  var handleTab = id => {
+    setTab(id);
+    if (id === 'home') setRefreshKey(k => k + 1);
+  };
+  if (!ready) return React.createElement("div", {
+    style: {
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: bgColor
+    }
+  }, React.createElement("div", {
+    style: {
+      width: 32,
+      height: 32,
+      border: '3px solid rgba(245,158,11,0.9)',
+      borderTopColor: 'transparent',
+      borderRadius: '50%',
+      animation: 'fbspin 0.8s linear infinite'
+    }
+  }));
+  if (needOnboard) return React.createElement(Onboarding, {
+    onComplete: onOnboardComplete
+  });
+  if (!settings) return null;
+  var lang = settings.lang || 'zh';
+  var t = T[lang];
+  var settingsAlert = (() => {
+    var permExp = (() => {
+      if (!settings.permitExpiry) return false;
+      var days = (new Date(settings.permitExpiry) - new Date()) / 86400000;
+      return days <= 30;
+    })();
+    var gh = getGHConfig();
+    if (gh && gh.token) return permExp;
+    var cp = settings.confirmedProfile,
+      cs = settings.confirmedStore;
+    var pf = ['gender', 'nameZh', 'nameVi', 'phone', 'email', 'addrCity', 'addrDist', 'addrDetail', 'school', 'major', 'schoolType', 'permitNo', 'permitDate', 'permitExpiry', 'permitOrg'];
+    var sf = ['storeSel', 'shift', 'workStart', 'workEnd', 'workNote', 'unitPrice', 'preg', 'oil', 'techMentor', 'lockerNo'];
+    var chg = (snap, fs) => {
+      if (!snap) return false;
+      return fs.some(k => (snap[k] || '') !== ((settings[k] !== undefined ? settings[k] : '') || ''));
+    };
+    return chg(cp, pf) || chg(cs, sf) || permExp;
+  })();
+  return React.createElement("div", {
+    className: `${isLight ? 'text-gray-900' : 'text-gray-100'} flex flex-col`,
+    style: {
+      backgroundColor: bgColor,
+      height: '100vh',
+      maxHeight: '100dvh'
+    },
+    "data-light": isLight || undefined
+  }, React.createElement("div", {
+    className: "flex-1 overflow-y-auto"
+  }, React.createElement(HomePage, {
+    settings: settings,
+    t: t,
+    refreshKey: refreshKey,
+    onUpdateSettings: updateSettings,
+    onLogout: doLogout,
+    onGotoProfile: () => {
+      try {
+        sessionStorage.setItem('__settingsSub', 'basic');
+      } catch (e) {}
+      handleTab('settings');
+    },
+    onGotoNotices: () => {
+      try {
+        sessionStorage.setItem('__settingsSub', 'notice');
+      } catch (e) {}
+      handleTab('settings');
+    },
+    onGotoBook: () => {
+      try {
+        sessionStorage.setItem('__settingsSub', 'book');
+      } catch (e) {}
+      handleTab('settings');
+    },
+    onGotoChart: () => {
+      try {
+        sessionStorage.setItem('__settingsSub', 'chart');
+      } catch (e) {}
+      handleTab('settings');
+    },
+    onGotoSuggest: () => {
+      try {
+        sessionStorage.setItem('__settingsSub', 'suggest');
+      } catch (e) {}
+      handleTab('settings');
+    },
+    onGotoAcupoint: () => {
+      try {
+        sessionStorage.setItem('__settingsSub', 'acupoint');
+      } catch (e) {}
+      handleTab('settings');
+    },
+    onGotoViolation: () => {
+      try {
+        sessionStorage.setItem('__settingsSub', 'violation');
+      } catch (e) {}
+      handleTab('settings');
+    },
+    onGotoBackup: () => {
+      try {
+        sessionStorage.setItem('__settingsSub', 'backup');
+      } catch (e) {}
+      handleTab('settings');
+    },
+    onGotoManage: () => {
+      location.href = './auth.html#lang=' + (settings.lang || 'zh');
+    },
+    onGotoMonthly: m => {
+      if (typeof m === 'number' && m >= 1 && m <= 12) setCurM(m);
+      handleTab('monthly');
+    },
+    onGotoMonthlyCalendar: () => handleTab('calendar'),
+    onGotoCustomers: () => handleTab('customers'),
+    onGotoSettings: () => handleTab('settings'),
+    settingsAlert: settingsAlert
+  }), (tab === 'monthly' || tab === 'calendar' || tab === 'yearly') && React.createElement(BottomSheetModal, {
+    heightPct: 80,
+    onClose: () => handleTab('home')
+  }, tab === 'monthly' ? React.createElement(MonthlyPage, {
+    settings: settings,
+    curM: curM,
+    setCurM: setCurM,
+    t: t,
+    onGotoYear: yr => {
+      setPreYearTab('monthly');
+      setYearlyYear(yr);
+      handleTab('yearly');
+    },
+    onClose: () => handleTab('home')
+  }) : tab === 'calendar' ? React.createElement(MonthlyCalendarPage, {
+    settings: settings,
+    t: t,
+    onGotoYear: yr => {
+      setPreYearTab('calendar');
+      setYearlyYear(yr);
+      handleTab('yearly');
+    },
+    onClose: () => handleTab('home')
+  }) : React.createElement(YearlyPage, {
+    settings: settings,
+    t: t,
+    year: yearlyYear,
+    onBack: () => handleTab(preYearTab)
+  })), tab === 'customers' && React.createElement(BottomSheetModal, {
+    heightPct: 50,
+    onClose: () => handleTab('home')
+  }, (() => {
+    var CP = window.__V && window.__V.CustomerPage || (() => null);
+    return React.createElement(CP, {
+      settings: settings,
+      t: t,
+      onClose: () => handleTab('home')
+    });
+  })()), tab === 'settings' && (() => {
+    var SP = window.__V && window.__V.SettingsPage || (() => null);
+    return React.createElement(SP, {
+      settings: settings,
+      onUpdate: updateSettings,
+      t: t,
+      theme: theme,
+      setTheme: setTheme,
+      onClose: () => handleTab('home'),
+      onLogout: doLogout
+    });
+  })()));
+}
+class __EB extends React.Component {
+  constructor(p) {
+    super(p);
+    this.state = {
+      e: false
+    };
+  }
+  static getDerivedStateFromError() {
+    return {
+      e: true
+    };
+  }
+  componentDidCatch(err) {
+    try {
+      window.__showFallback(3, {
+        lineno: 0,
+        msg: err && err.message || String(err)
+      });
+    } catch (e) {}
+  }
+  render() {
+    return this.state.e ? null : this.props.children;
+  }
+}
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(__EB, null, React.createElement(App, null)));</script>
 <script>
 // 離線/加速:註冊 Service Worker(sw.js)。失敗就算了,不影響原本功能。
 // v1.13-067:離線提示小標籤 + SW 偵測到新版本時提示更新(不自動重整,避免打斷輸入)
