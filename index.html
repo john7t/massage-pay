@@ -268,13 +268,13 @@ input[type=number]{-moz-appearance:textfield}
 </div>
 <style>@keyframes fbspin{to{transform:rotate(360deg)}}@keyframes fbpulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
 <script src="./common.js?v=1.13-045"></script>
-<script src="./notice-modal.c.js?v=1.12-047"></script>
-<script src="./settings.c.js?v=1.13-079"></script>
-<script src="./wg-test.c.js?v=0.1"></script>
+<script src="./notice-modal_c.js?v=1.12-047"></script>
+<script src="./settings_c.js?v=1.13-079"></script>
+<script src="./wg-test_c.js?v=0.1"></script>
 <script>/* 首頁 UI 主題:預設=卡片式(app-core.js);localStorage app-ui=classic 時載入舊版首頁(themes/classic/app-core.js)。在「設定 → 主題」切換 */
 (function(){var u='card';try{u=localStorage.getItem('app-ui')||'card'}catch(e){}if(u!=='classic')u='card';window.__appUi=u;
 if(u==='card'){try{document.documentElement.setAttribute('data-ui','card');var mt=document.querySelector('meta[name="theme-color"]');if(mt)mt.setAttribute('content','#f8c8dc');var st=document.createElement('style');st.textContent='html[data-ui="card"],html[data-ui="card"] body{background:#ffe9f1 !important;overscroll-behavior:none}';document.head.appendChild(st);}catch(e){}}
-document.write('<script src="'+(u==='classic'?'./themes/classic/classic-app-core.c.js?v=1.13-080':'./app-core.c.js?v=1.14-006')+'"><\/script>');})();</script>
+document.write('<script src="'+(u==='classic'?'./themes/classic/classic-app-core_c.js?v=1.13-080':'./app-core_c.js?v=1.14-006')+'"><\/script>');})();</script>
 <script>var {
   LS,
   getKeyConfig,
