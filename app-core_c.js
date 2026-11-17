@@ -1,4 +1,4 @@
-/*BUILD c=app-core.c.js v=1.14-006 src=dev/app-core.js h=17db5447 t=2026-11-17 10:41*/
+/*BUILD c=app-core_c.js v=1.14-007 src=dev/app-core.js h=8a0f4ce2 t=2026-11-17 11:15*/
 var {
   LS,
   getKeyConfig,
@@ -4171,7 +4171,11 @@ function ChDayCard({
       className: "l1"
     }, React.createElement("span", {
       className: "tm"
-    }, chHm(s.startAt || s.createdAt)), React.createElement("b", null, "+", s.units || 1), (s.laodian || 0) > 0 && React.createElement("u", null, t.laodian, " ", s.laodian)), (nm || ph) && React.createElement("div", {
+    }, chHm(s.startAt || s.createdAt)), React.createElement("b", null, (() => {
+      var ex = s.extra || 0;
+      var base = Math.max(1, (s.units || 1) - ex);
+      return (zh ? '加' : '+') + base + (s.svc ? ' ' + String(s.svc).toUpperCase() : '') + (ex > 0 ? ' +' + ex : '');
+    })()), (s.laodian || 0) > 0 && React.createElement("u", null, t.laodian, " ", s.laodian)), (nm || ph) && React.createElement("div", {
       className: "l2"
     }, nm, nm && ph ? '　' : '', ph));
   }), slips.length === 0 && (day.total > 0 ? React.createElement("div", {
