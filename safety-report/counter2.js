@@ -1,4 +1,4 @@
-/*BUILD counter2.js v1.0-056 編譯版 h=2de0410e t=2026-11-17 17:53*/
+/*BUILD counter2.js v1.0-058 編譯版 h=ee9a73b8 t=2026-11-17 22:52*/
 let _2 = t => t,
   _t;
 (function () {
@@ -52,7 +52,7 @@ let _2 = t => t,
     return Math.floor((now + 8 * 3600e3) / st) * st + st - 8 * 3600e3;
   };
   const LIMIT = 3600;
-  const CN_VER = 'v1.0-052';
+  const CN_VER = 'v1.0-054';
   window.__cnVer = CN_VER;
   const CN_CSS = String.raw(_t || (_t = _2`
 .cn-light{background:#f7f7f9;color:#1b1f2a;min-height:100vh;font-feature-settings:"tnum"}
@@ -202,13 +202,13 @@ let _2 = t => t,
 html.cn-pink body{background:#ffe9f1!important;color:#4a2337}
 html.cn-pink body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(circle at 12% 20%,#ff9ec4 0,rgba(255,158,196,0) 30%),radial-gradient(circle at 88% 40%,#ffb7d5 0,rgba(255,183,213,0) 28%),radial-gradient(circle at 40% 92%,#ffc9df 0,rgba(255,201,223,0) 30%),linear-gradient(165deg,#ffc6de 0%,#ffe6f0 45%,#ffe9f1 100%)}
 html.cn-pink .cn-light,html.cn-pink .tb-app{background:transparent!important;color:#4a2337}
-html.cn-pink .tb-bar{background:rgba(255,255,255,.42)!important;-webkit-backdrop-filter:blur(18px) saturate(1.3);backdrop-filter:blur(18px) saturate(1.3);border:1px solid rgba(255,255,255,.85)!important;box-shadow:0 10px 24px rgba(214,96,146,.16),inset 0 1px 0 rgba(255,255,255,.9)!important;color:#4a2337;border-radius:20px}
+html.cn-pink .tb-bar{background:rgba(255,255,255,.5)!important;border:1px solid rgba(255,255,255,.85)!important;box-shadow:0 10px 24px rgba(214,96,146,.16),inset 0 1px 0 rgba(255,255,255,.9)!important;color:#4a2337;border-radius:20px}
 html.cn-pink .tb-bar h1,html.cn-pink .tb-bar .tb-tm{color:#4a2337}html.cn-pink .tb-bar small{color:#9a6b82}html.cn-pink .tb-op,html.cn-pink .tb-op button{color:#c2336f!important}
 html.cn-pink .tb-bar .tb-chip{background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.95);border-radius:13px}html.cn-pink .tb-bar .tb-chip b{color:#4a2337}html.cn-pink .tb-bar .tb-chip span{color:#9a6b82}html.cn-pink .tb-bar .tb-chip.hot{background:rgba(255,255,255,.7);outline:2px solid #f0619a}html.cn-pink .tb-bar .tb-chip.hot b{color:#e0245e}
 html.cn-pink .tb-btn,html.cn-pink .cn-btn,html.cn-pink .tb-bar .tb-btn{background:rgba(255,255,255,.65);border:1px solid rgba(214,96,146,.3);color:#7a3355;border-radius:14px}
 html.cn-pink .tb-btn.p,html.cn-pink .cn-btn.p,html.cn-pink .cn-bk .bt.p,html.cn-pink .tb-bar .tb-btn.p{background:#f0619a;border-color:#f0619a;color:#fff;box-shadow:0 8px 16px rgba(240,97,154,.3)}
 html.cn-pink .tb-btn.v{border-color:#f0619a;color:#c2336f}
-html.cn-pink .tb-pn,html.cn-pink .tb-pl,html.cn-pink .cn-card,html.cn-pink .cn-chip{background:rgba(255,255,255,.42)!important;-webkit-backdrop-filter:blur(18px) saturate(1.3);backdrop-filter:blur(18px) saturate(1.3);border:1px solid rgba(255,255,255,.85)!important;box-shadow:0 10px 24px rgba(214,96,146,.16),inset 0 1px 0 rgba(255,255,255,.9)!important;border-radius:22px}
+html.cn-pink .tb-pn,html.cn-pink .tb-pl,html.cn-pink .cn-card,html.cn-pink .cn-chip{background:rgba(255,255,255,.5)!important;border:1px solid rgba(255,255,255,.85)!important;box-shadow:0 10px 24px rgba(214,96,146,.16),inset 0 1px 0 rgba(255,255,255,.9)!important;border-radius:22px}
 html.cn-pink .tb-grp{border:1px solid rgba(255,255,255,.7);background:rgba(255,255,255,.28);border-radius:14px}
 html.cn-pink .tb-tabs button,html.cn-pink .tb-kp button,html.cn-pink .cn-bk .bt,html.cn-pink .tb-xb,html.cn-pink .cn-tab{border-radius:12px}
 html.cn-pink .tb-tabs button{border:1px solid rgba(255,255,255,.9);background:rgba(255,255,255,.55);color:#7a4a62}html.cn-pink .tb-tabs button.on{background:#f0619a;border-color:#f0619a;color:#fff}
@@ -972,9 +972,7 @@ html.cn-pink .cn-light input,html.cn-pink .cn-light select,html.cn-pink .cn-ligh
       dashed = /dashed/.test(b),
       bdC = (b.match(/#[0-9a-f]{6}/i) || [''])[0].toLowerCase();
     const o = Object.assign({}, st, {
-      borderRadius: 12,
-      WebkitBackdropFilter: 'blur(14px) saturate(1.4)',
-      backdropFilter: 'blur(14px) saturate(1.4)'
+      borderRadius: 12
     });
     const ring = st.boxShadow && st.boxShadow !== 'none' ? st.boxShadow + ',' : '';
     const hi = 'inset 0 1px 0 rgba(255,255,255,.9)';
@@ -4269,6 +4267,42 @@ html.cn-pink .cn-light input,html.cn-pink .cn-light select,html.cn-pink .cn-ligh
     });
   }
   function applyOp(D, o) {
+    if (o.act === 'reset') {
+      const clr = p => Object.assign(p, {
+        redItem: '',
+        redPos: '',
+        redStart: 0,
+        redEnd: 0,
+        redPos2: '',
+        redTransfer: 0,
+        orderId: '',
+        lateTo: 0,
+        lateKind: '',
+        zhun: '',
+        bk: undefined
+      });
+      const on = [],
+        off = [];
+      D.red.concat(D.white).forEach(p => on.push(clr(Object.assign(p, {
+        state: 'white'
+      }))));
+      D.gray.forEach(p => {
+        if ((p.due || 0) <= o.ts) on.push(clr(Object.assign(p, {
+          state: 'white',
+          onAt: o.ts
+        })));else off.push(clr(Object.assign(p, {
+          state: 'off'
+        })));
+      });
+      D.white = on;
+      D.red = [];
+      D.gray = [];
+      D.off = D.off.concat(off);
+      D.orders.forEach(od => {
+        if (od.status === 'seating' || od.status === 'serving' || od.status === 'wait_pay') od.status = 'void';
+      });
+      return;
+    }
     if (o.act === 'exp_add') {
       const a = Math.round(Number(o.amount));
       if (a > 0 && !D.ledger.exps.some(x => x.id === o.id)) D.ledger.exps.push({
@@ -5143,6 +5177,41 @@ html.cn-pink .cn-light input,html.cn-pink .cn-light select,html.cn-pink .cn-ligh
       onClick: onClose
     }, "關閉"));
   }
+  function useNoPageScroll(on) {
+    useEffect(() => {
+      if (!on) return;
+      let tm = 0;
+      const typing = () => {
+        const a = document.activeElement;
+        return !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
+      };
+      const top = () => {
+        if (typing()) return;
+        const se = document.scrollingElement || document.documentElement;
+        if (window.pageYOffset || se.scrollTop || document.body.scrollTop) {
+          window.scrollTo(0, 0);
+          se.scrollTop = 0;
+          document.body.scrollTop = 0;
+        }
+      };
+      const later = () => {
+        clearTimeout(tm);
+        tm = setTimeout(top, 150);
+      };
+      const vv = window.visualViewport;
+      document.addEventListener('focusout', later);
+      window.addEventListener('scroll', later, {
+        passive: true
+      });
+      if (vv) vv.addEventListener('resize', later);
+      return () => {
+        clearTimeout(tm);
+        document.removeEventListener('focusout', later);
+        window.removeEventListener('scroll', later);
+        if (vv) vv.removeEventListener('resize', later);
+      };
+    }, [on]);
+  }
   function useTablet() {
     const q = '(min-width:700px) and (min-height:600px)';
     const get = () => {
@@ -5183,7 +5252,16 @@ html.cn-pink .cn-light input,html.cn-pink .cn-light select,html.cn-pink .cn-ligh
       setOf(e.scrollWidth > e.clientWidth + 2);
       setEnd(e.scrollLeft + e.clientWidth >= e.scrollWidth - 4);
     };
-    useEffect(chk);
+    const n = React.Children.count(children);
+    useEffect(() => {
+      const id = requestAnimationFrame(chk);
+      return () => cancelAnimationFrame(id);
+    }, [n]);
+    useEffect(() => {
+      const f = () => requestAnimationFrame(chk);
+      window.addEventListener('resize', f);
+      return () => window.removeEventListener('resize', f);
+    }, []);
     return React.createElement("div", {
       className: 'tb-rwv' + (of && !end ? ' more' : '')
     }, React.createElement("div", {
@@ -5401,6 +5479,7 @@ html.cn-pink .cn-light input,html.cn-pink .cn-light select,html.cn-pink .cn-ligh
     const [tool, setTool] = useState(() => /[?&]unlock=1/.test(location.search) ? 'set' : '');
     const [toolN, setToolN] = useState(0);
     const TB = useTablet();
+    useNoPageScroll(TB.tab);
     const [selBn, setSelBn] = useState(false);
     const [arrMode, setArrMode] = useState('');
     const [recHl, setRecHl] = useState(null);
@@ -5451,6 +5530,8 @@ html.cn-pink .cn-light input,html.cn-pink .cn-light select,html.cn-pink .cn-ligh
       }
     }, []);
     const [skew, setSkew] = useState(c0.current.skew || 0);
+    const [offline, setOffline] = useState(false);
+    const sigR = useRef('');
     const [, setTick] = useState(0);
     const [syncAt, setSyncAt] = useState(0);
     const [syncing, setSyncing] = useState(false);
@@ -5505,28 +5586,41 @@ html.cn-pink .cn-light input,html.cn-pink .cn-light select,html.cn-pink .cn-ligh
           });
           setQ(q => q.filter(o => !ids[o.id]));
           more = qR.current.length > 0 && sent.length >= 50;
-          setServer(r);
           const sk = (r.now || Date.now()) - Date.now();
           setSkew(sk);
           setSyncAt(Date.now());
           setErr('');
           setFresh(true);
+          setOffline(false);
           try {
             const c = Object.assign({}, r);
             delete c.results;
-            lsW(SK, {
-              srv: c,
-              skew: sk,
-              at: Date.now()
-            });
-          } catch (_e) {}
+            delete c.now;
+            delete c.opList;
+            const sig = JSON.stringify(c);
+            if (sig !== sigR.current || sent.length) {
+              sigR.current = sig;
+              setServer(r);
+              const c2 = Object.assign({}, r);
+              delete c2.results;
+              lsW(SK, {
+                srv: c2,
+                skew: sk,
+                at: Date.now()
+              });
+            }
+          } catch (_e) {
+            setServer(r);
+          }
           if (r.opList) lsW(KOPS, r.opList);
           gcSync();
           const bad = (r.results || []).filter(x => !x.ok);
           if (bad.length) setNotes(bad.map(x => (x.code ? x.code + ' 號:' : '') + (x.error || '操作失敗')));
+        } else if (!r || r._net || /連不上伺服器|逾時|網路|Failed to fetch|Load failed/.test(String(r.error || ''))) {
+          setOffline(true);
         } else setErr(r && r.error || '同步失敗,稍後自動重試');
       } catch (e) {
-        setErr('網路不通,操作已存在本機,稍後自動重試');
+        setOffline(true);
       } finally {
         flying.current = false;
         setSyncing(false);
@@ -5534,11 +5628,17 @@ html.cn-pink .cn-light input,html.cn-pink .cn-light select,html.cn-pink .cn-ligh
       }
     };
     useEffect(() => {
+      if (!queue.length) return;
+      const t = setTimeout(() => {
+        if (!document.hidden) sync();
+      }, offline ? 30000 : 2000);
+      return () => clearTimeout(t);
+    }, [queue.length, offline]);
+    useEffect(() => {
       sync();
       const t = setInterval(() => {
         if (!document.hidden) sync();
-      }, 10000);
-      const t2 = setInterval(() => setTick(x => x + 1), 1000);
+      }, 60000);
       const vis = () => {
         sync();
       };
@@ -5551,25 +5651,15 @@ html.cn-pink .cn-light input,html.cn-pink .cn-light select,html.cn-pink .cn-ligh
         window.removeEventListener('pagehide', vis);
       };
     }, []);
-    const doReset = async () => {
-      if (!confirm('還原牌況(測試用)?\n\n・已到上牌時間的老師直接上白牌\n・已過下牌時間的下牌\n・所有位置清空,進行中的訂單作廢\n・本機尚未上傳的操作會丟掉\n\n確定要還原嗎?')) return;
-      try {
-        const r = await api('cnReset', {});
-        if (r && r.ok) {
-          setQ([]);
-          setServer(r);
-          setNotes([]);
-          setSel(null);
-          setOrdSel('');
-          setPaySel('');
-          setPreGid('');
-          setErr('');
-          setFresh(true);
-          alert('已還原:上牌 ' + r.reset.on + ' 位、下牌 ' + r.reset.off + ' 位、作廢訂單 ' + r.reset.voided + ' 筆');
-        } else alert(r && r.error || '還原失敗');
-      } catch (_e) {
-        alert('網路不通,無法還原');
-      }
+    const doReset = () => {
+      if (!confirm('還原牌況(測試用)?\n\n・已到上牌時間的老師直接上白牌\n・還沒到的老師下牌\n・所有位置清空,進行中的訂單作廢\n\n先在本機還原,連上伺服器後以伺服器排班為準。確定要還原嗎?')) return;
+      setNotes([]);
+      setOrdSel('');
+      setPaySel('');
+      setPreGid('');
+      act({
+        act: 'reset'
+      });
     };
     const act = o => {
       const op = Object.assign({
@@ -6045,10 +6135,10 @@ html.cn-pink .cn-light input,html.cn-pink .cn-light select,html.cn-pink .cn-ligh
         className: "tb-tm"
       }, hmFull(now)), React.createElement("button", {
         onClick: sync,
-        className: 'cn-sync' + (queue.length > 0 ? ' w' : '')
+        className: 'cn-sync' + (queue.length > 0 || offline ? ' w' : '')
       }, syncing ? React.createElement(Spinner, {
         size: 12
-      }) : '●', " ", queue.length > 0 ? '待上傳 ' + queue.length + ' 筆' : fresh ? '已同步' : c0.current.at ? '本機資料 · 更新中' : '載入中')), TB.land && chipsEl, React.createElement("div", {
+      }) : '●', " ", offline ? '離線' + (queue.length ? ' · 待上傳 ' + queue.length + ' 筆' : '') : queue.length > 0 ? '待上傳 ' + queue.length + ' 筆' : fresh ? '已同步' : c0.current.at ? '本機資料 · 更新中' : '載入中')), TB.land && chipsEl, React.createElement("div", {
         style: {
           flex: 1
         }
@@ -6290,10 +6380,10 @@ html.cn-pink .cn-light input,html.cn-pink .cn-light select,html.cn-pink .cn-ligh
       className: "cn-tm"
     }, React.createElement("span", null, hmFull(now), ":", p2(tzp(now).s)), React.createElement("button", {
       onClick: sync,
-      className: 'cn-sync' + (queue.length > 0 ? ' w' : '')
+      className: 'cn-sync' + (queue.length > 0 || offline ? ' w' : '')
     }, syncing ? React.createElement(Spinner, {
       size: 12
-    }) : '●', " ", queue.length > 0 ? '待上傳 ' + queue.length + ' 筆' : fresh ? '已同步' + (syncAt ? ' ' + hmFull(syncAt) : '') : c0.current.at ? '本機資料 ' + hmFull(c0.current.at) + ' · 更新中' : '載入中'))), React.createElement("div", {
+    }) : '●', " ", offline ? '離線' + (queue.length ? ' · 待上傳 ' + queue.length + ' 筆' : '') : queue.length > 0 ? '待上傳 ' + queue.length + ' 筆' : fresh ? '已同步' + (syncAt ? ' ' + hmFull(syncAt) : '') : c0.current.at ? '本機資料 ' + hmFull(c0.current.at) + ' · 更新中' : '載入中'))), React.createElement("div", {
       className: "cn-acts"
     }, React.createElement("button", {
       onClick: () => setArranging(true),
