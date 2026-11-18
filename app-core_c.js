@@ -1,4 +1,4 @@
-/*BUILD c=app-core_c.js v=1.14-008 src=dev/app-core.js h=8b63dc1c t=2026-11-17 16:23*/
+/*BUILD c=app-core_c.js v=1.14-010 src=dev/app-core.js h=f06e32c8 t=2026-11-19 02:32*/
 var {
   LS,
   getKeyConfig,
@@ -3910,6 +3910,7 @@ div:has(>.ch-root){overflow:hidden!important}
 .ch-card{position:relative;overflow:hidden}.ch-card>*{position:relative;z-index:1}
 .ch-card::before{content:"";position:absolute;top:0;bottom:0;left:0;width:300%;z-index:0;pointer-events:none;opacity:0;transition:opacity .8s;will-change:transform;background:linear-gradient(120deg,rgba(255,255,255,0) 0%,rgba(255,255,255,0) 30%,rgba(255,255,255,.75) 44%,rgba(255,150,195,.55) 52%,rgba(255,255,255,.35) 60%,rgba(255,255,255,0) 72%,rgba(255,255,255,0) 100%)}
 .ch-pg.cur .ch-card::before{opacity:var(--ch-glow,1);animation:ch-glow calc(10s / var(--ch-speed,1)) ease-in-out infinite}
+html:not(.mp-fx-glow) .ch-pg.cur .ch-card::before{animation:none;opacity:0}
 @keyframes ch-glow{0%,100%{transform:translateX(0)}50%{transform:translateX(-66.667%)}}
 @media (prefers-reduced-motion:reduce){.ch-pg.cur .ch-card::before{animation:none;opacity:0}}
 .ch-dt{display:flex;align-items:baseline;gap:8px;flex:0 0 auto}.ch-dt b{font-size:21px;font-weight:800}.ch-dt em{font-style:normal;font-size:14px;color:#9a6b82}.ch-dt u{margin-left:auto;text-decoration:none;font-size:12px;font-weight:800;color:#fff;background:#f0619a;border-radius:99px;padding:2px 10px}.ch-dt s{text-decoration:none;font-size:12px;font-weight:800;color:#b02f66;background:rgba(240,97,154,.16);border-radius:99px;padding:2px 10px}
@@ -3930,7 +3931,9 @@ div:has(>.ch-root){overflow:hidden!important}
 .ch-rw .l1{display:flex;align-items:center;gap:12px;font-size:15px}.ch-rw .tm{color:#9a6b82;font-variant-numeric:tabular-nums;width:48px}.ch-rw .l1 b{font-size:17px;color:#4a2337}.ch-rw u{margin-left:auto;text-decoration:none;font-size:12px;font-weight:800;color:#fff;background:#f0619a;border-radius:99px;padding:2px 10px;white-space:nowrap}
 .ch-rw .l2{margin:3px 0 0 60px;font-size:13.5px;color:#7a4a62;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ch-empty{padding:18px 6px;text-align:center;font-size:13px;color:#b08a9b;border-top:1px solid rgba(214,96,146,.16)}
-.ch-gb{flex:0 0 auto;margin-top:8px;max-height:132px;overflow-y:auto}.ch-gb a{margin:0 0 6px!important;background:rgba(255,255,255,.7)!important;border:1px solid rgba(240,97,154,.3)!important;border-radius:18px!important}.ch-gb>div{margin:0!important}
+.ch-gb{flex:0 0 auto;margin-top:8px;max-height:132px;overflow-y:auto}
+.ch-bkw{margin:8px 0 0;font-size:13px;line-height:1.5;color:#b0306a;background:rgba(255,255,255,.6);border-radius:12px;padding:8px 10px}
+.ch-bks{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;margin-top:4px}.ch-gb a{margin:0 0 6px!important;background:rgba(255,255,255,.7)!important;border:1px solid rgba(240,97,154,.3)!important;border-radius:18px!important}.ch-gb>div{margin:0!important}
 .ch-pay{margin-top:12px;flex:0 0 auto}.ch-pay small{display:block;font-size:12px;color:#9a6b82;font-weight:700}.ch-pay b{font-size:36px;font-weight:900;letter-spacing:-.02em;color:#d83a7c;line-height:1.15;font-variant-numeric:tabular-nums}
 .ch-kp{margin-top:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;flex:0 0 auto}.ch-kp div{background:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.95);border-radius:15px;padding:6px 0;text-align:center}.ch-kp b{display:block;font-size:20px;font-weight:900;color:#4a2337;line-height:1.15}.ch-kp small{font-size:11px;color:#9a6b82;font-weight:700}
 .ch-g2{margin-top:10px;flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:none;display:grid;grid-template-columns:1fr 1fr;gap:0 22px;align-content:start;border-top:1px solid rgba(214,96,146,.2);padding-top:2px}.ch-g2::-webkit-scrollbar{display:none}.ch-g2>div{min-width:0}
@@ -4185,11 +4188,7 @@ function ChDayCard({
     className: "ch-empty"
   }, zh ? '這天沒有記錄' : 'Không có ghi chép'))), more && React.createElement("span", {
     className: "ch-more"
-  }, "↓ ", zh ? '往下還有' : 'Còn nữa')), isToday && React.createElement("div", {
-    className: "ch-gb"
-  }, React.createElement(GloveBanner, {
-    settings: settings
-  })));
+  }, "↓ ", zh ? '往下還有' : 'Còn nữa')));
 }
 function ChPeriodCard({
   settings,
@@ -4202,7 +4201,8 @@ function ChPeriodCard({
   getDay,
   upOf,
   today,
-  onOpenDay
+  onOpenDay,
+  glove
 }) {
   var tot = 0,
     lao = 0,
@@ -4250,7 +4250,11 @@ function ChPeriodCard({
     className: "ch-kp"
   }, React.createElement("div", null, React.createElement("b", null, tot), React.createElement("small", null, zh ? '支數' : t.units)), React.createElement("div", null, React.createElement("b", null, lao), React.createElement("small", null, t.laodian)), React.createElement("div", null, React.createElement("b", null, wd), React.createElement("small", null, zh ? '上班天數' : 'Ngày làm'))), React.createElement("div", {
     className: "ch-g2"
-  }, React.createElement("div", null, cells.slice(0, half)), React.createElement("div", null, cells.slice(half))));
+  }, React.createElement("div", null, cells.slice(0, half)), React.createElement("div", null, cells.slice(half))), glove && React.createElement("div", {
+    className: "ch-gb"
+  }, React.createElement(GloveBanner, {
+    settings: settings
+  })));
 }
 function ChYearCard({
   settings,
@@ -4340,8 +4344,29 @@ function ChHome({
   onStore,
   onBasic,
   fn,
-  settingsAlert
+  settingsAlert,
+  onUpdate
 }) {
+  var [showBk] = React.useState(() => {
+    var u = '';
+    try {
+      u = getMyLineUserId() || '';
+    } catch (_e) {}
+    return !u && !(settings && settings.email) && typeof BackupSection === 'function';
+  });
+  React.useEffect(() => {
+    var F = window.MPFx;
+    if (!F) return;
+    var ap = () => F.apply({
+      meshParent: '.ch-bg'
+    });
+    ap();
+    window.addEventListener('mp-fx', ap);
+    return () => {
+      window.removeEventListener('mp-fx', ap);
+      F.clear();
+    };
+  }, []);
   var zh = t === T.zh;
   var bp = bizParts();
   var yOff = (settings.year || bp.y) - bp.y;
@@ -4468,7 +4493,7 @@ function ChHome({
     from: 16,
     to: dim(bp.y, bp.m)
   }];
-  var nPg = days.length + periods.length + 2;
+  var nPg = days.length + periods.length + 2 + (showBk ? 1 : 0);
   var todayIdx = days.length;
   var toToday = smooth => {
     var dk_ = deckRef.current,
@@ -4612,6 +4637,7 @@ function ChHome({
     key: 'p' + p.M + '-' + p.from,
     className: 'ch-pg' + (idx === todayIdx + 1 ? ' cur' : '')
   }, React.createElement(ChPeriodCard, {
+    glove: true,
     settings: settings,
     t: t,
     zh: zh,
@@ -4628,7 +4654,7 @@ function ChHome({
       D
     })
   }))), React.createElement("section", {
-    className: 'ch-pg' + (idx >= todayIdx + 2 ? ' cur' : '')
+    className: 'ch-pg' + ((showBk ? idx === todayIdx + 2 : idx >= todayIdx + 2) ? ' cur' : '')
   }, React.createElement(ChYearCard, {
     settings: settings,
     t: t,
@@ -4638,7 +4664,22 @@ function ChHome({
     upOf: upOf,
     today: today,
     onMonth: m => fn.monthly(m)
-  })), React.createElement("section", {
+  })), showBk && React.createElement("section", {
+    className: 'ch-pg' + (idx >= todayIdx + 3 ? ' cur' : '')
+  }, React.createElement("div", {
+    className: "ch-card ch-bk"
+  }, React.createElement("div", {
+    className: "ch-dt"
+  }, React.createElement("b", null, zh ? '備份' : 'Sao lưu'), React.createElement("em", null, zh ? '還沒設定' : 'Chưa thiết lập')), React.createElement("p", {
+    className: "ch-bkw"
+  }, zh ? '⚠ 目前資料只存在這支手機，換手機或清除資料就會不見。設定好 LINE 或 Email 備份後，這頁會自動隱藏。' : '⚠ Dữ liệu chỉ lưu trên điện thoại này. Sau khi thiết lập sao lưu LINE hoặc Email, trang này sẽ tự ẩn.'), React.createElement("div", {
+    className: "ch-bks"
+  }, React.createElement(BackupSection, {
+    settings: settings,
+    t: t,
+    onUpdate: onUpdate,
+    lineUserId: ""
+  })))), React.createElement("section", {
     className: "ch-fnpg"
   }, React.createElement("div", {
     className: "ch-fn"
@@ -5279,6 +5320,7 @@ function HomePage({
     onUpdateSettings: onUpdateSettings,
     onLogout: onLogout
   }), React.createElement(ChHome, {
+    onUpdate: onUpdateSettings,
     settings: settings,
     t: t,
     refreshKey: refreshKey,
