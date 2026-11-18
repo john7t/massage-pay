@@ -1,4 +1,4 @@
-/*BUILD c=themes/classic/classic-app-core.c.js v=1.13-080 src=dev/themes/classic/classic-app-core.js h=e4231fc8 t=2026-11-17 10:41*/
+/*BUILD c=themes/classic/classic-app-core_c.js v=1.13-080 src=dev/themes/classic/classic-app-core.js h=e4231fc8 t=2026-11-19 02:04*/
 var {
   LS,
   getKeyConfig,
