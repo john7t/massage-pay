@@ -1,4 +1,4 @@
-/*BUILD c=settings.c.js v=1.13-079 src=dev/settings.js h=ecba3c8f t=2026-11-17 10:41*/
+/*BUILD c=settings_c.js v=1.13-081 src=dev/settings.js h=d6a287a3 t=2026-11-19 02:32*/
 var {
   useState,
   useEffect,
@@ -399,6 +399,12 @@ async function bindSyncCloud(uid, settings) {
     pend: pend
   };
 }
+function maskEmail(em) {
+  em = String(em || '');
+  var i = em.indexOf('@');
+  if (i < 1) return em ? em.charAt(0) + '***' : '';
+  return em.charAt(0) + '***' + em.slice(i);
+}
 function BackupSection({
   settings,
   t,
@@ -408,6 +414,8 @@ function BackupSection({
   var [cloudBusy, setCloudBusy] = useState(false);
   var [cloudMsg, setCloudMsg] = useState(null);
   var [emailInput, setEmailInput] = useState(settings.email || '');
+  var [unb, setUnb] = useState(false);
+  var [unbInput, setUnbInput] = useState('');
   var [emailMsg, setEmailMsg] = useState(null);
   var [emailBusy, setEmailBusy] = useState(false);
   var saveEmail = async () => {
@@ -742,7 +750,67 @@ function BackupSection({
     }, emailOn ? zh ? '✓ 已設定' : '✓ Đã đặt' : zh ? '未設定' : 'Chưa đặt')
   }), React.createElement("p", {
     className: "text-sm text-gray-400 leading-relaxed"
-  }, t.emailBackupDesc), React.createElement("input", {
+  }, t.emailBackupDesc), emailOn ? React.createElement(React.Fragment, null, React.createElement("div", {
+    className: "mt-3 flex items-center gap-2 min-h-[48px] px-3.5 rounded-xl bg-white/[0.06] border border-white/[0.1]"
+  }, React.createElement("span", {
+    className: "text-sm text-gray-400"
+  }, zh ? '已綁定' : 'Đã liên kết'), React.createElement("b", {
+    className: "text-base text-gray-100 tracking-wide"
+  }, maskEmail(settings.email))), unb ? React.createElement("div", {
+    className: "mt-3 space-y-2.5"
+  }, React.createElement("p", {
+    className: "text-sm text-gray-300"
+  }, zh ? '請輸入原本綁定的 Email 確認：' : 'Nhập Email đã liên kết để xác nhận:'), React.createElement("input", {
+    type: "email",
+    inputMode: "email",
+    autoComplete: "off",
+    autoCapitalize: "none",
+    value: unbInput,
+    onChange: e => {
+      setUnbInput(e.target.value);
+      setEmailMsg(null);
+    },
+    placeholder: "name@example.com",
+    className: "w-full h-12 bg-white/[0.06] border border-white/[0.1] rounded-xl px-3.5 text-base text-gray-100 focus:outline-none focus:border-amber-400"
+  }), React.createElement("div", {
+    className: "grid grid-cols-2 gap-2.5"
+  }, React.createElement("button", {
+    onClick: () => {
+      setUnb(false);
+      setUnbInput('');
+      setEmailMsg(null);
+    },
+    className: "h-12 rounded-xl border border-white/[0.2] text-gray-200 text-[15px] font-bold"
+  }, zh ? '返回' : 'Quay lại'), React.createElement("button", {
+    onClick: () => {
+      if (normEmail(unbInput) !== normEmail(settings.email)) {
+        setEmailMsg({
+          ok: false,
+          text: zh ? 'Email 不正確，請輸入原本綁定的 Email' : 'Email không đúng'
+        });
+        return;
+      }
+      if (onUpdate) onUpdate(Object.assign({}, settings, {
+        email: ''
+      }));
+      setUnb(false);
+      setUnbInput('');
+      setEmailInput('');
+      setEmailMsg({
+        ok: true,
+        text: zh ? '已取消綁定，之後不會再自動備份到這個 Email。' : 'Đã hủy liên kết.'
+      });
+    },
+    className: "h-12 rounded-xl bg-red-500 text-white text-[15px] font-bold"
+  }, zh ? '確認取消綁定' : 'Xác nhận hủy'))) : React.createElement("button", {
+    onClick: () => {
+      setUnb(true);
+      setEmailMsg(null);
+    },
+    className: "mt-3 w-full h-12 rounded-xl border border-red-400/60 text-red-400 text-[15px] font-bold"
+  }, zh ? '取消綁定' : 'Hủy liên kết'), emailMsg && React.createElement("p", {
+    className: `mt-2 text-sm ${emailMsg.ok ? 'text-emerald-400' : 'text-red-400'}`
+  }, emailMsg.text)) : React.createElement(React.Fragment, null, React.createElement("input", {
     type: "email",
     inputMode: "email",
     autoComplete: "email",
@@ -757,10 +825,19 @@ function BackupSection({
   }), emailMsg && React.createElement("p", {
     className: `mt-2 text-sm ${emailMsg.ok ? 'text-emerald-400' : 'text-red-400'}`
   }, emailMsg.text), React.createElement("button", {
-    onClick: saveEmail,
+    onClick: () => {
+      if (!normEmail(emailInput)) {
+        setEmailMsg({
+          ok: false,
+          text: t.emailInvalid || 'Email 格式不正確'
+        });
+        return;
+      }
+      saveEmail();
+    },
     disabled: emailBusy,
     className: "mt-3 w-full h-12 rounded-xl bg-amber-400 text-gray-950 text-[15px] font-bold disabled:opacity-60 active:opacity-85"
-  }, emailBusy ? '…' : t.emailSaveBtn), React.createElement("p", {
+  }, emailBusy ? '…' : zh ? '綁定 Email' : 'Liên kết Email')), React.createElement("p", {
     className: "mt-3 text-[13px] text-amber-300 leading-relaxed"
   }, t.emailPrivacy)), React.createElement("section", {
     className: "border-t border-white/[0.1] py-5"
@@ -3028,7 +3105,9 @@ function SettingsPage({
     }
   }, l))), React.createElement("p", {
     className: "text-xs text-gray-500 mt-2"
-  }, lang === 'zh' ? '切換後會重新載入頁面,資料不受影響。' : 'Trang sẽ tải lại sau khi đổi, dữ liệu không đổi.'))), React.createElement("div", {
+  }, lang === 'zh' ? '切換後會重新載入頁面,資料不受影響。' : 'Trang sẽ tải lại sau khi đổi, dữ liệu không đổi.')), (window.__appUi || 'card') === 'card' && window.MPFx && React.createElement(FxRow, {
+    lang: lang
+  })), React.createElement("div", {
     className: "text-[13px] font-semibold text-gray-400 px-1 -mb-3"
   }, lang === 'zh' ? '帳號與備份' : 'Tài khoản & sao lưu'), React.createElement("div", {
     className: "bg-white/[0.04] border border-white/[0.06] rounded-2xl overflow-hidden divide-y divide-white/[0.06]"
@@ -4092,3 +4171,34 @@ window.__V = Object.assign(window.__V || {}, {
   BackupSection,
   SettingsPage
 });
+function FxRow({
+  lang
+}) {
+  var zh = lang !== 'vi';
+  var [v, setV] = React.useState(() => window.MPFx.get());
+  var L = [['glow', zh ? '光影移動' : 'Ánh sáng'], ['petals', zh ? '櫻花飄落' : 'Hoa rơi'], ['mesh', zh ? '流動背景' : 'Nền chuyển động'], ['off', zh ? '關閉' : 'Tắt']];
+  return React.createElement("div", {
+    className: "px-4 py-3"
+  }, React.createElement("div", {
+    className: "flex items-center justify-between mb-2"
+  }, React.createElement("span", {
+    className: "text-base text-gray-200"
+  }, zh ? '卡片效果' : 'Hiệu ứng thẻ'), React.createElement("span", {
+    className: "text-sm text-gray-500"
+  }, (L.find(x => x[0] === v) || L[1])[1])), React.createElement("div", {
+    className: "grid grid-cols-4 gap-2",
+    role: "radiogroup",
+    "aria-label": zh ? '卡片效果' : 'Hiệu ứng thẻ'
+  }, L.map(([k, l]) => React.createElement("button", {
+    key: k,
+    role: "radio",
+    "aria-checked": v === k,
+    onClick: () => {
+      window.MPFx.set(k);
+      setV(k);
+    },
+    className: `min-h-[44px] rounded-xl border text-sm font-semibold ${v === k ? 'border-amber-500 ring-2 ring-amber-500 text-amber-300' : 'border-white/[0.2] text-gray-300'}`
+  }, l))), React.createElement("p", {
+    className: "text-xs text-gray-500 mt-2"
+  }, zh ? '一次只能開一種效果;系統開「減少動態效果」時會自動停止動畫。' : 'Chỉ bật một hiệu ứng; tự dừng khi bật "Giảm chuyển động".'));
+}
