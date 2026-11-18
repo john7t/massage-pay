@@ -1,4 +1,4 @@
-/*BUILD my2.js v1.0-021 編譯版 h=ee0175e8 t=2026-11-17 16:47*/
+/*BUILD my2.js v1.0-022 編譯版 h=6a26c2e8 t=2026-11-19 02:04*/
 (function () {
   const {
     useState,
@@ -641,6 +641,12 @@ html:not(.s2-nolight):not(.s2-pink) .wf .text-4xl,html:not(.s2-nolight):not(.s2-
   function My2Page({
     me
   }) {
+    useEffect(() => {
+      const F = window.MPFx;
+      if (!F || !document.documentElement.classList.contains('s2-pink')) return;
+      F.apply({});
+      return () => F.clear();
+    }, []);
     const lang = me.user && me.user.lang === 'vi' ? 'vi' : 'zh';
     const t = L[lang];
     const today = todayStr();
