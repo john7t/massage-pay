@@ -1,4 +1,4 @@
-/*BUILD c=app-core_c.js v=1.14-011 src=dev/app-core.js h=0fea7b44 t=2026-11-19 08:14*/
+/*BUILD c=app-core_c.js v=1.14-012 src=dev/app-core.js h=bf8ed0f0 t=2026-11-19 08:35*/
 var {
   LS,
   getKeyConfig,
@@ -3938,6 +3938,7 @@ html:not(.mp-fx-glow) .ch-pg.cur .ch-card::before{animation:none;opacity:0}
 .ch-rx ul{margin:0;padding-left:18px;font-size:13.5px;line-height:1.55;color:#5a3a4a}
 .ch-rxq,.ch-rxs{margin-top:8px;border-radius:12px;padding:8px 10px;font-size:14px;line-height:1.6;color:#4a2a3a}.ch-rxq{background:rgba(224,242,254,.7)}.ch-rxs{background:rgba(255,255,255,.65)}
 .ch-rxq b,.ch-rxs b{display:block;font-size:12px;color:#B0306A;margin-bottom:2px}.ch-rx .script-highlight{color:#B0306A;font-weight:700}
+.ch-rxw{margin:8px 0 2px;font-size:11.5px;line-height:1.5;color:#9a7085}
 .ch-rxbtn{flex:0 0 auto;margin-top:8px;min-height:44px;border-radius:14px;background:#E0528F;color:#fff;font-weight:700;font-size:15px}
 .ch-bkw{margin:8px 0 0;font-size:13px;line-height:1.5;color:#b0306a;background:rgba(255,255,255,.6);border-radius:12px;padding:8px 10px}
 .ch-bks{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;margin-top:4px}.ch-gb a{margin:0 0 6px!important;background:rgba(255,255,255,.7)!important;border:1px solid rgba(240,97,154,.3)!important;border-radius:18px!important}.ch-gb>div{margin:0!important}
@@ -4415,13 +4416,15 @@ function ChRxCard({
     key: i
   }, x))), React.createElement("div", {
     className: "ch-rxq"
-  }, React.createElement("b", null, "🗣 ", zh ? '問診開場' : 'Câu hỏi khách'), React.createElement("span", null, V(p.askTip, p.askVi))), React.createElement("div", {
+  }, React.createElement("b", null, "🗣 ", zh ? '關心提問' : 'Câu hỏi quan tâm'), React.createElement("span", null, V(p.askTip, p.askVi))), React.createElement("div", {
     className: "ch-rxs"
   }, React.createElement("b", null, zh ? '精簡話術' : 'Lời thoại ngắn'), React.createElement("span", {
     dangerouslySetInnerHTML: {
       __html: sc
     }
-  }))), React.createElement("button", {
+  }))), React.createElement("p", {
+    className: "ch-rxw"
+  }, "⚠ ", zh ? '反射區內容僅供保健溝通參考，痠痛不代表身體疾病，也不能作為醫療評估或診斷；身體不適請就醫。' : 'Nội dung vùng phản xạ chỉ để tham khảo khi trò chuyện chăm sóc sức khỏe, đau nhức không có nghĩa là bị bệnh và không thay thế đánh giá hay chẩn đoán y khoa; nếu khó chịu hãy đi khám bác sĩ.'), React.createElement("button", {
     className: "ch-rxbtn",
     onClick: () => onOpen(z.id, k)
   }, zh ? '看完整解說 ›' : 'Xem đầy đủ ›'));
