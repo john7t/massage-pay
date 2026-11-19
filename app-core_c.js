@@ -1,4 +1,4 @@
-/*BUILD c=app-core_c.js v=1.14-010 src=dev/app-core.js h=f06e32c8 t=2026-11-19 02:32*/
+/*BUILD c=app-core_c.js v=1.14-011 src=dev/app-core.js h=0fea7b44 t=2026-11-19 08:14*/
 var {
   LS,
   getKeyConfig,
@@ -3932,6 +3932,13 @@ html:not(.mp-fx-glow) .ch-pg.cur .ch-card::before{animation:none;opacity:0}
 .ch-rw .l2{margin:3px 0 0 60px;font-size:13.5px;color:#7a4a62;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ch-empty{padding:18px 6px;text-align:center;font-size:13px;color:#b08a9b;border-top:1px solid rgba(214,96,146,.16)}
 .ch-gb{flex:0 0 auto;margin-top:8px;max-height:132px;overflow-y:auto}
+.ch-rxb{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;margin-top:6px}
+.ch-rx h3{margin:0;font-size:17px;font-weight:800;color:#5a2440;line-height:1.35}.ch-rxo{margin:4px 0 0;font-size:13px;color:#8a5a72}
+.ch-rxf{max-width:170px;margin:6px auto 2px;pointer-events:none}.ch-rxh{margin:6px 0 2px;font-size:13px;font-weight:700;color:#5a2440}
+.ch-rx ul{margin:0;padding-left:18px;font-size:13.5px;line-height:1.55;color:#5a3a4a}
+.ch-rxq,.ch-rxs{margin-top:8px;border-radius:12px;padding:8px 10px;font-size:14px;line-height:1.6;color:#4a2a3a}.ch-rxq{background:rgba(224,242,254,.7)}.ch-rxs{background:rgba(255,255,255,.65)}
+.ch-rxq b,.ch-rxs b{display:block;font-size:12px;color:#B0306A;margin-bottom:2px}.ch-rx .script-highlight{color:#B0306A;font-weight:700}
+.ch-rxbtn{flex:0 0 auto;margin-top:8px;min-height:44px;border-radius:14px;background:#E0528F;color:#fff;font-weight:700;font-size:15px}
 .ch-bkw{margin:8px 0 0;font-size:13px;line-height:1.5;color:#b0306a;background:rgba(255,255,255,.6);border-radius:12px;padding:8px 10px}
 .ch-bks{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;margin-top:4px}.ch-gb a{margin:0 0 6px!important;background:rgba(255,255,255,.7)!important;border:1px solid rgba(240,97,154,.3)!important;border-radius:18px!important}.ch-gb>div{margin:0!important}
 .ch-pay{margin-top:12px;flex:0 0 auto}.ch-pay small{display:block;font-size:12px;color:#9a6b82;font-weight:700}.ch-pay b{font-size:36px;font-weight:900;letter-spacing:-.02em;color:#d83a7c;line-height:1.15;font-variant-numeric:tabular-nums}
@@ -4336,6 +4343,89 @@ function ChYearCard({
     className: "ch-yl"
   }, rows));
 }
+function ChRxCard({
+  zh,
+  dateKey,
+  onOpen
+}) {
+  var [db, setDb] = React.useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('rx-data-v1') || 'null');
+    } catch (_e) {
+      return null;
+    }
+  });
+  React.useEffect(() => {
+    fetch('data/reflex.json?t=' + Math.floor(Date.now() / 36e5)).then(r => r.json()).then(d => {
+      setDb(d);
+      try {
+        localStorage.setItem('rx-data-v1', JSON.stringify(d));
+      } catch (_e) {}
+    }).catch(() => {});
+  }, []);
+  if (!db) return React.createElement("div", {
+    className: "ch-card"
+  }, React.createElement("div", {
+    className: "ch-dt"
+  }, React.createElement("b", null, zh ? '今日反射區' : 'Phản xạ hôm nay')), React.createElement("p", {
+    style: {
+      margin: 'auto',
+      color: '#9a7085',
+      fontSize: 14
+    }
+  }, zh ? '載入中…(需要網路一次)' : 'Đang tải…'));
+  var all = [];
+  Object.values(db).forEach(z => Object.entries(z.points).forEach(([k, p]) => all.push({
+    z,
+    k,
+    p
+  })));
+  var h = 0;
+  for (var c of String(dateKey)) h = h * 31 + c.charCodeAt(0) >>> 0;
+  h = (h ^ h >>> 13) * 2654435761 >>> 0;
+  var {
+    z,
+    k,
+    p
+  } = all[h % all.length];
+  var V = (a, b) => zh ? a : b || a;
+  var zsc = z.zoneScripts && z.zoneScripts.concise;
+  var sc = zh ? p.scripts && p.scripts.concise || zsc && zsc.zh || '' : zsc && zsc.vi || p.scripts && p.scripts.concise || '';
+  var syms = !zh && p.symptomsVi ? p.symptomsVi : p.symptoms;
+  var Foot = window.RxFoot;
+  return React.createElement("div", {
+    className: "ch-card ch-rx"
+  }, React.createElement("div", {
+    className: "ch-dt"
+  }, React.createElement("b", null, zh ? '今日反射區' : 'Phản xạ hôm nay'), React.createElement("em", null, zh ? z.name.replace(/（.*$/, '') : z.shortVi || z.name)), React.createElement("div", {
+    className: "ch-rxb"
+  }, React.createElement("h3", null, V(p.title, p.posVi)), React.createElement("p", {
+    className: "ch-rxo"
+  }, zh ? '對應:' : 'Tương ứng: ', V(p.organs, p.organsVi)), Foot && React.createElement("div", {
+    className: "ch-rxf"
+  }, React.createElement(Foot, {
+    vi: !zh,
+    z: z,
+    pt: k,
+    onZone: () => {},
+    onPt: () => {}
+  })), React.createElement("p", {
+    className: "ch-rxh"
+  }, zh ? '常見狀況' : 'Thường gặp'), React.createElement("ul", null, syms.slice(0, 2).map((x, i) => React.createElement("li", {
+    key: i
+  }, x))), React.createElement("div", {
+    className: "ch-rxq"
+  }, React.createElement("b", null, "🗣 ", zh ? '問診開場' : 'Câu hỏi khách'), React.createElement("span", null, V(p.askTip, p.askVi))), React.createElement("div", {
+    className: "ch-rxs"
+  }, React.createElement("b", null, zh ? '精簡話術' : 'Lời thoại ngắn'), React.createElement("span", {
+    dangerouslySetInnerHTML: {
+      __html: sc
+    }
+  }))), React.createElement("button", {
+    className: "ch-rxbtn",
+    onClick: () => onOpen(z.id, k)
+  }, zh ? '看完整解說 ›' : 'Xem đầy đủ ›'));
+}
 function ChHome({
   settings,
   t,
@@ -4493,7 +4583,7 @@ function ChHome({
     from: 16,
     to: dim(bp.y, bp.m)
   }];
-  var nPg = days.length + periods.length + 2 + (showBk ? 1 : 0);
+  var nPg = days.length + periods.length + 3 + (showBk ? 1 : 0);
   var todayIdx = days.length;
   var toToday = smooth => {
     var dk_ = deckRef.current,
@@ -4654,7 +4744,7 @@ function ChHome({
       D
     })
   }))), React.createElement("section", {
-    className: 'ch-pg' + ((showBk ? idx === todayIdx + 2 : idx >= todayIdx + 2) ? ' cur' : '')
+    className: 'ch-pg' + (idx === todayIdx + 2 ? ' cur' : '')
   }, React.createElement(ChYearCard, {
     settings: settings,
     t: t,
@@ -4664,8 +4754,20 @@ function ChHome({
     upOf: upOf,
     today: today,
     onMonth: m => fn.monthly(m)
+  })), React.createElement("section", {
+    className: 'ch-pg' + ((showBk ? idx === todayIdx + 3 : idx >= todayIdx + 3) ? ' cur' : '')
+  }, React.createElement(ChRxCard, {
+    zh: zh,
+    dateKey: bp.y + '-' + bp.m + '-' + bp.d,
+    onOpen: (zk, pk) => {
+      try {
+        sessionStorage.setItem('acu-mode', 'rx');
+        sessionStorage.setItem('rx-go', zk + '|' + pk);
+      } catch (_e) {}
+      fn.acupoint();
+    }
   })), showBk && React.createElement("section", {
-    className: 'ch-pg' + (idx >= todayIdx + 3 ? ' cur' : '')
+    className: 'ch-pg' + (idx >= todayIdx + 4 ? ' cur' : '')
   }, React.createElement("div", {
     className: "ch-card ch-bk"
   }, React.createElement("div", {
