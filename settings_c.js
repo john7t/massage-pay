@@ -1,4 +1,4 @@
-/*BUILD c=settings_c.js v=1.13-084 src=dev/settings.js h=a43b2afe t=2026-11-19 08:35*/
+/*BUILD c=settings_c.js v=1.13-087 src=dev/settings.js h=d907f446 t=2026-11-19 09:40*/
 var {
   useState,
   useEffect,
@@ -1252,6 +1252,211 @@ function CustomerPage({
 var RX_CACHE = 'rx-data-v1';
 var RX_CSS = `.rx .script-highlight{background:#FDE7F0;color:#B0306A;font-weight:700;padding:0 .3em;border-radius:.35em;border-bottom:2px solid #F3A6C8}
 .rx strong{color:#B0306A}.rx-big .rx-sc{font-size:19px!important;line-height:1.85!important}.rx-big .rx-db{font-size:17px!important;line-height:1.7!important}`;
+var RX_ZC = {
+  toes: '#E0528F',
+  forefoot: '#F08A3C',
+  arch: '#3BA58B',
+  heel: '#6C7BD9',
+  inner: '#B65FCF',
+  outer: '#2F9BD6',
+  dorsum: '#D9A21F'
+};
+var RX_ZL = {
+  toes: 'T',
+  forefoot: 'F',
+  arch: 'A',
+  heel: 'H',
+  inner: 'I',
+  outer: 'O',
+  dorsum: 'D'
+};
+var RX_PL = {
+  toes: {
+    plantar: [105, 38],
+    medial: [81, 57],
+    lateral: [129, 57],
+    dorsal: [105, 82],
+    otherToes: [170, 50]
+  },
+  forefoot: {
+    trapezius: [150, 95],
+    lung: [140, 122],
+    heart: [184, 118],
+    liver: [200, 132],
+    stomach: [108, 148]
+  },
+  arch: {
+    kidney: [150, 182],
+    intestine: [158, 218],
+    spine: [98, 200]
+  },
+  heel: {
+    insomnia: [150, 292],
+    bladder: [118, 252],
+    reproductive: [168, 305],
+    sciatic: [190, 268]
+  }
+};
+var rxCode = (z, pk) => RX_ZL[z.id] + (Object.keys(z.points).indexOf(pk) + 1);
+function RxPlantar({
+  z,
+  pt,
+  onZone,
+  onPt,
+  vi
+}) {
+  var W = (a, b) => vi ? b : a;
+  var c = RX_ZC[z.id];
+  var fill = k => k === z.id ? c + '40' : '#f6eef2';
+  var st = k => k === z.id ? c : '#d9c6cf';
+  var PL = RX_PL[z.id] || {};
+  return React.createElement("svg", {
+    viewBox: "0 0 300 345",
+    className: "w-full max-w-[260px] h-auto select-none mx-auto"
+  }, React.createElement("g", {
+    onClick: () => onZone('toes')
+  }, [[105, 48, 20, 28], [138, 42, 11, 19], [160, 47, 10, 17], [180, 55, 9, 15], [198, 66, 8, 13]].map((e, i) => React.createElement("ellipse", {
+    key: i,
+    cx: e[0],
+    cy: e[1],
+    rx: e[2],
+    ry: e[3],
+    fill: fill('toes'),
+    stroke: st('toes'),
+    strokeWidth: "1.6"
+  }))), React.createElement("path", {
+    onClick: () => onZone('forefoot'),
+    d: "M 82 86 Q 150 74 214 90 L 205 158 Q 150 150 90 158 Z",
+    fill: fill('forefoot'),
+    stroke: st('forefoot'),
+    strokeWidth: "1.8"
+  }), React.createElement("path", {
+    onClick: () => onZone('arch'),
+    d: "M 90 162 Q 150 154 205 162 L 195 240 Q 150 234 102 240 Z",
+    fill: fill('arch'),
+    stroke: st('arch'),
+    strokeWidth: "1.8"
+  }), React.createElement("path", {
+    onClick: () => onZone('heel'),
+    d: "M 102 244 Q 150 238 195 244 C 199 297, 181 325, 150 325 C 117 325, 98 297, 102 244 Z",
+    fill: fill('heel'),
+    stroke: st('heel'),
+    strokeWidth: "1.8"
+  }), React.createElement("text", {
+    x: "40",
+    y: "200",
+    textAnchor: "middle",
+    fontSize: "9",
+    fill: "#9a7085"
+  }, W('◀ 內側', '◀ Trong')), React.createElement("text", {
+    x: "262",
+    y: "200",
+    textAnchor: "middle",
+    fontSize: "9",
+    fill: "#9a7085"
+  }, W('外側 ▶', 'Ngoài ▶')), Object.entries(PL).map(([pk, [x, y]]) => {
+    var on = pt === pk;
+    var t = rxCode(z, pk);
+    return React.createElement("g", {
+      key: pk,
+      onClick: () => onPt(pk)
+    }, React.createElement("circle", {
+      cx: x,
+      cy: y,
+      r: z.id === 'toes' ? on ? 11.5 : 10 : on ? 14 : 12,
+      fill: on ? c : '#fff',
+      stroke: c,
+      strokeWidth: "2.5"
+    }), React.createElement("text", {
+      x: x,
+      y: y + (z.id === 'toes' ? 3.5 : 4),
+      textAnchor: "middle",
+      fontSize: z.id === 'toes' ? 9.5 : 11,
+      fontWeight: "800",
+      fill: on ? '#fff' : c
+    }, t));
+  }), React.createElement("text", {
+    x: "150",
+    y: "340",
+    textAnchor: "middle",
+    fontSize: "9",
+    fill: "#9a7085"
+  }, z.id === 'forefoot' ? W('右腳足底(F3 心臟看左腳、F4 肝膽看右腳)', 'Lòng chân phải (F3 tim: chân trái · F4 gan: chân phải)') : W('右腳足底', 'Lòng bàn chân phải')));
+}
+function RxMapCard({
+  vi
+}) {
+  var [open, setOpen] = useState(false);
+  var [zoom, setZoom] = useState(false);
+  var src = 'data/reflex-map-' + (vi ? 'vi' : 'zh') + '.jpg?v=2';
+  return React.createElement(React.Fragment, null, React.createElement("button", {
+    onClick: () => setOpen(true),
+    className: "block w-full text-left rounded-2xl overflow-hidden border border-white/[0.1] bg-white relative",
+    style: {
+      height: 180
+    }
+  }, React.createElement("img", {
+    src: src,
+    alt: vi ? 'Sơ đồ vùng phản xạ bàn chân' : '足部反射區圖解',
+    loading: "lazy",
+    style: {
+      width: '100%',
+      display: 'block'
+    }
+  }), React.createElement("span", {
+    style: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: 70,
+      background: 'linear-gradient(transparent,rgba(255,240,246,.97))'
+    }
+  }), React.createElement("span", {
+    style: {
+      position: 'absolute',
+      right: 12,
+      bottom: 10,
+      background: '#E0528F',
+      color: '#fff',
+      fontWeight: 700,
+      fontSize: 14,
+      borderRadius: 999,
+      padding: '8px 14px'
+    }
+  }, vi ? '🔍 Xem sơ đồ toàn bàn chân' : '🔍 看全足圖解')), open && React.createElement("div", {
+    className: "fixed inset-0 z-[80] flex flex-col",
+    style: {
+      background: 'rgba(40,10,25,.92)'
+    },
+    role: "dialog",
+    "aria-modal": "true"
+  }, React.createElement("div", {
+    className: "flex gap-2 p-3 justify-end flex-shrink-0"
+  }, React.createElement("button", {
+    onClick: () => setZoom(!zoom),
+    className: "min-h-[44px] px-4 rounded-xl bg-white/90 text-gray-900 font-bold"
+  }, zoom ? vi ? 'Thu nhỏ' : '縮小' : vi ? 'Phóng to' : '放大'), React.createElement("button", {
+    onClick: () => {
+      setOpen(false);
+      setZoom(false);
+    },
+    className: "min-h-[44px] px-4 rounded-xl bg-white/90 text-gray-900 font-bold"
+  }, "✕ ", vi ? 'Đóng' : '關閉')), React.createElement("div", {
+    className: "flex-1 overflow-auto",
+    style: {
+      WebkitOverflowScrolling: 'touch'
+    }
+  }, React.createElement("img", {
+    src: src,
+    alt: "",
+    style: {
+      width: zoom ? '200%' : '100%',
+      maxWidth: 'none',
+      display: 'block'
+    }
+  }))));
+}
 function RxFoot({
   z,
   pt,
@@ -1263,6 +1468,25 @@ function RxFoot({
   var A = '#E0528F',
     N = '#FBE4EE',
     S = '#C9A3B5';
+  if (RX_PL[z.id] && !z.__thumb) return React.createElement(React.Fragment, null, React.createElement(RxPlantar, {
+    z: z,
+    pt: pt,
+    onZone: onZone,
+    onPt: onPt,
+    vi: vi
+  }), z.svgType === 'thumbDetail' && React.createElement("div", {
+    className: "mt-1"
+  }, React.createElement("p", {
+    className: "text-[12px] text-gray-400 text-center"
+  }, W('大拇指四個面細節', 'Chi tiết 4 mặt ngón cái')), React.createElement(RxFoot, {
+    z: Object.assign({}, z, {
+      __thumb: 1
+    }),
+    pt: pt,
+    onZone: onZone,
+    onPt: onPt,
+    vi: vi
+  })));
   if (z.svgType === 'thumbDetail') {
     var f = k => pt === k ? A : N,
       tc = k => pt === k ? '#fff' : '#3B322C';
@@ -1365,6 +1589,7 @@ function RxFoot({
       lateral: [[65, 112], [140, 128], [200, 126], [248, 100]],
       dorsal: [[[112, 300], [188, 300]], [[128, 112]], [[165, 160], [195, 165]], [[118, 72], [150, 262]]]
     }[z.view] || [];
+    var ZCc = RX_ZC[z.id] || A;
     var mk = (n, x, y, key) => {
       var on = pt === key;
       return React.createElement("g", {
@@ -1374,17 +1599,17 @@ function RxFoot({
         cx: x,
         cy: y,
         r: "14",
-        fill: on ? A : '#fff',
-        stroke: on ? '#8a4a68' : A,
-        strokeWidth: "2"
+        fill: on ? ZCc : '#fff',
+        stroke: ZCc,
+        strokeWidth: "2.5"
       }), React.createElement("text", {
         x: x,
-        y: y + 5,
+        y: y + 4,
         textAnchor: "middle",
-        fontSize: "14",
-        fontWeight: "bold",
-        fill: on ? '#fff' : A
-      }, n));
+        fontSize: "11",
+        fontWeight: "800",
+        fill: on ? '#fff' : ZCc
+      }, RX_ZL[z.id] + n));
     };
     if (z.view === 'dorsal') return React.createElement("svg", {
       viewBox: "0 0 300 340",
@@ -1608,6 +1833,7 @@ function ReflexPage({
     setAdv('');
     setQ('');
   };
+  var SRC = '吳若石神父足部反射健康法 ‧ 調理師現場溝通寶典';
   var V = (zh, vi) => isVi ? vi || zh : zh;
   var A2 = (zh, vi) => alt ? isVi ? zh : vi : '';
   var zsc = z.zoneScripts && z.zoneScripts[sv];
@@ -1715,13 +1941,29 @@ function ReflexPage({
     key: zz.id,
     onClick: () => goZone(zz.id),
     className: `flex-shrink-0 h-11 text-[15px] font-semibold whitespace-nowrap border-b-2 ${zk === zz.id ? 'text-amber-400 border-amber-400' : 'text-[#aab2c0] border-transparent'}`
-  }, zName(zz)))), React.createElement("div", {
-    className: "rounded-2xl border border-white/[0.1] bg-white/[0.04] p-3"
+  }, zName(zz))), React.createElement("button", {
+    onClick: () => {
+      setZk('src');
+      setAdv('');
+      setQ('');
+    },
+    className: `flex-shrink-0 h-11 text-[15px] font-semibold whitespace-nowrap border-b-2 ${zk === 'src' ? 'text-amber-400 border-amber-400' : 'text-[#aab2c0] border-transparent'}`
+  }, L('資料來源', 'Nguồn'))), zk === 'src' ? React.createElement("div", {
+    className: "rounded-2xl border border-white/[0.1] bg-white/[0.05] p-4 space-y-3"
   }, React.createElement("p", {
-    className: "text-sm font-bold text-amber-300"
-  }, "💡 ", V(z.bannerTitle, z.bannerTitleVi)), React.createElement("p", {
-    className: "rx-db text-[13px] text-gray-300 leading-relaxed mt-1"
-  }, V(z.bannerDesc, z.bannerDescVi)), A2(z.bannerDesc, z.bannerDescVi) && React.createElement(AltBox, null, A2(z.bannerDesc, z.bannerDescVi))), React.createElement(RxFoot, {
+    className: "text-sm text-gray-400"
+  }, L('目前版本依據', 'Phiên bản hiện tại dựa trên')), React.createElement("p", {
+    className: "text-lg font-bold text-gray-100 leading-snug"
+  }, "📚 ", SRC), isVi && React.createElement("p", {
+    className: "text-[13px] text-sky-400"
+  }, "Phương pháp phản xạ bàn chân của Cha Josef Eugster ‧ Cẩm nang giao tiếp tại chỗ cho kỹ thuật viên"), React.createElement("a", {
+    href: 'https://www.google.com/search?q=' + encodeURIComponent(SRC),
+    target: "_blank",
+    rel: "noopener noreferrer",
+    className: "flex items-center justify-center gap-2 min-h-[48px] rounded-xl bg-amber-400 text-gray-950 text-[15px] font-bold"
+  }, "🔎 ", L('用 Google 搜尋這個來源', 'Tìm nguồn này trên Google'), " ↗"), React.createElement("p", {
+    className: "text-[12px] text-gray-500"
+  }, L('會另開新頁到 Google 搜尋結果。', 'Sẽ mở trang mới với kết quả tìm kiếm Google.'))) : React.createElement(React.Fragment, null, React.createElement(RxFoot, {
     vi: isVi,
     z: z,
     pt: pk,
@@ -1730,18 +1972,34 @@ function ReflexPage({
   }), React.createElement("p", {
     className: "text-[11px] text-gray-500 text-center -mt-1"
   }, V(z.svgCaption, z.svgCaptionVi || (isVi ? 'Chạm số trên hình hoặc nút bên dưới để chuyển' : ''))), React.createElement("div", {
+    className: "rounded-2xl border border-white/[0.1] bg-white/[0.04] p-3"
+  }, React.createElement("p", {
+    className: "text-sm font-bold text-amber-300"
+  }, "💡 ", V(z.bannerTitle, z.bannerTitleVi)), React.createElement("p", {
+    className: "rx-db text-[13px] text-gray-300 leading-relaxed mt-1"
+  }, V(z.bannerDesc, z.bannerDescVi)), A2(z.bannerDesc, z.bannerDescVi) && React.createElement(AltBox, null, A2(z.bannerDesc, z.bannerDescVi))), React.createElement("div", {
     className: "grid grid-cols-2 gap-2"
   }, Object.entries(pts).map(([k, x], i, arr) => React.createElement("button", {
     key: k,
     onClick: () => setPk(k),
     className: `min-h-[44px] rounded-xl border px-2 text-[13px] font-semibold ${arr.length % 2 && i === arr.length - 1 ? 'col-span-2' : ''} ${p === x ? 'border-amber-400 bg-amber-400/10 text-amber-300' : 'border-white/[0.14] text-gray-300'}`
-  }, V(x.btnLabel, x.btnLabelVi)))), React.createElement("div", {
+  }, React.createElement("span", {
+    className: "inline-block text-[11px] font-extrabold text-white rounded-full px-1.5 mr-1 align-[1px]",
+    style: {
+      background: RX_ZC[z.id]
+    }
+  }, rxCode(z, k)), V(x.btnLabel, x.btnLabelVi).replace(/^\d+\.\s*/, '')))), React.createElement("div", {
     className: "rounded-2xl border border-white/[0.1] bg-white/[0.05] p-4 space-y-3"
   }, React.createElement("div", null, React.createElement("p", {
     className: "text-[11px] text-gray-400"
   }, V(p.badge, p.badgeVi)), React.createElement("h3", {
     className: "text-lg font-bold text-gray-100 leading-snug mt-0.5"
-  }, V(p.title, p.posVi)), A2(p.title, p.posVi) && React.createElement("p", {
+  }, React.createElement("span", {
+    className: "inline-block text-[12px] font-extrabold text-white rounded-full px-2 py-0.5 mr-1.5 align-[3px]",
+    style: {
+      background: RX_ZC[z.id]
+    }
+  }, rxCode(z, pk in pts ? pk : z.defaultPoint)), V(p.title, p.posVi)), A2(p.title, p.posVi) && React.createElement("p", {
     className: "text-[13px] text-sky-400"
   }, A2(p.title, p.posVi)), React.createElement("p", {
     className: "rx-db text-[13px] text-gray-400 mt-1"
@@ -1844,7 +2102,7 @@ function ReflexPage({
     }, a.quoteLabel), React.createElement("p", {
       className: "text-gray-200 mt-0.5"
     }, a.quote))));
-  }), React.createElement("p", {
+  })), React.createElement("p", {
     className: "text-[11px] text-gray-500 text-center pb-2"
   }, L('⚠ 反射區內容僅供保健溝通參考，痠痛不代表身體疾病，也不能作為醫療評估或診斷；身體不適請就醫。', '⚠ Nội dung vùng phản xạ chỉ để tham khảo khi trò chuyện chăm sóc sức khỏe, đau nhức không có nghĩa là bị bệnh và không thay thế đánh giá hay chẩn đoán y khoa; nếu khó chịu hãy đi khám bác sĩ.'))));
 }
