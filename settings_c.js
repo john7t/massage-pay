@@ -1,4 +1,4 @@
-/*BUILD c=settings_c.js v=1.13-083 src=dev/settings.js h=55de6293 t=2026-11-19 08:14*/
+/*BUILD c=settings_c.js v=1.13-084 src=dev/settings.js h=a43b2afe t=2026-11-19 08:35*/
 var {
   useState,
   useEffect,
@@ -1760,7 +1760,7 @@ function ReflexPage({
     className: "rounded-xl bg-sky-400/10 border border-sky-400/30 px-3 py-2.5"
   }, React.createElement("p", {
     className: "text-xs font-bold text-sky-400 mb-1"
-  }, "🗣 ", L('問診開場', 'Câu mở đầu hỏi khách')), React.createElement("p", {
+  }, "🗣 ", L('關心提問', 'Câu hỏi quan tâm')), React.createElement("p", {
     className: "rx-db text-[14px] text-gray-200 leading-relaxed"
   }, V(p.askTip, p.askVi)), !isVi && p.ask2 && p.ask2 !== p.askTip && React.createElement("p", {
     className: "rx-db text-[14px] text-gray-200 leading-relaxed mt-1.5"
@@ -1846,7 +1846,7 @@ function ReflexPage({
     }, a.quote))));
   }), React.createElement("p", {
     className: "text-[11px] text-gray-500 text-center pb-2"
-  }, L('反射區痠痛只代表該區循環或疲勞,不代表器官生病;話術僅供溝通參考,不可做醫療診斷。', 'Đau vùng phản xạ chỉ phản ánh tuần hoàn hoặc mệt mỏi, không có nghĩa nội tạng bị bệnh; lời thoại chỉ để tham khảo giao tiếp, không dùng để chẩn đoán y khoa.'))));
+  }, L('⚠ 反射區內容僅供保健溝通參考，痠痛不代表身體疾病，也不能作為醫療評估或診斷；身體不適請就醫。', '⚠ Nội dung vùng phản xạ chỉ để tham khảo khi trò chuyện chăm sóc sức khỏe, đau nhức không có nghĩa là bị bệnh và không thay thế đánh giá hay chẩn đoán y khoa; nếu khó chịu hãy đi khám bác sĩ.'))));
 }
 function AcupointPage(props) {
   var [mode, setMode] = useState(() => {
