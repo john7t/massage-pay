@@ -1,4 +1,4 @@
-/*BUILD c=settings_c.js v=1.13-081 src=dev/settings.js h=d6a287a3 t=2026-11-19 02:32*/
+/*BUILD c=settings_c.js v=1.13-083 src=dev/settings.js h=55de6293 t=2026-11-19 08:14*/
 var {
   useState,
   useEffect,
@@ -1249,7 +1249,630 @@ function CustomerPage({
     className: `w-full min-h-[48px] mt-1 rounded-xl text-[15px] font-semibold ${delConfirm ? "bg-red-600 text-white" : "text-red-400"}`
   }, delConfirm ? t.custDelConfirm || "再按一次確認刪除" : t.custDelBtn || "刪除此客戶")))));
 }
-function AcupointPage({
+var RX_CACHE = 'rx-data-v1';
+var RX_CSS = `.rx .script-highlight{background:#FDE7F0;color:#B0306A;font-weight:700;padding:0 .3em;border-radius:.35em;border-bottom:2px solid #F3A6C8}
+.rx strong{color:#B0306A}.rx-big .rx-sc{font-size:19px!important;line-height:1.85!important}.rx-big .rx-db{font-size:17px!important;line-height:1.7!important}`;
+function RxFoot({
+  z,
+  pt,
+  onZone,
+  onPt,
+  vi
+}) {
+  var W = (a, b) => vi ? b : a;
+  var A = '#E0528F',
+    N = '#FBE4EE',
+    S = '#C9A3B5';
+  if (z.svgType === 'thumbDetail') {
+    var f = k => pt === k ? A : N,
+      tc = k => pt === k ? '#fff' : '#3B322C';
+    return React.createElement("svg", {
+      viewBox: "0 0 320 290",
+      className: "w-full max-w-[250px] h-auto select-none mx-auto"
+    }, React.createElement("g", {
+      onClick: () => onPt('dorsal')
+    }, React.createElement("path", {
+      d: "M 95 210 Q 160 250 225 210 L 215 243 Q 160 273 105 243 Z",
+      fill: f('dorsal'),
+      stroke: S,
+      strokeWidth: "2"
+    }), React.createElement("text", {
+      x: "160",
+      y: "241",
+      textAnchor: "middle",
+      fontSize: "11.5",
+      fontWeight: "bold",
+      fill: tc('dorsal')
+    }, W('4. 趾根與趾背(頸/顎)', '4. Gốc & mu ngón (cổ/hàm)'))), React.createElement("path", {
+      d: "M 105 125 C 105 60, 215 60, 215 125 L 220 200 C 220 215, 100 215, 100 200 Z",
+      fill: "#FFF8FB",
+      stroke: S,
+      strokeWidth: "2.5"
+    }), React.createElement("g", {
+      onClick: () => onPt('medial')
+    }, React.createElement("path", {
+      d: "M 105 125 C 105 85, 128 71, 136 71 L 136 207 L 100 200 Z",
+      fill: f('medial'),
+      stroke: S,
+      strokeWidth: "1.5"
+    }), React.createElement("text", {
+      x: "118",
+      y: "150",
+      textAnchor: "middle",
+      fontSize: "11",
+      fontWeight: "bold",
+      fill: tc('medial')
+    }, "2")), React.createElement("g", {
+      onClick: () => onPt('lateral')
+    }, React.createElement("path", {
+      d: "M 215 125 C 215 85, 192 71, 184 71 L 184 207 L 220 200 Z",
+      fill: f('lateral'),
+      stroke: S,
+      strokeWidth: "1.5"
+    }), React.createElement("text", {
+      x: "202",
+      y: "150",
+      textAnchor: "middle",
+      fontSize: "11",
+      fontWeight: "bold",
+      fill: tc('lateral')
+    }, "3")), React.createElement("g", {
+      onClick: () => onPt('plantar')
+    }, React.createElement("rect", {
+      x: "136",
+      y: "70",
+      width: "48",
+      height: "138",
+      rx: "16",
+      fill: f('plantar'),
+      stroke: "#8a4a68",
+      strokeWidth: "2"
+    }), React.createElement("circle", {
+      cx: "160",
+      cy: "130",
+      r: "6",
+      fill: "#fff"
+    }), React.createElement("text", {
+      x: "160",
+      y: "100",
+      textAnchor: "middle",
+      fontSize: "12",
+      fontWeight: "bold",
+      fill: tc('plantar')
+    }, W('1. 指腹', '1. Lòng')), React.createElement("text", {
+      x: "160",
+      y: "165",
+      textAnchor: "middle",
+      fontSize: "10",
+      fill: tc('plantar')
+    }, W('大腦/小腦', 'Não'))), React.createElement("text", {
+      x: "52",
+      y: "140",
+      textAnchor: "middle",
+      fontSize: "11",
+      fill: "#9a7085"
+    }, W('◀ 腳內側', '◀ Trong')), React.createElement("text", {
+      x: "268",
+      y: "140",
+      textAnchor: "middle",
+      fontSize: "11",
+      fill: "#9a7085"
+    }, W('靠二趾 ▶', 'Ngón 2 ▶')));
+  }
+  if (z.svgType === 'side') {
+    var M = {
+      medial: [[255, 108], [205, 126], [140, 132], [86, 104]],
+      lateral: [[65, 112], [140, 128], [200, 126], [248, 100]],
+      dorsal: [[[112, 300], [188, 300]], [[128, 112]], [[165, 160], [195, 165]], [[118, 72], [150, 262]]]
+    }[z.view] || [];
+    var mk = (n, x, y, key) => {
+      var on = pt === key;
+      return React.createElement("g", {
+        key: key + x,
+        onClick: () => onPt(key)
+      }, React.createElement("circle", {
+        cx: x,
+        cy: y,
+        r: "14",
+        fill: on ? A : '#fff',
+        stroke: on ? '#8a4a68' : A,
+        strokeWidth: "2"
+      }), React.createElement("text", {
+        x: x,
+        y: y + 5,
+        textAnchor: "middle",
+        fontSize: "14",
+        fontWeight: "bold",
+        fill: on ? '#fff' : A
+      }, n));
+    };
+    if (z.view === 'dorsal') return React.createElement("svg", {
+      viewBox: "0 0 300 340",
+      className: "w-full max-w-[220px] h-auto select-none mx-auto"
+    }, React.createElement("path", {
+      d: "M 92 92 C 80 150, 88 230, 100 290 L 104 330 L 196 330 L 200 290 C 214 230, 222 150, 210 92 Z",
+      fill: N,
+      stroke: S,
+      strokeWidth: "2"
+    }), [[110, 62, 22, 30], [147, 54, 12, 22], [172, 60, 11, 19], [193, 72, 10, 16], [210, 88, 9, 13]].map((e, i) => React.createElement("ellipse", {
+      key: i,
+      cx: e[0],
+      cy: e[1],
+      rx: e[2],
+      ry: e[3],
+      fill: N,
+      stroke: S,
+      strokeWidth: "1.6"
+    })), React.createElement("path", {
+      d: "M 100 262 Q 150 252 200 262",
+      fill: "none",
+      stroke: S,
+      strokeWidth: "1.5",
+      strokeDasharray: "4 3"
+    }), React.createElement("text", {
+      x: "150",
+      y: "16",
+      textAnchor: "middle",
+      fontSize: "11",
+      fill: "#9a7085"
+    }, W('腳背(俯視)', 'Mu chân (nhìn từ trên)')), M.map((ps, i) => ps.map(([x, y]) => mk(i + 1, x, y, 'p' + (i + 1)))));
+    var flip = z.view === 'lateral';
+    return React.createElement("svg", {
+      viewBox: "0 0 320 180",
+      className: "w-full max-w-[300px] h-auto select-none mx-auto"
+    }, React.createElement("g", {
+      transform: flip ? 'translate(320,0) scale(-1,1)' : undefined
+    }, React.createElement("path", {
+      d: "M 40 120 C 30 90, 50 62, 85 56 L 92 14 L 142 14 L 146 62 C 176 72, 226 86, 266 100 C 291 106, 302 116, 300 129 C 298 141, 282 146, 262 146 L 206 148 C 176 128, 128 126, 100 146 L 66 150 C 46 148, 40 138, 40 120 Z",
+      fill: N,
+      stroke: S,
+      strokeWidth: "2"
+    }), React.createElement("circle", {
+      cx: "118",
+      cy: "72",
+      r: "9",
+      fill: "none",
+      stroke: S,
+      strokeWidth: "1.5"
+    })), React.createElement("text", {
+      x: "160",
+      y: "172",
+      textAnchor: "middle",
+      fontSize: "11",
+      fill: "#9a7085"
+    }, flip ? W('足外側(小趾在左)', 'Cạnh ngoài (ngón út bên trái)') : W('足內側(大拇指在右)', 'Cạnh trong (ngón cái bên phải)')), M.map(([x, y], i) => mk(i + 1, x, y, 'p' + (i + 1))));
+  }
+  var a = z.activeZone,
+    fl = k => a === k ? A : N,
+    tx = k => a === k ? '#fff' : '#3B322C',
+    st = k => a === k ? '#8a4a68' : S;
+  return React.createElement("svg", {
+    viewBox: "0 0 300 335",
+    className: "w-full max-w-[230px] h-auto select-none mx-auto"
+  }, React.createElement("text", {
+    x: "36",
+    y: "175",
+    textAnchor: "middle",
+    fontSize: "11",
+    fill: "#9a7085"
+  }, W('◀ 內側', '◀ Trong')), React.createElement("text", {
+    x: "264",
+    y: "175",
+    textAnchor: "middle",
+    fontSize: "11",
+    fill: "#9a7085"
+  }, W('外側 ▶', 'Ngoài ▶')), React.createElement("g", {
+    onClick: () => onZone('toes')
+  }, [[105, 48, 18, 26], [136, 44, 10, 18], [158, 49, 9, 16], [178, 57, 8.5, 14], [196, 68, 7.5, 12]].map((e, i) => React.createElement("ellipse", {
+    key: i,
+    cx: e[0],
+    cy: e[1],
+    rx: e[2],
+    ry: e[3],
+    fill: N,
+    stroke: S,
+    strokeWidth: "1.6"
+  })), React.createElement("text", {
+    x: "150",
+    y: "14",
+    textAnchor: "middle",
+    fontSize: "10.5",
+    fontWeight: "bold",
+    fill: "#9a7085"
+  }, W('1. 腳趾區', '1. Ngón chân'))), React.createElement("g", {
+    onClick: () => onZone('forefoot')
+  }, React.createElement("path", {
+    d: "M 85 86 Q 150 76 212 92 L 204 156 Q 150 148 92 156 Z",
+    fill: fl('forefoot'),
+    stroke: st('forefoot'),
+    strokeWidth: "2"
+  }), React.createElement("text", {
+    x: "150",
+    y: "118",
+    textAnchor: "middle",
+    fontSize: "13",
+    fontWeight: "bold",
+    fill: tx('forefoot')
+  }, W('2. 前腳掌', '2. Ức chân')), React.createElement("text", {
+    x: "150",
+    y: "135",
+    textAnchor: "middle",
+    fontSize: "10.5",
+    fill: tx('forefoot')
+  }, W('肩頸‧心肺‧肝膽‧胃', 'Vai‧tim phổi‧gan‧dạ dày'))), React.createElement("g", {
+    onClick: () => onZone('arch')
+  }, React.createElement("path", {
+    d: "M 92 160 Q 150 152 204 160 L 194 238 Q 150 232 104 238 Z",
+    fill: fl('arch'),
+    stroke: st('arch'),
+    strokeWidth: "2"
+  }), React.createElement("text", {
+    x: "152",
+    y: "196",
+    textAnchor: "middle",
+    fontSize: "13",
+    fontWeight: "bold",
+    fill: tx('arch')
+  }, W('3. 足弓', '3. Vòm chân')), React.createElement("text", {
+    x: "152",
+    y: "213",
+    textAnchor: "middle",
+    fontSize: "10.5",
+    fill: tx('arch')
+  }, W('腎‧腸‧脊椎', 'Thận‧ruột‧cột sống'))), React.createElement("g", {
+    onClick: () => onZone('heel')
+  }, React.createElement("path", {
+    d: "M 104 242 Q 150 236 194 242 C 198 295, 180 322, 150 322 C 118 322, 100 295, 104 242 Z",
+    fill: fl('heel'),
+    stroke: st('heel'),
+    strokeWidth: "2"
+  }), React.createElement("text", {
+    x: "150",
+    y: "278",
+    textAnchor: "middle",
+    fontSize: "13",
+    fontWeight: "bold",
+    fill: tx('heel')
+  }, W('4. 腳跟', '4. Gót chân')), React.createElement("text", {
+    x: "150",
+    y: "295",
+    textAnchor: "middle",
+    fontSize: "10.5",
+    fill: tx('heel')
+  }, W('膀胱‧生殖‧失眠', 'Bàng quang‧sinh dục‧ngủ'))));
+}
+function ReflexPage({
+  t
+}) {
+  var isVi = t === T.vi;
+  var L = (zh, vi) => isVi ? vi : zh;
+  var [db, setDb] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(RX_CACHE) || 'null');
+    } catch (_e) {
+      return null;
+    }
+  });
+  var go0 = (() => {
+    try {
+      var g = sessionStorage.getItem('rx-go');
+      if (g) {
+        sessionStorage.removeItem('rx-go');
+        return g.split('|');
+      }
+    } catch (_e) {}
+    return null;
+  })();
+  var [err, setErr] = useState('');
+  var [zk, setZk] = useState(go0 ? go0[0] : 'toes');
+  var [pk, setPk] = useState(go0 ? go0[1] : 'plantar');
+  var [sv, setSv] = useState('standard');
+  var [q, setQ] = useState('');
+  var [big, setBig] = useState(() => {
+    try {
+      return localStorage.getItem('rx-big') === '1';
+    } catch (_e) {
+      return false;
+    }
+  });
+  var [adv, setAdv] = useState('');
+  var [cp, setCp] = useState(false);
+  var [alt, setAlt] = useState(() => {
+    try {
+      return localStorage.getItem('rx-alt-' + (isVi ? 'vi' : 'zh')) === '1';
+    } catch (_e) {
+      return false;
+    }
+  });
+  useEffect(() => {
+    fetch('data/reflex.json?t=' + Math.floor(Date.now() / 36e5), {
+      cache: 'no-cache'
+    }).then(r => r.json()).then(d => {
+      setDb(d);
+      try {
+        localStorage.setItem(RX_CACHE, JSON.stringify(d));
+      } catch (_e) {}
+    }).catch(e => {
+      if (!db) setErr(L('載入失敗,請確認網路後再試', 'Tải thất bại, vui lòng kiểm tra mạng'));
+    });
+  }, []);
+  if (!db) return React.createElement("div", {
+    className: "py-10 text-center text-sm text-gray-400"
+  }, err || L('載入中…', 'Đang tải…'));
+  var z = db[zk] || db.toes,
+    pts = z.points,
+    p = pts[pk] || pts[z.defaultPoint];
+  var goZone = k => {
+    setZk(k);
+    setPk(db[k].defaultPoint);
+    setAdv('');
+    setQ('');
+  };
+  var V = (zh, vi) => isVi ? vi || zh : zh;
+  var A2 = (zh, vi) => alt ? isVi ? zh : vi : '';
+  var zsc = z.zoneScripts && z.zoneScripts[sv];
+  var scZh = p.scripts && p.scripts[sv] || zsc && zsc.zh || '';
+  var scVi = zsc && zsc.vi || '';
+  var scMain = isVi ? scVi || scZh : scZh,
+    scAlt = alt ? isVi ? scZh : scVi : '';
+  var hits = q.trim() ? Object.values(db).flatMap(zz => Object.entries(zz.points).filter(([k, x]) => (x.keywords + x.title + x.organs + x.symptoms.join('') + (x.organsVi || '') + (x.posVi || '') + (x.askVi || '') + (x.btnLabelVi || '') + (x.symptomsVi || []).join('')).toLowerCase().indexOf(q.trim().toLowerCase()) >= 0).map(([k, x]) => ({
+    zk: zz.id,
+    pk: k,
+    x,
+    zz
+  }))) : null;
+  var H = ({
+    html,
+    cls
+  }) => React.createElement("span", {
+    className: cls,
+    dangerouslySetInnerHTML: {
+      __html: html
+    }
+  });
+  var copy = () => {
+    var tx = scMain.replace(/<[^>]+>/g, '');
+    try {
+      navigator.clipboard.writeText(tx).then(() => {
+        setCp(true);
+        setTimeout(() => setCp(false), 1500);
+      });
+    } catch (_e) {}
+  };
+  var SV = [['standard', L('標準專業', 'Chuyên nghiệp')], ['gentle', L('溫暖安撫', 'Nhẹ nhàng')], ['concise', L('精簡重點', 'Ngắn gọn')]];
+  var zName = zz => isVi ? zz.shortVi || zz.name : zz.name.replace(/（.*$/, '').replace(/區?$/, zz.id === 'inner' || zz.id === 'outer' ? '' : '區');
+  var AltBox = ({
+    children,
+    html
+  }) => React.createElement("div", {
+    className: "mt-1.5 rounded-lg bg-sky-400/10 border border-sky-400/30 px-2.5 py-1.5"
+  }, React.createElement("p", {
+    className: "text-[11px] font-bold text-sky-400"
+  }, isVi ? '🇹🇼 中文' : '🇻🇳 Tiếng Việt'), React.createElement("p", {
+    className: "rx-db text-[14px] text-gray-200 leading-relaxed"
+  }, html ? React.createElement(H, {
+    html: html
+  }) : children));
+  var syms = isVi && p.symptomsVi ? p.symptomsVi : p.symptoms;
+  return React.createElement("div", {
+    className: 'rx space-y-3 fi' + (big ? ' rx-big' : '')
+  }, React.createElement("style", null, RX_CSS), React.createElement("div", {
+    className: "flex gap-2"
+  }, React.createElement("div", {
+    className: "relative flex-1"
+  }, React.createElement("input", {
+    value: q,
+    onChange: e => setQ(e.target.value),
+    placeholder: L('搜症狀:失眠、胃脹、腰痠、偏頭痛…', 'Tìm: mất ngủ, đầy bụng, đau lưng…'),
+    className: "w-full h-11 bg-white/[0.06] border border-white/[0.10] rounded-xl pl-3 pr-9 text-[15px] text-gray-100 focus:outline-none focus:border-amber-400"
+  }), q && React.createElement("button", {
+    onClick: () => setQ(''),
+    "aria-label": "clear",
+    className: "absolute right-0 top-0 w-10 h-11 text-gray-400"
+  }, "✕")), React.createElement("button", {
+    onClick: () => {
+      var v = !alt;
+      setAlt(v);
+      try {
+        localStorage.setItem('rx-alt-' + (isVi ? 'vi' : 'zh'), v ? '1' : '0');
+      } catch (_e) {}
+    },
+    "aria-pressed": alt,
+    title: L('顯示越南文對照', 'Hiện tiếng Trung đối chiếu'),
+    className: `w-12 h-11 rounded-xl border text-sm font-bold ${alt ? 'border-amber-400 text-amber-400' : 'border-white/[0.14] text-gray-300'}`
+  }, isVi ? '中' : '越'), React.createElement("button", {
+    onClick: () => {
+      var v = !big;
+      setBig(v);
+      try {
+        localStorage.setItem('rx-big', v ? '1' : '0');
+      } catch (_e) {}
+    },
+    "aria-pressed": big,
+    className: `w-12 h-11 rounded-xl border text-sm font-bold ${big ? 'border-amber-400 text-amber-400' : 'border-white/[0.14] text-gray-300'}`
+  }, "A+")), hits ? React.createElement("div", {
+    className: "space-y-2"
+  }, hits.length === 0 && React.createElement("p", {
+    className: "text-sm text-gray-400 py-4 text-center"
+  }, L('找不到「' + q + '」相關的反射區', 'Không tìm thấy "' + q + '"')), hits.map(h => React.createElement("button", {
+    key: h.zk + h.pk,
+    onClick: () => {
+      setZk(h.zk);
+      setPk(h.pk);
+      setQ('');
+    },
+    className: "w-full text-left rounded-xl border border-white/[0.1] bg-white/[0.04] px-3 py-2.5"
+  }, React.createElement("p", {
+    className: "text-[15px] font-bold text-gray-100"
+  }, V(h.x.title, h.x.posVi)), React.createElement("p", {
+    className: "text-xs text-gray-400 mt-0.5"
+  }, zName(h.zz), " ‧ ", V(h.x.organs, h.x.organsVi))))) : React.createElement(React.Fragment, null, React.createElement("div", {
+    className: "flex gap-4 overflow-x-auto border-b border-white/[0.08]",
+    style: {
+      scrollbarWidth: 'none'
+    }
+  }, Object.values(db).map(zz => React.createElement("button", {
+    key: zz.id,
+    onClick: () => goZone(zz.id),
+    className: `flex-shrink-0 h-11 text-[15px] font-semibold whitespace-nowrap border-b-2 ${zk === zz.id ? 'text-amber-400 border-amber-400' : 'text-[#aab2c0] border-transparent'}`
+  }, zName(zz)))), React.createElement("div", {
+    className: "rounded-2xl border border-white/[0.1] bg-white/[0.04] p-3"
+  }, React.createElement("p", {
+    className: "text-sm font-bold text-amber-300"
+  }, "💡 ", V(z.bannerTitle, z.bannerTitleVi)), React.createElement("p", {
+    className: "rx-db text-[13px] text-gray-300 leading-relaxed mt-1"
+  }, V(z.bannerDesc, z.bannerDescVi)), A2(z.bannerDesc, z.bannerDescVi) && React.createElement(AltBox, null, A2(z.bannerDesc, z.bannerDescVi))), React.createElement(RxFoot, {
+    vi: isVi,
+    z: z,
+    pt: pk,
+    onZone: goZone,
+    onPt: k => pts[k] && setPk(k)
+  }), React.createElement("p", {
+    className: "text-[11px] text-gray-500 text-center -mt-1"
+  }, V(z.svgCaption, z.svgCaptionVi || (isVi ? 'Chạm số trên hình hoặc nút bên dưới để chuyển' : ''))), React.createElement("div", {
+    className: "grid grid-cols-2 gap-2"
+  }, Object.entries(pts).map(([k, x], i, arr) => React.createElement("button", {
+    key: k,
+    onClick: () => setPk(k),
+    className: `min-h-[44px] rounded-xl border px-2 text-[13px] font-semibold ${arr.length % 2 && i === arr.length - 1 ? 'col-span-2' : ''} ${p === x ? 'border-amber-400 bg-amber-400/10 text-amber-300' : 'border-white/[0.14] text-gray-300'}`
+  }, V(x.btnLabel, x.btnLabelVi)))), React.createElement("div", {
+    className: "rounded-2xl border border-white/[0.1] bg-white/[0.05] p-4 space-y-3"
+  }, React.createElement("div", null, React.createElement("p", {
+    className: "text-[11px] text-gray-400"
+  }, V(p.badge, p.badgeVi)), React.createElement("h3", {
+    className: "text-lg font-bold text-gray-100 leading-snug mt-0.5"
+  }, V(p.title, p.posVi)), A2(p.title, p.posVi) && React.createElement("p", {
+    className: "text-[13px] text-sky-400"
+  }, A2(p.title, p.posVi)), React.createElement("p", {
+    className: "rx-db text-[13px] text-gray-400 mt-1"
+  }, L('對應:', 'Tương ứng: '), V(p.organs, p.organsVi)), A2(p.organs, p.organsVi) && React.createElement("p", {
+    className: "rx-db text-[13px] text-sky-400"
+  }, A2(p.organs, p.organsVi))), React.createElement("div", null, React.createElement("p", {
+    className: "text-sm font-bold text-gray-200 mb-1"
+  }, L('常見生活狀況', 'Tình trạng thường gặp')), React.createElement("ul", {
+    className: "space-y-1"
+  }, syms.map((x, i) => React.createElement("li", {
+    key: i,
+    className: "rx-db text-[14px] text-gray-300 leading-relaxed flex gap-1.5"
+  }, React.createElement("span", {
+    className: "text-amber-400"
+  }, "•"), React.createElement("span", null, x))))), React.createElement("div", {
+    className: "rounded-xl bg-sky-400/10 border border-sky-400/30 px-3 py-2.5"
+  }, React.createElement("p", {
+    className: "text-xs font-bold text-sky-400 mb-1"
+  }, "🗣 ", L('問診開場', 'Câu mở đầu hỏi khách')), React.createElement("p", {
+    className: "rx-db text-[14px] text-gray-200 leading-relaxed"
+  }, V(p.askTip, p.askVi)), !isVi && p.ask2 && p.ask2 !== p.askTip && React.createElement("p", {
+    className: "rx-db text-[14px] text-gray-200 leading-relaxed mt-1.5"
+  }, "也可以問:", p.ask2), alt && React.createElement("p", {
+    className: "rx-db text-[14px] text-sky-300 leading-relaxed mt-1.5"
+  }, isVi ? '🇹🇼 ' + p.askTip : p.askVi ? '🇻🇳 ' + p.askVi : '')), React.createElement("div", null, React.createElement("div", {
+    className: "flex gap-1.5 mb-2"
+  }, SV.map(([k, l]) => React.createElement("button", {
+    key: k,
+    onClick: () => setSv(k),
+    className: `flex-1 min-h-[40px] rounded-lg text-[13px] font-bold border ${sv === k ? 'bg-amber-400 border-amber-400 text-gray-950' : 'border-white/[0.14] text-gray-300'}`
+  }, l))), React.createElement("p", {
+    className: "rx-sc text-[16px] text-gray-100 leading-[1.8]"
+  }, React.createElement(H, {
+    html: scMain
+  })), scAlt && React.createElement(AltBox, {
+    html: scAlt
+  }), React.createElement("button", {
+    onClick: copy,
+    className: "mt-2 w-full min-h-[44px] rounded-xl border border-white/[0.14] text-sm text-gray-300"
+  }, cp ? L('✓ 已複製', '✓ Đã sao chép') : L('複製這段話術', 'Sao chép lời thoại')))), [['L', z.advancedLeft], ['R', z.advancedRight], ['T', z.tips && z.tips.length ? {
+    badge: '實戰手法 ‧ 手足同療延伸',
+    title: '操作提醒與居家保健',
+    items: z.tips.map((x, i) => ({
+      num: String(i + 1),
+      heading: x.heading,
+      desc: x.desc
+    })),
+    vi: z.tipsVi ? {
+      badge: 'KỸ THUẬT THỰC HÀNH ‧ TAY CHÂN CÙNG TRỊ LIỆU',
+      title: 'Lưu ý thao tác & chăm sóc tại nhà',
+      items: z.tipsVi.map((x, i) => ({
+        num: String(i + 1),
+        heading: x.heading,
+        desc: x.desc
+      }))
+    } : null
+  } : null]].filter(x => x[1]).map(([k, a0]) => {
+    var a = isVi && a0.vi ? Object.assign({}, a0, a0.vi) : a0;
+    return React.createElement("div", {
+      key: k,
+      className: "rounded-2xl border border-white/[0.1] bg-white/[0.04]"
+    }, React.createElement("button", {
+      onClick: () => setAdv(adv === k ? '' : k),
+      className: "w-full text-left px-4 py-3 flex items-center gap-2"
+    }, React.createElement("span", {
+      className: "flex-1"
+    }, React.createElement("span", {
+      className: "block text-[11px] text-gray-400"
+    }, a.badge), React.createElement("span", {
+      className: "block text-[15px] font-bold text-gray-100"
+    }, a.title)), React.createElement("span", {
+      className: "text-gray-400"
+    }, adv === k ? '▲' : '▼')), adv === k && React.createElement("div", {
+      className: "px-4 pb-4 space-y-2.5 rx-db text-[14px] text-gray-300 leading-relaxed"
+    }, (a.subtitle || a.desc) && React.createElement("p", null, a.subtitle || a.desc), (a.items || []).map(it => React.createElement("div", {
+      key: it.num,
+      className: "flex gap-2"
+    }, React.createElement("span", {
+      className: "w-6 h-6 rounded-full bg-amber-400 text-gray-950 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5"
+    }, it.num), React.createElement("div", null, React.createElement("p", {
+      className: "font-bold text-gray-100"
+    }, it.heading), React.createElement("p", null, React.createElement(H, {
+      html: it.desc
+    }))))), a.cardTitle && React.createElement("div", {
+      className: "rounded-xl bg-white/[0.05] px-3 py-2"
+    }, React.createElement("p", {
+      className: "font-bold text-gray-100"
+    }, a.icon, " ", a.cardTitle), React.createElement("p", {
+      className: "text-xs text-gray-400"
+    }, a.cardSub), React.createElement("ul", {
+      className: "mt-1.5 space-y-1"
+    }, (a.tips || []).map((x, i) => React.createElement("li", {
+      key: i
+    }, "• ", React.createElement(H, {
+      html: x
+    }))))), a.quote && React.createElement("div", {
+      className: "rounded-xl bg-sky-400/10 border border-sky-400/30 px-3 py-2"
+    }, React.createElement("p", {
+      className: "text-xs font-bold text-sky-400"
+    }, a.quoteLabel), React.createElement("p", {
+      className: "text-gray-200 mt-0.5"
+    }, a.quote))));
+  }), React.createElement("p", {
+    className: "text-[11px] text-gray-500 text-center pb-2"
+  }, L('反射區痠痛只代表該區循環或疲勞,不代表器官生病;話術僅供溝通參考,不可做醫療診斷。', 'Đau vùng phản xạ chỉ phản ánh tuần hoàn hoặc mệt mỏi, không có nghĩa nội tạng bị bệnh; lời thoại chỉ để tham khảo giao tiếp, không dùng để chẩn đoán y khoa.'))));
+}
+function AcupointPage(props) {
+  var [mode, setMode] = useState(() => {
+    try {
+      return sessionStorage.getItem('acu-mode') || 'acu';
+    } catch (_e) {
+      return 'acu';
+    }
+  });
+  var sw = m => {
+    setMode(m);
+    try {
+      sessionStorage.setItem('acu-mode', m);
+    } catch (_e) {}
+  };
+  return React.createElement("div", null, React.createElement("div", {
+    className: "grid grid-cols-2 gap-1 p-1 rounded-xl bg-white/[0.06] mb-3"
+  }, [['acu', props.t === T.vi ? 'Huyệt đạo' : '穴道'], ['rx', props.t === T.vi ? 'Phản xạ bàn chân' : '腳底反射區話術']].map(([k, l]) => React.createElement("button", {
+    key: k,
+    onClick: () => sw(k),
+    className: `min-h-[40px] rounded-lg text-sm font-bold ${mode === k ? 'bg-amber-400 text-gray-950' : 'text-gray-300'}`
+  }, l))), mode === 'rx' ? React.createElement(ReflexPage, {
+    t: props.t
+  }) : React.createElement(AcupointPageInner, props));
+}
+function AcupointPageInner({
   t,
   settings
 }) {
