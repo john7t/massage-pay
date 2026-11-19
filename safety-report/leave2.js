@@ -1,4 +1,4 @@
-/*BUILD leave2.js v1.0-069 編譯版 h=3df3f278 t=2026-11-17 16:44*/
+/*BUILD leave2.js v1.0-070 編譯版 h=4b1bdc2a t=2026-11-19 11:09*/
 (function () {
   const {
     useState,
@@ -55,6 +55,8 @@
       st_draft: '尚未開放送出，可先排好並暫存；{o} 起可送出，進入公司排休階段',
       st_open: '登記期間中（到 {c} 前）：送出免審批，超休需主管簽字',
       st_late: '已超過送排休期間：目前送出後需主管審批',
+      st_none: '本店設定：送出即排休（免審批）',
+      st_all: '本店設定：所有休假送出後需主管審批',
       st_past: '這個月已過：資料已鎖定，僅供查看',
       used: '已排',
       days: '天',
@@ -135,6 +137,7 @@
       setSave: '儲存設定',
       setOk: '已儲存',
       flag_admin: '休假需簽核',
+      flag_all: '本店設定全部需審批',
       flag_late: '超過免審批期間',
       flag_person: '個人超過每月 6 天',
       flag_day: '當日已滿 6 人',
@@ -244,6 +247,8 @@
       st_draft: 'Chưa mở gửi đơn, có thể lưu tạm; từ {o} gửi đơn không cần duyệt',
       st_open: 'Đang trong thời gian đăng ký (đến {c}): gửi không cần duyệt, vượt mức cần quản lý ký',
       st_late: 'Đã quá thời gian không cần duyệt: gửi đơn cần quản lý duyệt',
+      st_none: 'Cửa hàng cài đặt: gửi là được nghỉ ngay (không cần duyệt)',
+      st_all: 'Cửa hàng cài đặt: mọi đơn nghỉ đều cần quản lý duyệt',
       st_past: 'Tháng này đã qua: dữ liệu đã khóa, chỉ để xem',
       used: 'Đã xếp',
       days: 'ngày',
@@ -323,6 +328,7 @@
       rosterHint: 'Hạn mức mỗi ca: ngày thường {w} người, T7/CN {e} người (có thể chỉnh trong cài đặt). Màu trắng = trong hạn mức, màu cam = vượt, cần quản lý điều phối; nghỉ của quản lý không tính hạn mức. Người đã được ký giữ lại có mã quản lý chữ đỏ nhỏ dưới số.',
       mgrTag: 'QL',
       flag_admin: 'Cần ký duyệt',
+      flag_all: 'Cửa hàng yêu cầu duyệt tất cả',
       flag_late: 'Quá thời gian không cần duyệt',
       flag_person: 'Vượt 6 ngày/tháng',
       flag_day: 'Ngày đã đủ 6 người',
@@ -1628,6 +1634,7 @@
     const [seqIn, setSeqIn] = useState({});
     const [cf, setCf] = useState(null);
     const [af, setAf] = useState(null);
+    const [apSel, setApSel] = useState(null);
     const [rvSure, setRvSure] = useState(false);
     const [hideSg, setHideSg] = useState(() => lsGet('lv2HideSigned', '0') === '1');
     const [pick, setPick] = useState({});
@@ -1813,7 +1820,7 @@
         } else if (!window.confirm((cx.length ? fmt(t.changeAskT, {
           c: cx.length,
           n: sel.length
-        }) + '\n' + (d.state === 'late' ? t.changeLate : t.changeOpen) : t.submitAsk) + (overP ? '\n' + t.submitOver : '') + remTxt)) return;
+        }) + '\n' + (d.apprMode === 'all' || d.apprMode !== 'none' && d.state === 'late' ? t.changeLate : t.changeOpen) : t.submitAsk) + (overP ? '\n' + t.submitOver : '') + remTxt)) return;
       }
       const r = await api('lv2Save', {
         month: month,
@@ -1877,7 +1884,9 @@
     const cells = [];
     for (let i = 0; i < first; i++) cells.push(null);
     for (let i = 1; i <= nd; i++) cells.push(month + '-' + p2(i));
-    const banner = {
+    const apM = d.apprMode || 'window';
+    const live = d.state === 'open' || d.state === 'late';
+    const banner = live && apM === 'none' ? t.st_none : live && apM === 'all' ? t.st_all : {
       tooEarly: t.st_tooEarly,
       draft: fmt(t.st_draft, {
         o: (d.opens || '').slice(5).replace('-', '/')
@@ -1888,7 +1897,7 @@
       late: t.st_late,
       past: t.st_past
     }[d.state];
-    const bannerCls = d.state === 'open' ? 'border-emerald-700 bg-emerald-950/40 text-emerald-300' : d.state === 'late' ? 'border-amber-700 bg-amber-950/40 text-amber-300' : 'border-gray-700 bg-gray-900 text-gray-300';
+    const bannerCls = live && apM === 'none' || d.state === 'open' && apM !== 'all' ? 'border-emerald-700 bg-emerald-950/40 text-emerald-300' : live ? 'border-amber-700 bg-amber-950/40 text-amber-300' : 'border-gray-700 bg-gray-900 text-gray-300';
     const flagText = f => String(f || '').split(',').filter(Boolean).map(x => t['flag_' + x]).join('、');
     const canEdit = d.canLeave && (d.state === 'draft' || d.state === 'open' || d.state === 'late');
     const canSubmit = canEdit && d.state !== 'draft' && (sel.length > 0 || cx.length > 0);
@@ -3476,7 +3485,50 @@
             reloadR();
           } else setErr(r && r.error || t.fail);
         })
-      }, t.setSave)));
+      }, t.setSave)), (() => {
+        const cur = apSel || d.apprMode || 'window';
+        const OP = [['window', vi ? 'Quá thời gian không cần duyệt thì cần duyệt (mặc định)' : '超過免審批期後需審批（預設）', vi ? 'Trong thời gian đăng ký gửi là được nghỉ; vượt mức hoặc quá hạn cần quản lý duyệt.' : '登記期間內送出直接生效；超休或過了期間要主管審批。'], ['none', vi ? 'Không cần duyệt, gửi là được nghỉ' : '均免審批，送出即可排休', vi ? 'Mọi đơn đều có hiệu lực ngay, kể cả vượt số ngày/tháng; hủy cũng có hiệu lực ngay.' : '所有休假送出就生效，含超過每月天數；取消也立即生效。'], ['all', vi ? 'Tất cả đều cần duyệt' : '均需審批', vi ? 'Mọi đơn nghỉ và hủy nghỉ đều phải chờ quản lý duyệt.' : '所有休假與取消，都要等主管審批後才生效。']];
+        return React.createElement("div", {
+          className: "space-y-2 pt-3 border-t border-gray-700"
+        }, React.createElement("p", {
+          className: "font-bold text-white text-[14px]"
+        }, vi ? 'Cách duyệt đơn nghỉ của nhân viên' : '員工休假審批方式'), OP.map(o => React.createElement("label", {
+          key: o[0],
+          className: 'flex items-start gap-2 rounded-xl border px-3 py-2.5 ' + (cur === o[0] ? 'border-violet-500 bg-violet-950/30' : 'border-gray-700')
+        }, React.createElement("input", {
+          type: "radio",
+          name: "lv2ap",
+          checked: cur === o[0],
+          onChange: () => setApSel(o[0]),
+          className: "w-4 h-4 mt-0.5 accent-violet-600"
+        }), React.createElement("span", null, React.createElement("span", {
+          className: "block text-[13px] font-bold text-gray-100"
+        }, o[1]), React.createElement("span", {
+          className: "block text-[12px] text-gray-400 leading-snug"
+        }, o[2])))), React.createElement("p", {
+          className: "text-[11px] text-gray-500"
+        }, vi ? 'Chỉ áp dụng cho đơn gửi sau khi lưu; quản lý tự xếp nghỉ không bị ảnh hưởng.' : '只影響儲存後新送出的休假；主管排休與管理者本人的設定不受影響。'), React.createElement(Btn, {
+          loading: busy,
+          onClick: () => run(async () => {
+            const r = await api('lv2SettingsSet', {
+              store: d.store,
+              wd: (cf || {
+                wd: String(lim.weekday)
+              }).wd,
+              we: (cf || {
+                we: String(lim.weekend)
+              }).we,
+              seqMode: d.seqMode,
+              apprMode: cur
+            });
+            if (r && r.ok) {
+              setMsg(t.setOk);
+              setApSel(null);
+              reloadR();
+            } else setErr(r && r.error || t.fail);
+          })
+        }, t.setSave));
+      })());
     })(), d.isMgr && (() => {
       const dl = d.deleg || {
         list: [],
