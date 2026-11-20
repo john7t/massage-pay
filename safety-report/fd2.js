@@ -1,4 +1,4 @@
-/*BUILD fd2.js v1.0-014 編譯版 h=7e314472 t=2026-11-20 13:35*/
+/*BUILD fd2.js v1.0-015 編譯版 h=dba91c54 t=2026-11-21 04:01*/
 (function () {
   const {
     useState,
@@ -17,7 +17,7 @@
     api,
     Spinner
   } = C;
-  const VER = 'v1.0-014';
+  const VER = 'v1.0-015';
   const SH = {
     A1: {
       n: '早班1',
@@ -280,7 +280,20 @@
             const x = r.results && r.results[o.opId];
             if (x) {
               done[o.opId] = 1;
-              if (!x.ok) bad.push(x.error || '操作失敗');
+              if (!x.ok) {
+                bad.push((o.act === 'sched_set' ? '班表沒有存成功:' : '') + (x.error || '操作失敗'));
+                if (o.act === 'sched_set') {
+                  const dd = LS.get(DK, {});
+                  dd[(o.uid || srv && srv.me && srv.me.uid || '') + '|' + o.month] = {
+                    base: o.base,
+                    days: o.days
+                  };
+                  LS.set(DK, dd);
+                  try {
+                    window.dispatchEvent(new Event('fd2draft'));
+                  } catch (_e) {}
+                }
+              }
             }
           });
           const rest = qR.current.filter(o => !done[o.opId]);
@@ -1564,6 +1577,11 @@
     const [pick, setPick] = useState('');
     const [more, setMore] = useState(false);
     const [drafts, setDrafts] = useState(() => LS.get(DK, {}));
+    useEffect(() => {
+      const f = () => setDrafts(LS.get(DK, {}));
+      window.addEventListener('fd2draft', f);
+      return () => window.removeEventListener('fd2draft', f);
+    }, []);
     const dk = tu + '|' + month;
     const dr = drafts[dk];
     const saveDr = o => {
@@ -3226,7 +3244,13 @@
       className: "text-xs underline mt-1"
     }, "知道了")), sync.err && React.createElement("p", {
       className: "text-sm text-red-400"
-    }, sync.err), showWho && React.createElement("div", {
+    }, sync.err), (D.gasVer || '0') < '1.0-006' && React.createElement("p", {
+      className: "rounded-xl px-3 py-2 text-sm font-bold",
+      style: {
+        background: 'rgba(245,158,11,.14)',
+        color: '#92400e'
+      }
+    }, "⚠ GAS 的 gas-fd2 是舊版(", D.gasVer || '1.0-005 以前', "),請整份更新成最新版並重新部署,否則排班等功能可能存不起來"), showWho && React.createElement("div", {
       className: "flex items-center gap-2 text-sm text-gray-300"
     }, "查看人員", React.createElement("select", {
       value: uid,
