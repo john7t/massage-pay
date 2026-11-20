@@ -1,4 +1,4 @@
-/*BUILD fd2.js v1.0-006 編譯版 h=c20097bd t=2026-11-20 12:50*/
+/*BUILD fd2.js v1.0-007 編譯版 h=2c12a834 t=2026-11-20 12:55*/
 (function () {
   const {
     useState,
@@ -17,7 +17,7 @@
     api,
     Spinner
   } = C;
-  const VER = 'v1.0-006';
+  const VER = 'v1.0-007';
   const SH = {
     A1: {
       n: '早班1',
@@ -2481,7 +2481,7 @@
         layout: 'vertical',
         spacing: 'md',
         paddingAll: '16px',
-        contents: [FD_SHARE_ROWS.map(r => row(r[0], r[1], r[2]))]
+        contents: FD_SHARE_ROWS.map(r => row(r[0], r[1], r[2]))
       },
       footer: {
         type: 'box',
