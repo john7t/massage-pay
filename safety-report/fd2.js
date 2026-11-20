@@ -1,4 +1,4 @@
-/*BUILD fd2.js v1.0-002 編譯版 h=410972ae t=2026-11-20 12:07*/
+/*BUILD fd2.js v1.0-005 編譯版 h=9467866c t=2026-11-20 12:45*/
 (function () {
   const {
     useState,
@@ -17,7 +17,7 @@
     api,
     Spinner
   } = C;
-  const VER = 'v1.0-002';
+  const VER = 'v1.0-005';
   const SH = {
     A1: {
       n: '早班1',
@@ -869,6 +869,190 @@
     className: "px-3 py-2 rounded-full bg-gray-800 text-sm text-gray-300"
   }, "›"));
   const nameOf = (D, uid) => (D.staff.find(s => s.uid === uid) || {}).name || (uid === D.me.uid ? D.me.name : '?');
+  const RC = {
+    work: '#3b82f6',
+    rest: '#22c55e',
+    ot: '#f59e0b',
+    none: '#e5d3dc'
+  };
+  function ringIv(x, now) {
+    const t0 = x.sS || (x.inP ? Math.floor(x.inP.ts / 3600000) * 3600000 : 0);
+    if (!x.inP) return {
+      t0,
+      iv: []
+    };
+    const iv = [];
+    const M = t => (t - t0) / 60000;
+    const eM = x.sE ? M(x.sE) : 1e9;
+    let cur = x.inP.ts,
+      mode = 'work';
+    const add = (a, b, k) => {
+      if (b <= a) return;
+      if (k === 'work' && a < eM && b > eM) {
+        iv.push([a, eM, 'work']);
+        iv.push([eM, b, 'ot']);
+        return;
+      }
+      iv.push([a, b, k === 'work' && a >= eM ? 'ot' : k]);
+    };
+    x.ps.forEach(p => {
+      if (p.ts < x.inP.ts) return;
+      if (p.type === 'bs' && mode === 'work') {
+        add(M(cur), M(p.ts), 'work');
+        cur = p.ts;
+        mode = 'rest';
+      } else if (p.type === 'be' && mode === 'rest') {
+        add(M(cur), M(p.ts), 'rest');
+        cur = p.ts;
+        mode = 'work';
+      } else if (p.type === 'out') {
+        add(M(cur), M(p.ts), mode);
+        cur = p.ts;
+        mode = 'end';
+      }
+    });
+    if (mode !== 'end') add(M(cur), M(now), mode);
+    return {
+      t0,
+      iv: iv.map(([a, b, k]) => [Math.max(0, a), b, k]).filter(([a, b]) => b > a)
+    };
+  }
+  function Ring({
+    x,
+    now,
+    children
+  }) {
+    const {
+      t0,
+      iv
+    } = ringIv(x, now);
+    const ext = x.inP && x.sE && x.latest ? Math.max(0, Math.ceil((x.latest - x.sE) / 3600000 - 1e-6)) : 2;
+    const N = Math.min(24, 10 + ext);
+    const R = 78,
+      cx = 100,
+      cy = 100,
+      sw = 20,
+      gap = 2.2,
+      seg = 360 / N;
+    const rad = a => (a - 90) * Math.PI / 180;
+    const P = (r, a) => [cx + r * Math.cos(rad(a)), cy + r * Math.sin(rad(a))];
+    const arc = (a0, a1, col, op, k) => {
+      const [x0, y0] = P(R, a0),
+        [x1, y1] = P(R, a1);
+      return React.createElement("path", {
+        key: k,
+        d: 'M' + x0 + ' ' + y0 + ' A' + R + ' ' + R + ' 0 ' + (a1 - a0 > 180 ? 1 : 0) + ' 1 ' + x1 + ' ' + y1,
+        stroke: col,
+        strokeWidth: sw,
+        fill: "none",
+        opacity: op
+      });
+    };
+    const els = [];
+    for (let i = 0; i < N; i++) {
+      const a0 = i * seg + gap / 2,
+        a1 = (i + 1) * seg - gap / 2,
+        m0 = i * 60,
+        m1 = m0 + 60;
+      els.push(arc(a0, a1, RC.none, i >= 10 ? .55 : 1, 'g' + i));
+      iv.forEach(([b, e, k], j) => {
+        const u = Math.max(b, m0),
+          v = Math.min(e, m1);
+        if (v > u) els.push(arc(a0 + (u - m0) / 60 * (a1 - a0), a0 + (v - m0) / 60 * (a1 - a0), RC[k], 1, 's' + i + '_' + j));
+      });
+    }
+    const T = m => hm(t0 + m * 60000);
+    const L = [];
+    iv.forEach(([b, e, k], i) => {
+      const pv = iv[i - 1];
+      if (pv && Math.abs(pv[1] - b) < 0.5 && pv[2] === k) return;
+      if (k === 'ot' && Math.abs(b - 600) < 0.5 && x.sE) return;
+      if (b >= N * 60) return;
+      L.push({
+        m: b,
+        t: i === 0 && x.inP ? hm(x.inP.ts) : T(b),
+        c: RC[k]
+      });
+    });
+    if (x.sE) L.push({
+      m: 600,
+      t: hm(x.sE),
+      c: '#b0306a',
+      bold: 1
+    });
+    L.sort((a, b) => a.m - b.m);
+    let lastA = -99,
+      lift = 0;
+    L.forEach((l, i) => {
+      const an = l.m / 60 * seg;
+      lift = an - lastA < 16 ? lift + 13 : 0;
+      lastA = an;
+      const rr = R + 21 + lift;
+      const [tx, ty] = P(rr, an);
+      const c = Math.cos(rad(an));
+      const [l0x, l0y] = P(R + 10, an),
+        [l1x, l1y] = P(rr - 7, an);
+      els.push(React.createElement("line", {
+        key: 'll' + i,
+        x1: l0x,
+        y1: l0y,
+        x2: l1x,
+        y2: l1y,
+        stroke: l.c,
+        strokeWidth: "1.5"
+      }));
+      els.push(React.createElement("text", {
+        key: 'lt' + i,
+        x: tx,
+        y: ty + 4,
+        textAnchor: c > 0.25 ? 'start' : c < -0.25 ? 'end' : 'middle',
+        fontSize: l.bold ? 13 : 11.5,
+        fontWeight: l.bold ? 900 : 700,
+        fill: l.bold ? '#b0306a' : '#4a2337'
+      }, l.t));
+    });
+    if (x.sE) {
+      const [a, b] = P(R - 14, 10 * seg),
+        [c2, d] = P(R + 14, 10 * seg);
+      els.push(React.createElement("line", {
+        key: "eL",
+        x1: a,
+        y1: b,
+        x2: c2,
+        y2: d,
+        stroke: "#b0306a",
+        strokeWidth: "3",
+        strokeLinecap: "round"
+      }));
+    }
+    const nm = (now - t0) / 60000;
+    if (x.inP && !x.outP && nm >= 0 && nm < N * 60) {
+      const [a, b] = P(R, nm / 60 * seg);
+      els.push(React.createElement("circle", {
+        key: "now",
+        cx: a,
+        cy: b,
+        r: "6",
+        fill: "#fff",
+        stroke: "#4a2337",
+        strokeWidth: "2.5"
+      }));
+    }
+    return React.createElement("div", {
+      className: "relative mx-auto",
+      style: {
+        width: 330,
+        height: 330,
+        maxWidth: '100%'
+      }
+    }, React.createElement("svg", {
+      viewBox: "-40 -40 280 280",
+      width: "100%",
+      height: "100%"
+    }, els), React.createElement("div", {
+      className: "absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
+    }, children));
+  }
   function PunchTab({
     S,
     uid,
@@ -951,15 +1135,15 @@
       });
     };
     const state = !x.inP ? 'none' : x.outP ? 'out' : x.onBreak ? 'brk' : 'work';
-    let col = '#9ca3af';
+    const isOt = state === 'work' && x.sE && now > x.sE;
+    let col = '#4a2337';
     if (state === 'work') {
-      col = '#22c55e';
-      if (x.cont >= 210 || x.sE && now > x.sE) col = '#f59e0b';
+      if (x.cont >= 210 || isOt) col = '#d97706';
       if (x.latest && now > x.latest - 30 * 60000) col = '#ef4444';
     }
     if (state === 'brk') {
       const tot = x.rest;
-      col = tot >= 120 ? '#ef4444' : tot >= 60 ? '#22c55e' : '#3b82f6';
+      col = tot >= 120 ? '#ef4444' : tot >= 60 ? '#16a34a' : '#3b82f6';
     }
     const restPct = Math.min(100, x.rest / 120 * 100);
     return React.createElement("div", {
@@ -978,42 +1162,50 @@
       c: "p"
     }, "卡班"))), React.createElement("p", {
       className: "text-xs text-gray-400"
-    }, x.code ? hhmm(SH[x.code].s) + ' – ' + hhmm(SH[x.code].e) : x.lvFull ? '請假不用打卡' : '沒有排班也可以打卡', x.inP ? ' ・計薪起算 ' + hm(x.pay) : ''), x.lvPart.map(r => React.createElement("p", {
+    }, x.code ? hhmm(SH[x.code].s) + ' – ' + hhmm(SH[x.code].e) : x.lvFull ? '請假不用打卡' : '沒有排班也可以打卡', x.code ? ' ・下班時間固定 ' + hhmm(SH[x.code].e) : ''), x.lvPart.map(r => React.createElement("p", {
       key: r.id,
       className: "text-xs text-sky-300 mt-0.5"
     }, LV[r.type], " ", r.start, "–", r.end, r.status === 'pending' ? '(待核准)' : ''))), React.createElement(Chip, {
-      c: state === 'work' ? 'g' : state === 'brk' ? 'b' : 'x'
-    }, state === 'work' ? '上班中' : state === 'brk' ? '休息中' : state === 'out' ? '已下班' : '尚未上班'))), React.createElement(Card, {
-      className: "text-center"
-    }, React.createElement("div", {
-      className: "mx-auto flex flex-col items-center justify-center rounded-full",
-      style: {
-        width: 170,
-        height: 170,
-        border: '12px solid ' + col
-      }
+      c: isOt ? 'y' : state === 'work' ? 'g' : state === 'brk' ? 'b' : 'x'
+    }, isOt ? '加班中' : state === 'work' ? '上班中' : state === 'brk' ? '休息中' : state === 'out' ? '已下班' : '尚未上班'))), React.createElement(Card, {
+      className: "text-center !px-2"
+    }, React.createElement(Ring, {
+      x: x,
+      now: now
     }, React.createElement("span", {
       className: "text-xs text-gray-400"
     }, state === 'brk' ? '休息中' : '今日實際工時'), React.createElement("span", {
-      className: "text-4xl font-black text-gray-100",
+      className: "text-4xl font-black",
       style: {
         color: col
       }
     }, state === 'brk' ? dur((now - x.bsTs) / 60000) : dur(x.work)), React.createElement("span", {
       className: "text-xs text-gray-400"
-    }, state === 'work' ? '連續工作 ' + dur(x.cont) : state === 'brk' ? '今日休息 ' + Math.round(x.rest) + ' 分' : ' ')), x.inP && !x.outP && React.createElement("div", {
-      className: "grid grid-cols-2 gap-2 mt-3 text-sm"
-    }, React.createElement("div", {
-      className: "text-gray-400"
-    }, "距最晚下班", React.createElement("br", null), React.createElement("b", {
+    }, isOt ? '加班 ' + dur((now - x.sE) / 60000) : state === 'work' ? '連續工作 ' + dur(x.cont) : state === 'brk' ? '今日休息 ' + Math.round(x.rest) + ' 分' : state === 'out' ? '已下班 ' + hm(x.outP.ts) : ' ')), React.createElement("div", {
+      className: "flex justify-center gap-2.5 text-[11px] text-gray-400 flex-wrap"
+    }, [['work', '上班'], ['rest', '休息'], ['ot', '加班'], ['none', '未上／未到']].map(([k, l]) => React.createElement("span", {
+      key: k
+    }, React.createElement("i", {
+      style: {
+        display: 'inline-block',
+        width: 10,
+        height: 10,
+        borderRadius: 3,
+        marginRight: 3,
+        verticalAlign: -1,
+        background: RC[k]
+      }
+    }), l))), x.code && React.createElement("div", {
+      className: "grid grid-cols-3 gap-1 mt-3 text-[13px] text-gray-400"
+    }, React.createElement("div", null, "表定下班", React.createElement("br", null), React.createElement("b", {
       className: "text-lg text-gray-100"
-    }, now > x.latest ? '已超過 ' + dur((now - x.latest) / 60000) : dur((x.latest - now) / 60000))), React.createElement("div", {
-      className: "text-gray-400"
-    }, "最晚下班", React.createElement("br", null), React.createElement("b", {
+    }, hm(x.sE))), React.createElement("div", null, x.outP ? '下班打卡' : now > x.sE ? '已超過下班' : '距下班', React.createElement("br", null), React.createElement("b", {
       className: "text-lg text-gray-100"
-    }, hm(x.latest)))), x.inP && !x.outP && React.createElement("p", {
+    }, x.outP ? hm(x.outP.ts) : now > x.sE ? dur((now - x.sE) / 60000) : dur((x.sE - now) / 60000))), React.createElement("div", null, "最晚可加班到", React.createElement("br", null), React.createElement("b", {
+      className: "text-lg text-gray-100"
+    }, x.inP ? hm(x.latest) : '—'))), React.createElement("p", {
       className: "text-[11px] text-gray-500 mt-1"
-    }, "最晚下班＝計薪起算+12小時+休息(第32條)與隔天班前11小時(第34條)取較早")), x.inP && React.createElement(Card, null, React.createElement("div", {
+    }, "1 格＝1 小時;粗線＝表定下班,之後是最多可加班(計薪起算+12 小時+休息,且隔天班前要休 11 小時)")), x.inP && React.createElement(Card, null, React.createElement("div", {
       className: "flex items-center"
     }, React.createElement("span", {
       className: "text-sm font-bold text-gray-300 flex-1"
@@ -1133,9 +1325,13 @@
       })
     }, "不用,", hhmm(SH[x.code].s), " 起算"))), ask && ask.kind === 'out' && React.createElement(Sheet, {
       onClose: () => setAsk(null)
-    }, React.createElement("p", {
+    }, x.sE && now < x.sE - 60000 ? React.createElement(React.Fragment, null, React.createElement("p", {
       className: "text-lg font-extrabold text-gray-100"
-    }, "確定下班打卡？"), React.createElement("p", {
+    }, "還沒到下班時間"), React.createElement("p", {
+      className: "text-[15px] text-gray-300"
+    }, "表定 ", hm(x.sE), " 下班,現在 ", hm(now), "。現在打下班卡會記「早退 ", Math.ceil((x.sE - now) / 60000), " 分」。")) : React.createElement(React.Fragment, null, React.createElement("p", {
+      className: "text-lg font-extrabold text-gray-100"
+    }, "確定下班打卡？")), React.createElement("p", {
       className: "text-sm text-gray-300"
     }, "今日工時 ", dur(x.work), "、休息 ", Math.round(x.rest), " 分", x.rest < 60 ? '(未滿 1 小時)' : ''), React.createElement("div", {
       className: "grid grid-cols-2 gap-2"
@@ -1152,7 +1348,7 @@
         setAsk(null);
         doPunch('out');
       }
-    }, "下班打卡"))), ask && ask.kind === 'loc' && React.createElement(Sheet, {
+    }, x.sE && now < x.sE - 60000 ? '仍要下班' : '下班打卡'))), ask && ask.kind === 'loc' && React.createElement(Sheet, {
       onClose: () => setAsk(null)
     }, React.createElement("p", {
       className: "text-lg font-extrabold text-gray-100"
@@ -2211,6 +2407,181 @@
     X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet(r3), '申請');
     X.writeFile(wb, '櫃台_' + D.me.store + '_' + month + '.xlsx');
   }
+  const FD_SHARE_ROWS = [['⏱', '打卡', '上班、休息、下班一鍵打卡,沒網路也能先打,連上後自動送出'], ['📅', '排班', '選班別、點日期排休,自動提示卡班與勞基法檢查'], ['📝', '請假／特休／加班 申請', '線上送出,主管審核後 LINE 通知結果'], ['🗂', '人員基本資料', '聯絡資料、到職日、特休天數與剩餘假別']];
+  function fdShareFlex(store) {
+    const base = 'https://liff.line.me/' + (window.__S2_LIFF_ID || '');
+    const row = (ic, t, d) => ({
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'md',
+      contents: [{
+        type: 'text',
+        text: ic,
+        size: 'lg',
+        flex: 0
+      }, {
+        type: 'box',
+        layout: 'vertical',
+        contents: [{
+          type: 'text',
+          text: t,
+          weight: 'bold',
+          size: 'sm',
+          color: '#4A2337'
+        }, {
+          type: 'text',
+          text: d,
+          size: 'xs',
+          color: '#8A5A70',
+          wrap: true
+        }]
+      }]
+    });
+    return {
+      type: 'bubble',
+      size: 'mega',
+      hero: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: '18px',
+        paddingTop: '30px',
+        paddingBottom: '26px',
+        alignItems: 'center',
+        background: {
+          type: 'linearGradient',
+          angle: '135deg',
+          startColor: '#F472B6',
+          endColor: '#FBCFE8'
+        },
+        contents: [{
+          type: 'text',
+          text: '🕒',
+          size: '4xl',
+          align: 'center'
+        }, {
+          type: 'text',
+          text: '櫃台人員頁',
+          weight: 'bold',
+          size: 'xl',
+          color: '#FFFFFF',
+          align: 'center',
+          margin: 'md'
+        }, {
+          type: 'text',
+          text: store || '',
+          size: 'sm',
+          color: '#FFFFFF',
+          align: 'center',
+          margin: 'xs'
+        }]
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'md',
+        paddingAll: '16px',
+        contents: [FD_SHARE_ROWS.map(r => row(r[0], r[1], r[2]))]
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        paddingAll: '14px',
+        contents: [{
+          type: 'button',
+          style: 'primary',
+          color: '#E0528F',
+          height: 'sm',
+          action: {
+            type: 'uri',
+            label: '進入櫃台人員頁',
+            uri: base + '?fd2=p'
+          }
+        }, {
+          type: 'text',
+          text: '需先在員工專區登記為櫃台並通過審核',
+          size: 'xxs',
+          color: '#999999',
+          align: 'center',
+          wrap: true
+        }]
+      }
+    };
+  }
+  function ShareCard({
+    store
+  }) {
+    const [res, setRes] = useState('');
+    const go = async () => {
+      setRes('');
+      try {
+        if (!window.liff || !liff.isApiAvailable || !liff.isApiAvailable('shareTargetPicker')) {
+          setRes('這裡不能分享,請在 LINE 裡開啟櫃台人員頁再按');
+          return;
+        }
+        const r = await liff.shareTargetPicker([{
+          type: 'flex',
+          altText: '🕒 櫃台人員頁:打卡、排班、申請都在這裡',
+          contents: fdShareFlex(store)
+        }]);
+        setRes(r ? '已分享 ✅' : '已取消');
+      } catch (e) {
+        setRes('分享失敗:' + String(e && e.message || e));
+      }
+    };
+    return React.createElement(Card, null, React.createElement("b", {
+      className: "text-sm text-gray-300"
+    }, "分享給好友"), React.createElement("p", {
+      className: "text-xs text-gray-400 mb-2"
+    }, "傳一張卡片給櫃台人員,點按鈕就能進櫃台人員頁(網址藏在按鈕裡)。"), React.createElement("div", {
+      className: "mx-auto rounded-2xl overflow-hidden border border-gray-700 bg-white",
+      style: {
+        maxWidth: 260
+      }
+    }, React.createElement("div", {
+      className: "text-center py-4",
+      style: {
+        background: 'linear-gradient(135deg,#F472B6,#FBCFE8)'
+      }
+    }, React.createElement("div", {
+      className: "text-3xl"
+    }, "🕒"), React.createElement("b", {
+      className: "block text-lg",
+      style: {
+        color: '#fff'
+      }
+    }, "櫃台人員頁"), React.createElement("span", {
+      className: "text-xs",
+      style: {
+        color: '#fff'
+      }
+    }, store)), React.createElement("div", {
+      className: "px-3 py-2 space-y-1 text-left text-xs",
+      style: {
+        color: '#4A2337'
+      }
+    }, FD_SHARE_ROWS.map(([i, t, d]) => React.createElement("div", {
+      key: t,
+      className: "flex gap-2 py-0.5"
+    }, React.createElement("span", null, i), React.createElement("span", null, React.createElement("b", null, t), React.createElement("br", null), React.createElement("span", {
+      style: {
+        color: '#8A5A70'
+      }
+    }, d))))), React.createElement("div", {
+      className: "px-3 pb-3"
+    }, React.createElement("div", {
+      className: "rounded-lg py-1.5 text-center text-xs font-bold",
+      style: {
+        background: '#E0528F',
+        color: '#fff'
+      }
+    }, "進入櫃台人員頁"))), React.createElement(B, {
+      cls: "w-full mt-3 bg-violet-600 text-white",
+      onClick: go
+    }, "📤 分享給好友"), res && React.createElement("p", {
+      className: "text-sm text-amber-300 mt-1 text-center"
+    }, res));
+  }
   function SetPage({
     S,
     back,
@@ -2306,7 +2677,9 @@
       }
     }, busy === 'n' ? React.createElement(Spinner, null) : '📣 推播 ' + al.length + ' 則提醒')), msg && React.createElement("p", {
       className: "text-sm text-amber-300 mt-1"
-    }, msg)), React.createElement(Card, null, React.createElement("b", {
+    }, msg)), React.createElement(ShareCard, {
+      store: D.me.store
+    }), React.createElement(Card, null, React.createElement("b", {
       className: "text-sm text-gray-300"
     }, "請假最小單位"), LVK.map(t => React.createElement("div", {
       key: t,
