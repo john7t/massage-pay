@@ -1,4 +1,4 @@
-/*BUILD fd2.js v1.0-017 編譯版 h=e860ab15 t=2026-11-21 06:32*/
+/*BUILD fd2.js v1.0-018 編譯版 h=0e5b3779 t=2026-11-21 06:43*/
 (function () {
   const {
     useState,
@@ -17,7 +17,7 @@
     api,
     Spinner
   } = C;
-  const VER = 'v1.0-017';
+  const VER = 'v1.0-018';
   const SH = {
     A1: {
       n: '早班1',
@@ -901,9 +901,22 @@
       r: 'bg-red-900/60 text-red-300',
       y: 'bg-amber-900/60 text-amber-300',
       b: 'bg-sky-900/60 text-sky-300',
-      p: 'bg-pink-900/60 text-pink-300',
       x: 'bg-gray-800 text-gray-400'
     };
+    if (c === 'p') return React.createElement("span", {
+      className: "inline-block text-[11px] font-bold rounded-full px-2 py-0.5",
+      style: {
+        background: '#fce7f3',
+        color: '#be185d'
+      }
+    }, children);
+    if (c === 'v') return React.createElement("span", {
+      className: "inline-block text-[11px] font-bold rounded-full px-2 py-0.5",
+      style: {
+        background: '#f3e8ff',
+        color: '#7e22ce'
+      }
+    }, children);
     return React.createElement("span", {
       className: 'inline-block text-[11px] font-bold rounded-full px-2 py-0.5 ' + (M[c] || M.x)
     }, children);
@@ -999,7 +1012,7 @@
   const EditTag = ({
     p
   }) => p.edit ? React.createElement(Chip, {
-    c: "p"
+    c: "v"
   }, p.edit === 'add' ? '主管補登' : '主管修改' + (p.orig && p.orig !== p.ts ? '・原 ' + hm(p.orig) : ''), p.reason ? '・' + p.reason : '') : null;
   function PunchEdit({
     S,
@@ -1316,8 +1329,11 @@
     });
     L.sort((a, b) => a.m - b.m);
     let lastA = -99,
-      lift = 0;
+      lift = 0,
+      lastM = -999;
     L.forEach((l, i) => {
+      if (!l.bold && l.m - lastM < 30) return;
+      if (!l.bold) lastM = l.m;
       const an = l.m / 60 * seg;
       lift = an - lastA < 16 ? lift + 13 : 0;
       lastA = an;
