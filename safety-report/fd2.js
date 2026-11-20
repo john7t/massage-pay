@@ -1,4 +1,4 @@
-/*BUILD fd2.js v1.0-015 編譯版 h=dba91c54 t=2026-11-21 04:01*/
+/*BUILD fd2.js v1.0-017 編譯版 h=e860ab15 t=2026-11-21 06:32*/
 (function () {
   const {
     useState,
@@ -17,7 +17,7 @@
     api,
     Spinner
   } = C;
-  const VER = 'v1.0-015';
+  const VER = 'v1.0-017';
   const SH = {
     A1: {
       n: '早班1',
@@ -170,7 +170,35 @@
         apply: !!o.apply,
         payStart: o.payStart || 0,
         _p: 1
-      });else if (o.act === 'req_add' && !D.reqs.some(x => x.id === o.id)) D.reqs.push({
+      });else if (o.act === 'punch_edit') {
+        const i = D.punches.findIndex(x => x.id === o.id);
+        if (o.del) {
+          if (i >= 0) D.punches.splice(i, 1);
+        } else if (i >= 0) {
+          const x = D.punches[i];
+          if (!x.orig && x.edit !== 'add') x.orig = x.ts;
+          Object.assign(x, {
+            type: o.type,
+            ts: o.ts,
+            date: o.date,
+            edit: x.edit === 'add' ? 'add' : 'mod',
+            reason: o.reason,
+            _p: 1
+          });
+          if (o.type === 'in') x.payStart = o.ts;
+        } else D.punches.push({
+          id: o.id,
+          uid: o.uid,
+          date: o.date,
+          type: o.type,
+          ts: o.ts,
+          loc: 'sup',
+          payStart: o.type === 'in' ? o.ts : 0,
+          edit: 'add',
+          reason: o.reason,
+          _p: 1
+        });
+      } else if (o.act === 'req_add' && !D.reqs.some(x => x.id === o.id)) D.reqs.push({
         id: o.id,
         uid: me,
         type: o.type || 'ot',
@@ -734,14 +762,18 @@
   }
   function getGps(ms) {
     return new Promise(res => {
-      if (!navigator.geolocation) return res(null);
+      if (!navigator.geolocation) return res({
+        err: 'none'
+      });
       let done = false;
       const t = setTimeout(() => {
         if (!done) {
           done = true;
-          res(null);
+          res({
+            err: 'fail'
+          });
         }
-      }, ms || 8000);
+      }, (ms || 8000) + 1500);
       navigator.geolocation.getCurrentPosition(p => {
         if (done) return;
         done = true;
@@ -751,19 +783,64 @@
           lng: +p.coords.longitude.toFixed(6),
           acc: Math.round(p.coords.accuracy)
         });
-      }, () => {
+      }, e => {
         if (!done) {
           done = true;
           clearTimeout(t);
-          res(null);
+          res({
+            err: e && e.code === 1 ? 'denied' : 'fail'
+          });
         }
       }, {
         enableHighAccuracy: true,
         timeout: ms || 8000,
-        maximumAge: 60000
+        maximumAge: 30000
       });
     });
   }
+  const mapUrl = (lat, lng) => 'https://www.google.com/maps?q=' + lat + ',' + lng;
+  const MapA = ({
+    lat,
+    lng,
+    t
+  }) => lat && lng ? React.createElement("a", {
+    href: mapUrl(lat, lng),
+    target: "_blank",
+    rel: "noopener",
+    className: "text-[11px] underline",
+    style: {
+      color: '#1d4ed8'
+    },
+    onClick: e => e.stopPropagation()
+  }, "🗺 ", t || '在地圖上查看') : null;
+  function LocChip({
+    p
+  }) {
+    if (p.loc === 'gps') return React.createElement(Chip, {
+      c: "g"
+    }, "📍 GPS", p.dist !== '' && p.dist !== undefined ? ' ' + p.dist + 'm' : '');
+    if (p.loc === 'ip') return React.createElement(Chip, {
+      c: "b"
+    }, "📶 公司 Wi‑Fi");
+    if (p.loc === 'none') return React.createElement("span", {
+      className: "inline-flex flex-col items-end"
+    }, React.createElement(Chip, {
+      c: "r"
+    }, "📍 GPS ", p.dist, "m 太遠"), React.createElement(MapA, {
+      lat: p.lat,
+      lng: p.lng
+    }));
+    if (p.loc === 'unk') return React.createElement("span", {
+      className: "inline-flex flex-col items-end"
+    }, React.createElement(Chip, {
+      c: "y"
+    }, "⚠ 無法確認地點"), React.createElement(MapA, {
+      lat: p.lat,
+      lng: p.lng
+    }));
+    return null;
+  }
+  const GPS_HELP = 'iPhone:設定 › LINE › 位置 › 「使用 App 期間」;Android:設定 › 應用程式 › LINE › 權限 › 位置';
   function getIp(ms) {
     if (!navigator.onLine) return Promise.resolve('');
     return Promise.race([fetch('https://api.ipify.org?format=json').then(r => r.json()).then(j => String(j.ip || '')).catch(() => ''), new Promise(r => setTimeout(() => r(''), ms || 3000))]);
@@ -776,21 +853,24 @@
     };
     const [g, ip] = await Promise.all([useG ? getGps(8000) : Promise.resolve(null), useI ? getIp(3000) : Promise.resolve('')]);
     const out = {
-      ip: ip
+      ip: ip,
+      useG: !!useG,
+      useI: !!useI,
+      gErr: g && g.err || '',
+      wifi: !!(useI && ip && cfg.ips.indexOf(ip) >= 0)
     };
-    if (g) {
+    if (g && g.lat) {
       out.lat = g.lat;
       out.lng = g.lng;
       out.acc = g.acc;
+      out.dist = useG ? distM(g.lat, g.lng, cfg.lat, cfg.lng) : '';
     }
-    if (useI && ip && cfg.ips.indexOf(ip) >= 0) return Object.assign(out, {
+    if (out.wifi) return Object.assign(out, {
       loc: 'ip',
       ok: true
     });
-    if (useG && g) {
-      const dist = distM(g.lat, g.lng, cfg.lat, cfg.lng);
-      out.dist = dist;
-      if (dist <= (cfg.radius || 150) + Math.min(g.acc || 0, 100)) return Object.assign(out, {
+    if (useG && out.lat) {
+      if (out.dist <= (cfg.radius || 150) + Math.min(out.acc || 0, 100)) return Object.assign(out, {
         loc: 'gps',
         ok: true
       });
@@ -881,17 +961,247 @@
     month,
     setMonth,
     suffix
-  }) => React.createElement("div", {
-    className: "flex items-center gap-2"
-  }, React.createElement("button", {
-    onClick: () => setMonth(addM(month, -1)),
-    className: "px-3 py-2 rounded-full bg-gray-800 text-sm text-gray-300"
-  }, "‹"), React.createElement("b", {
-    className: "flex-1 text-center text-gray-100"
-  }, month.replace('-', ' 年 '), " 月", suffix || ''), React.createElement("button", {
-    onClick: () => setMonth(addM(month, 1)),
-    className: "px-3 py-2 rounded-full bg-gray-800 text-sm text-gray-300"
-  }, "›"));
+  }) => {
+    const cm = ymd(new Date()).slice(0, 7);
+    return React.createElement("div", {
+      className: "flex items-center gap-2"
+    }, React.createElement("button", {
+      onClick: () => setMonth(addM(month, -1)),
+      className: "px-3 py-2 rounded-full bg-gray-800 text-sm text-gray-300"
+    }, "‹"), React.createElement("b", {
+      className: "flex-1 text-center text-gray-100"
+    }, month.replace('-', ' 年 '), " 月", suffix || ''), React.createElement("button", {
+      onClick: () => setMonth(addM(month, 1)),
+      className: "px-3 py-2 rounded-full bg-gray-800 text-sm text-gray-300"
+    }, "›"), month !== cm && React.createElement("button", {
+      onClick: () => setMonth(cm),
+      className: "fd-w shrink-0 rounded-full px-3 py-2 text-xs font-bold",
+      style: {
+        background: '#e0528f'
+      }
+    }, "回到本月"));
+  };
+  const PT = {
+    in: '上班',
+    out: '下班',
+    bs: '開始休息',
+    be: '結束休息'
+  };
+  const EDR = ['忘記打卡', '手機沒電', '系統問題', '其他'];
+  function tsOf(D, uid, date, t) {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(t || '');
+    if (!m) return 0;
+    let h = +m[1] + +m[2] / 60;
+    const c = myActual(D, uid, date, {}).code;
+    if (c && SH[c].e > 24 && h < SH[c].s - 6) h += 24;
+    return at(date, h);
+  }
+  const EditTag = ({
+    p
+  }) => p.edit ? React.createElement(Chip, {
+    c: "p"
+  }, p.edit === 'add' ? '主管補登' : '主管修改' + (p.orig && p.orig !== p.ts ? '・原 ' + hm(p.orig) : ''), p.reason ? '・' + p.reason : '') : null;
+  function PunchEdit({
+    S,
+    uid,
+    date,
+    p,
+    defType,
+    defTime,
+    onClose
+  }) {
+    const {
+      D,
+      push
+    } = S;
+    const [type, setType] = useState(p ? p.type : defType || 'in');
+    const [t, setT] = useState(p ? hm(p.ts) : defTime || '');
+    const [rs, setRs] = useState('忘記打卡');
+    const [note, setNote] = useState('');
+    const ts = tsOf(D, uid, date, t);
+    const reason = (rs === '其他' ? note.trim() || '其他' : rs + (note.trim() ? ' ' + note.trim() : '')).slice(0, 40);
+    return React.createElement(Sheet, {
+      onClose: () => onClose()
+    }, React.createElement("p", {
+      className: "text-lg font-extrabold text-gray-100"
+    }, p ? '✎ 修改打卡' : '＋ 補打卡', "・", nameOf(D, uid), " ", md(date)), React.createElement("p", {
+      className: "text-xs text-gray-400"
+    }, "類型"), React.createElement(Seg, {
+      opts: Object.keys(PT).map(k => [k, PT[k]]),
+      val: type,
+      on: setType
+    }), React.createElement("label", {
+      className: "block text-xs text-gray-400"
+    }, "時間", p ? '(原本 ' + hm(p.orig || p.ts) + ')' : '', React.createElement(Inp, {
+      type: "time",
+      value: t,
+      onChange: e => setT(e.target.value)
+    })), ts > 0 && ymd(new Date(ts)) !== date && React.createElement("p", {
+      className: "text-xs text-gray-400"
+    }, "夜班跨日:記為 ", md(ymd(new Date(ts))), " ", hm(ts)), React.createElement("p", {
+      className: "text-xs text-gray-400"
+    }, "原因(必填)"), React.createElement(Seg, {
+      small: true,
+      opts: EDR.map(r => [r, r]),
+      val: rs,
+      on: setRs
+    }), React.createElement(Inp, {
+      placeholder: rs === '其他' ? '請寫原因' : '補充說明(選填)',
+      value: note,
+      onChange: e => setNote(e.target.value)
+    }), React.createElement("div", {
+      className: 'grid gap-2 ' + (p ? 'grid-cols-3' : 'grid-cols-1')
+    }, p && React.createElement(B, {
+      cls: "bg-gray-800 !text-red-400",
+      onClick: () => {
+        push({
+          act: 'punch_edit',
+          id: p.id,
+          uid,
+          date,
+          del: 1,
+          reason
+        });
+        onClose(true);
+      }
+    }, "🗑 刪除"), React.createElement(B, {
+      cls: 'fd-w ' + (p ? 'col-span-2' : ''),
+      style: {
+        background: '#16a34a'
+      },
+      disabled: !ts || rs === '其他' && !note.trim(),
+      onClick: () => {
+        push({
+          act: 'punch_edit',
+          id: p ? p.id : uidGen(),
+          uid,
+          date,
+          type,
+          ts,
+          reason
+        });
+        onClose(true);
+      }
+    }, "儲存")), React.createElement("p", {
+      className: "text-xs text-gray-500"
+    }, "儲存後工時、休息、遲到、薪資試算會重新計算,並推播通知", nameOf(D, uid), ";原本的打卡時間會保留"));
+  }
+  function DayEdit({
+    S,
+    uid,
+    date,
+    onClose
+  }) {
+    const {
+      D,
+      push
+    } = S;
+    const x = dayCalc(D, uid, date, Math.min(Date.now(), at(date, 48)));
+    const [pe, setPe] = useState(null);
+    const [st, setSt] = useState([]);
+    const [rs, setRs] = useState('忘記打卡');
+    const [note, setNote] = useState('');
+    const c = x.code;
+    const s0 = c ? SH[c].s : 10,
+      e0 = c ? SH[c].e : 20;
+    const add = a => setSt(st.concat(a.map(([type, h]) => ({
+      k: uidGen(),
+      type,
+      ts: at(date, h)
+    }))));
+    const reason = (rs === '其他' ? note.trim() || '其他' : rs + (note.trim() ? ' ' + note.trim() : '')).slice(0, 40);
+    if (pe) return React.createElement(PunchEdit, {
+      S: S,
+      uid: uid,
+      date: date,
+      p: pe.p,
+      defType: pe.type,
+      defTime: pe.time,
+      onClose: () => setPe(null)
+    });
+    return React.createElement(Sheet, {
+      onClose: onClose
+    }, React.createElement("p", {
+      className: "text-lg font-extrabold text-gray-100"
+    }, md(date), "（", WD[dOf(date).getDay()], "）", nameOf(D, uid), c ? '・' + lb(c) + ' ' + hhmm(s0) + '–' + hhmm(e0) : ''), !x.ps.length && React.createElement("p", {
+      className: "text-sm text-gray-400"
+    }, "這天沒有打卡紀錄"), x.ps.map(p => React.createElement("div", {
+      key: p.id,
+      className: "flex items-center justify-between gap-1 py-1.5 border-b border-gray-800 text-sm"
+    }, React.createElement("span", {
+      className: "text-gray-200"
+    }, hm(p.ts), " ", PT[p.type], " ", React.createElement(EditTag, {
+      p: p
+    })), React.createElement("button", {
+      onClick: () => setPe({
+        p
+      }),
+      className: "shrink-0 rounded-full px-2.5 py-1 text-xs font-bold",
+      style: {
+        background: 'rgba(224,82,143,.12)',
+        color: '#b0306a'
+      }
+    }, "✎"))), React.createElement("p", {
+      className: "text-xs text-gray-400 pt-1"
+    }, "快速補登(照表定時間,可再修改)"), React.createElement("div", {
+      className: "grid grid-cols-2 gap-2"
+    }, !x.inP && React.createElement(B2, {
+      onClick: () => add([['in', s0]])
+    }, "＋ 上班 ", hhmm(s0)), !x.outP && React.createElement(B2, {
+      onClick: () => add([['out', e0]])
+    }, "＋ 下班 ", hhmm(e0)), React.createElement(B2, {
+      onClick: () => add([['bs', s0 + 4], ['be', s0 + 5]])
+    }, "＋ 休息 1 小時"), React.createElement(B2, {
+      onClick: () => setPe({
+        type: 'in',
+        time: ''
+      })
+    }, "＋ 自訂一筆")), st.length > 0 && React.createElement(React.Fragment, null, React.createElement("div", {
+      className: "rounded-xl bg-gray-800 px-3 py-1"
+    }, st.map(z => React.createElement("div", {
+      key: z.k,
+      className: "flex items-center justify-between py-1.5 text-sm text-gray-200"
+    }, React.createElement("span", null, "＋ ", hm(z.ts), " ", PT[z.type]), React.createElement("button", {
+      onClick: () => setSt(st.filter(y => y.k !== z.k)),
+      className: "text-xs text-red-400"
+    }, "移除")))), React.createElement("p", {
+      className: "text-xs text-gray-400"
+    }, "原因(必填)"), React.createElement(Seg, {
+      small: true,
+      opts: EDR.map(r => [r, r]),
+      val: rs,
+      on: setRs
+    }), React.createElement(Inp, {
+      placeholder: rs === '其他' ? '請寫原因' : '補充說明(選填)',
+      value: note,
+      onChange: e => setNote(e.target.value)
+    }), React.createElement(B, {
+      cls: "w-full fd-w",
+      style: {
+        background: '#16a34a'
+      },
+      disabled: rs === '其他' && !note.trim(),
+      onClick: () => {
+        st.forEach(z => push({
+          act: 'punch_edit',
+          id: uidGen(),
+          uid,
+          date,
+          type: z.type,
+          ts: z.ts,
+          reason
+        }));
+        onClose();
+      }
+    }, "儲存這天(補登 ", st.length, " 筆)")));
+  }
+  const B2 = ({
+    children,
+    onClick
+  }) => React.createElement("button", {
+    onClick: onClick,
+    className: "rounded-xl py-2.5 text-sm font-bold bg-gray-800 text-gray-200"
+  }, children);
   const nameOf = (D, uid) => (D.staff.find(s => s.uid === uid) || {}).name || (uid === D.me.uid ? D.me.name : '?');
   const RC = {
     work: '#3b82f6',
@@ -1097,50 +1407,77 @@
     }, []);
     const date = curDate(D, uid, now);
     const x = dayCalc(D, uid, date, now);
+    const [lastL, setLastL] = useState(null);
+    const [chk, setChk] = useState(null);
+    const [pe, setPe] = useState(null);
+    const canEdit = D.me.isSup && uid !== D.me.uid;
+    const finish = (type, extra, L, flag) => {
+      const ts = extra && extra.ts || Date.now();
+      const op = Object.assign({
+        act: 'punch',
+        id: uidGen(),
+        type: type,
+        date: date,
+        ts: ts,
+        loc: L.loc,
+        dist: L.dist === undefined ? '' : L.dist,
+        lat: L.lat || '',
+        lng: L.lng || '',
+        acc: L.acc || '',
+        ip: L.ip || ''
+      }, extra || {});
+      push(op);
+      if (extra && extra.apply && extra.early) push({
+        act: 'req_add',
+        id: uidGen(),
+        type: 'ot',
+        date: date,
+        start: hm(ts),
+        end: hhmm(SH[x.code].s),
+        min: extra.early,
+        reason: '提早上班'
+      });
+      setBusy('');
+      setAsk(null);
+      if (flag) setMsg('已打卡(地點' + (L.loc === 'none' ? '太遠' : '未確認') + ',已標示給主管)');
+    };
     const doPunch = async (type, extra) => {
       setBusy(type);
       setMsg('');
+      setAsk(null);
       const L = await checkLoc(D.cfg || {});
-      const go = confirmOut => {
-        const ts = extra && extra.ts || Date.now();
-        const op = Object.assign({
-          act: 'punch',
-          id: uidGen(),
-          type: type,
-          date: date,
-          ts: ts,
-          loc: L.loc,
-          dist: L.dist || '',
-          lat: L.lat || '',
-          lng: L.lng || '',
-          acc: L.acc || '',
-          ip: L.ip || ''
-        }, extra || {});
-        push(op);
-        if (extra && extra.apply && extra.early) push({
-          act: 'req_add',
-          id: uidGen(),
-          type: 'ot',
-          date: date,
-          start: hm(ts),
-          end: hhmm(SH[x.code].s),
-          min: extra.early,
-          reason: '提早上班'
-        });
-        setBusy('');
-        setAsk(null);
-        if (confirmOut) setMsg('已打卡(地點未確認,已標示給主管)');
-      };
+      setLastL(L);
       if (L.loc === 'none' || L.loc === 'unk') {
         setBusy('');
         setAsk({
           kind: 'loc',
           L,
-          go: () => go(true)
+          type,
+          extra
         });
         return;
       }
-      go(false);
+      finish(type, extra, L, false);
+    };
+    const runCheck = async () => {
+      setChk({
+        busy: 1
+      });
+      let perm = '';
+      try {
+        if (navigator.permissions && navigator.permissions.query) {
+          const q = await navigator.permissions.query({
+            name: 'geolocation'
+          });
+          perm = q.state;
+        }
+      } catch (_e) {}
+      const L = await checkLoc(D.cfg || {});
+      setLastL(L);
+      setChk({
+        L,
+        perm
+      });
     };
     const clickIn = () => {
       const t = Date.now();
@@ -1255,7 +1592,24 @@
         width: restPct + '%',
         background: x.rest > 120 ? '#ef4444' : x.rest >= 60 ? '#22c55e' : '#3b82f6'
       }
-    }))), isMe && React.createElement("div", {
+    }))), isMe && (() => {
+      const c = D.cfg || {};
+      const set = c.gps !== false && c.lat || c.ip !== false && (c.ips || []).length;
+      const L = lastL;
+      const t = !set ? '主管還沒設定打卡地點,目前不檢查' : !L ? '打卡時會用 GPS 或公司 Wi‑Fi 確認地點' : L.loc === 'ip' ? '📶 連著公司 Wi‑Fi' : L.loc === 'gps' ? '📍 GPS 在範圍內(距店 ' + L.dist + ' m)' : L.loc === 'none' ? '📍 GPS 距店 ' + L.dist + ' m,太遠' : '⚠ 無法確認地點' + (L.gErr === 'denied' ? '(未允許定位)' : '');
+      return React.createElement(Card, {
+        className: "!py-2.5 flex items-center gap-2"
+      }, React.createElement("span", {
+        className: 'flex-1 text-xs ' + (L && !L.ok && set ? 'text-red-400 font-bold' : 'text-gray-400')
+      }, t), React.createElement("button", {
+        onClick: runCheck,
+        className: "shrink-0 rounded-full px-3 py-1.5 text-xs font-bold",
+        style: {
+          background: 'rgba(224,82,143,.12)',
+          color: '#b0306a'
+        }
+      }, "檢查定位"));
+    })(), isMe && React.createElement("div", {
       className: "grid grid-cols-3 gap-2"
     }, React.createElement(B, {
       cls: state === 'none' ? 'bg-violet-600 text-white' : 'bg-gray-800 text-gray-400',
@@ -1300,29 +1654,68 @@
       className: "text-sm text-center"
     }, React.createElement(Chip, {
       c: STX[r.status][1]
-    }, "加班 ", r.start, "–", r.end, "・", STX[r.status][0]))), React.createElement(Card, null, React.createElement("p", {
-      className: "text-sm font-bold text-gray-300 mb-1"
-    }, "今日打卡紀錄"), x.ps.length === 0 && React.createElement("p", {
+    }, "加班 ", r.start, "–", r.end, "・", STX[r.status][0]))), React.createElement(Card, null, React.createElement("div", {
+      className: "flex items-center mb-1"
+    }, React.createElement("p", {
+      className: "flex-1 text-sm font-bold text-gray-300"
+    }, "今日打卡紀錄"), canEdit && React.createElement("button", {
+      onClick: () => setPe({}),
+      className: "rounded-full px-3 py-1 text-xs font-bold",
+      style: {
+        background: 'rgba(224,82,143,.12)',
+        color: '#b0306a'
+      }
+    }, "＋ 補打卡")), x.ps.length === 0 && React.createElement("p", {
       className: "text-sm text-gray-500"
     }, "尚無打卡"), x.ps.map(p => React.createElement("div", {
       key: p.id,
-      className: "flex items-center justify-between py-1.5 border-b border-gray-800 text-sm"
+      className: "flex items-center justify-between gap-1 py-1.5 border-b border-gray-800 text-sm"
     }, React.createElement("span", {
       className: "text-gray-200"
-    }, hm(p.ts), " ", {
-      in: '上班',
-      out: '下班',
-      bs: '開始休息',
-      be: '結束休息'
-    }[p.type]), React.createElement("span", {
-      className: "space-x-1"
+    }, hm(p.ts), " ", PT[p.type], p.edit && React.createElement("span", {
+      className: "block"
+    }, React.createElement(EditTag, {
+      p: p
+    }))), React.createElement("span", {
+      className: "space-x-1 text-right"
     }, p.early > 0 && React.createElement(Chip, {
       c: p.apply ? 'b' : 'y'
-    }, '提早 ' + p.early + ' 分' + (p.apply ? '・申請加班' : '・不申請')), (p.loc === 'none' || p.loc === 'unk') && React.createElement(Chip, {
-      c: "r"
-    }, p.loc === 'none' ? '不在店內範圍' + (p.dist ? ' ' + p.dist + 'm' : '') : '無法確認地點'), p._p && React.createElement(Chip, {
+    }, '提早 ' + p.early + ' 分' + (p.apply ? '・申請加班' : '・不申請')), React.createElement(LocChip, {
+      p: p
+    }), p._p && React.createElement(Chip, {
       c: "y"
-    }, "待送出"))))), ask && ask.kind === 'early' && React.createElement(Sheet, {
+    }, "待送出"), canEdit && React.createElement("button", {
+      onClick: () => setPe({
+        p
+      }),
+      className: "rounded-full px-2.5 py-1 text-xs font-bold",
+      style: {
+        background: 'rgba(224,82,143,.12)',
+        color: '#b0306a'
+      }
+    }, "✎")))), canEdit && x.inP && !x.outP && React.createElement("div", {
+      className: "flex items-center justify-between pt-1.5 text-sm"
+    }, React.createElement("span", {
+      className: "text-gray-500"
+    }, "還沒打下班卡"), React.createElement("button", {
+      onClick: () => setPe({
+        type: 'out',
+        time: x.sE ? hm(x.sE) : hm(now)
+      }),
+      className: "rounded-full px-3 py-1 text-xs font-bold",
+      style: {
+        background: 'rgba(224,82,143,.12)',
+        color: '#b0306a'
+      }
+    }, "＋ 補下班卡"))), pe && React.createElement(PunchEdit, {
+      S: S,
+      uid: uid,
+      date: date,
+      p: pe.p,
+      defType: pe.type || (x.inP ? 'out' : 'in'),
+      defTime: pe.time || (x.inP ? '' : x.sS ? hm(x.sS) : ''),
+      onClose: () => setPe(null)
+    }), ask && ask.kind === 'early' && React.createElement(Sheet, {
       onClose: () => setAsk(null)
     }, React.createElement("p", {
       className: "text-lg font-extrabold text-gray-100"
@@ -1372,21 +1765,118 @@
         setAsk(null);
         doPunch('out');
       }
-    }, x.sE && now < x.sE - 60000 ? '仍要下班' : '下班打卡'))), ask && ask.kind === 'loc' && React.createElement(Sheet, {
-      onClose: () => setAsk(null)
+    }, x.sE && now < x.sE - 60000 ? '仍要下班' : '下班打卡'))), ask && ask.kind === 'loc' && (() => {
+      const L = ask.L;
+      const far = L.loc === 'none';
+      return React.createElement(Sheet, {
+        onClose: () => setAsk(null)
+      }, React.createElement("p", {
+        className: "text-lg font-extrabold text-gray-100"
+      }, "📍 ", far ? '不在店內範圍' : '無法確認打卡地點'), far ? React.createElement(React.Fragment, null, React.createElement("p", {
+        className: "text-[15px] text-gray-300"
+      }, "目前距離店 ", React.createElement("b", null, L.dist, " 公尺"), "(打卡範圍 ", (D.cfg || {}).radius || 150, " 公尺,定位誤差約 ", L.acc, " 公尺)。"), React.createElement("div", {
+        className: "rounded-xl bg-gray-800 px-3 py-2"
+      }, React.createElement("p", {
+        className: "text-xs text-gray-400"
+      }, "你目前的位置"), React.createElement("p", {
+        className: "text-sm font-bold text-gray-100"
+      }, L.lat, ", ", L.lng), React.createElement(MapA, {
+        lat: L.lat,
+        lng: L.lng,
+        t: "在 Google 地圖查看"
+      })), React.createElement("p", {
+        className: "text-xs text-gray-400"
+      }, "在店裡卻顯示太遠:可能 GPS 還沒定位準,請到窗邊或連上公司 Wi‑Fi 再按「重新檢查」")) : React.createElement(React.Fragment, null, React.createElement("p", {
+        className: "text-[15px] text-gray-300"
+      }, L.gErr === 'denied' ? '這支手機沒有允許 LINE 使用定位' : '抓不到手機定位', L.useI ? ',目前連的網路也不是公司 Wi‑Fi' : '', "。請先試試:"), React.createElement("p", {
+        className: "text-sm text-gray-300"
+      }, "① ", React.createElement("b", null, "開啟定位"), ":", GPS_HELP), React.createElement("p", {
+        className: "text-sm text-gray-300"
+      }, "② ", React.createElement("b", null, "連上公司 Wi‑Fi"), ":在店內連上店裡的 Wi‑Fi 也可以通過檢查"), React.createElement("p", {
+        className: "text-sm text-gray-300"
+      }, "③ 弄好後按「重新檢查」")), React.createElement("div", {
+        className: "grid grid-cols-3 gap-2"
+      }, React.createElement(B, {
+        cls: "bg-gray-800 text-gray-200",
+        onClick: () => setAsk(null)
+      }, "取消"), React.createElement(B, {
+        cls: "fd-w",
+        style: {
+          background: '#e0528f'
+        },
+        onClick: () => doPunch(ask.type, ask.extra)
+      }, "🔄 重新檢查"), React.createElement(B, {
+        cls: "fd-w",
+        style: {
+          background: '#f59e0b'
+        },
+        onClick: () => finish(ask.type, ask.extra, L, true)
+      }, "仍要打卡")), React.createElement("p", {
+        className: "text-xs text-gray-500"
+      }, far ? '「仍要打卡」會記下這個經緯度,主管點開就能在地圖上看到打卡位置' : '「仍要打卡」會記為 ⚠ 無法確認地點,並標示給主管'));
+    })(), chk && React.createElement(Sheet, {
+      onClose: () => setChk(null)
     }, React.createElement("p", {
       className: "text-lg font-extrabold text-gray-100"
-    }, "📍 ", ask.L.loc === 'none' ? '不在店內範圍' : '無法確認地點'), React.createElement("p", {
-      className: "text-sm text-gray-300"
-    }, ask.L.loc === 'none' ? '目前距離店 ' + ask.L.dist + ' 公尺。' : '抓不到 GPS,也不是店內網路。請確認已允許定位,或連上店內 Wi‑Fi。', "仍要打卡的話,這筆會標示給主管確認。"), React.createElement("div", {
-      className: "grid grid-cols-2 gap-2"
-    }, React.createElement(B, {
-      cls: "bg-gray-800 text-gray-200",
-      onClick: () => setAsk(null)
-    }, "取消"), React.createElement(B, {
-      cls: "bg-amber-500 text-gray-950",
-      onClick: ask.go
-    }, "仍要打卡"))));
+    }, "📍 檢查定位"), React.createElement("p", {
+      className: "text-xs text-gray-400"
+    }, "不會打卡,只是先確認這支手機能不能通過地點檢查"), chk.busy ? React.createElement("div", {
+      className: "py-6 flex justify-center"
+    }, React.createElement(Spinner, null)) : (() => {
+      const L = chk.L;
+      const c = D.cfg || {};
+      const R = (l, v) => React.createElement("div", {
+        className: "flex items-center justify-between py-2 border-b border-gray-800 text-sm"
+      }, React.createElement("span", {
+        className: "text-gray-300"
+      }, l), React.createElement("span", {
+        className: "text-right"
+      }, v));
+      if (L.loc === 'off') return React.createElement("p", {
+        className: "text-sm text-gray-300 py-2"
+      }, "主管還沒設定打卡地點,目前打卡不檢查地點。");
+      const gp = L.lat ? 'ok' : L.gErr === 'denied' || chk.perm === 'denied' ? 'denied' : L.useG ? 'fail' : '';
+      return React.createElement(React.Fragment, null, React.createElement("div", {
+        className: "rounded-xl bg-gray-800 px-3 py-1"
+      }, L.useG && R('GPS 定位權限', gp === 'denied' ? React.createElement(Chip, {
+        c: "r"
+      }, "✗ 未允許") : gp === 'ok' || chk.perm === 'granted' ? React.createElement(Chip, {
+        c: "g"
+      }, "✓ 已允許") : React.createElement(Chip, {
+        c: "y"
+      }, "? 抓不到位置")), L.useG && L.lat && R('目前位置', React.createElement("span", {
+        className: "text-[13px] text-gray-100"
+      }, L.lat, ", ", L.lng, React.createElement("br", null), React.createElement(MapA, {
+        lat: L.lat,
+        lng: L.lng,
+        t: "地圖"
+      }))), L.useG && L.lat && R('距離店', React.createElement(Chip, {
+        c: L.dist <= (c.radius || 150) + Math.min(L.acc || 0, 100) ? 'g' : 'r'
+      }, L.dist, " m(範圍 ", c.radius || 150, " m)")), L.useI && R('公司 Wi‑Fi', L.wifi ? React.createElement(Chip, {
+        c: "g"
+      }, "✓ 已連上") : React.createElement(Chip, {
+        c: "r"
+      }, "✗ 目前不是"))), React.createElement("p", {
+        className: "rounded-xl px-3 py-2 text-sm font-bold",
+        style: L.ok ? {
+          background: 'rgba(34,197,94,.14)',
+          color: '#15803d'
+        } : {
+          background: 'rgba(239,68,68,.1)',
+          color: '#b91c1c'
+        }
+      }, L.ok ? '✓ 可以打卡(' + (L.loc === 'ip' ? '連著公司 Wi‑Fi' : 'GPS 在範圍內') + ')' : L.loc === 'none' ? '✗ 距離太遠,打卡會標示給主管' : '✗ 無法確認地點,打卡會標示給主管'), (gp === 'denied' || gp === 'fail') && React.createElement("div", {
+        className: "text-xs text-gray-400 leading-relaxed"
+      }, React.createElement("b", {
+        className: "text-gray-300"
+      }, gp === 'denied' ? '沒有允許定位' : '抓不到定位', ",怎麼辦？"), React.createElement("br", null), "LINE 裡要用定位需要兩層允許:", React.createElement("br", null), "1. 手機系統允許 LINE 使用位置(", GPS_HELP, ")", React.createElement("br", null), "2. 第一次打卡時跳出「要使用你的位置嗎」請按「允許」", React.createElement("br", null), "都不行的話,連上公司 Wi‑Fi 一樣可以通過檢查"));
+    })(), !chk.busy && React.createElement(B, {
+      cls: "w-full fd-w",
+      style: {
+        background: '#e0528f'
+      },
+      onClick: runCheck
+    }, "🔄 再檢查一次")));
   }
   function MonthRec({
     S,
@@ -1397,6 +1887,8 @@
     } = S;
     const now = Date.now();
     const [month, setMonth] = useState(ymd(new Date()).slice(0, 7));
+    const [dayE, setDayE] = useState('');
+    const canEdit = D.me.isSup && uid !== D.me.uid;
     const today = ymd(new Date());
     const rows = monthRows(D, uid, month, now);
     const st = {
@@ -1465,6 +1957,12 @@
         key: "g",
         c: "r"
       }, "地點待確認"));
+      x.ps.filter(p => p.edit).forEach(p => notes.push(React.createElement(EditTag, {
+        key: 'e' + p.id,
+        p: Object.assign({}, p, {
+          reason: PT[p.type] + ' ' + hm(p.ts) + (p.reason ? '・' + p.reason : '')
+        })
+      })));
       x.lvPart.forEach(r => notes.push(React.createElement(Chip, {
         key: r.id,
         c: "b"
@@ -1488,7 +1986,7 @@
       className: "w-full text-[12px] text-center"
     }, React.createElement("thead", null, React.createElement("tr", {
       className: "text-gray-400"
-    }, React.createElement("th", null, "日"), React.createElement("th", null, "班"), React.createElement("th", null, "上班"), React.createElement("th", null, "下班"), React.createElement("th", null, "工時"), React.createElement("th", null, "休息"))), React.createElement("tbody", null, list.slice().reverse().map(r => React.createElement(React.Fragment, {
+    }, React.createElement("th", null, "日"), React.createElement("th", null, "班"), React.createElement("th", null, "上班"), React.createElement("th", null, "下班"), React.createElement("th", null, "工時"), React.createElement("th", null, "休息"), canEdit && React.createElement("th", null))), React.createElement("tbody", null, list.slice().reverse().map(r => React.createElement(React.Fragment, {
       key: r.d
     }, React.createElement("tr", {
       className: "border-t border-gray-800 text-gray-200",
@@ -1509,13 +2007,25 @@
       className: "text-pink-300"
     }, "卡")), React.createElement("td", {
       className: r.x.late ? 'text-red-400' : ''
-    }, r.x.inP ? hm(r.x.inP.ts) : '—'), React.createElement("td", null, r.x.outP ? hm(r.x.outP.ts) : '—'), React.createElement("td", null, r.x.inP ? dur(r.x.work) : '—'), React.createElement("td", null, r.x.inP ? Math.round(r.x.rest) : '—'))), r.notes.length > 0 && React.createElement("tr", null, React.createElement("td", {
+    }, r.x.inP ? hm(r.x.inP.ts) : '—'), React.createElement("td", null, r.x.outP ? hm(r.x.outP.ts) : '—'), React.createElement("td", null, r.x.inP ? dur(r.x.work) : '—'), React.createElement("td", null, r.x.inP ? Math.round(r.x.rest) : '—')), canEdit && React.createElement("td", null, React.createElement("button", {
+      onClick: () => setDayE(r.d),
+      className: "rounded-full px-2 py-0.5 text-xs font-bold",
+      style: {
+        background: 'rgba(224,82,143,.12)',
+        color: '#b0306a'
+      }
+    }, "✎"))), r.notes.length > 0 && React.createElement("tr", null, React.createElement("td", {
       colSpan: "6",
       className: "text-left pb-1.5 space-x-1"
     }, r.notes)))), !list.length && React.createElement("tr", null, React.createElement("td", {
-      colSpan: "6",
+      colSpan: "7",
       className: "py-4 text-gray-500"
-    }, "這個月還沒有資料"))))), React.createElement(Card, null, React.createElement("p", {
+    }, "這個月還沒有資料"))))), dayE && React.createElement(DayEdit, {
+      S: S,
+      uid: uid,
+      date: dayE,
+      onClose: () => setDayE('')
+    }), React.createElement(Card, null, React.createElement("p", {
       className: "text-sm font-bold text-gray-300 mb-2"
     }, "月統計"), React.createElement("div", {
       className: "grid grid-cols-3 gap-2 text-center text-xs text-gray-400"
@@ -1933,7 +2443,15 @@
     }, md(wk), "（一）–", md(addD(wk, 6)), "（日）"), React.createElement("button", {
       onClick: () => setWk(addD(wk, 7)),
       className: "px-3 py-2 rounded-full bg-gray-800 text-sm text-gray-300"
-    }, "下週 ›")), React.createElement(Card, {
+    }, "下週 ›")), wk !== mon && React.createElement("div", {
+      className: "text-center"
+    }, React.createElement("button", {
+      onClick: () => setWk(mon),
+      className: "fd-w rounded-full px-4 py-1.5 text-xs font-bold",
+      style: {
+        background: '#e0528f'
+      }
+    }, "📅 回到今天")), React.createElement(Card, {
       className: "!p-2 overflow-x-auto"
     }, React.createElement("table", {
       className: "w-full text-[12px] text-center"
@@ -2033,14 +2551,18 @@
         }, React.createElement("span", {
           className: "text-gray-200"
         }, s.name, " ", a.code ? lb(a.code) : ''), React.createElement("span", {
-          className: "space-x-1 text-gray-300"
-        }, x.inP && React.createElement(React.Fragment, null, hm(x.inP.ts), " ", x.late ? React.createElement(Chip, {
+          className: "space-x-1 text-gray-300 text-right"
+        }, x.inP && React.createElement(React.Fragment, null, hm(x.inP.ts), " ", React.createElement(LocChip, {
+          p: x.inP
+        }), " ", x.late ? React.createElement(Chip, {
           c: "r"
         }, "遲到 ", x.late, " 分") : x.inP.early > 0 ? React.createElement(Chip, {
           c: x.inP.apply ? 'b' : 'y'
         }, "提早 ", x.inP.early, " 分・", x.inP.apply ? '已申請加班' : '不計薪') : React.createElement(Chip, {
           c: "g"
-        }, "準時")), x.inP && (x.outP ? React.createElement(React.Fragment, null, " – ", hm(x.outP.ts), " ", x.sE && x.outP.ts < x.sE - 60000 ? React.createElement(Chip, {
+        }, "準時")), x.inP && (x.outP ? React.createElement(React.Fragment, null, " – ", hm(x.outP.ts), " ", React.createElement(LocChip, {
+          p: x.outP
+        }), " ", x.sE && x.outP.ts < x.sE - 60000 ? React.createElement(Chip, {
           c: "r"
         }, "早退") : x.sE && x.outP.ts > x.sE + 15 * 60000 ? React.createElement(Chip, {
           c: "y"
@@ -3092,8 +3614,8 @@
         setBusy('g');
         const g = await getGps(10000);
         setBusy('');
-        if (!g) {
-          setMsg('抓不到 GPS,請允許定位後再試');
+        if (!g || !g.lat) {
+          setMsg(g && g.err === 'denied' ? '沒有允許定位:' + GPS_HELP : '抓不到 GPS,請到窗邊再試');
           return;
         }
         push({
@@ -3244,7 +3766,7 @@
       className: "text-xs underline mt-1"
     }, "知道了")), sync.err && React.createElement("p", {
       className: "text-sm text-red-400"
-    }, sync.err), (D.gasVer || '0') < '1.0-006' && React.createElement("p", {
+    }, sync.err), (D.gasVer || '0') < '1.0-008' && React.createElement("p", {
       className: "rounded-xl px-3 py-2 text-sm font-bold",
       style: {
         background: 'rgba(245,158,11,.14)',
