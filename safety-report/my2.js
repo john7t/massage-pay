@@ -1,4 +1,4 @@
-/*BUILD my2.js v1.0-022 編譯版 h=6a26c2e8 t=2026-11-19 02:04*/
+/*BUILD my2.js v1.0-023 編譯版 h=eae3ea2d t=2026-11-20 11:43*/
 (function () {
   const {
     useState,
@@ -828,7 +828,20 @@ html:not(.s2-nolight):not(.s2-pink) .wf .text-4xl,html:not(.s2-nolight):not(.s2-
       className: "text-xs text-gray-400 mt-0.5"
     }, u.store || '', u.code ? '　' + u.code + (lang === 'vi' ? '' : ' 號') : '', roleName ? '　' + roleName : ''))), React.createElement(UsageGuard, null, React.createElement(UsageBanner, {
       lang: lang
-    })), React.createElement(UsageGuard, null, React.createElement(MainCodeCard, {
+    })), u.role === 'counter' && React.createElement("button", {
+      onClick: () => go('fd2=p'),
+      className: "w-full flex items-center gap-3 rounded-2xl border border-violet-700 bg-gray-900 p-3 text-left"
+    }, React.createElement("span", {
+      className: "text-2xl"
+    }, "🕒"), React.createElement("span", {
+      className: "flex-1"
+    }, React.createElement("b", {
+      className: "block text-sm text-white"
+    }, lang === 'vi' ? 'Trang quầy' : '櫃台人員頁'), React.createElement("span", {
+      className: "text-xs text-gray-400"
+    }, lang === 'vi' ? 'Chấm công・Xếp ca・Lịch ca' : '打卡・排班・全班表')), React.createElement("span", {
+      className: "text-xs text-violet-300"
+    }, "›")), React.createElement(UsageGuard, null, React.createElement(MainCodeCard, {
       lang: lang
     })), React.createElement("div", {
       className: "rounded-3xl border border-violet-700 p-4 space-y-2 bg-gradient-to-br from-violet-100 to-violet-50"
