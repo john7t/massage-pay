@@ -1,4 +1,4 @@
-/*BUILD fd2.js v1.0-001 編譯版 h=61886fea t=2026-11-20 11:43*/
+/*BUILD fd2.js v1.0-002 編譯版 h=410972ae t=2026-11-20 12:07*/
 (function () {
   const {
     useState,
@@ -17,7 +17,7 @@
     api,
     Spinner
   } = C;
-  const VER = 'v1.0-001';
+  const VER = 'v1.0-002';
   const SH = {
     A1: {
       n: '早班1',
@@ -30,31 +30,52 @@
       e: 20
     },
     B: {
-      n: '中班',
+      n: '午班',
       s: 12,
       e: 22
     },
     C1: {
-      n: '小夜1',
+      n: '晚班1',
       s: 16,
       e: 26
     },
     C2: {
-      n: '小夜2',
+      n: '晚班2',
       s: 18,
       e: 28
     },
     D: {
-      n: '大夜',
+      n: '夜班',
       s: 22,
       e: 32
     }
   };
+  const LB = {
+    A1: '早1',
+    A2: '早2',
+    B: '午',
+    C1: '晚1',
+    C2: '晚2',
+    D: '夜'
+  };
+  const lb = c => LB[c] || c || '';
   const CODES = ['A1', 'A2', 'B', 'C1', 'C2', 'D'];
   const COVER = {
     A1: 'A2',
     D: 'C2'
   };
+  const LV = {
+    al: '特休',
+    pl: '事假',
+    sl: '病假'
+  };
+  const LVS = {
+    al: '特',
+    pl: '事',
+    sl: '病'
+  };
+  const LVK = ['al', 'pl', 'sl'];
+  const OTR = ['客人延後', '交接延誤', '提早上班', '其他'];
   const p2 = n => String(n).padStart(2, '0');
   const ymd = d => d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
   const dOf = s => {
@@ -81,6 +102,12 @@
     return Math.floor(min / 60) + ':' + p2(min % 60);
   };
   const at = (date, h) => dOf(date).getTime() + h * 3600000;
+  const md = d => String(d || '').slice(5).replace('-', '/');
+  const money = n => (n < 0 ? '-' : '') + '$' + Math.abs(Math.round(n)).toLocaleString('en-US');
+  const dayN = min => {
+    const d = min / 480;
+    return Math.round(d * 100) / 100 + '';
+  };
   const WD = '日一二三四五六';
   const uidGen = () => 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   const LS = {
@@ -107,10 +134,26 @@
   })();
   const SK = 'fd2:st:v1:' + U0,
     QK = 'fd2:q:v1:' + U0;
+  const CFG0 = {
+    unit: {
+      al: 'd',
+      pl: 'd',
+      sl: 'd'
+    },
+    fullAtt: 2000,
+    grace: 0,
+    attMode: 'cut',
+    radius: 150,
+    ips: []
+  };
   function applyLocal(srv, q) {
     if (!srv) return null;
     const D = JSON.parse(JSON.stringify(srv));
     const me = D.me.uid;
+    D.cfg = Object.assign({}, CFG0, D.cfg || {});
+    D.cfg.unit = Object.assign({}, CFG0.unit, D.cfg.unit || {});
+    D.hr = D.hr || [];
+    D.reqs = D.reqs || [];
     q.forEach(o => {
       if (o.act === 'punch' && !D.punches.some(x => x.id === o.id)) D.punches.push({
         id: o.id,
@@ -127,17 +170,19 @@
       });else if (o.act === 'req_add' && !D.reqs.some(x => x.id === o.id)) D.reqs.push({
         id: o.id,
         uid: me,
-        type: 'ot',
+        type: o.type || 'ot',
         date: o.date,
-        start: o.start,
-        end: o.end,
+        date2: o.date2 || o.date,
+        start: o.start || '',
+        end: o.end || '',
         min: o.min,
-        reason: o.reason,
+        reason: o.reason || '',
+        note: o.note || '',
         status: 'pending',
         _p: 1
       });else if (o.act === 'req_cancel' || o.act === 'req_decide') {
         const r = D.reqs.find(x => x.id === o.id);
-        if (r) r.status = o.act === 'req_cancel' ? 'cancelled' : o.ok ? 'approved' : 'rejected';
+        if (r && r.status === 'pending') r.status = o.act === 'req_cancel' ? 'cancelled' : o.ok ? 'approved' : 'rejected';
       } else if (o.act === 'sched_set') {
         let r = D.sched.find(x => x.uid === me && x.month === o.month);
         if (!r) {
@@ -164,8 +209,29 @@
         if (r) r.status = o.ok ? 'approved' : 'returned';
       } else if (o.act === 'cfg_set') {
         Object.keys(o).forEach(k => {
-          if (k !== 'act' && k !== 'opId') D.cfg[k] = o[k];
+          if (k === 'unit') D.cfg.unit = Object.assign({}, D.cfg.unit, o.unit);else if (k !== 'act' && k !== 'opId') D.cfg[k] = o[k];
         });
+      } else if (o.act === 'hr_set') {
+        let r = D.hr.find(x => x.uid === o.uid);
+        if (!r) {
+          r = {
+            uid: o.uid
+          };
+          D.hr.push(r);
+        }
+        const f = Object.assign({}, o.f);
+        if (f.hire !== undefined && !D.me.isSup) {
+          r.hirePend = f.hire;
+          delete f.hire;
+        } else if (f.hire !== undefined) r.hirePend = '';
+        Object.assign(r, f);
+        r._p = 1;
+      } else if (o.act === 'hr_hire_decide') {
+        const r = D.hr.find(x => x.uid === o.uid);
+        if (r && r.hirePend) {
+          if (o.ok) r.hire = r.hirePend;
+          r.hirePend = '';
+        }
       }
     });
     return D;
@@ -226,7 +292,7 @@
             err: ''
           });
         } else {
-          const net = !r || /連不上|逾時|網路|Failed|Load failed/.test(String(r.error || ''));
+          const net = !r || r._net || /連不上|逾時|網路|Failed|Load failed/.test(String(r.error || ''));
           setSync(s => Object.assign({}, s, {
             busy: false,
             off: net,
@@ -280,6 +346,14 @@
       clearNotes: () => setNotes([])
     };
   }
+  const lvActive = r => LV[r.type] && (r.status === 'pending' || r.status === 'approved');
+  function leaveOn(D, uid, date) {
+    const L = D.reqs.filter(r => r.uid === uid && lvActive(r) && r.date <= date && (r.date2 || r.date) >= date);
+    return {
+      full: L.find(r => !r.start) || null,
+      part: L.filter(r => r.start)
+    };
+  }
   function schedOf(D, uid, month) {
     return D.sched.find(x => x.uid === uid && x.month === month);
   }
@@ -294,29 +368,40 @@
   function dayPlan(D, date) {
     const out = {};
     const warns = [];
+    const main = {};
     D.staff.forEach(s => {
       const c = planned(D, s.uid, date);
-      out[s.uid] = {
+      const L = leaveOn(D, s.uid, date).full;
+      const r = schedOf(D, s.uid, date.slice(0, 7));
+      const o = {
         code: c === 'off' ? null : c,
         off: c === 'off',
         unset: c === null
       };
+      if (o.off) main[s.uid] = r && r.base;
+      if (L) {
+        o.lv = L.type;
+        o.lvP = L.status === 'pending';
+        o.unset = false;
+        if (o.code) {
+          main[s.uid] = o.code;
+          o.code = null;
+        }
+      }
+      out[s.uid] = o;
     });
-    Object.keys(COVER).forEach(main => {
-      const need = D.staff.filter(s => {
-        const r = schedOf(D, s.uid, date.slice(0, 7));
-        return out[s.uid].off && r && r.base === main;
-      });
-      const avail = D.staff.filter(s => out[s.uid].code === COVER[main]);
+    Object.keys(COVER).forEach(m => {
+      const need = D.staff.filter(s => main[s.uid] === m);
+      const avail = D.staff.filter(s => out[s.uid].code === COVER[m] && !out[s.uid].cover);
       need.forEach((s, i) => {
         const c = avail[i];
         if (c) {
-          out[c.uid].code = main;
-          out[c.uid].cover = main;
+          out[c.uid].code = m;
+          out[c.uid].cover = m;
           out[s.uid].coveredBy = c.name;
         } else {
           warns.push({
-            shift: main,
+            shift: m,
             who: s.name
           });
           out[s.uid].noCover = true;
@@ -363,8 +448,8 @@
           const x = code(addD(d, -k));
           if (x) wk++;else off++;
         }
-        if (off < 2) add(d, '第36條 ' + addD(d, -6).slice(5) + '~' + d.slice(5) + ' 只休 ' + off + ' 天(每 7 天要休 2 天)');
-        if (wk * 8 > 40) add(d, '第30條 ' + addD(d, -6).slice(5) + '~' + d.slice(5) + ' 正常工時 ' + wk * 8 + ' 小時(每週 40 小時)');
+        if (off < 2) add(d, '第36條 ' + md(addD(d, -6)) + '~' + md(d) + ' 只休 ' + off + ' 天(每 7 天要休 2 天)');
+        if (wk * 8 > 40) add(d, '第30條 ' + md(addD(d, -6)) + '~' + md(d) + ' 正常工時 ' + wk * 8 + ' 小時(每週 40 小時)');
       }
     }
     return res;
@@ -377,6 +462,7 @@
     const cache = {};
     const a = myActual(D, uid, date, cache);
     const c = a.code;
+    const L = leaveOn(D, uid, date);
     const inP = ps.find(p => p.type === 'in');
     const outs = ps.filter(p => p.type === 'out');
     const outP = outs[outs.length - 1];
@@ -394,11 +480,12 @@
       sE = c ? at(date, SH[c].e) : 0;
     const ot = D.reqs.filter(r => r.uid === uid && r.date === date && r.type === 'ot');
     const earlyReq = ot.find(r => r.reason === '提早上班' && r.status !== 'cancelled');
+    const otReqs = ot.filter(r => r.reason !== '提早上班' && r.status !== 'cancelled');
     let pay = inP ? inP.payStart || inP.ts : 0;
     if (inP && earlyReq && earlyReq.status !== 'approved' && sS) pay = Math.max(inP.ts, sS);
     const late = inP && sS && inP.ts > sS + 60000 ? Math.floor((inP.ts - sS) / 60000) : 0;
     const endCap = outP ? outP.ts : now;
-    const otOk = ot.some(r => r.status === 'approved' && r.reason !== '提早上班');
+    const otOk = otReqs.some(r => r.status === 'approved');
     const endT = sE && !otOk ? Math.min(endCap, sE) : endCap;
     const work = inP ? Math.max(0, (endT - pay) / 60000 - rest) : 0;
     let lastStart = pay;
@@ -425,7 +512,10 @@
       cont,
       latest,
       earlyReq,
-      pay
+      otReqs,
+      pay,
+      lvFull: L.full,
+      lvPart: L.part
     };
   }
   function curDate(D, uid, now) {
@@ -439,6 +529,176 @@
     if (yIn && !yOut && now - yp[0].ts < 20 * 3600000) return y;
     if (yc && SH[yc].e > 24 && now < at(y, SH[yc].e) + 4 * 3600000 && !yOut) return y;
     return t;
+  }
+  function hrOf(D, uid) {
+    return D.hr.find(x => x.uid === uid) || {
+      uid: uid
+    };
+  }
+  const addYM = (s, y, m) => {
+    const d = dOf(s);
+    const t = new Date(d.getFullYear() + y, d.getMonth() + m, d.getDate());
+    if (t.getDate() !== d.getDate()) t.setDate(0);
+    return ymd(t);
+  };
+  const alDays = n => n < 1 ? 0 : n === 1 ? 7 : n === 2 ? 10 : n < 5 ? 14 : n < 10 ? 15 : Math.min(30, 15 + (n - 9));
+  function senTxt(hire, today) {
+    if (!hire) return '';
+    const a = dOf(hire),
+      b = dOf(today);
+    let m = (b.getFullYear() - a.getFullYear()) * 12 + b.getMonth() - a.getMonth();
+    if (b.getDate() < a.getDate()) m--;
+    if (m < 0) return '未到職';
+    return (m >= 12 ? Math.floor(m / 12) + ' 年 ' : '') + m % 12 + ' 個月';
+  }
+  function alInfo(D, uid, today) {
+    const hire = hrOf(D, uid).hire;
+    if (!hire || !/^\d{4}-\d{2}-\d{2}$/.test(hire)) return null;
+    let n = 0;
+    while (addYM(hire, n + 1, 0) <= today && n < 60) n++;
+    let days, from, to, next, nextDays;
+    if (n >= 1) {
+      days = alDays(n);
+      from = addYM(hire, n, 0);
+      to = addD(addYM(hire, n + 1, 0), -1);
+      next = addYM(hire, n + 1, 0);
+      nextDays = alDays(n + 1);
+    } else if (addYM(hire, 0, 6) <= today) {
+      days = 3;
+      from = addYM(hire, 0, 6);
+      to = addD(addYM(hire, 1, 0), -1);
+      next = addYM(hire, 1, 0);
+      nextDays = 7;
+    } else {
+      days = 0;
+      from = '';
+      to = '';
+      next = addYM(hire, 0, 6);
+      nextDays = 3;
+    }
+    const used = from ? D.reqs.filter(r => r.uid === uid && r.type === 'al' && lvActive(r) && r.date >= from && r.date <= to).reduce((s, r) => s + r.min, 0) / 480 : 0;
+    return {
+      days,
+      from,
+      to,
+      next,
+      nextDays,
+      used,
+      left: days - used,
+      sen: senTxt(hire, today)
+    };
+  }
+  function yearUsed(D, uid, type, today) {
+    const y = today.slice(0, 4);
+    return D.reqs.filter(r => r.uid === uid && r.type === type && lvActive(r) && r.date.slice(0, 4) === y).reduce((s, r) => s + r.min, 0) / 480;
+  }
+  function leftOf(D, uid, type, today) {
+    if (type === 'al') {
+      const a = alInfo(D, uid, today);
+      return a ? a.left : null;
+    }
+    return (type === 'pl' ? 14 : 30) - yearUsed(D, uid, type, today);
+  }
+  function leaveWorkDays(D, uid, d1, d2) {
+    let n = 0;
+    for (let d = d1; d <= d2 && n < 40; d = addD(d, 1)) {
+      if (planned(D, uid, d) !== 'off') n++;
+    }
+    return n;
+  }
+  function monthRows(D, uid, month, now) {
+    const n = daysIn(month);
+    const today = ymd(new Date(now));
+    const rows = [];
+    for (let i = 1; i <= n; i++) {
+      const d = month + '-' + p2(i);
+      if (d > today) break;
+      rows.push({
+        d,
+        x: dayCalc(D, uid, d, d === today ? now : at(d, 48))
+      });
+    }
+    return rows;
+  }
+  function salCalc(D, uid, month, now, rows) {
+    const cfg = D.cfg;
+    const S = +hrOf(D, uid).salary || 0;
+    const F = +cfg.fullAtt || 0;
+    const grace = +cfg.grace || 0;
+    const today = ymd(new Date(now));
+    rows = rows || monthRows(D, uid, month, now);
+    let lateN = 0,
+      lateMin = 0,
+      miss = 0,
+      ot1 = 0,
+      ot2 = 0,
+      otDays = 0;
+    rows.forEach(({
+      d,
+      x
+    }) => {
+      if (x.late > grace) {
+        lateN++;
+        lateMin += x.late;
+      }
+      if (!x.lvFull && (!x.inP && x.outP || x.inP && !x.outP && d < today || !x.ps.length && x.code && d < today)) miss++;
+      if (x.outP || x.inP && d < today) {
+        const o = Math.max(0, Math.round(x.work) - 480);
+        if (o > 0) {
+          otDays++;
+          ot1 += Math.min(120, o);
+          ot2 += Math.min(120, Math.max(0, o - 120));
+        }
+      }
+    });
+    const lv = {
+      al: 0,
+      pl: 0,
+      sl: 0
+    };
+    D.reqs.filter(r => r.uid === uid && lvActive(r)).forEach(r => {
+      if (r.start) {
+        if (r.date.slice(0, 7) === month) lv[r.type] += r.min / 480;
+        return;
+      }
+      for (let d = r.date; d <= (r.date2 || r.date); d = addD(d, 1)) {
+        if (d.slice(0, 7) === month && planned(D, uid, d) !== 'off') lv[r.type] += 1;
+      }
+    });
+    let att = F,
+      attNote = '';
+    if ((lateN || miss) && cfg.attMode !== 'keep') {
+      att = 0;
+      attNote = (lateN ? '遲到' : '') + (lateN && miss ? '、' : '') + (miss ? '缺卡' : '') + '・當月不發';
+    } else if (lv.pl + lv.sl > 0) {
+      att = Math.max(0, F - F / 30 * (lv.pl + lv.sl));
+      attNote = '事病假 ' + dayN((lv.pl + lv.sl) * 480) + ' 天比例扣';
+    }
+    const hourly = (S + F) / 240;
+    const otPay = hourly * (ot1 / 60 * 1.34 + ot2 / 60 * 1.67);
+    const lateDed = S / 240 / 60 * lateMin;
+    const plDed = S / 30 * lv.pl;
+    const slDed = S / 30 / 2 * lv.sl;
+    const total = S + att + otPay - lateDed - plDed - slDed;
+    return {
+      S,
+      F,
+      att,
+      attNote,
+      hourly,
+      ot1,
+      ot2,
+      otDays,
+      otPay,
+      lateN,
+      lateMin,
+      lateDed,
+      miss,
+      lv,
+      plDed,
+      slDed,
+      total
+    };
   }
   function distM(a, b, c, d) {
     const R = 6371000,
@@ -571,10 +831,49 @@
     onClick: onClick,
     className: 'rounded-xl py-3 font-bold text-[15px] disabled:opacity-40 ' + (cls || 'bg-violet-600 text-white')
   }, children);
+  const Seg = ({
+    opts,
+    val,
+    on,
+    small
+  }) => React.createElement("div", {
+    className: "flex gap-1.5 flex-wrap"
+  }, opts.map(([k, l]) => React.createElement("button", {
+    key: k,
+    onClick: () => on(k),
+    className: 'rounded-full font-bold ' + (small ? 'px-2.5 py-1 text-xs ' : 'px-3 py-1.5 text-sm ') + (val === k ? 'bg-violet-600 text-white' : 'bg-gray-800 text-gray-300')
+  }, l)));
+  const Inp = p => React.createElement("input", {
+    ...p,
+    className: 'rounded-xl bg-gray-800 border border-gray-700 px-3 py-2.5 text-gray-100 text-[15px] ' + (p.className || 'w-full')
+  });
+  const STX = {
+    pending: ['待核准', 'y'],
+    approved: ['已核准', 'g'],
+    rejected: ['未核准', 'x'],
+    cancelled: ['已取消', 'x']
+  };
+  const MonthNav = ({
+    month,
+    setMonth,
+    suffix
+  }) => React.createElement("div", {
+    className: "flex items-center gap-2"
+  }, React.createElement("button", {
+    onClick: () => setMonth(addM(month, -1)),
+    className: "px-3 py-2 rounded-full bg-gray-800 text-sm text-gray-300"
+  }, "‹"), React.createElement("b", {
+    className: "flex-1 text-center text-gray-100"
+  }, month.replace('-', ' 年 '), " 月", suffix || ''), React.createElement("button", {
+    onClick: () => setMonth(addM(month, 1)),
+    className: "px-3 py-2 rounded-full bg-gray-800 text-sm text-gray-300"
+  }, "›"));
+  const nameOf = (D, uid) => (D.staff.find(s => s.uid === uid) || {}).name || (uid === D.me.uid ? D.me.name : '?');
   function PunchTab({
     S,
     uid,
-    isMe
+    isMe,
+    goApply
   }) {
     const {
       D,
@@ -613,6 +912,7 @@
         if (extra && extra.apply && extra.early) push({
           act: 'req_add',
           id: uidGen(),
+          type: 'ot',
           date: date,
           start: hm(ts),
           end: hhmm(SH[x.code].s),
@@ -651,19 +951,16 @@
       });
     };
     const state = !x.inP ? 'none' : x.outP ? 'out' : x.onBreak ? 'brk' : 'work';
-    let col = '#9ca3af',
-      cl = '灰';
+    let col = '#9ca3af';
     if (state === 'work') {
       col = '#22c55e';
       if (x.cont >= 210 || x.sE && now > x.sE) col = '#f59e0b';
       if (x.latest && now > x.latest - 30 * 60000) col = '#ef4444';
     }
     if (state === 'brk') {
-      const b = (now - x.bsTs) / 60000 + 0;
       const tot = x.rest;
       col = tot >= 120 ? '#ef4444' : tot >= 60 ? '#22c55e' : '#3b82f6';
     }
-    if (state === 'none' && x.inP === undefined && x.sS && now > x.sS) col = '#9ca3af';
     const restPct = Math.min(100, x.rest / 120 * 100);
     return React.createElement("div", {
       className: "space-y-3"
@@ -673,16 +970,19 @@
       className: "flex-1"
     }, React.createElement("p", {
       className: "text-xs text-gray-400"
-    }, date === ymd(new Date(now)) ? '今日班別' : '前一天的班(跨日)', " ", date.slice(5).replace('-', '/'), "（", WD[dOf(date).getDay()], "）"), React.createElement("p", {
+    }, date === ymd(new Date(now)) ? '今日班別' : '前一天的班(跨日)', " ", md(date), "（", WD[dOf(date).getDay()], "）"), React.createElement("p", {
       className: "text-xl font-extrabold text-gray-100"
-    }, x.code ? x.code + ' ' + SH[x.code].n : '今天沒有排班', x.a.cover && React.createElement("span", {
+    }, x.code ? lb(x.code) + '・' + SH[x.code].n : x.lvFull ? LV[x.lvFull.type] + (x.lvFull.status === 'pending' ? '(待核准)' : '') : '今天沒有排班', x.a.cover && React.createElement("span", {
       className: "ml-2 align-middle"
     }, React.createElement(Chip, {
       c: "p"
     }, "卡班"))), React.createElement("p", {
       className: "text-xs text-gray-400"
-    }, x.code ? hhmm(SH[x.code].s) + ' – ' + hhmm(SH[x.code].e) : '沒有排班也可以打卡', x.inP ? ' ・計薪起算 ' + hm(x.pay) : '')), React.createElement(Chip, {
-      c: state === 'work' ? 'g' : state === 'brk' ? 'b' : state === 'out' ? 'x' : 'x'
+    }, x.code ? hhmm(SH[x.code].s) + ' – ' + hhmm(SH[x.code].e) : x.lvFull ? '請假不用打卡' : '沒有排班也可以打卡', x.inP ? ' ・計薪起算 ' + hm(x.pay) : ''), x.lvPart.map(r => React.createElement("p", {
+      key: r.id,
+      className: "text-xs text-sky-300 mt-0.5"
+    }, LV[r.type], " ", r.start, "–", r.end, r.status === 'pending' ? '(待核准)' : ''))), React.createElement(Chip, {
+      c: state === 'work' ? 'g' : state === 'brk' ? 'b' : 'x'
     }, state === 'work' ? '上班中' : state === 'brk' ? '休息中' : state === 'out' ? '已下班' : '尚未上班'))), React.createElement(Card, {
       className: "text-center"
     }, React.createElement("div", {
@@ -707,7 +1007,7 @@
       className: "text-gray-400"
     }, "距最晚下班", React.createElement("br", null), React.createElement("b", {
       className: "text-lg text-gray-100"
-    }, dur((x.latest - now) / 60000))), React.createElement("div", {
+    }, now > x.latest ? '已超過 ' + dur((now - x.latest) / 60000) : dur((x.latest - now) / 60000))), React.createElement("div", {
       className: "text-gray-400"
     }, "最晚下班", React.createElement("br", null), React.createElement("b", {
       className: "text-lg text-gray-100"
@@ -765,9 +1065,26 @@
       })
     }, busy === 'out' ? React.createElement(Spinner, null) : x.outP ? '✓ 下班 ' + hm(x.outP.ts) : '下班打卡')), msg && React.createElement("p", {
       className: "text-sm text-amber-300 text-center"
-    }, msg), x.sE && state === 'work' && now > x.sE && React.createElement("p", {
-      className: "text-sm text-amber-300 text-center"
-    }, "已過表定下班 ", hm(x.sE), ",超過的時間要有核准的加班才計薪(加班申請在第二批開放)"), React.createElement(Card, null, React.createElement("p", {
+    }, msg), isMe && x.sE && (state === 'work' || state === 'brk' || state === 'out') && (x.outP ? x.outP.ts : now) > x.sE + 60000 && !x.otReqs.length && React.createElement(Card, {
+      className: "flex items-center gap-3"
+    }, React.createElement("p", {
+      className: "flex-1 text-sm text-amber-300"
+    }, "已過表定下班 ", hm(x.sE), ",超過的時間要有核准的加班才計薪"), React.createElement("button", {
+      onClick: () => goApply({
+        date,
+        start: hm(x.sE),
+        end: hm(x.outP ? x.outP.ts : Math.ceil(now / 300000) * 300000)
+      }),
+      className: "fd-w shrink-0 rounded-xl px-3 py-2 text-sm font-bold",
+      style: {
+        background: '#f59e0b'
+      }
+    }, "申請加班")), x.otReqs.map(r => React.createElement("p", {
+      key: r.id,
+      className: "text-sm text-center"
+    }, React.createElement(Chip, {
+      c: STX[r.status][1]
+    }, "加班 ", r.start, "–", r.end, "・", STX[r.status][0]))), React.createElement(Card, null, React.createElement("p", {
       className: "text-sm font-bold text-gray-300 mb-1"
     }, "今日打卡紀錄"), x.ps.length === 0 && React.createElement("p", {
       className: "text-sm text-gray-500"
@@ -860,9 +1177,8 @@
     } = S;
     const now = Date.now();
     const [month, setMonth] = useState(ymd(new Date()).slice(0, 7));
-    const n = daysIn(month);
     const today = ymd(new Date());
-    const rows = [];
+    const rows = monthRows(D, uid, month, now);
     const st = {
       days: 0,
       work: 0,
@@ -870,10 +1186,12 @@
       late: 0,
       miss: 0
     };
-    for (let i = 1; i <= n; i++) {
-      const d = month + '-' + p2(i);
-      if (d > today) break;
-      const x = dayCalc(D, uid, d, d === today ? now : at(d, 48));
+    const grace = +D.cfg.grace || 0;
+    const S0 = +hrOf(D, uid).salary || 0;
+    const list = rows.map(({
+      d,
+      x
+    }) => {
       const notes = [];
       if (x.inP) {
         st.days++;
@@ -883,31 +1201,41 @@
         notes.push(React.createElement(Chip, {
           key: "l",
           c: "r"
-        }, "遲到 ", x.late, " 分"));
-        st.late++;
+        }, "遲到 ", x.late, " 分", x.late > grace && S0 ? '・-' + money(S0 / 240 / 60 * x.late).slice(1) : ''));
+        if (x.late > grace) st.late++;
       }
       if (x.earlyReq) notes.push(React.createElement(Chip, {
         key: "e",
         c: x.earlyReq.status === 'approved' ? 'b' : x.earlyReq.status === 'rejected' ? 'x' : 'y'
-      }, "提早加班 ", x.earlyReq.min, " 分・", {
-        pending: '待核准',
-        approved: '已核准',
-        rejected: '未核准'
-      }[x.earlyReq.status] || ''));
-      if (x.earlyReq && x.earlyReq.status === 'approved') st.ot += x.earlyReq.min;
-      if (!x.inP && x.outP) {
-        notes.push(React.createElement(Chip, {
-          key: "mi",
-          c: "r"
-        }, "缺上班卡"));
-        st.miss++;
-      }
-      if (x.inP && !x.outP && d < today) {
-        notes.push(React.createElement(Chip, {
-          key: "mo",
-          c: "r"
-        }, "缺下班卡"));
-        st.miss++;
+      }, "提早加班 ", x.earlyReq.min, " 分・", (STX[x.earlyReq.status] || [''])[0]));
+      x.otReqs.forEach(r => notes.push(React.createElement(Chip, {
+        key: r.id,
+        c: r.status === 'approved' ? 'b' : 'y'
+      }, "加班 ", r.min, " 分・", STX[r.status][0])));
+      const o = Math.max(0, Math.round(x.work) - 480);
+      if ((x.outP || x.inP && d < today) && o > 0) st.ot += o;
+      if (!x.lvFull) {
+        if (!x.inP && x.outP) {
+          notes.push(React.createElement(Chip, {
+            key: "mi",
+            c: "r"
+          }, "缺上班卡"));
+          st.miss++;
+        }
+        if (x.inP && !x.outP && d < today) {
+          notes.push(React.createElement(Chip, {
+            key: "mo",
+            c: "r"
+          }, "缺下班卡"));
+          st.miss++;
+        }
+        if (!x.ps.length && x.code && d < today) {
+          notes.push(React.createElement(Chip, {
+            key: "n",
+            c: "r"
+          }, "沒有打卡紀錄"));
+          st.miss++;
+        }
       }
       if (x.outP && x.rest < 60) notes.push(React.createElement(Chip, {
         key: "r",
@@ -917,57 +1245,54 @@
         key: "g",
         c: "r"
       }, "地點待確認"));
-      if (!x.ps.length && x.code && d < today) {
-        notes.push(React.createElement(Chip, {
-          key: "n",
-          c: "r"
-        }, "沒有打卡紀錄"));
-        st.miss++;
-      }
-      rows.push({
+      x.lvPart.forEach(r => notes.push(React.createElement(Chip, {
+        key: r.id,
+        c: "b"
+      }, LV[r.type], " ", r.start, "–", r.end, r.status === 'pending' ? '・待核准' : '')));
+      return {
         d,
         x,
         notes,
         off: x.a.off
-      });
-    }
+      };
+    });
+    const sal = salCalc(D, uid, month, now, rows);
     return React.createElement("div", {
       className: "space-y-3"
-    }, React.createElement("div", {
-      className: "flex items-center gap-2"
-    }, React.createElement("button", {
-      onClick: () => setMonth(addM(month, -1)),
-      className: "px-3 py-2 rounded-full bg-gray-800 text-sm text-gray-300"
-    }, "‹"), React.createElement("b", {
-      className: "flex-1 text-center text-gray-100"
-    }, month.replace('-', ' 年 '), " 月"), React.createElement("button", {
-      onClick: () => setMonth(addM(month, 1)),
-      className: "px-3 py-2 rounded-full bg-gray-800 text-sm text-gray-300"
-    }, "›")), React.createElement(Card, {
+    }, React.createElement(MonthNav, {
+      month: month,
+      setMonth: setMonth
+    }), React.createElement(Card, {
       className: "!p-2"
     }, React.createElement("table", {
       className: "w-full text-[12px] text-center"
     }, React.createElement("thead", null, React.createElement("tr", {
       className: "text-gray-400"
-    }, React.createElement("th", null, "日"), React.createElement("th", null, "班"), React.createElement("th", null, "上班"), React.createElement("th", null, "下班"), React.createElement("th", null, "工時"), React.createElement("th", null, "休息"))), React.createElement("tbody", null, rows.slice().reverse().map(r => React.createElement(React.Fragment, {
+    }, React.createElement("th", null, "日"), React.createElement("th", null, "班"), React.createElement("th", null, "上班"), React.createElement("th", null, "下班"), React.createElement("th", null, "工時"), React.createElement("th", null, "休息"))), React.createElement("tbody", null, list.slice().reverse().map(r => React.createElement(React.Fragment, {
       key: r.d
     }, React.createElement("tr", {
-      className: "border-t border-gray-800 text-gray-200"
+      className: "border-t border-gray-800 text-gray-200",
+      style: r.x.lvFull && !r.x.ps.length ? {
+        background: 'rgba(56,189,248,.12)'
+      } : null
     }, React.createElement("td", {
       className: "py-1.5"
     }, r.d.slice(8), React.createElement("span", {
       className: "text-gray-500"
-    }, WD[dOf(r.d).getDay()])), r.off && !r.x.ps.length ? React.createElement("td", {
+    }, WD[dOf(r.d).getDay()])), r.x.lvFull && !r.x.ps.length ? React.createElement("td", {
+      colSpan: "5",
+      className: "text-sky-300 font-bold"
+    }, LV[r.x.lvFull.type], "（整天）", r.x.lvFull.status === 'pending' ? '待核准' : '') : r.off && !r.x.ps.length ? React.createElement("td", {
       colSpan: "5",
       className: "text-pink-300 font-bold"
-    }, "排休") : React.createElement(React.Fragment, null, React.createElement("td", null, r.x.code || '—', r.x.a.cover && React.createElement("span", {
+    }, "排休") : React.createElement(React.Fragment, null, React.createElement("td", null, r.x.code ? lb(r.x.code) : '—', r.x.a.cover && React.createElement("span", {
       className: "text-pink-300"
     }, "卡")), React.createElement("td", {
       className: r.x.late ? 'text-red-400' : ''
     }, r.x.inP ? hm(r.x.inP.ts) : '—'), React.createElement("td", null, r.x.outP ? hm(r.x.outP.ts) : '—'), React.createElement("td", null, r.x.inP ? dur(r.x.work) : '—'), React.createElement("td", null, r.x.inP ? Math.round(r.x.rest) : '—'))), r.notes.length > 0 && React.createElement("tr", null, React.createElement("td", {
       colSpan: "6",
       className: "text-left pb-1.5 space-x-1"
-    }, r.notes)))), !rows.length && React.createElement("tr", null, React.createElement("td", {
+    }, r.notes)))), !list.length && React.createElement("tr", null, React.createElement("td", {
       colSpan: "6",
       className: "py-4 text-gray-500"
     }, "這個月還沒有資料"))))), React.createElement(Card, null, React.createElement("p", {
@@ -986,9 +1311,36 @@
       className: "text-base text-gray-100"
     }, st.miss, " 次")), React.createElement("div", null, "請假", React.createElement("br", null), React.createElement("b", {
       className: "text-base text-gray-100"
-    }, "—"))), React.createElement("p", {
+    }, LVK.filter(k => sal.lv[k]).map(k => LVS[k] + dayN(sal.lv[k] * 480)).join(' ') || '—'))), st.ot > 46 * 60 && React.createElement("p", {
+      className: "text-xs text-red-400 mt-2"
+    }, "⚠ 本月加班 ", (st.ot / 60).toFixed(1), " 小時,", st.ot > 54 * 60 ? '超過 54 小時(違規)' : '超過 46 小時'), React.createElement("p", {
       className: "text-[11px] text-gray-500 mt-2"
-    }, "請假與薪資試算在第二批開放。工時＝下班−上班−休息;提早打卡未核准、超過表定下班沒有核准加班的部分不計。")));
+    }, "工時＝下班−上班−休息;提早打卡未核准、超過表定下班沒有核准加班的部分不計。")), React.createElement(Card, null, React.createElement("p", {
+      className: "text-sm font-bold text-gray-300 mb-1"
+    }, "當月薪資試算 ", React.createElement("span", {
+      className: "text-[11px] text-gray-500 font-normal"
+    }, "(未扣勞健保、勞退自提、所得稅)")), !sal.S ? React.createElement("p", {
+      className: "text-sm text-gray-400 py-2"
+    }, "還沒有設定月薪,請主管到「人資」設定。") : React.createElement("div", {
+      className: "text-sm text-gray-200"
+    }, [['月薪', money(sal.S)], [React.createElement(React.Fragment, null, "全勤獎金 ", sal.attNote && React.createElement(Chip, {
+      c: sal.att ? 'y' : 'r'
+    }, sal.attNote)), money(sal.att)], [React.createElement(React.Fragment, null, "加班費 ", React.createElement("span", {
+      className: "text-[11px] text-gray-500"
+    }, sal.ot1 ? dur(sal.ot1) + '×1.34' : '', sal.ot2 ? ' ' + dur(sal.ot2) + '×1.67' : '')), '+' + money(sal.otPay)], sal.lateMin ? [React.createElement(React.Fragment, null, "遲到扣款 ", React.createElement("span", {
+      className: "text-[11px] text-gray-500"
+    }, sal.lateMin, " 分")), '-' + money(sal.lateDed).replace('$', '$')] : null, sal.plDed ? ['事假扣款 ' + dayN(sal.lv.pl * 480) + ' 天', '-' + money(sal.plDed)] : null, sal.slDed ? ['病假扣款(半薪) ' + dayN(sal.lv.sl * 480) + ' 天', '-' + money(sal.slDed)] : null].filter(Boolean).map((r, i) => React.createElement("div", {
+      key: i,
+      className: "flex items-center justify-between py-1.5 border-b border-gray-800"
+    }, React.createElement("span", null, r[0]), React.createElement("b", null, r[1]))), React.createElement("div", {
+      className: "flex items-center justify-between pt-2"
+    }, React.createElement("b", {
+      className: "text-gray-100"
+    }, "應發合計"), React.createElement("b", {
+      className: "text-lg text-pink-400"
+    }, money(sal.total))), React.createElement("p", {
+      className: "text-[11px] text-gray-500 mt-1"
+    }, "時薪＝(月薪+全勤)÷240＝", money(sal.hourly), ";每日超過 8 小時的部分算加班(前 2 小時×1.34、再 2 小時×1.67)。僅供參考,實際以公司核算為準。"))));
   }
   function SchedTab({
     S
@@ -1003,7 +1355,7 @@
     const [more, setMore] = useState(false);
     if (!D.me.isCounter) return React.createElement(Card, null, React.createElement("p", {
       className: "text-sm text-gray-400"
-    }, "排班只給櫃台人員使用。主管可在「全班表」看大家的班表並審核。"));
+    }, "排班只給櫃台人員使用。主管可在「全班表」看大家的班表,在「主管設定」審核。"));
     const r = schedOf(D, me, month);
     const base = r && r.base;
     const days = r && r.days || {};
@@ -1038,7 +1390,7 @@
     const unset = [];
     for (let i = 1; i <= n; i++) {
       const d = month + '-' + p2(i);
-      if (!days[d]) unset.push(d);
+      if (!days[d] && !leaveOn(D, me, d).full) unset.push(d);
     }
     const vCount = Object.values(law).reduce((s, a) => s + a.length, 0);
     const stLbl = {
@@ -1049,17 +1401,11 @@
     }[r && r.status || 'draft'];
     return React.createElement("div", {
       className: "space-y-3"
-    }, React.createElement("div", {
-      className: "flex items-center gap-2"
-    }, React.createElement("button", {
-      onClick: () => setMonth(addM(month, -1)),
-      className: "px-3 py-2 rounded-full bg-gray-800 text-sm text-gray-300"
-    }, "‹"), React.createElement("b", {
-      className: "flex-1 text-center text-gray-100"
-    }, month.replace('-', ' 年 '), " 月班表"), React.createElement("button", {
-      onClick: () => setMonth(addM(month, 1)),
-      className: "px-3 py-2 rounded-full bg-gray-800 text-sm text-gray-300"
-    }, "›")), React.createElement("div", {
+    }, React.createElement(MonthNav, {
+      month: month,
+      setMonth: setMonth,
+      suffix: "班表"
+    }), React.createElement("div", {
       className: "text-center"
     }, React.createElement(Chip, {
       c: stLbl[1]
@@ -1072,9 +1418,9 @@
       disabled: locked,
       onClick: () => chooseBase(c),
       className: 'rounded-xl py-2.5 font-extrabold text-sm ' + (base === c ? 'bg-violet-600 text-white' : 'bg-gray-800 text-gray-300')
-    }, c))), React.createElement("p", {
+    }, lb(c)))), React.createElement("p", {
       className: "text-xs text-gray-400 mt-1.5"
-    }, base ? base + ' ' + SH[base].n + ' ' + hhmm(SH[base].s) + '–' + hhmm(SH[base].e) : '第一次選班別,會把整個月先填成上班')), base && React.createElement(Card, {
+    }, base ? SH[base].n + ' ' + hhmm(SH[base].s) + '–' + hhmm(SH[base].e) : '第一次選班別,會把整個月先填成上班')), base && React.createElement(Card, {
       className: "!p-3"
     }, React.createElement("p", {
       className: "text-sm font-bold text-gray-300 mb-2"
@@ -1094,11 +1440,11 @@
       const v = days[d];
       const a = myActual(D, me, d, cache);
       const lw = law[d];
-      const lab = !v ? '未排' : v === 'O' ? '休' : a.cover ? '卡' + a.cover : a.code || v;
+      const lab = a.lv ? LVS[a.lv] : !v ? '未排' : v === 'O' ? '休' : a.cover ? '卡' + lb(a.cover) : lb(a.code || v);
       return React.createElement("button", {
         key: d,
         onClick: () => !locked && setPick(d),
-        className: 'relative rounded-lg py-1 min-h-[44px] text-[12px] ' + (v === 'O' ? 'bg-pink-900/50 text-pink-300' : !v ? 'bg-gray-800/40 text-gray-500' : 'bg-gray-800 text-gray-200') + (pick === d ? ' ring-2 ring-violet-500' : '')
+        className: 'relative rounded-lg py-1 min-h-[44px] text-[12px] ' + (a.lv ? 'bg-sky-900/50 text-sky-300' : v === 'O' ? 'bg-pink-900/50 text-pink-300' : !v ? 'bg-gray-800/40 text-gray-500' : 'bg-gray-800 text-gray-200') + (pick === d ? ' ring-2 ring-violet-500' : '')
       }, i + 1, React.createElement("span", {
         className: 'block text-[10px] font-bold ' + (a.cover ? 'text-pink-400' : '')
       }, lab), (lw || a.noCover) && React.createElement("span", {
@@ -1110,11 +1456,13 @@
         className: "mt-3 rounded-xl border border-violet-600 p-3 space-y-2"
       }, React.createElement("p", {
         className: "text-sm font-bold text-gray-100"
-      }, pick.slice(5).replace('-', '/'), "（", WD[dOf(pick).getDay()], "）"), a.cover && React.createElement("p", {
+      }, md(pick), "（", WD[dOf(pick).getDay()], "）"), a.lv && React.createElement("p", {
+        className: "text-sm text-sky-300"
+      }, "這天請", LV[a.lv], a.lvP ? '(待核准)' : ''), a.cover && React.createElement("p", {
         className: "text-sm text-pink-300"
-      }, COVER[a.cover] === base ? '同事排休,你這天改上 ' + a.cover + ' ' + SH[a.cover].n + ' ' + hhmm(SH[a.cover].s) + '–' + hhmm(SH[a.cover].e) : ''), days[pick] === 'O' && COVER[base] && React.createElement("p", {
+      }, "同事排休,你這天改上 ", SH[a.cover].n, " ", hhmm(SH[a.cover].s), "–", hhmm(SH[a.cover].e)), (days[pick] === 'O' || a.lv) && COVER[base] && React.createElement("p", {
         className: 'text-sm ' + (a.noCover ? 'text-red-400' : 'text-gray-300')
-      }, a.noCover ? '⚠ 你排休,但這天沒有 ' + COVER[base] + ' 可以卡你的班' : '你排休 → 由 ' + (a.coveredBy || '?') + ' 卡你的班'), (law[pick] || []).map((t, i) => React.createElement("p", {
+      }, a.noCover ? '⚠ 這天沒有' + lb(COVER[base]) + '可以卡你的班' : '你不上班 → 由 ' + (a.coveredBy || '?') + ' 卡你的班'), (law[pick] || []).map((t, i) => React.createElement("p", {
         key: i,
         className: "text-sm text-red-400"
       }, "⚠ ", t)), React.createElement("div", {
@@ -1141,13 +1489,13 @@
         key: c,
         onClick: () => setDay(pick, c),
         className: "rounded-lg py-2 bg-gray-800 text-gray-200 text-xs font-bold"
-      }, c))));
+      }, lb(c)))));
     })()), base && vCount > 0 && React.createElement(Card, null, React.createElement("p", {
       className: "text-sm font-bold text-red-400 mb-1"
     }, "⚠ 勞基法檢查 ", vCount, " 項"), Object.keys(law).sort().map(d => law[d].map((t, i) => React.createElement("p", {
       key: d + i,
       className: "text-[13px] text-gray-300"
-    }, "● ", d.slice(5).replace('-', '/'), " ", t)))), base && vCount === 0 && React.createElement("p", {
+    }, "● ", md(d), " ", t)))), base && vCount === 0 && React.createElement("p", {
       className: "text-xs text-emerald-400 text-center"
     }, "✓ 勞基法檢查(第 30、34、36 條)沒有問題"), base && !locked && React.createElement(B, {
       cls: 'w-full ' + (unset.length ? 'bg-gray-800 text-gray-400' : vCount ? 'bg-amber-500 text-gray-950' : 'bg-violet-600 text-white'),
@@ -1162,11 +1510,11 @@
     }, "送出後再修改,狀態會回到未送出,需要重新送出"));
   }
   function WeekTab({
-    S
+    S,
+    goSet
   }) {
     const {
-      D,
-      push
+      D
     } = S;
     const isSup = D.me.isSup;
     const t0 = dOf(ymd(new Date()));
@@ -1180,11 +1528,17 @@
     days.forEach(d => {
       plans[d] = dayPlan(D, d);
     });
-    const pend = isSup ? D.sched.filter(r => r.status === 'submitted') : [];
-    const pendOt = isSup ? D.reqs.filter(r => r.status === 'pending') : [];
-    const nm = uid => (D.staff.find(s => s.uid === uid) || {}).name || '?';
+    const nPend = isSup ? pendList(D).length : 0;
     const cell = (s, d) => {
       const a = plans[d].plan[s.uid] || {};
+      if (a.lv) return React.createElement("span", {
+        className: "inline-block rounded-md px-1 font-bold",
+        style: {
+          background: 'rgba(56,189,248,.18)',
+          color: '#0284c7',
+          opacity: a.lvP ? .6 : 1
+        }
+      }, LVS[a.lv]);
       if (a.off) return React.createElement("span", {
         className: "text-pink-300"
       }, "休");
@@ -1193,70 +1547,23 @@
       }, "·");
       return React.createElement("span", {
         className: a.cover ? 'inline-block rounded-md border-2 border-pink-500 px-0.5' : ''
-      }, a.code, a.cover && React.createElement("b", {
+      }, lb(a.code), a.cover && React.createElement("b", {
         className: "block text-[9px] text-pink-400"
       }, "卡"));
     };
     return React.createElement("div", {
       className: "space-y-3"
-    }, isSup && (pend.length > 0 || pendOt.length > 0) && React.createElement(Card, null, React.createElement("p", {
-      className: "text-sm font-bold text-gray-300 mb-1"
-    }, "待審核 ", pend.length + pendOt.length), pend.map(r => React.createElement("div", {
-      key: r.uid + r.month,
-      className: "flex items-center gap-2 py-1.5 border-b border-gray-800 text-sm"
-    }, React.createElement("span", {
-      className: "flex-1 text-gray-200"
-    }, nm(r.uid), " ", r.month.slice(5), " 月班表 ", r.viol > 0 && React.createElement(Chip, {
-      c: "r"
-    }, "違規 ", r.viol)), React.createElement("button", {
-      onClick: () => push({
-        act: 'sched_decide',
-        uid: r.uid,
-        month: r.month,
-        ok: 1
-      }),
-      style: {
-        background: '#16a34a'
-      },
-      className: "fd-w px-3 py-1.5 rounded-lg text-xs font-bold"
-    }, "核准"), React.createElement("button", {
-      onClick: () => push({
-        act: 'sched_decide',
-        uid: r.uid,
-        month: r.month,
-        ok: 0
-      }),
-      className: "px-3 py-1.5 rounded-lg bg-gray-700 text-gray-200 text-xs font-bold"
-    }, "退回"))), pendOt.map(r => React.createElement("div", {
-      key: r.id,
-      className: "flex items-center gap-2 py-1.5 border-b border-gray-800 text-sm"
-    }, React.createElement("span", {
-      className: "flex-1 text-gray-200"
-    }, nm(r.uid), " ", r.date.slice(5), " ", r.reason, " ", r.min, " 分"), React.createElement("button", {
-      onClick: () => push({
-        act: 'req_decide',
-        id: r.id,
-        ok: 1
-      }),
-      style: {
-        background: '#16a34a'
-      },
-      className: "fd-w px-3 py-1.5 rounded-lg text-xs font-bold"
-    }, "核准"), React.createElement("button", {
-      onClick: () => push({
-        act: 'req_decide',
-        id: r.id,
-        ok: 0
-      }),
-      className: "px-3 py-1.5 rounded-lg bg-gray-700 text-gray-200 text-xs font-bold"
-    }, "退回")))), React.createElement("div", {
+    }, isSup && nPend > 0 && React.createElement("button", {
+      onClick: goSet,
+      className: "w-full rounded-2xl border border-amber-500 bg-amber-900/30 px-4 py-3 text-left text-sm font-bold text-amber-300"
+    }, "📋 待審核 ", nPend, " 筆 → 主管設定"), React.createElement("div", {
       className: "flex items-center gap-2"
     }, React.createElement("button", {
       onClick: () => setWk(addD(wk, -7)),
       className: "px-3 py-2 rounded-full bg-gray-800 text-sm text-gray-300"
     }, "‹ 上週"), React.createElement("b", {
       className: "flex-1 text-center text-sm text-gray-100"
-    }, wk.slice(5).replace('-', '/'), "（一）–", addD(wk, 6).slice(5).replace('-', '/'), "（日）"), React.createElement("button", {
+    }, md(wk), "（一）–", md(addD(wk, 6)), "（日）"), React.createElement("button", {
       onClick: () => setWk(addD(wk, 7)),
       className: "px-3 py-2 rounded-full bg-gray-800 text-sm text-gray-300"
     }, "下週 ›")), React.createElement(Card, {
@@ -1290,7 +1597,7 @@
       className: "py-4 text-gray-500"
     }, "本店還沒有櫃台人員"))))), React.createElement("p", {
       className: "text-[11px] text-gray-500 text-center"
-    }, "點日期看當天人力與打卡;紅點＝沒人可以卡班"), sel && (() => {
+    }, "點日期看當天人力與打卡;紅點＝沒人可以卡班;特／事／病＝請整天假"), sel && (() => {
       const P = plans[sel] || dayPlan(D, sel);
       const by = {};
       D.staff.forEach(s => {
@@ -1298,40 +1605,45 @@
         if (a.code) (by[a.code] = by[a.code] || []).push(s.name + (a.cover ? '(卡)' : ''));
       });
       const offs = D.staff.filter(s => (P.plan[s.uid] || {}).off).map(s => s.name);
+      const lvs = D.staff.filter(s => (P.plan[s.uid] || {}).lv).map(s => s.name + LV[P.plan[s.uid].lv]);
       const now = Date.now();
       const list = D.staff.filter(s => isSup || s.uid === D.me.uid);
       return React.createElement(Sheet, {
         onClose: () => setSel('')
       }, React.createElement("p", {
         className: "text-lg font-extrabold text-gray-100"
-      }, sel.slice(5).replace('-', '/'), "（", WD[dOf(sel).getDay()], "）"), React.createElement("p", {
+      }, md(sel), "（", WD[dOf(sel).getDay()], "）"), React.createElement("p", {
         className: "text-sm font-bold text-gray-300"
       }, "當天人力"), React.createElement("div", {
         className: "text-sm text-gray-200 leading-7"
       }, CODES.map(c => React.createElement("div", {
         key: c
       }, React.createElement("b", {
-        className: "inline-block w-8"
-      }, c), (by[c] || []).join('、') || React.createElement("span", {
+        className: "inline-block w-10"
+      }, lb(c)), (by[c] || []).join('、') || React.createElement("span", {
         className: "text-gray-500"
       }, "—"))), offs.length > 0 && React.createElement("div", null, React.createElement("b", {
-        className: "inline-block w-8 text-pink-300"
-      }, "休"), offs.join('、'))), D.staff.filter(s => (P.plan[s.uid] || {}).cover).map(s => {
+        className: "inline-block w-10 text-pink-300"
+      }, "休"), offs.join('、')), lvs.length > 0 && React.createElement("div", null, React.createElement("b", {
+        className: "inline-block w-10 text-sky-300"
+      }, "請假"), lvs.join('、'))), D.staff.filter(s => (P.plan[s.uid] || {}).cover).map(s => {
         const a = P.plan[s.uid];
         return React.createElement("p", {
           key: s.uid,
           className: "text-sm text-pink-300"
-        }, s.name, " 卡 ", a.cover, "（", hhmm(SH[a.cover].s), "–", hhmm(SH[a.cover].e), "）");
+        }, s.name, " 卡 ", lb(a.cover), "（", hhmm(SH[a.cover].s), "–", hhmm(SH[a.cover].e), "）");
       }), P.warns.map((w, i) => React.createElement("p", {
         key: i,
         className: "text-sm text-red-400 rounded-lg bg-red-950/40 px-2 py-1"
-      }, "⚠ ", w.who, " 排休,沒人可以卡 ", w.shift)), React.createElement("p", {
+      }, "⚠ ", w.who, " 不上班,沒人可以卡 ", lb(w.shift))), React.createElement("p", {
         className: "text-sm font-bold text-gray-300 pt-1"
       }, "當天上／下班打卡", !isSup && '(只看得到自己的)'), list.map(s => {
         const x = dayCalc(D, s.uid, sel, now);
         const a = P.plan[s.uid] || {};
         let st = null;
-        if (a.off) st = React.createElement(Chip, {
+        if (a.lv && !x.inP) st = React.createElement(Chip, {
+          c: "b"
+        }, "請假不用打卡");else if (a.off && !x.inP) st = React.createElement(Chip, {
           c: "x"
         }, "排休");else if (!x.inP) st = sel < ymd(new Date()) ? React.createElement(Chip, {
           c: "r"
@@ -1343,7 +1655,7 @@
           className: "flex items-center justify-between py-1.5 border-b border-gray-800 text-sm"
         }, React.createElement("span", {
           className: "text-gray-200"
-        }, s.name, " ", a.code || ''), React.createElement("span", {
+        }, s.name, " ", a.code ? lb(a.code) : ''), React.createElement("span", {
           className: "space-x-1 text-gray-300"
         }, x.inP && React.createElement(React.Fragment, null, hm(x.inP.ts), " ", x.late ? React.createElement(Chip, {
           c: "r"
@@ -1361,29 +1673,767 @@
       }));
     })());
   }
-  function CfgSheet({
+  function ApplyTab({
     S,
-    onClose
+    pre,
+    clearPre
   }) {
     const {
       D,
       push
     } = S;
-    const c = D.cfg || {};
-    const [busy, setBusy] = useState('');
+    const me = D.me.uid;
+    const today = ymd(new Date());
+    const [k, setK] = useState(pre && pre.lv ? 'lv' : 'ot');
+    const [ot, setOt] = useState(() => Object.assign({
+      date: today,
+      start: '',
+      end: '',
+      reason: '客人延後',
+      note: ''
+    }, pre && !pre.lv ? Object.assign({
+      reason: '客人延後'
+    }, pre) : {}));
+    const [lv, setLv] = useState({
+      type: 'al',
+      d1: today,
+      d2: today,
+      mode: 'd',
+      h1: '10',
+      h2: '12',
+      reason: ''
+    });
     const [msg, setMsg] = useState('');
-    const [rad, setRad] = useState(String(c.radius || 150));
-    return React.createElement(Sheet, {
-      onClose: onClose
+    useEffect(() => {
+      if (pre) clearPre();
+    }, []);
+    if (!D.me.isCounter) return React.createElement(Card, null, React.createElement("p", {
+      className: "text-sm text-gray-400"
+    }, "申請只給櫃台人員使用。主管請到「主管設定」審核。"));
+    const toM = t => {
+      const m = /^(\d{1,2}):(\d{2})$/.exec(t || '');
+      return m ? +m[1] * 60 + +m[2] : null;
+    };
+    const s0 = toM(ot.start),
+      e0 = toM(ot.end);
+    let min = s0 !== null && e0 !== null ? e0 - s0 : 0;
+    if (s0 !== null && e0 !== null && min <= 0) min += 1440;
+    const sal = +hrOf(D, me).salary || 0;
+    const hourly = (sal + (+D.cfg.fullAtt || 0)) / 240;
+    const est = hourly * (Math.min(120, min) / 60 * 1.34 + Math.max(0, min - 120) / 60 * 1.67);
+    const sendOt = () => {
+      push({
+        act: 'req_add',
+        id: uidGen(),
+        type: 'ot',
+        date: ot.date,
+        start: ot.start,
+        end: ot.end,
+        min: min,
+        reason: ot.reason,
+        note: ot.note
+      });
+      setOt(Object.assign({}, ot, {
+        start: '',
+        end: '',
+        note: ''
+      }));
+      setMsg('已送出加班申請,等主管核准');
+    };
+    const unit = D.cfg.unit[lv.type] || 'd';
+    const hourMode = unit === 'h' && lv.mode === 'h';
+    const lvDays = hourMode ? 0 : lv.d2 >= lv.d1 ? leaveWorkDays(D, me, lv.d1, lv.d2) : 0;
+    const lvMin = hourMode ? Math.max(0, +lv.h2 - +lv.h1) * 60 : lvDays * 480;
+    const left = leftOf(D, me, lv.type, lv.d1);
+    const over = left !== null && lvMin / 480 > left + 1e-9;
+    const noAl = lv.type === 'al' && left === null;
+    const sendLv = () => {
+      push({
+        act: 'req_add',
+        id: uidGen(),
+        type: lv.type,
+        date: lv.d1,
+        date2: hourMode ? lv.d1 : lv.d2,
+        start: hourMode ? p2(lv.h1) + ':00' : '',
+        end: hourMode ? p2(lv.h2) + ':00' : '',
+        min: lvMin,
+        reason: lv.reason
+      });
+      setLv(Object.assign({}, lv, {
+        reason: ''
+      }));
+      setMsg('已送出' + LV[lv.type] + '申請,等主管核准');
+    };
+    const mine = D.reqs.filter(r => r.uid === me && (k === 'ot' ? r.type === 'ot' : LV[r.type])).sort((a, b) => (b.date + b.start).localeCompare(a.date + a.start)).slice(0, 20);
+    return React.createElement("div", {
+      className: "space-y-3"
+    }, React.createElement("div", {
+      className: "grid grid-cols-2 gap-2"
+    }, [['ot', '加班申請'], ['lv', '請假申請']].map(([v, l]) => React.createElement("button", {
+      key: v,
+      onClick: () => {
+        setK(v);
+        setMsg('');
+      },
+      className: 'rounded-xl py-2.5 font-bold ' + (k === v ? 'bg-violet-600 text-white' : 'bg-gray-800 text-gray-300')
+    }, l))), k === 'ot' && React.createElement(Card, {
+      className: "space-y-2"
+    }, React.createElement("p", {
+      className: "text-sm font-bold text-gray-300"
+    }, "加班申請"), React.createElement("label", {
+      className: "block text-xs text-gray-400"
+    }, "日期", React.createElement(Inp, {
+      type: "date",
+      value: ot.date,
+      onChange: e => setOt(Object.assign({}, ot, {
+        date: e.target.value
+      }))
+    })), React.createElement("div", {
+      className: "grid grid-cols-2 gap-2"
+    }, React.createElement("label", {
+      className: "text-xs text-gray-400"
+    }, "開始", React.createElement(Inp, {
+      type: "time",
+      value: ot.start,
+      onChange: e => setOt(Object.assign({}, ot, {
+        start: e.target.value
+      }))
+    })), React.createElement("label", {
+      className: "text-xs text-gray-400"
+    }, "結束", React.createElement(Inp, {
+      type: "time",
+      value: ot.end,
+      onChange: e => setOt(Object.assign({}, ot, {
+        end: e.target.value
+      }))
+    }))), React.createElement(Seg, {
+      small: true,
+      opts: OTR.map(r => [r, r]),
+      val: ot.reason,
+      on: v => setOt(Object.assign({}, ot, {
+        reason: v
+      }))
+    }), React.createElement(Inp, {
+      placeholder: "說明(選填)",
+      value: ot.note,
+      onChange: e => setOt(Object.assign({}, ot, {
+        note: e.target.value
+      }))
+    }), min > 0 && React.createElement("p", {
+      className: 'rounded-xl px-3 py-2 text-sm ' + (min > 240 ? 'bg-red-950/40 text-red-300' : 'bg-gray-800 text-gray-200')
+    }, min, " 分鐘・", min <= 120 ? '前 2 小時 ×1.34' : '前 2 小時 ×1.34、之後 ×1.67', sal ? '・約 ' + money(est) : '', min > 240 ? '・超過 4 小時不能送出' : ''), React.createElement(B, {
+      cls: "w-full bg-violet-600 text-white",
+      disabled: !ot.date || min <= 0 || min > 240,
+      onClick: sendOt
+    }, "送出加班申請")), k === 'lv' && React.createElement(Card, {
+      className: "space-y-2"
+    }, React.createElement("p", {
+      className: "text-sm font-bold text-gray-300"
+    }, "請假申請"), React.createElement("div", {
+      className: "grid grid-cols-3 gap-2"
+    }, LVK.map(t => {
+      const l = leftOf(D, me, t, lv.d1);
+      return React.createElement("button", {
+        key: t,
+        onClick: () => setLv(Object.assign({}, lv, {
+          type: t,
+          mode: 'd'
+        })),
+        className: 'rounded-xl py-2 text-sm font-bold ' + (lv.type === t ? 'bg-violet-600 text-white' : 'bg-gray-800 text-gray-300')
+      }, LV[t], React.createElement("span", {
+        className: "block text-[11px] font-normal"
+      }, l === null ? '未設到職日' : '剩 ' + dayN(l * 480) + ' 天'));
+    })), unit === 'h' && React.createElement(Seg, {
+      opts: [['d', '整天'], ['h', '指定時段']],
+      val: lv.mode,
+      on: v => setLv(Object.assign({}, lv, {
+        mode: v
+      }))
+    }), !hourMode ? React.createElement("div", {
+      className: "grid grid-cols-2 gap-2"
+    }, React.createElement("label", {
+      className: "text-xs text-gray-400"
+    }, "開始日期", React.createElement(Inp, {
+      type: "date",
+      value: lv.d1,
+      onChange: e => setLv(Object.assign({}, lv, {
+        d1: e.target.value,
+        d2: e.target.value > lv.d2 ? e.target.value : lv.d2
+      }))
+    })), React.createElement("label", {
+      className: "text-xs text-gray-400"
+    }, "結束日期", React.createElement(Inp, {
+      type: "date",
+      value: lv.d2,
+      onChange: e => setLv(Object.assign({}, lv, {
+        d2: e.target.value
+      }))
+    }))) : React.createElement("div", {
+      className: "space-y-2"
+    }, React.createElement("label", {
+      className: "block text-xs text-gray-400"
+    }, "日期", React.createElement(Inp, {
+      type: "date",
+      value: lv.d1,
+      onChange: e => setLv(Object.assign({}, lv, {
+        d1: e.target.value,
+        d2: e.target.value
+      }))
+    })), React.createElement("div", {
+      className: "flex items-center gap-2 text-sm text-gray-300"
+    }, React.createElement("select", {
+      value: lv.h1,
+      onChange: e => setLv(Object.assign({}, lv, {
+        h1: e.target.value
+      })),
+      className: "flex-1 rounded-xl bg-gray-800 border border-gray-700 px-2 py-2.5 text-gray-100"
+    }, Array.from({
+      length: 24
+    }).map((_, h) => React.createElement("option", {
+      key: h,
+      value: h
+    }, p2(h), ":00"))), "到", React.createElement("select", {
+      value: lv.h2,
+      onChange: e => setLv(Object.assign({}, lv, {
+        h2: e.target.value
+      })),
+      className: "flex-1 rounded-xl bg-gray-800 border border-gray-700 px-2 py-2.5 text-gray-100"
+    }, Array.from({
+      length: 24
+    }).map((_, h) => React.createElement("option", {
+      key: h,
+      value: h + 1
+    }, p2(h + 1), ":00"))))), React.createElement(Inp, {
+      placeholder: "原因",
+      value: lv.reason,
+      onChange: e => setLv(Object.assign({}, lv, {
+        reason: e.target.value
+      }))
+    }), React.createElement("p", {
+      className: 'rounded-xl px-3 py-2 text-sm ' + (over || noAl || hourMode && (lvMin <= 0 || lvMin > 480) ? 'bg-red-950/40 text-red-300' : 'bg-gray-800 text-gray-200')
+    }, hourMode ? (lvMin > 0 ? lvMin / 60 + ' 小時(' + dayN(lvMin) + ' 天)' : '結束要晚於開始') + (lvMin > 480 ? '・最多 8 小時' : '') : lvDays + ' 天(排休日不算)', noAl ? '・還沒有到職日,不能請特休' : over ? '・超過剩餘天數,不能送出' : '', lv.type === 'pl' ? '・事假不給工資' : lv.type === 'sl' ? '・病假工資折半' + (lvMin > 3 * 480 ? ',超過 3 天主管可要求證明' : '') : '・特休工資照給'), !hourMode && (() => {
+      const bad = [];
+      for (let d = lv.d1; d <= lv.d2 && bad.length < 5; d = addD(d, 1)) {
+        const c = planned(D, me, d);
+        if (COVER[c]) {
+          const P = dayPlan(D, d);
+          const has = D.staff.some(s => s.uid !== me && (P.plan[s.uid] || {}).code === COVER[c]);
+          if (!has) bad.push(md(d));
+        }
+      }
+      return bad.length ? React.createElement("p", {
+        className: "text-xs text-red-400"
+      }, "⚠ ", bad.join('、'), " 沒有", lb(COVER[planned(D, me, lv.d1)] || '') || '人', "可以卡你的班") : null;
+    })(), React.createElement(B, {
+      cls: "w-full bg-violet-600 text-white",
+      disabled: !lvMin || over || noAl || hourMode && lvMin > 480 || !hourMode && lv.d2 < lv.d1,
+      onClick: sendLv
+    }, "送出", LV[lv.type], "申請")), msg && React.createElement("p", {
+      className: "text-sm text-emerald-400 text-center"
+    }, msg), React.createElement(Card, null, React.createElement("p", {
+      className: "text-sm font-bold text-gray-300 mb-1"
+    }, "我的", k === 'ot' ? '加班' : '請假', "申請"), !mine.length && React.createElement("p", {
+      className: "text-sm text-gray-500"
+    }, "還沒有申請"), mine.map(r => React.createElement("div", {
+      key: r.id,
+      className: "flex items-center gap-2 py-1.5 border-b border-gray-800 text-sm"
+    }, React.createElement("span", {
+      className: "flex-1 text-gray-200"
+    }, k === 'ot' ? md(r.date) + ' ' + r.start + '–' + r.end + ' ' + r.reason : LV[r.type] + ' ' + md(r.date) + (r.date2 && r.date2 !== r.date ? '~' + md(r.date2) : '') + ' ' + (r.start ? r.start + '–' + r.end : dayN(r.min) + ' 天')), React.createElement(Chip, {
+      c: STX[r.status][1]
+    }, STX[r.status][0], r._p ? '・待送出' : ''), r.status === 'pending' && React.createElement("button", {
+      onClick: () => push({
+        act: 'req_cancel',
+        id: r.id
+      }),
+      className: "text-xs text-red-400 underline"
+    }, "取消")))), k === 'lv' && React.createElement(Card, null, React.createElement("p", {
+      className: "text-sm font-bold text-gray-300 mb-2"
+    }, "剩餘假別"), React.createElement("div", {
+      className: "grid grid-cols-3 text-center text-xs text-gray-400"
+    }, LVK.map(t => {
+      const l = leftOf(D, me, t, today);
+      return React.createElement("div", {
+        key: t
+      }, LV[t], React.createElement("br", null), React.createElement("b", {
+        className: "text-lg text-gray-100"
+      }, l === null ? '—' : dayN(l * 480) + ' 天'));
+    })), React.createElement("p", {
+      className: "text-[11px] text-gray-500 mt-2"
+    }, "特休依到職日(週年制);事假一年 14 天、病假一年 30 天(未住院)。待核准的也先扣。")));
+  }
+  const HRF = [['name', '姓名', 'text'], ['phone', '手機', 'tel'], ['birth', '生日', 'date'], ['emName', '緊急聯絡人', 'text'], ['emPhone', '聯絡電話', 'tel'], ['hire', '到職日', 'date'], ['salary', '月薪(不含全勤)', 'number']];
+  function HrTab({
+    S,
+    uid,
+    goSet
+  }) {
+    const {
+      D,
+      push
+    } = S;
+    const isSup = D.me.isSup;
+    const h = hrOf(D, uid);
+    const [ed, setEd] = useState(null);
+    const today = ymd(new Date());
+    const st = D.staff.find(s => s.uid === uid) || {};
+    const al = alInfo(D, uid, today);
+    if (!D.me.isCounter && uid === D.me.uid) return React.createElement("div", {
+      className: "space-y-3"
+    }, React.createElement(Card, null, React.createElement("p", {
+      className: "text-sm text-gray-400"
+    }, "請在上方選擇人員查看與修改人資資料。")), isSup && React.createElement(B, {
+      cls: "w-full bg-gray-800 text-pink-300 border border-pink-500",
+      onClick: goSet
+    }, "⚙ 主管設定"));
+    const val = k => k === 'salary' ? h.salary ? money(h.salary) : '未設定' : h[k] || '未填';
+    const canEdit = k => k === 'salary' ? isSup : true;
+    return React.createElement("div", {
+      className: "space-y-3"
+    }, React.createElement(Card, null, React.createElement("p", {
+      className: "text-sm font-bold text-gray-300 mb-1"
+    }, "基本資料"), HRF.map(([k, l, t]) => React.createElement("button", {
+      key: k,
+      disabled: !canEdit(k),
+      onClick: () => setEd({
+        k,
+        l,
+        t,
+        v: k === 'salary' ? String(h.salary || '') : k === 'hire' && h.hirePend ? h.hirePend : h[k] || ''
+      }),
+      className: "w-full flex items-center justify-between py-2.5 border-b border-gray-800 text-sm text-left"
+    }, React.createElement("span", {
+      className: "text-gray-400"
+    }, l), React.createElement("span", {
+      className: "text-gray-100 font-bold"
+    }, val(k), k === 'hire' && h.hirePend && React.createElement("span", {
+      className: "ml-1"
+    }, React.createElement(Chip, {
+      c: "y"
+    }, "改為 ", h.hirePend, "・待主管確認")), " ", canEdit(k) ? React.createElement("span", {
+      className: "text-gray-500"
+    }, "✎") : React.createElement("span", null, "🔒")))), React.createElement("div", {
+      className: "flex items-center justify-between py-2.5 text-sm"
+    }, React.createElement("span", {
+      className: "text-gray-400"
+    }, "櫃台代號／LINE"), React.createElement("span", {
+      className: "text-gray-300"
+    }, st.code || '—', "・已綁定")), h._p && React.createElement("p", {
+      className: "text-xs text-amber-300"
+    }, "修改待送出"), !isSup && React.createElement("p", {
+      className: "text-[11px] text-gray-500"
+    }, "到職日修改要主管確認才生效;月薪只有主管可以修改。")), React.createElement(Card, null, React.createElement("p", {
+      className: "text-sm font-bold text-gray-300 mb-1"
+    }, "特休假(週年制・第 38 條)"), !al ? React.createElement("p", {
+      className: "text-sm text-gray-400"
+    }, "還沒有到職日,無法計算特休。") : React.createElement(React.Fragment, null, React.createElement("div", {
+      className: "flex items-end justify-between"
+    }, React.createElement("div", null, React.createElement("b", {
+      className: "text-2xl text-gray-100"
+    }, "本期 ", al.days, " 天"), React.createElement("p", {
+      className: "text-xs text-gray-400"
+    }, "年資 ", al.sen)), React.createElement("div", {
+      className: "text-right text-sm text-gray-400"
+    }, "已用 ", dayN(al.used * 480), " 天", React.createElement("br", null), React.createElement("b", {
+      className: "text-xl text-pink-400"
+    }, "剩 ", dayN(al.left * 480), " 天"))), React.createElement("div", {
+      className: "h-2 rounded-full mt-2 overflow-hidden",
+      style: {
+        background: 'rgba(148,163,184,.3)'
+      }
+    }, React.createElement("div", {
+      className: "h-full",
+      style: {
+        width: (al.days ? Math.min(100, al.used / al.days * 100) : 0) + '%',
+        background: '#ec4899'
+      }
+    })), React.createElement("p", {
+      className: "text-xs text-gray-500 mt-1"
+    }, al.from ? '本期 ' + al.from.replace(/-/g, '/') + ' – ' + al.to.replace(/-/g, '/') : '到職滿 6 個月才有特休', React.createElement("br", null), "下次增加:", al.next.replace(/-/g, '/'), " → ", al.nextDays, " 天"), React.createElement("p", {
+      className: "text-[11px] text-gray-500 mt-1"
+    }, "本期未休完:期滿依法折算工資,或經雙方同意遞延。")), React.createElement("div", {
+      className: "grid grid-cols-2 text-center text-xs text-gray-400 mt-3"
+    }, React.createElement("div", null, "事假(今年剩)", React.createElement("br", null), React.createElement("b", {
+      className: "text-base text-gray-100"
+    }, dayN(leftOf(D, uid, 'pl', today) * 480), " 天")), React.createElement("div", null, "病假(今年剩)", React.createElement("br", null), React.createElement("b", {
+      className: "text-base text-gray-100"
+    }, dayN(leftOf(D, uid, 'sl', today) * 480), " 天")))), isSup && React.createElement(B, {
+      cls: "w-full bg-gray-800 text-pink-300 border border-pink-500",
+      onClick: goSet
+    }, "⚙ 主管設定"), ed && React.createElement(Sheet, {
+      onClose: () => setEd(null)
     }, React.createElement("p", {
       className: "text-lg font-extrabold text-gray-100"
-    }, "⚙ 打卡地點設定（", D.me.store, "）"), React.createElement("p", {
-      className: "text-xs text-gray-400"
-    }, "GPS 在範圍內,或連著店內 Wi‑Fi(網路 IP 相符),任一個符合就算在店內。都不符合時仍可打卡,但會標示給主管。"), React.createElement(Card, null, React.createElement("div", {
+    }, "修改", ed.l), React.createElement(Inp, {
+      type: ed.t,
+      inputMode: ed.t === 'number' ? 'numeric' : undefined,
+      value: ed.v,
+      onChange: e => setEd(Object.assign({}, ed, {
+        v: e.target.value
+      })),
+      autoFocus: true
+    }), ed.k === 'hire' && !isSup && React.createElement("p", {
+      className: "text-xs text-amber-300"
+    }, "到職日修改要主管確認後才生效"), React.createElement("div", {
+      className: "grid grid-cols-2 gap-2"
+    }, React.createElement(B, {
+      cls: "bg-gray-800 text-gray-200",
+      onClick: () => setEd(null)
+    }, "取消"), React.createElement(B, {
+      onClick: () => {
+        const f = {};
+        f[ed.k] = ed.k === 'salary' ? parseInt(ed.v, 10) || 0 : ed.v.trim();
+        push({
+          act: 'hr_set',
+          uid,
+          f
+        });
+        setEd(null);
+      }
+    }, "儲存"))));
+  }
+  function pendList(D) {
+    const L = [];
+    D.sched.filter(r => r.status === 'submitted').forEach(r => L.push({
+      k: 's' + r.uid + r.month,
+      txt: nameOf(D, r.uid) + ' ' + +r.month.slice(5) + ' 月班表',
+      tag: r.viol > 0 ? '違規 ' + r.viol : '',
+      yes: {
+        act: 'sched_decide',
+        uid: r.uid,
+        month: r.month,
+        ok: 1
+      },
+      no: {
+        act: 'sched_decide',
+        uid: r.uid,
+        month: r.month,
+        ok: 0
+      }
+    }));
+    D.reqs.filter(r => r.status === 'pending').forEach(r => L.push({
+      k: r.id,
+      txt: nameOf(D, r.uid) + ' ' + (r.type === 'ot' ? '加班 ' + md(r.date) + ' ' + r.start + '–' + r.end + ' ' + r.min + ' 分' : LV[r.type] + ' ' + md(r.date) + (r.date2 && r.date2 !== r.date ? '~' + md(r.date2) : '') + ' ' + (r.start ? r.start + '–' + r.end : dayN(r.min) + ' 天')),
+      tag: r.reason,
+      yes: {
+        act: 'req_decide',
+        id: r.id,
+        ok: 1
+      },
+      no: {
+        act: 'req_decide',
+        id: r.id,
+        ok: 0
+      }
+    }));
+    D.hr.filter(h => h.hirePend).forEach(h => L.push({
+      k: 'h' + h.uid,
+      txt: nameOf(D, h.uid) + ' 到職日 → ' + h.hirePend.replace(/-/g, '/'),
+      tag: '',
+      yes: {
+        act: 'hr_hire_decide',
+        uid: h.uid,
+        ok: 1
+      },
+      no: {
+        act: 'hr_hire_decide',
+        uid: h.uid,
+        ok: 0
+      }
+    }));
+    return L;
+  }
+  function alertsOf(D, now) {
+    const A = [];
+    const add = (s, date, kind, text, sup) => A.push({
+      uid: s.uid,
+      name: s.name,
+      date,
+      kind,
+      text,
+      sup: sup ? 1 : 0
+    });
+    D.staff.forEach(s => {
+      const date = curDate(D, s.uid, now);
+      const x = dayCalc(D, s.uid, date, now);
+      if (!x.inP) return;
+      if (x.outP) {
+        if (x.rest < 60 && now - x.outP.ts < 12 * 3600000) add(s, date, 'restShort', '今天休息只有 ' + Math.round(x.rest) + ' 分鐘,未滿 1 小時', 1);
+        return;
+      }
+      if (x.onBreak) {
+        if (x.rest > 120) add(s, date, 'rest120', '休息已超過 2 小時(' + Math.round(x.rest) + ' 分),請結束休息', 1);else if (x.rest >= 60) add(s, date, 'rest60', '休息已滿 1 小時,記得按「結束休息」', 0);
+      } else {
+        if (x.cont >= 240) add(s, date, 'cont4', '已連續工作 ' + dur(x.cont) + ' 沒休息(第 35 條:4 小時至少休息 30 分)', 1);else if (x.cont >= 210) add(s, date, 'cont35', '已連續工作 ' + dur(x.cont) + ',請安排休息', 0);
+      }
+      if (x.sE && now >= x.sE) add(s, date, 'endDue', '已到表定下班 ' + hm(x.sE) + ',還沒打下班卡', 0);
+      if (now > x.latest) add(s, date, 'overLatest', '已超過最晚下班 ' + hm(x.latest) + ',請立即下班打卡(記錄違規)', 1);else if (now >= x.latest - 30 * 60000) add(s, date, 'late30', '離最晚下班 ' + hm(x.latest) + ' 剩 ' + Math.ceil((x.latest - now) / 60000) + ' 分鐘', 1);
+    });
+    return A;
+  }
+  function loadXlsx() {
+    return new Promise((res, rej) => {
+      if (window.XLSX) return res(window.XLSX);
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s.onload = () => res(window.XLSX);
+      s.onerror = () => rej(new Error('Excel 元件下載失敗,請連上網路再試'));
+      document.head.appendChild(s);
+    });
+  }
+  async function exportXlsx(D, month) {
+    const X = await loadXlsx();
+    const now = Date.now();
+    const wb = X.utils.book_new();
+    const r1 = [['人員', '日期', '星期', '班別', '上班', '下班', '休息(分)', '工時', '遲到(分)', '註記']];
+    const r2 = [['人員', '月薪', '全勤獎金', '全勤說明', '加班(分)', '加班費', '遲到(分)', '遲到扣款', '事假(天)', '事假扣款', '病假(天)', '病假扣款', '特休(天)', '應發合計']];
+    const r3 = [['人員', '類型', '日期', '結束日期', '開始', '結束', '分鐘', '原因', '狀態']];
+    D.staff.forEach(s => {
+      const rows = monthRows(D, s.uid, month, now);
+      rows.forEach(({
+        d,
+        x
+      }) => {
+        const n = [];
+        if (x.lvFull) n.push(LV[x.lvFull.type] + '(整天)');
+        x.lvPart.forEach(r => n.push(LV[r.type] + ' ' + r.start + '-' + r.end));
+        if (x.a.off && !x.inP) n.push('排休');
+        if (x.a.cover) n.push('卡' + lb(x.a.cover));
+        if (x.earlyReq) n.push('提早加班' + x.earlyReq.min + '分 ' + STX[x.earlyReq.status][0]);
+        r1.push([s.name, d, WD[dOf(d).getDay()], x.code ? lb(x.code) : '', x.inP ? hm(x.inP.ts) : '', x.outP ? hm(x.outP.ts) : '', x.inP ? Math.round(x.rest) : '', x.inP ? +(x.work / 60).toFixed(2) : '', x.late || '', n.join('、')]);
+      });
+      const c = salCalc(D, s.uid, month, now, rows);
+      r2.push([s.name, c.S, Math.round(c.att), c.attNote, c.ot1 + c.ot2, Math.round(c.otPay), c.lateMin, Math.round(c.lateDed), +c.lv.pl.toFixed(2), Math.round(c.plDed), +c.lv.sl.toFixed(2), Math.round(c.slDed), +c.lv.al.toFixed(2), Math.round(c.total)]);
+    });
+    D.reqs.filter(r => r.date.slice(0, 7) === month || (r.date2 || '').slice(0, 7) === month).forEach(r => r3.push([nameOf(D, r.uid), r.type === 'ot' ? '加班' : LV[r.type], r.date, r.date2 || '', r.start, r.end, r.min, r.reason, STX[r.status] ? STX[r.status][0] : r.status]));
+    X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet(r1), '打卡紀錄');
+    X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet(r2), '薪資試算');
+    X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet(r3), '申請');
+    X.writeFile(wb, '櫃台_' + D.me.store + '_' + month + '.xlsx');
+  }
+  function SetPage({
+    S,
+    back,
+    openHr
+  }) {
+    const {
+      D,
+      push
+    } = S;
+    const c = D.cfg;
+    const now = Date.now();
+    const today = ymd(new Date(now));
+    const [al, setAl] = useState(null);
+    const [busy, setBusy] = useState('');
+    const [msg, setMsg] = useState('');
+    const [ex, setEx] = useState(today.slice(0, 7));
+    const [fa, setFa] = useState(String(c.fullAtt));
+    const [gr, setGr] = useState(String(c.grace));
+    const [rad, setRad] = useState(String(c.radius || 150));
+    const P = pendList(D);
+    const inLine = (() => {
+      try {
+        return !!(window.liff && liff.isInClient && liff.isInClient());
+      } catch (_e) {
+        return false;
+      }
+    })();
+    return React.createElement("div", {
+      className: "space-y-3"
+    }, React.createElement("button", {
+      onClick: back,
+      className: "text-sm text-violet-400"
+    }, "‹ 返回"), React.createElement("p", {
+      className: "text-lg font-extrabold text-gray-100"
+    }, "⚙ 主管設定（", D.me.store, "）"), React.createElement(Card, null, React.createElement("div", {
+      className: "flex items-center mb-1"
+    }, React.createElement("b", {
+      className: "flex-1 text-sm text-gray-300"
+    }, "待審核"), P.length > 0 && React.createElement(Chip, {
+      c: "r"
+    }, P.length)), !P.length && React.createElement("p", {
+      className: "text-sm text-gray-500"
+    }, "沒有待審核的項目"), P.map(x => React.createElement("div", {
+      key: x.k,
+      className: "flex items-center gap-2 py-1.5 border-b border-gray-800 text-sm"
+    }, React.createElement("span", {
+      className: "flex-1 text-gray-200"
+    }, x.txt, " ", x.tag && React.createElement(Chip, {
+      c: /違規/.test(x.tag) ? 'r' : 'x'
+    }, x.tag)), React.createElement("button", {
+      onClick: () => push(x.yes),
+      style: {
+        background: '#16a34a'
+      },
+      className: "fd-w px-3 py-1.5 rounded-lg text-xs font-bold"
+    }, "核准"), React.createElement("button", {
+      onClick: () => push(x.no),
+      className: "px-3 py-1.5 rounded-lg bg-gray-700 text-gray-200 text-xs font-bold"
+    }, "退回"))), React.createElement("p", {
+      className: "text-[11px] text-gray-500 mt-1"
+    }, "結果會推播給申請人")), React.createElement(Card, null, React.createElement("b", {
+      className: "text-sm text-gray-300"
+    }, "檢查打卡"), React.createElement("p", {
+      className: "text-xs text-gray-400 mb-2"
+    }, "按下才檢查目前上班中的人(休息過久、連續工作沒休息、到表定下班、接近或超過最晚下班、下班時休息不足),確認後推播給本人／主管。同一件事不會重複推播。"), React.createElement(B, {
+      cls: "w-full bg-violet-600 text-white",
+      onClick: () => {
+        setAl(alertsOf(D, Date.now()));
+        setMsg('');
+      }
+    }, "🔍 檢查打卡"), al && React.createElement("div", {
+      className: "mt-2 space-y-1"
+    }, !al.length && React.createElement("p", {
+      className: "text-sm text-emerald-400"
+    }, "✓ 目前沒有需要提醒的狀況"), al.map((a, i) => React.createElement("p", {
+      key: i,
+      className: "text-sm text-gray-200"
+    }, "● ", a.name, ":", a.text, " ", React.createElement(Chip, {
+      c: a.sup ? 'r' : 'y'
+    }, a.sup ? '本人＋主管' : '本人'))), al.length > 0 && React.createElement(B, {
+      cls: "w-full fd-w",
+      style: {
+        background: '#be185d'
+      },
+      disabled: busy === 'n',
+      onClick: async () => {
+        setBusy('n');
+        const r = await api('fd2Notify', {
+          alerts: JSON.stringify(al)
+        });
+        setBusy('');
+        setMsg(r && r.ok ? '已推播 ' + r.sent + ' 則' + (r.skipped ? '(另有 ' + r.skipped + ' 則之前推過,不再重複)' : '') : r && r._net || !navigator.onLine ? '目前離線,推播需要網路' : r && r.error || '推播失敗');
+      }
+    }, busy === 'n' ? React.createElement(Spinner, null) : '📣 推播 ' + al.length + ' 則提醒')), msg && React.createElement("p", {
+      className: "text-sm text-amber-300 mt-1"
+    }, msg)), React.createElement(Card, null, React.createElement("b", {
+      className: "text-sm text-gray-300"
+    }, "請假最小單位"), LVK.map(t => React.createElement("div", {
+      key: t,
+      className: "flex items-center justify-between py-2 border-b border-gray-800 text-sm"
+    }, React.createElement("span", {
+      className: "text-gray-200"
+    }, LV[t]), React.createElement(Seg, {
+      small: true,
+      opts: [['d', '1 日'], ['h', '1 小時']],
+      val: c.unit[t],
+      on: v => {
+        const u = {};
+        u[t] = v;
+        push({
+          act: 'cfg_set',
+          unit: u
+        });
+      }
+    }))), React.createElement("p", {
+      className: "text-[11px] text-gray-500 mt-1"
+    }, "1 小時:可選整天或指定時段(整點、同一天、最多 8 小時;1 日＝8 小時)")), React.createElement(Card, null, React.createElement("b", {
+      className: "text-sm text-gray-300"
+    }, "薪資規則"), React.createElement("div", {
+      className: "flex items-center gap-2 py-2 border-b border-gray-800 text-sm text-gray-200"
+    }, React.createElement("span", {
+      className: "flex-1"
+    }, "全勤獎金"), React.createElement(Inp, {
+      className: "w-24",
+      inputMode: "numeric",
+      value: fa,
+      onChange: e => setFa(e.target.value.replace(/\D/g, '')),
+      onBlur: () => {
+        if (+fa !== +c.fullAtt) push({
+          act: 'cfg_set',
+          fullAtt: +fa || 0
+        });
+      }
+    })), React.createElement("div", {
+      className: "flex items-center gap-2 py-2 border-b border-gray-800 text-sm text-gray-200"
+    }, React.createElement("span", {
+      className: "flex-1"
+    }, "遲到寬限(分)"), React.createElement(Inp, {
+      className: "w-24",
+      inputMode: "numeric",
+      value: gr,
+      onChange: e => setGr(e.target.value.replace(/\D/g, '')),
+      onBlur: () => {
+        if (+gr !== +c.grace) push({
+          act: 'cfg_set',
+          grace: +gr || 0
+        });
+      }
+    })), React.createElement("div", {
+      className: "flex items-center justify-between py-2 text-sm text-gray-200"
+    }, React.createElement("span", null, "遲到／缺卡時全勤"), React.createElement(Seg, {
+      small: true,
+      opts: [['cut', '當月不發'], ['keep', '照發']],
+      val: c.attMode,
+      on: v => push({
+        act: 'cfg_set',
+        attMode: v
+      })
+    })), React.createElement("p", {
+      className: "text-[11px] text-gray-500"
+    }, "事假／病假按天數比例扣全勤(全勤÷30×天數);特休不扣。特休計算方式:週年制(依到職日)。")), React.createElement(Card, {
+      className: "!p-3"
+    }, React.createElement("b", {
+      className: "text-sm text-gray-300"
+    }, "人員到職日與特休"), React.createElement("table", {
+      className: "w-full text-[12px] text-center mt-1"
+    }, React.createElement("thead", null, React.createElement("tr", {
+      className: "text-gray-400"
+    }, React.createElement("th", {
+      className: "text-left"
+    }, "人員"), React.createElement("th", null, "到職日"), React.createElement("th", null, "年資"), React.createElement("th", null, "特休"), React.createElement("th", null, "月薪"))), React.createElement("tbody", null, D.staff.map(s => {
+      const h = hrOf(D, s.uid);
+      const a = alInfo(D, s.uid, today);
+      return React.createElement("tr", {
+        key: s.uid,
+        onClick: () => openHr(s.uid),
+        className: "border-t border-gray-800 text-gray-200 cursor-pointer"
+      }, React.createElement("td", {
+        className: "text-left py-2"
+      }, s.name, " ›"), React.createElement("td", null, h.hire ? h.hire.replace(/-/g, '/') : '—', h.hirePend && React.createElement("span", {
+        className: "text-amber-300"
+      }, "*")), React.createElement("td", null, h.hire ? senTxt(h.hire, today).replace(' 年 ', '年').replace(' 個月', '月') : '—'), React.createElement("td", null, a ? a.days : '—'), React.createElement("td", null, h.salary ? h.salary.toLocaleString() : '—'));
+    }))), React.createElement("p", {
+      className: "text-[11px] text-gray-500 mt-1"
+    }, "點人員進入人資修改")), React.createElement(Card, null, React.createElement("b", {
+      className: "text-sm text-gray-300"
+    }, "匯出 Excel(打卡紀錄、薪資試算、申請)"), React.createElement("div", {
+      className: "flex items-center gap-2 mt-2"
+    }, React.createElement(Inp, {
+      type: "month",
+      className: "flex-1",
+      value: ex,
+      onChange: e => setEx(e.target.value)
+    }), React.createElement(B, {
+      cls: "px-4 bg-violet-600 text-white",
+      disabled: busy === 'x',
+      onClick: async () => {
+        setBusy('x');
+        setMsg('');
+        try {
+          await exportXlsx(D, ex);
+        } catch (e) {
+          setMsg(String(e && e.message || e));
+        }
+        setBusy('');
+      }
+    }, busy === 'x' ? React.createElement(Spinner, null) : '⬇ 下載')), inLine && React.createElement("p", {
+      className: "text-xs text-amber-300 mt-2"
+    }, "LINE 裡可能無法下載檔案,請按這裡用瀏覽器開啟後再下載:", React.createElement("button", {
+      className: "underline font-bold",
+      onClick: () => {
+        try {
+          liff.openWindow({
+            url: location.origin + location.pathname + '?fd2=x&openExternalBrowser=1',
+            external: true
+          });
+        } catch (_e) {}
+      }
+    }, "用瀏覽器開啟"))), React.createElement(Card, null, React.createElement("div", {
       className: "flex items-center"
     }, React.createElement("b", {
-      className: "flex-1 text-gray-100"
-    }, "GPS 範圍"), React.createElement("label", {
+      className: "flex-1 text-sm text-gray-300"
+    }, "打卡地點:GPS 範圍"), React.createElement("label", {
       className: "text-sm text-gray-300"
     }, React.createElement("input", {
       type: "checkbox",
@@ -1395,10 +2445,8 @@
       className: "mr-1"
     }), "啟用")), React.createElement("p", {
       className: "text-sm text-gray-300 mt-1"
-    }, c.lat ? '店的位置：' + c.lat + ', ' + c.lng : '還沒設定店的位置'), React.createElement("div", {
-      className: "flex gap-2 mt-2"
-    }, React.createElement(B, {
-      cls: "flex-1 bg-violet-600 text-white",
+    }, c.lat ? '店的位置：' + c.lat + ', ' + c.lng : '還沒設定店的位置'), React.createElement(B, {
+      cls: "w-full mt-2 bg-violet-600 text-white",
       onClick: async () => {
         setBusy('g');
         const g = await getGps(10000);
@@ -1414,13 +2462,13 @@
         });
         setMsg('已用目前位置設定(誤差約 ' + g.acc + ' 公尺)');
       }
-    }, busy === 'g' ? React.createElement(Spinner, null) : '📍 用我現在的位置')), React.createElement("div", {
+    }, busy === 'g' ? React.createElement(Spinner, null) : '📍 用我現在的位置'), React.createElement("div", {
       className: "flex items-center gap-2 mt-2 text-sm text-gray-300"
-    }, "範圍半徑", React.createElement("input", {
+    }, "範圍半徑", React.createElement(Inp, {
+      className: "w-20",
       value: rad,
       onChange: e => setRad(e.target.value.replace(/\D/g, '')),
-      inputMode: "numeric",
-      className: "w-20 rounded-lg bg-gray-800 border border-gray-700 px-2 py-1.5 text-gray-100"
+      inputMode: "numeric"
     }), "公尺", React.createElement("button", {
       onClick: () => push({
         act: 'cfg_set',
@@ -1430,8 +2478,8 @@
     }, "儲存"))), React.createElement(Card, null, React.createElement("div", {
       className: "flex items-center"
     }, React.createElement("b", {
-      className: "flex-1 text-gray-100"
-    }, "店內 Wi‑Fi"), React.createElement("label", {
+      className: "flex-1 text-sm text-gray-300"
+    }, "打卡地點:店內 Wi‑Fi"), React.createElement("label", {
       className: "text-sm text-gray-300"
     }, React.createElement("input", {
       type: "checkbox",
@@ -1474,11 +2522,9 @@
       }
     }, busy === 'i' ? React.createElement(Spinner, null) : '📶 把我現在連的網路設為店內 Wi‑Fi'), React.createElement("p", {
       className: "text-[11px] text-gray-500 mt-1"
-    }, "要在店內連著店裡的 Wi‑Fi 時按。換網路業者或路由器重開後 IP 可能改變,要重新加入。")), msg && React.createElement("p", {
+    }, "GPS 在範圍內或連著店內 Wi‑Fi,任一個符合就算在店內;都不符合仍可打卡,但會標示給主管。")), msg && React.createElement("p", {
       className: "text-sm text-amber-300"
-    }, msg), React.createElement("p", {
-      className: "text-[11px] text-gray-500"
-    }, "申請、人資、主管待審核完整版、LINE 推播提醒、薪資試算、匯出 Excel 在第二批開放。"));
+    }, msg));
   }
   function FdApp() {
     const S = useStore();
@@ -1488,9 +2534,10 @@
       sync
     } = S;
     const q0 = new URLSearchParams(location.search).get('fd2') || 'p';
-    const [tab, setTab] = useState(['p', 'm', 's', 'w'].indexOf(q0) >= 0 ? q0 : 'p');
-    const [cfg, setCfg] = useState(false);
+    const [tab, setTab] = useState(q0 === 'm' ? 'p' : ['p', 's', 'w', 'a', 'h', 'x'].indexOf(q0) >= 0 ? q0 : 'p');
+    const [sub, setSub] = useState(q0 === 'm' ? 'm' : 't');
     const [who, setWho] = useState('');
+    const [pre, setPre] = useState(null);
     if (!D) return React.createElement("div", {
       className: "min-h-screen flex flex-col items-center justify-center gap-3 px-6 text-center"
     }, sync.err ? React.createElement("p", {
@@ -1506,7 +2553,9 @@
     const me = D.me;
     const uid = who || me.uid;
     const syncTxt = sync.off ? '離線' + (q.length ? '・' + q.length + ' 筆待送' : '') : q.length ? q.length + ' 筆待送' : '已同步 ' + (sync.at ? hm(sync.at) : '');
-    const T = [['p', '打卡'], ['m', '月紀錄'], ['s', '排班'], ['w', '全班表']];
+    const T = [['p', '打卡'], ['s', '排班'], ['w', '全班表'], ['a', '申請'], ['h', '人資']];
+    const goSet = () => setTab('x');
+    const showWho = me.isSup && (tab === 'p' || tab === 'h') && D.staff.length > 0;
     return React.createElement("div", {
       className: "min-h-screen px-3 py-3"
     }, React.createElement("div", {
@@ -1521,15 +2570,17 @@
     }, sync.busy ? React.createElement(Spinner, {
       size: 11
     }) : null, " ", syncTxt), me.isSup && React.createElement("button", {
-      onClick: () => setCfg(true),
-      className: "text-lg px-1",
-      "aria-label": "設定"
-    }, "⚙")), React.createElement("div", {
-      className: "grid grid-cols-4 gap-1.5"
+      onClick: goSet,
+      className: "text-lg px-1 relative",
+      "aria-label": "主管設定"
+    }, "⚙", pendList(D).length > 0 && React.createElement("span", {
+      className: "absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500"
+    }))), tab !== 'x' && React.createElement("div", {
+      className: "grid grid-cols-5 gap-1"
     }, T.map(([k, l]) => React.createElement("button", {
       key: k,
       onClick: () => setTab(k),
-      className: 'rounded-xl py-2.5 text-sm font-bold ' + (tab === k ? 'bg-violet-600 text-white' : 'bg-gray-800 text-gray-300')
+      className: 'rounded-xl py-2.5 text-[13px] font-bold ' + (tab === k ? 'bg-violet-600 text-white' : 'bg-gray-800 text-gray-300')
     }, l))), S.notes.length > 0 && React.createElement("div", {
       className: "rounded-xl border border-red-700 bg-red-950/40 p-3 text-sm text-red-300"
     }, S.notes.map((n, i) => React.createElement("p", {
@@ -1539,7 +2590,7 @@
       className: "text-xs underline mt-1"
     }, "知道了")), sync.err && React.createElement("p", {
       className: "text-sm text-red-400"
-    }, sync.err), me.isSup && (tab === 'p' || tab === 'm') && D.staff.length > 0 && React.createElement("div", {
+    }, sync.err), showWho && React.createElement("div", {
       className: "flex items-center gap-2 text-sm text-gray-300"
     }, "查看人員", React.createElement("select", {
       value: uid,
@@ -1547,30 +2598,59 @@
       className: "flex-1 rounded-lg bg-gray-800 border border-gray-700 px-2 py-2 text-gray-100"
     }, me.isCounter && React.createElement("option", {
       value: me.uid
-    }, "我自己"), D.staff.filter(s => s.uid !== me.uid).map(s => React.createElement("option", {
+    }, "我自己"), !me.isCounter && !who && React.createElement("option", {
+      value: me.uid
+    }, "請選擇"), D.staff.filter(s => s.uid !== me.uid).map(s => React.createElement("option", {
       key: s.uid,
       value: s.uid
-    }, s.name)))), tab === 'p' && (me.isCounter || who ? React.createElement(PunchTab, {
+    }, s.name)))), tab === 'p' && React.createElement("div", {
+      className: "grid grid-cols-2 gap-1.5"
+    }, [['t', '今日打卡'], ['m', '月紀錄・薪資']].map(([k, l]) => React.createElement("button", {
+      key: k,
+      onClick: () => setSub(k),
+      className: 'rounded-full py-1.5 text-sm font-bold ' + (sub === k ? 'bg-gray-100 text-gray-900' : 'bg-gray-800 text-gray-400')
+    }, l))), tab === 'p' && sub === 't' && (me.isCounter || who ? React.createElement(PunchTab, {
       S: S,
-      uid: who && me.isSup ? who : me.uid,
-      isMe: !who || who === me.uid
+      uid: uid,
+      isMe: uid === me.uid,
+      goApply: p => {
+        setPre(p);
+        setTab('a');
+      }
     }) : React.createElement(Card, null, React.createElement("p", {
       className: "text-sm text-gray-400"
-    }, "你不是櫃台人員,不需要打卡。請在上方選擇人員查看打卡狀況。"))), tab === 'm' && (me.isCounter || who ? React.createElement(MonthRec, {
+    }, "你不是櫃台人員,不需要打卡。請在上方選擇人員查看打卡狀況。"))), tab === 'p' && sub === 'm' && (me.isCounter || who ? React.createElement(MonthRec, {
+      key: uid,
       S: S,
-      uid: who || me.uid
+      uid: uid
     }) : React.createElement(Card, null, React.createElement("p", {
       className: "text-sm text-gray-400"
     }, "請在上方選擇人員查看月打卡紀錄。"))), tab === 's' && React.createElement(SchedTab, {
       S: S
     }), tab === 'w' && React.createElement(WeekTab, {
-      S: S
-    }), React.createElement("p", {
-      className: "text-[10px] text-gray-600 text-center"
-    }, "櫃台人員頁 ", VER, " ・操作先存在手機,背景自動送出"), cfg && React.createElement(CfgSheet, {
       S: S,
-      onClose: () => setCfg(false)
-    })));
+      goSet: goSet
+    }), tab === 'a' && React.createElement(ApplyTab, {
+      S: S,
+      pre: pre,
+      clearPre: () => setPre(null)
+    }), tab === 'h' && React.createElement(HrTab, {
+      key: uid,
+      S: S,
+      uid: uid,
+      goSet: goSet
+    }), tab === 'x' && (me.isSup ? React.createElement(SetPage, {
+      S: S,
+      back: () => setTab('h'),
+      openHr: u => {
+        setWho(u === me.uid ? '' : u);
+        setTab('h');
+      }
+    }) : React.createElement(Card, null, React.createElement("p", {
+      className: "text-sm text-gray-400"
+    }, "主管設定只有主管／櫃台組長可以使用。"))), React.createElement("p", {
+      className: "text-[10px] text-gray-600 text-center"
+    }, "櫃台人員頁 ", VER, " ・操作先存在手機,背景自動送出")));
   }
   window.Fd2Routes = FdApp;
 })();
