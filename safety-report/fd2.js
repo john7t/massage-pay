@@ -1,4 +1,4 @@
-/*BUILD fd2.js v1.0-012 編譯版 h=a1442fab t=2026-11-20 13:22*/
+/*BUILD fd2.js v1.0-014 編譯版 h=7e314472 t=2026-11-20 13:35*/
 (function () {
   const {
     useState,
@@ -17,7 +17,7 @@
     api,
     Spinner
   } = C;
-  const VER = 'v1.0-012';
+  const VER = 'v1.0-014';
   const SH = {
     A1: {
       n: '早班1',
@@ -230,6 +230,11 @@
         } else if (f.hire !== undefined) r.hirePend = '';
         Object.assign(r, f);
         r._p = 1;
+        if (f.nick) {
+          const st = D.staff.find(x => x.uid === o.uid);
+          if (st) st.name = f.nick;
+          if (o.uid === me) D.me.name = f.nick;
+        }
       } else if (o.act === 'hr_hire_decide') {
         const r = D.hr.find(x => x.uid === o.uid);
         if (r && r.hirePend) {
@@ -1708,8 +1713,18 @@
         className: 'relative rounded-lg py-1 min-h-[44px] text-[12px] ' + (a.lv ? 'bg-sky-900/50 text-sky-300' : v === 'O' ? 'bg-pink-900/50 text-pink-300' : !v ? 'bg-gray-800/40 text-gray-500' : 'bg-gray-800 text-gray-200') + (pick === d ? ' ring-2 ring-violet-500' : '')
       }, i + 1, React.createElement("span", {
         className: 'block text-[10px] font-bold ' + (a.cover ? 'text-pink-400' : '')
-      }, lab), (lw || a.noCover) && React.createElement("span", {
-        className: "absolute top-0.5 right-1 w-2 h-2 rounded-full bg-red-500"
+      }, lab), lw && React.createElement("span", {
+        className: "absolute right-1 w-2 h-2 rounded-full",
+        style: {
+          background: '#ef4444',
+          top: 2
+        }
+      }), a.noCover && React.createElement("span", {
+        className: "absolute right-1 w-2 h-2 rounded-full",
+        style: {
+          background: '#f59e0b',
+          top: lw ? 12 : 2
+        }
       }));
     })), pick && (() => {
       const a = myActual(D, me, pick, cache);
@@ -1721,9 +1736,9 @@
         className: "text-sm text-sky-300"
       }, "這天請", LV[a.lv], a.lvP ? '(待核准)' : ''), a.cover && React.createElement("p", {
         className: "text-sm text-pink-300"
-      }, "同事排休,你這天改上 ", SH[a.cover].n, " ", hhmm(SH[a.cover].s), "–", hhmm(SH[a.cover].e)), (days[pick] === 'O' || a.lv) && COVER[base] && React.createElement("p", {
-        className: 'text-sm ' + (a.noCover ? 'text-red-400' : 'text-gray-300')
-      }, a.noCover ? '⚠ 這天沒有' + lb(COVER[base]) + '可以卡你的班' : '你不上班 → 由 ' + (a.coveredBy || '?') + ' 卡你的班'), React.createElement("div", {
+      }, "同事排休,你這天改上 ", SH[a.cover].n, " ", hhmm(SH[a.cover].s), "–", hhmm(SH[a.cover].e)), (days[pick] === 'O' || a.lv) && COVER[base] && !a.noCover && React.createElement("p", {
+        className: "text-sm text-gray-300"
+      }, "你不上班 → 由 ", a.coveredBy || '?', " 卡你的班"), React.createElement("div", {
         className: "grid grid-cols-3 gap-2"
       }, React.createElement(B, {
         onClick: () => setDay(pick, 'W'),
@@ -1738,7 +1753,14 @@
       }, "排休"), React.createElement(B, {
         onClick: () => setDay(pick, ''),
         cls: "bg-gray-800 text-gray-400"
-      }, "清除")), (law[pick] || []).length > 0 || a.noCover ? React.createElement("div", {
+      }, "清除")), a.noCover && React.createElement("p", {
+        className: "rounded-xl px-3 py-2 text-sm font-bold",
+        style: {
+          background: 'rgba(245,158,11,.12)',
+          border: '1px solid rgba(245,158,11,.45)',
+          color: '#b45309'
+        }
+      }, "● 這天沒有", lb(COVER[base]) || '人', "可以卡你的班"), (law[pick] || []).length > 0 ? React.createElement("div", {
         className: "rounded-xl px-3 py-2 space-y-1",
         style: {
           background: 'rgba(239,68,68,.08)',
@@ -1749,9 +1771,7 @@
       }, "這一天勞基法檢查"), (law[pick] || []).map((t, i) => React.createElement("p", {
         key: i,
         className: "text-sm text-red-400"
-      }, "⚠ ", t)), a.noCover && React.createElement("p", {
-        className: "text-sm text-red-400"
-      }, "⚠ 這天沒有", lb(COVER[base]) || '人', "可以卡班"), (law[pick] || []).some(t => /第3[06]條 \d/.test(t)) && React.createElement("p", {
+      }, "⚠ ", t)), (law[pick] || []).some(t => /第3[06]條 \d/.test(t)) && React.createElement("p", {
         className: "text-[11px] text-gray-400"
       }, "每週(週一~週日)的檢查結果標在週日;改這週任一天的上班/排休都會重新檢查")) : React.createElement("p", {
         className: "text-xs text-emerald-400"
@@ -1902,8 +1922,12 @@
     }, React.createElement("thead", null, React.createElement("tr", null, React.createElement("th", null), days.map(d => React.createElement("th", {
       key: d,
       onClick: () => setSel(d),
-      className: 'py-1 cursor-pointer ' + (plans[d].warns.length ? 'text-red-400' : 'text-gray-400')
-    }, WD[dOf(d).getDay()], React.createElement("br", null), +d.slice(8), plans[d].warns.length > 0 && '•')))), React.createElement("tbody", null, D.staff.map(s => {
+      className: "py-1 cursor-pointer text-gray-400"
+    }, WD[dOf(d).getDay()], React.createElement("br", null), +d.slice(8), plans[d].warns.length > 0 && React.createElement("span", {
+      style: {
+        color: '#f59e0b'
+      }
+    }, "●"))))), React.createElement("tbody", null, D.staff.map(s => {
       const r = schedOf(D, s.uid, wk.slice(0, 7));
       const stc = {
         submitted: ['待確認', 'y'],
@@ -1928,7 +1952,7 @@
       className: "py-4 text-gray-500"
     }, "本店還沒有櫃台人員"))))), React.createElement("p", {
       className: "text-[11px] text-gray-500 text-center"
-    }, "點日期看當天人力與打卡;紅點＝沒人可以卡班;特／事／病＝請整天假"), sel && (() => {
+    }, "點日期看當天人力與打卡;黃點＝沒人可以卡班;特／事／病＝請整天假"), sel && (() => {
       const P = plans[sel] || dayPlan(D, sel);
       const by = {};
       D.staff.forEach(s => {
@@ -1965,8 +1989,12 @@
         }, s.name, " 卡 ", lb(a.cover), "（", hhmm(SH[a.cover].s), "–", hhmm(SH[a.cover].e), "）");
       }), P.warns.map((w, i) => React.createElement("p", {
         key: i,
-        className: "text-sm text-red-400 rounded-lg bg-red-950/40 px-2 py-1"
-      }, "⚠ ", w.who, " 不上班,沒人可以卡 ", lb(w.shift))), React.createElement("p", {
+        className: "text-sm rounded-lg px-2 py-1 font-bold",
+        style: {
+          background: 'rgba(245,158,11,.12)',
+          color: '#b45309'
+        }
+      }, "● ", w.who, " 不上班,沒人可以卡 ", lb(w.shift))), React.createElement("p", {
         className: "text-sm font-bold text-gray-300 pt-1"
       }, "當天上／下班打卡", !isSup && '(只看得到自己的)'), list.map(s => {
         const x = dayCalc(D, s.uid, sel, now);
@@ -2293,7 +2321,7 @@
       className: "text-[11px] text-gray-500 mt-2"
     }, "特休依到職日(週年制);事假一年 14 天、病假一年 30 天(未住院)。待核准的也先扣。")));
   }
-  const HRF = [['name', '姓名', 'text'], ['phone', '手機', 'tel'], ['birth', '生日', 'date'], ['emName', '緊急聯絡人', 'text'], ['emPhone', '聯絡電話', 'tel'], ['hire', '到職日', 'date'], ['salary', '月薪(不含全勤)', 'number']];
+  const HRF = [['nick', '自訂名稱', 'text'], ['name', '姓名', 'text'], ['phone', '手機', 'tel'], ['birth', '生日', 'date'], ['emName', '緊急聯絡人', 'text'], ['emPhone', '聯絡電話', 'tel'], ['hire', '到職日', 'date'], ['salary', '月薪(不含全勤)', 'number']];
   function HrTab({
     S,
     uid,
@@ -2317,11 +2345,30 @@
       cls: "w-full bg-gray-800 text-pink-300 border border-pink-500",
       onClick: goSet
     }, "⚙ 主管設定"));
-    const val = k => k === 'salary' ? h.salary ? money(h.salary) : '未設定' : h[k] || '未填';
+    const val = k => k === 'nick' ? h.nick || '未設定(用 ' + ((D.staff.find(x => x.uid === uid) || {}).name || '登記名稱') + ')' : k === 'salary' ? h.salary ? money(h.salary) : '未設定' : h[k] || '未填';
     const canEdit = k => k === 'salary' ? isSup : true;
+    const noHire = uid === D.me.uid && !h.hire && !h.hirePend;
     return React.createElement("div", {
       className: "space-y-3"
-    }, React.createElement(Card, null, React.createElement("p", {
+    }, noHire && React.createElement("div", {
+      className: "rounded-2xl px-4 py-3 text-sm",
+      style: {
+        background: 'rgba(245,158,11,.14)',
+        border: '1px solid rgba(245,158,11,.5)',
+        color: '#92400e'
+      }
+    }, React.createElement("b", null, "👋 請先填寫到職日"), React.createElement("br", null), "特休天數、薪資試算都要用到。點下方「到職日」填寫,主管確認後生效;也可以順便設定「自訂名稱」。", React.createElement("button", {
+      className: "block mt-2 rounded-xl px-3 py-2 font-bold fd-w",
+      style: {
+        background: '#d97706'
+      },
+      onClick: () => setEd({
+        k: 'hire',
+        l: '到職日',
+        t: 'date',
+        v: ''
+      })
+    }, "填寫到職日")), React.createElement(Card, null, React.createElement("p", {
       className: "text-sm font-bold text-gray-300 mb-1"
     }, "基本資料"), HRF.map(([k, l, t]) => React.createElement("button", {
       key: k,
@@ -2405,7 +2452,9 @@
       autoFocus: true
     }), ed.k === 'hire' && !isSup && React.createElement("p", {
       className: "text-xs text-amber-300"
-    }, "到職日修改要主管確認後才生效"), React.createElement("div", {
+    }, "到職日修改要主管確認後才生效"), ed.k === 'nick' && React.createElement("p", {
+      className: "text-xs text-gray-400"
+    }, "櫃台人員頁(全班表、排班、審核、推播)顯示的名稱,最多 12 個字;空白＝用員工專區登記的名稱"), React.createElement("div", {
       className: "grid grid-cols-2 gap-2"
     }, React.createElement(B, {
       cls: "bg-gray-800 text-gray-200",
@@ -3115,6 +3164,16 @@
     const [sub, setSub] = useState(q0 === 'm' ? 'm' : 't');
     const [who, setWho] = useState('');
     const [pre, setPre] = useState(null);
+    const guided = useRef(false);
+    useEffect(() => {
+      if (!D || guided.current) return;
+      guided.current = true;
+      const h = hrOf(D, D.me.uid);
+      if (D.me.isWork && !h.hire && !h.hirePend) {
+        setTab('h');
+        setWho('');
+      }
+    }, [D]);
     if (!D) return React.createElement("div", {
       className: "min-h-screen flex flex-col items-center justify-center gap-3 px-6 text-center"
     }, sync.err ? React.createElement("p", {
