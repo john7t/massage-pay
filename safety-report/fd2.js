@@ -1,4 +1,4 @@
-/*BUILD fd2.js v1.0-009 編譯版 h=47f8d956 t=2026-11-20 13:05*/
+/*BUILD fd2.js v1.0-012 編譯版 h=a1442fab t=2026-11-20 13:22*/
 (function () {
   const {
     useState,
@@ -17,7 +17,7 @@
     api,
     Spinner
   } = C;
-  const VER = 'v1.0-009';
+  const VER = 'v1.0-012';
   const SH = {
     A1: {
       n: '早班1',
@@ -133,7 +133,8 @@
     }
   })();
   const SK = 'fd2:st:v1:' + U0,
-    QK = 'fd2:q:v1:' + U0;
+    QK = 'fd2:q:v1:' + U0,
+    DK = 'fd2:draft:v1:' + U0;
   const CFG0 = {
     mgrLv: ['經理'],
     unit: {
@@ -314,7 +315,9 @@
       const o = Object.assign({
         opId: op.opId || uidGen()
       }, op);
-      const nq = qR.current.concat([o]);
+      let base = qR.current;
+      if (o.act === 'sched_set') base = base.filter(x => !(x.act === 'sched_set' && (x.uid || '') === (o.uid || '') && x.month === o.month && !(busyR.current && x._s)));
+      const nq = base.concat([o]);
       qR.current = nq;
       LS.set(QK, nq);
       setQ(nq);
@@ -1545,16 +1548,48 @@
     S
   }) {
     const {
-      D,
+      D: D0,
       push
     } = S;
-    const isSup = D.me.isSup;
-    const [tu, setTu] = useState(D.me.isWork ? D.me.uid : (D.staff[0] || {}).uid || D.me.uid);
+    const isSup = D0.me.isSup;
+    const [tu, setTu] = useState(D0.me.isWork ? D0.me.uid : (D0.staff[0] || {}).uid || D0.me.uid);
     const me = tu;
-    const mine = tu === D.me.uid;
+    const mine = tu === D0.me.uid;
     const [month, setMonth] = useState(addM(ymd(new Date()).slice(0, 7), 1));
     const [pick, setPick] = useState('');
     const [more, setMore] = useState(false);
+    const [drafts, setDrafts] = useState(() => LS.get(DK, {}));
+    const dk = tu + '|' + month;
+    const dr = drafts[dk];
+    const saveDr = o => {
+      const nx = Object.assign({}, LS.get(DK, {}));
+      if (o) nx[dk] = o;else delete nx[dk];
+      LS.set(DK, nx);
+      setDrafts(nx);
+    };
+    const r0 = schedOf(D0, tu, month);
+    const D = dr ? Object.assign({}, D0, {
+      sched: D0.sched.filter(x => !(x.uid === tu && x.month === month)).concat([Object.assign({
+        uid: tu,
+        month,
+        status: 'draft'
+      }, r0 || {}, {
+        base: dr.base,
+        days: dr.days
+      })])
+    }) : D0;
+    const flush = () => {
+      if (dr) {
+        push({
+          act: 'sched_set',
+          uid: tu,
+          month,
+          base: dr.base,
+          days: dr.days
+        });
+        saveDr(null);
+      }
+    };
     if (!D.me.isWork && !isSup) return React.createElement(Card, null, React.createElement("p", {
       className: "text-sm text-gray-400"
     }, "排班只給本店排班人員使用。"));
@@ -1568,21 +1603,19 @@
     const locked = r && r.status === 'approved' && !isSup;
     const n = daysIn(month);
     const law = lawCheck(D, me, month);
-    const setDays = (nd, nb) => push({
-      act: 'sched_set',
-      uid: tu,
-      month,
+    const setDays = (nd, nb) => saveDr({
       base: nb || base,
       days: nd
     });
-    const tMgr = !!(D.staff.find(x => x.uid === tu) || {}).mgr;
     const chooseBase = b => {
       if (locked) return;
-      if (!r || !base) {
-        const nd = {};
-        for (let i = 1; i <= n; i++) nd[month + '-' + p2(i)] = tMgr ? 'O' : 'W';
-        setDays(nd, b);
-      } else setDays(days, b);
+      const nd = Object.assign({}, days);
+      for (let i = 1; i <= n; i++) {
+        const d = month + '-' + p2(i);
+        if (!nd[d]) nd[d] = 'W';
+      }
+      setDays(nd, b);
+      setPick('');
     };
     const setDay = (d, v) => {
       const nd = Object.assign({}, days);
@@ -1629,7 +1662,11 @@
       className: "text-center"
     }, React.createElement(Chip, {
       c: stLbl[1]
-    }, stLbl[0]), isSup && !mine && React.createElement("span", {
+    }, stLbl[0]), dr && React.createElement("span", {
+      className: "ml-1"
+    }, React.createElement(Chip, {
+      c: "y"
+    }, "有未儲存的變更")), isSup && !mine && React.createElement("span", {
       className: "ml-2 text-xs text-gray-400"
     }, "正在編輯 ", tName, " 的班表")), React.createElement(Card, null, React.createElement("p", {
       className: "text-sm font-bold text-gray-300 mb-2"
@@ -1642,11 +1679,13 @@
       className: 'rounded-xl py-2.5 font-extrabold text-sm ' + (base === c ? 'bg-violet-600 text-white' : 'bg-gray-800 text-gray-300')
     }, lb(c)))), React.createElement("p", {
       className: "text-xs text-gray-400 mt-1.5"
-    }, base ? SH[base].n + ' ' + hhmm(SH[base].s) + '–' + hhmm(SH[base].e) : tMgr ? '主管第一次選班別,整個月先填成「休」,再點要上線支援的日期改成上班' : '第一次選班別,會把整個月先填成上班')), base && React.createElement(Card, {
+    }, base ? SH[base].n + ' ' + hhmm(SH[base].s) + '–' + hhmm(SH[base].e) : '選班別後,這個月每天會先標上該班別,再點要排休的日子改成「休」')), base && React.createElement(Card, {
       className: "!p-3"
     }, React.createElement("p", {
       className: "text-sm font-bold text-gray-300 mb-2"
-    }, "步驟 2\u3000點日期排休"), React.createElement("div", {
+    }, "步驟 2\u3000點日期排休 ", React.createElement("span", {
+      className: "text-xs font-normal text-gray-400"
+    }, "(休 ", Object.values(days).filter(v => v === 'O').length, " 天)")), React.createElement("div", {
       className: "grid grid-cols-7 gap-1 text-center"
     }, '一二三四五六日'.split('').map(w => React.createElement("div", {
       key: w,
@@ -1684,10 +1723,7 @@
         className: "text-sm text-pink-300"
       }, "同事排休,你這天改上 ", SH[a.cover].n, " ", hhmm(SH[a.cover].s), "–", hhmm(SH[a.cover].e)), (days[pick] === 'O' || a.lv) && COVER[base] && React.createElement("p", {
         className: 'text-sm ' + (a.noCover ? 'text-red-400' : 'text-gray-300')
-      }, a.noCover ? '⚠ 這天沒有' + lb(COVER[base]) + '可以卡你的班' : '你不上班 → 由 ' + (a.coveredBy || '?') + ' 卡你的班'), (law[pick] || []).map((t, i) => React.createElement("p", {
-        key: i,
-        className: "text-sm text-red-400"
-      }, "⚠ ", t)), React.createElement("div", {
+      }, a.noCover ? '⚠ 這天沒有' + lb(COVER[base]) + '可以卡你的班' : '你不上班 → 由 ' + (a.coveredBy || '?') + ' 卡你的班'), React.createElement("div", {
         className: "grid grid-cols-3 gap-2"
       }, React.createElement(B, {
         onClick: () => setDay(pick, 'W'),
@@ -1702,7 +1738,24 @@
       }, "排休"), React.createElement(B, {
         onClick: () => setDay(pick, ''),
         cls: "bg-gray-800 text-gray-400"
-      }, "清除")), React.createElement("button", {
+      }, "清除")), (law[pick] || []).length > 0 || a.noCover ? React.createElement("div", {
+        className: "rounded-xl px-3 py-2 space-y-1",
+        style: {
+          background: 'rgba(239,68,68,.08)',
+          border: '1px solid rgba(239,68,68,.35)'
+        }
+      }, React.createElement("p", {
+        className: "text-xs font-bold text-red-400"
+      }, "這一天勞基法檢查"), (law[pick] || []).map((t, i) => React.createElement("p", {
+        key: i,
+        className: "text-sm text-red-400"
+      }, "⚠ ", t)), a.noCover && React.createElement("p", {
+        className: "text-sm text-red-400"
+      }, "⚠ 這天沒有", lb(COVER[base]) || '人', "可以卡班"), (law[pick] || []).some(t => /第3[06]條 \d/.test(t)) && React.createElement("p", {
+        className: "text-[11px] text-gray-400"
+      }, "每週(週一~週日)的檢查結果標在週日;改這週任一天的上班/排休都會重新檢查")) : React.createElement("p", {
+        className: "text-xs text-emerald-400"
+      }, "✓ 這一天勞基法檢查沒有問題"), React.createElement("button", {
         onClick: () => setMore(!more),
         className: "text-xs text-violet-400 underline"
       }, "這天要上別的班？"), more && React.createElement("div", {
@@ -1712,7 +1765,25 @@
         onClick: () => setDay(pick, c),
         className: "rounded-lg py-2 bg-gray-800 text-gray-200 text-xs font-bold"
       }, lb(c)))));
-    })()), base && vCount > 0 && React.createElement(Card, null, React.createElement("p", {
+    })()), dr && React.createElement("div", {
+      className: "sticky bottom-2 z-30 grid grid-cols-3 gap-2 rounded-2xl p-2",
+      style: {
+        background: 'rgba(255,255,255,.92)',
+        boxShadow: '0 6px 18px rgba(0,0,0,.12)'
+      }
+    }, React.createElement(B, {
+      cls: "col-span-2 fd-w",
+      style: {
+        background: '#16a34a'
+      },
+      onClick: flush
+    }, "💾 儲存班表"), React.createElement(B, {
+      cls: "bg-gray-800 text-gray-300",
+      onClick: () => {
+        saveDr(null);
+        setPick('');
+      }
+    }, "放棄修改")), base && vCount > 0 && React.createElement(Card, null, React.createElement("p", {
       className: "text-sm font-bold text-red-400 mb-1"
     }, "⚠ 勞基法檢查 ", vCount, " 項"), Object.keys(law).sort().map(d => law[d].map((t, i) => React.createElement("p", {
       key: d + i,
@@ -1727,12 +1798,12 @@
         background: '#16a34a'
       },
       disabled: !!unset.length,
-      onClick: () => push({
+      onClick: () => (flush(), push({
         act: 'sched_decide',
         uid: tu,
         month,
         ok: 1
-      })
+      }))
     }, r.status === 'submitted' ? '核准' : '直接核准'), r.status === 'submitted' ? React.createElement(B, {
       cls: "bg-gray-800 text-gray-200",
       onClick: () => push({
@@ -1744,23 +1815,26 @@
     }, "退回") : React.createElement(B, {
       cls: "bg-gray-800 text-gray-200",
       disabled: !!unset.length,
-      onClick: () => push({
+      onClick: () => (flush(), push({
         act: 'sched_submit',
         uid: tu,
         month,
         viol: vCount
-      })
+      }))
     }, mine ? '送出' : '代為送出')), base && isSup && r && r.status === 'approved' && React.createElement("p", {
       className: "text-xs text-gray-500 text-center"
     }, "主管修改已核准的班表,會直接生效、狀態維持已核准"), base && !locked && !isSup && React.createElement(B, {
       cls: 'w-full ' + (unset.length ? 'bg-gray-800 text-gray-400' : vCount ? 'bg-amber-500 text-gray-950' : 'bg-violet-600 text-white'),
-      disabled: !!unset.length || r && r.status === 'submitted',
-      onClick: () => push({
-        act: 'sched_submit',
-        month,
-        viol: vCount
-      })
-    }, unset.length ? '還有 ' + unset.length + ' 天沒排,不能送出' : r && r.status === 'submitted' ? '已送出,等主管確認' : vCount ? '仍要送出（' + vCount + ' 項違規）' : '送出班表'), !isSup && r && r.status === 'submitted' && React.createElement("p", {
+      disabled: !!unset.length || r && r.status === 'submitted' && !dr,
+      onClick: () => {
+        flush();
+        push({
+          act: 'sched_submit',
+          month,
+          viol: vCount
+        });
+      }
+    }, unset.length ? '還有 ' + unset.length + ' 天沒排,不能送出' : r && r.status === 'submitted' && !dr ? '已送出,等主管確認' : vCount ? '仍要送出（' + vCount + ' 項違規）' : '送出班表'), !isSup && r && r.status === 'submitted' && React.createElement("p", {
       className: "text-xs text-gray-500 text-center"
     }, "送出後再修改,狀態會回到未送出,需要重新送出"));
   }
