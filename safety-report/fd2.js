@@ -1,4 +1,4 @@
-/*BUILD fd2.js v1.0-005 編譯版 h=9467866c t=2026-11-20 12:45*/
+/*BUILD fd2.js v1.0-006 編譯版 h=c20097bd t=2026-11-20 12:50*/
 (function () {
   const {
     useState,
@@ -17,7 +17,7 @@
     api,
     Spinner
   } = C;
-  const VER = 'v1.0-005';
+  const VER = 'v1.0-006';
   const SH = {
     A1: {
       n: '早班1',
@@ -2407,9 +2407,10 @@
     X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet(r3), '申請');
     X.writeFile(wb, '櫃台_' + D.me.store + '_' + month + '.xlsx');
   }
+  const fdEntryUrl = () => 'https://liff.line.me/' + (window.__S2_LIFF_ID || '2010673151-kemVP4Pi') + '/?fd2=p';
   const FD_SHARE_ROWS = [['⏱', '打卡', '上班、休息、下班一鍵打卡,沒網路也能先打,連上後自動送出'], ['📅', '排班', '選班別、點日期排休,自動提示卡班與勞基法檢查'], ['📝', '請假／特休／加班 申請', '線上送出,主管審核後 LINE 通知結果'], ['🗂', '人員基本資料', '聯絡資料、到職日、特休天數與剩餘假別']];
   function fdShareFlex(store) {
-    const base = 'https://liff.line.me/' + (window.__S2_LIFF_ID || '');
+    const base = fdEntryUrl();
     const row = (ic, t, d) => ({
       type: 'box',
       layout: 'horizontal',
@@ -2495,7 +2496,7 @@
           action: {
             type: 'uri',
             label: '進入櫃台人員頁',
-            uri: base + '?fd2=p'
+            uri: base
           }
         }, {
           type: 'text',
@@ -2521,10 +2522,10 @@
         }
         const r = await liff.shareTargetPicker([{
           type: 'flex',
-          altText: '🕒 櫃台人員頁:打卡、排班、申請都在這裡',
+          altText: '🕒 櫃台人員頁:打卡、排班、請假都在這裡',
           contents: fdShareFlex(store)
         }]);
-        setRes(r ? '已分享 ✅' : '已取消');
+        setRes(r && r.status === 'success' ? '已分享 ✅ 卡片會出現在你和對方(或群組)的聊天室,由你的帳號送出' : r ? '分享結果:' + JSON.stringify(r) : '已取消');
       } catch (e) {
         setRes('分享失敗:' + String(e && e.message || e));
       }
@@ -2580,7 +2581,15 @@
       onClick: go
     }, "📤 分享給好友"), res && React.createElement("p", {
       className: "text-sm text-amber-300 mt-1 text-center"
-    }, res));
+    }, res), React.createElement("p", {
+      className: "text-[11px] text-gray-500 mt-2 break-all"
+    }, "進入網址(Rich Menu 也可用):", fdEntryUrl(), " ", React.createElement("button", {
+      className: "underline text-violet-400",
+      onClick: async () => {
+        const ok = await C.copyText(fdEntryUrl());
+        setRes(ok ? '已複製網址' : '複製失敗');
+      }
+    }, "複製")));
   }
   function SetPage({
     S,
@@ -2677,9 +2686,7 @@
       }
     }, busy === 'n' ? React.createElement(Spinner, null) : '📣 推播 ' + al.length + ' 則提醒')), msg && React.createElement("p", {
       className: "text-sm text-amber-300 mt-1"
-    }, msg)), React.createElement(ShareCard, {
-      store: D.me.store
-    }), React.createElement(Card, null, React.createElement("b", {
+    }, msg)), React.createElement(Card, null, React.createElement("b", {
       className: "text-sm text-gray-300"
     }, "請假最小單位"), LVK.map(t => React.createElement("div", {
       key: t,
@@ -2897,7 +2904,9 @@
       className: "text-[11px] text-gray-500 mt-1"
     }, "GPS 在範圍內或連著店內 Wi‑Fi,任一個符合就算在店內;都不符合仍可打卡,但會標示給主管。")), msg && React.createElement("p", {
       className: "text-sm text-amber-300"
-    }, msg));
+    }, msg), React.createElement(ShareCard, {
+      store: D.me.store
+    }));
   }
   function FdApp() {
     const S = useStore();
