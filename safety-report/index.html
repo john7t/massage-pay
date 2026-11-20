@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>員工專區 v1.13-191c</title>
+<title>員工專區 v1.13-192c</title>
 <meta property="og:title" content="員工專區">
 <meta property="og:description" content="公告、安全回報、拒接名單、手套團購、價目表等功能入口與說明">
 <meta property="og:type" content="website">
@@ -212,13 +212,14 @@ html.s2-pink [style*="gradient"],html.s2-pink [style*="gradient"] *{color:inheri
 <script src="../common.js"></script>
 <script src="../petals.js?v=1.0-002"></script>
 <script>window.__tm("common");</script>
-<script src="./safety2.js?v=1.13-050c"></script>
+<script src="./safety2.js?v=1.13-051c"></script>
 <script src="./notice2.js?v=1.0-016c"></script>
 <script src="./blacklist2.js?v=1.0-010c"></script>
 <script src="./gloves2.js?v=1.0-010c"></script>
 <script src="./leave2.js?v=1.0-070c"></script>
-<script src="./my2.js?v=1.0-022c"></script>
+<script src="./my2.js?v=1.0-023c"></script>
 <script src="./shop2.js?v=1.0-001c"></script>
+<script src="./fd2.js?v=1.0-001c"></script>
 <script src="./counter-rules-data.js?v=1.0-037"></script>
   <script src="./counter2.js?v=1.0-059c"></script>
 <script>window.__tm && window.__tm("boot");
@@ -3242,6 +3243,7 @@ html.s2-pink [style*="gradient"],html.s2-pink [style*="gradient"] *{color:inheri
     const spp = new URLSearchParams(location.search).get('sp') || '';
     const b2p = new URLSearchParams(location.search).get('b2');
     const my2p = new URLSearchParams(location.search).get('my2');
+    const fd2p = new URLSearchParams(location.search).get('fd2');
     const cn2p = new URLSearchParams(location.search).get('cn2');
     const lv2p = new URLSearchParams(location.search).get('lv2');
     const gb2p = new URLSearchParams(location.search).get('gb2');
@@ -3272,7 +3274,7 @@ html.s2-pink [style*="gradient"],html.s2-pink [style*="gradient"] *{color:inheri
             const sp0 = new URLSearchParams(location.search);
             if (sp0.get('liff.state')) return;
           }
-          if (s2p || spp || n2p !== null || b2p !== null || gb2p !== null || lv2p !== null || my2p !== null || cn2p !== null) {
+          if (s2p || spp || n2p !== null || b2p !== null || gb2p !== null || lv2p !== null || my2p !== null || fd2p !== null || cn2p !== null) {
             setPhase('s2');
             return;
           }
@@ -3327,7 +3329,7 @@ html.s2-pink [style*="gradient"],html.s2-pink [style*="gradient"] *{color:inheri
       };
       if (LIFF_ID_HARDCODED) {
         if (kioskOn && !kioskUnlockFlow) return;
-        if (!cn2Cached && !kioskUnlockFlow && !kioskOn && (s2p || spp || n2p !== null || b2p !== null || gb2p !== null || lv2p !== null || my2p !== null) && (() => {
+        if (!cn2Cached && !kioskUnlockFlow && !kioskOn && (s2p || spp || n2p !== null || b2p !== null || gb2p !== null || lv2p !== null || my2p !== null || fd2p !== null) && (() => {
           try {
             return !!localStorage.getItem('s2:lastuid');
           } catch (_e) {
