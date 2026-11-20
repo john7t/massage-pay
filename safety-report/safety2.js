@@ -1,4 +1,4 @@
-/*BUILD safety2.js v1.13-050 編譯版 h=31bf7f59 t=2026-11-17 16:44*/
+/*BUILD safety2.js v1.13-051 編譯版 h=b1c253c5 t=2026-11-20 11:43*/
 (function () {
   const {
     useState,
@@ -3171,6 +3171,7 @@
     }
     if (q.has('lv2')) return '預排休假';
     if (q.has('cn2')) return '主櫃';
+    if (q.has('fd2')) return '櫃台人員';
     if (q.has('b2')) {
       const v = q.get('b2') || 'l';
       return v === 'new' ? '新增拒接' : v === 'set' ? '拒接名單設定' : '拒接名單';
@@ -3248,6 +3249,10 @@
       const CN = window.Counter2Routes;
       return React.createElement(CN, null);
     }
+    if (q.has('fd2') && window.Fd2Routes) {
+      const F2 = window.Fd2Routes;
+      return React.createElement(F2, null);
+    }
     if (q.has('my2') && window.My2Routes) {
       const M2 = window.My2Routes;
       return React.createElement(M2, null);
@@ -3294,7 +3299,7 @@
     if (p === 'apv') return React.createElement(ApvPage, {
       rid: q.get('rid') || ''
     });
-    const mods = [['safety2.js', true], ['notice2.js', !!window.Notice2Routes], ['blacklist2.js', !!window.Blacklist2Routes], ['gloves2.js', !!window.Gloves2Routes], ['leave2.js', !!window.Leave2Routes], ['my2.js', !!window.My2Routes], ['shop2.js', !!window.ShopRoutes], ['counter2.js', !!window.Counter2Routes]];
+    const mods = [['safety2.js', true], ['notice2.js', !!window.Notice2Routes], ['blacklist2.js', !!window.Blacklist2Routes], ['gloves2.js', !!window.Gloves2Routes], ['leave2.js', !!window.Leave2Routes], ['my2.js', !!window.My2Routes], ['shop2.js', !!window.ShopRoutes], ['counter2.js', !!window.Counter2Routes], ['fd2.js', !!window.Fd2Routes]];
     const vers = mods.map(([n, ok]) => {
       let v = '未引入';
       try {
